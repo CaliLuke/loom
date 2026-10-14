@@ -3,8 +3,9 @@ package codegen
 import (
 	"testing"
 
-	"github.com/CaliLuke/loom/expr"
 	"github.com/stretchr/testify/require"
+
+	"github.com/CaliLuke/loom/expr"
 )
 
 func TestTransformNamedJSONCollectionBoundary(t *testing.T) {
@@ -23,7 +24,8 @@ func TestTransformNamedJSONCollectionBoundary(t *testing.T) {
 			sourceContext := NewAttributeContext(true, false, false, "", scope)
 			sourceContext.JSONPresenceTypes = map[string]bool{named.Hash(): true}
 			targetContext := NewAttributeContext(false, false, true, "", scope)
-			code, _, err := GoTransform(source, target, "body", "payload", sourceContext, targetContext, "unmarshal", true)
+			codePlan, err := GoTransform(source, target, "body", "payload", sourceContext, targetContext, "unmarshal", true)
+			code := codePlan.Code
 			require.NoError(t, err)
 			require.Contains(t, code, ".Value()", "named JSON carriers must be unwrapped beneath a native form root")
 			require.False(t, sourceContext.JSONPresence)

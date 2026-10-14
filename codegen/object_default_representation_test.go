@@ -54,7 +54,8 @@ func TestObjectDefaultRetainsCustomJSONBoundary(t *testing.T) {
 				raw = map[string]any{"data": raw}
 			}
 			ctx := NewAttributeContext(false, false, true, "", NewNameScope())
-			literal, err := ctx.DefaultValue(target, raw)
+			literalPlan, err := ctx.DefaultValue(target, raw)
+			literal := literalPlan.Expression
 			require.NoError(t, err)
 			require.Contains(t, literal, `loom.JSONValue("{\"custom\":true}")`)
 			require.Equal(t, 1, calls, "only the selected raw-JSON target codec materializes the value")
@@ -73,7 +74,7 @@ func TestObjectDefaultErrorPropagation(t *testing.T) {
 			sourceCtx := NewAttributeContext(false, false, false, "", scope)
 			sourceCtx.JSONPresence = carrier == "Optional"
 			targetCtx := NewAttributeContext(false, false, true, "", scope)
-			_, _, err := GoTransform(source, target, "source", "target", sourceCtx, targetCtx, "", true)
+			_, err := GoTransform(source, target, "source", "target", sourceCtx, targetCtx, "", true)
 			require.ErrorContains(t, err, "default.extra: authored default member has no native Go field")
 		})
 	}
@@ -89,7 +90,8 @@ func TestObjectDefaultNullableAnyMember(t *testing.T) {
 		{nil, "loom.NullValue[loom.JSONValue]()"},
 		{"value", `loom.NullableValue[loom.JSONValue](loom.JSONValue("\"value\""))`},
 	} {
-		literal, err := context.DefaultValue(target, map[string]any{"data": tc.raw})
+		literalPlan, err := context.DefaultValue(target, map[string]any{"data": tc.raw})
+		literal := literalPlan.Expression
 		require.NoError(t, err)
 		require.Contains(t, literal, tc.want)
 	}

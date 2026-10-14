@@ -31,7 +31,8 @@ func TestProjectedTransformPreservesRequiredPresence(t *testing.T) {
 				scope := NewNameScope()
 				source := NewAttributeContext(true, false, useDefault, "", scope)
 				target := NewAttributeContext(true, false, true, "", scope)
-				code, _, err := GoTransform(attribute, attribute, "source", "target", source, target, "convert", true)
+				codePlan, err := GoTransform(attribute, attribute, "source", "target", source, target, "convert", true)
+				code := codePlan.Code
 				require.NoError(t, err)
 				require.Contains(t, code, "if source.Data != nil {", "source defaults=%t", useDefault)
 				if expr.IsArray(c.typ) || expr.IsMap(c.typ) {

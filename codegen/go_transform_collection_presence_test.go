@@ -32,7 +32,9 @@ func TestRootCollectionPresenceTransform(t *testing.T) {
 			scope := NewNameScope()
 			ctx := NewAttributeContext(false, false, false, "", scope)
 			att := &expr.AttributeExpr{Type: tc.typ}
-			code, helpers, err := GoTransform(att, att, "source", "target", ctx, ctx, "", newVar)
+			codePlan, err := GoTransform(att, att, "source", "target", ctx, ctx, "", newVar)
+			code := codePlan.Code
+			helpers := codePlan.Helpers
 			require.NoError(t, err)
 			require.Empty(t, helpers)
 			fmt.Fprintf(&source, "func convert_%s(source %s) %s {\n", name, tc.ref, tc.ref)
@@ -80,7 +82,9 @@ func TestNestedCollectionPresenceTransform(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := NewAttributeContext(false, false, false, "", NewNameScope())
 			att := &expr.AttributeExpr{Type: tc.typ}
-			code, helpers, err := GoTransform(att, att, "source", "target", ctx, ctx, "", true)
+			codePlan, err := GoTransform(att, att, "source", "target", ctx, ctx, "", true)
+			code := codePlan.Code
+			helpers := codePlan.Helpers
 			require.NoError(t, err)
 			require.Empty(t, helpers)
 			source := fmt.Sprintf(`package bytesdefaults

@@ -25,7 +25,7 @@ type (
 
 const projectionConversionIdentity = "loom:projection:conversion"
 
-func buildProjectionConversion(att, projected *expr.AttributeExpr, view, name, sourceVar, targetVar string, sourceCtx, targetCtx *codegen.AttributeContext, toView bool) (string, []*codegen.TransformFunctionData) {
+func buildProjectionConversion(att, projected *expr.AttributeExpr, view, name, sourceVar, targetVar string, sourceCtx, targetCtx *codegen.AttributeContext, toView bool) codegen.TransformPlan {
 	selected, err := expr.Project(att.Type.(*expr.ResultTypeExpr), view)
 	if err != nil {
 		panic(err)
@@ -58,14 +58,22 @@ func buildProjectionConversion(att, projected *expr.AttributeExpr, view, name, s
 		allocated[key] = names.Unique(base)
 		return allocated[key]
 	}}
-	code, helpers, err := codegen.GoTransform(source, target, sourceVar, targetVar, sourceCtx, targetCtx, "transform", true, options)
+	conversion, err := codegen.GoTransform(source, target, sourceVar, targetVar, sourceCtx, targetCtx, "transform", true, options)
 	if err != nil {
 		panic(err)
 	}
-	if expr.IsObject(source.Type) && !expr.IsNullable(source) {
-		code = "if " + sourceVar + " == nil {\n\treturn nil\n}\n" + code
+	code := conversion.Code
+	resultRef := targetCtx.Scope.Ref(target, targetCtx.Pkg(target))
+	returnSuffix := ""
+	if conversion.ErrorAware {
+		code = "transformErr := new(error)\n" + code + "\nif *transformErr != nil {\n\tvar zero " + resultRef + "\n\treturn zero, *transformErr\n}"
+		returnSuffix = ", nil"
 	}
-	return code + "\nreturn " + targetVar, helpers
+	if expr.IsObject(source.Type) && !expr.IsNullable(source) {
+		code = "if " + sourceVar + " == nil {\n\treturn nil" + returnSuffix + "\n}\n" + code
+	}
+	conversion.Code = code + "\nreturn " + targetVar + returnSuffix
+	return conversion
 }
 
 func projectionConversionTypeIdentity(dt expr.DataType) string {

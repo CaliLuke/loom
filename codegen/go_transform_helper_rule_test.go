@@ -63,7 +63,9 @@ func TestGoTransformCallsExactlyCollectedHelpers(t *testing.T) {
 					source := wrapper(element(sourceUser, "SourceElem"))
 					target := wrapper(element(targetUser, "TargetElem"))
 					ctx := NewAttributeContext(false, false, true, "", NewNameScope())
-					code, helpers, err := GoTransform(source, target, "source", "target", ctx, ctx, "", true)
+					codePlan, err := GoTransform(source, target, "source", "target", ctx, ctx, "", true)
+					code := codePlan.Code
+					helpers := codePlan.Helpers
 					require.NoError(t, err)
 
 					collected := make([]string, 0, len(helpers))
@@ -117,7 +119,7 @@ func TestGoTransformSemanticHelperIdentity(t *testing.T) {
 				return &expr.AttributeExpr{Type: fields}
 			}
 			context := NewAttributeContext(true, false, true, "", NewNameScope())
-			code, helpers, err := GoTransform(object("Source"), object("Target"), "source", "target", context, context, "", true, TransformOptions{
+			codePlan, err := GoTransform(object("Source"), object("Target"), "source", "target", context, context, "", true, TransformOptions{
 				HelperName: func(source, target *expr.AttributeExpr) string {
 					user, ok := source.Type.(expr.UserType)
 					if !ok {
@@ -128,6 +130,8 @@ func TestGoTransformSemanticHelperIdentity(t *testing.T) {
 					return "transform" + identity
 				},
 			})
+			code := codePlan.Code
+			helpers := codePlan.Helpers
 			require.NoError(t, err)
 			require.Len(t, helpers, 2)
 			require.Contains(t, code, "transformSmall(source.Small)")

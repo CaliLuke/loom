@@ -73,7 +73,7 @@ func newRequestDecodePlan(request *RequestData, basic *BasicAuthData) *RequestDe
 	}
 	bodyError := request.ServerBody != nil && !customMultipart &&
 		(!request.MultipartGenerated || request.ServerBody.ValidateRef != "")
-	plan.NeedsErrorVar = plan.MustValidate || bodyError
+	plan.NeedsErrorVar = plan.MustValidate || bodyError || request.PayloadInit != nil && request.PayloadInit.ServerErrorAware
 	scope := codegen.NewNameScope()
 	for _, param := range request.PathParams {
 		scope.Unique(param.VarName)

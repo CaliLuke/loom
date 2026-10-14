@@ -13,6 +13,9 @@ import (
 func renderGRPCMetadataAppend(md *MetadataData, root string) string {
 	var b strings.Builder
 	value := fieldSelector(root, md.FieldName)
+	if md.publication != nil {
+		return renderCustomMetadataPublication(md, value, "(*md)")
+	}
 	switch {
 	case md.StringSlice:
 		fmt.Fprintf(&b, "\tfor _, value := range %s {\n", value)
@@ -106,6 +109,9 @@ func renderGRPCBearerMetadataValue(md *MetadataData, namedResults bool) string {
 func renderGRPCMetadataEncode(md *MetadataData, targetVar string) string {
 	var b strings.Builder
 	value := fieldSelector("result", md.FieldName)
+	if md.publication != nil {
+		return renderCustomMetadataPublication(md, value, targetVar)
+	}
 	switch {
 	case md.StringSlice:
 		fmt.Fprintf(&b, "\t%s.Append(%q, %s...)\n", targetVar, md.Name, value)
@@ -145,4 +151,35 @@ func renderGRPCMetadataElement(md *MetadataData, varName, value string) string {
 		value = md.elementCast + "(" + value + ")"
 	}
 	return renderGRPCStringConversion(expr.AsArray(md.Type).ElemType.Type, varName, value)
+}
+
+// renderCustomMetadataPublication consumes the shared representation conversion
+// before publishing metadata, preserving optional absence and conversion errors.
+func renderCustomMetadataPublication(md *MetadataData, value, target string) string {
+	var b strings.Builder
+	if md.Pointer {
+		fmt.Fprintf(&b, "if %s != nil {\n", value)
+		value = "*" + value
+	} else {
+		b.WriteString("{\n")
+	}
+	fmt.Fprintf(&b, "metadataSource := %s\n", value)
+	if md.publication.ErrorAware {
+		b.WriteString("transformErr := new(error)\n")
+	}
+	b.WriteString(md.publication.Code)
+	b.WriteString("\n")
+	if md.publication.ErrorAware {
+		b.WriteString("if *transformErr != nil {\nreturn nil, *transformErr\n}\n")
+	}
+	switch {
+	case md.Slice:
+		fmt.Fprintf(&b, "%s.Append(%q, metadataText...)\n", target, md.Name)
+	case md.Bearer.Framed:
+		fmt.Fprintf(&b, "%s.Append(%q, \"Bearer \" + metadataText)\n", target, md.Name)
+	default:
+		fmt.Fprintf(&b, "%s.Append(%q, metadataText)\n", target, md.Name)
+	}
+	b.WriteString("}\n")
+	return b.String()
 }

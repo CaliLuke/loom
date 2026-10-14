@@ -120,14 +120,14 @@ func (sds *ServicesData) buildClientRequestInit(endpointIR *transportir.Endpoint
 			if expr.IsObject(endpointIR.Request.Payload.Type) {
 				value += "." + arg.FieldName
 			}
-			var err error
 			// HTTP path array elements are primitive, so the transform needs
 			// no helper functions. The target variable is already declared.
-			arg.TransformCode, _, err = codegen.GoTransform(source, target, value, arg.VarName,
+			plan, err := codegen.GoTransform(source, target, value, arg.VarName,
 				serviceContext(pkg, svc.Scope), serviceContext("", svc.Scope), "", false)
 			if err != nil {
 				panic(codegen.NewError(sds.Ctx, source, fmt.Errorf("build HTTP path argument transform for %s: %w", endpointIR.MethodName, err)))
 			}
+			arg.TransformCode = inlineConversionCode(plan)
 		}
 		args = append(args, arg)
 	}

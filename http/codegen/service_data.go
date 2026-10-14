@@ -556,10 +556,14 @@ type (
 		// ServerCode is the code that builds the payload from the
 		// request on the server when it contains user types.
 		ServerCode string
+		// ServerErrorAware reports fallible server-side conversion.
+		ServerErrorAware bool
 		// ClientCode is the code that builds the payload or result type
 		// from the request or response state on the client when it
 		// contains user types.
 		ClientCode string
+		// ClientErrorAware reports fallible client-side conversion.
+		ClientErrorAware bool
 		// ReturnTypePkg is the package where the return type is present.
 		ReturnTypePkg string
 		// ReturnTypeName is the qualified (including the package name)

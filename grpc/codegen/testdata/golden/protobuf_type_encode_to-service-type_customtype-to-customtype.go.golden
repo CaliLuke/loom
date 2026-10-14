@@ -1,6 +1,20 @@
 func transform() {
 	target := &proto.CustomTypes{
-		RequiredString: tdtypes.CustomString(*source.RequiredString),
+		RequiredString: func() tdtypes.CustomString {
+			converted := func() tdtypes.CustomString {
+				var convertedValue tdtypes.CustomString
+				if *transformErr != nil {
+					return convertedValue
+				}
+				semanticText := string(*source.RequiredString)
+				convertedValue, conversionError := loom.ParseStringValue[tdtypes.CustomString](semanticText, "converted")
+				if conversionError != nil {
+					*transformErr = conversionError
+				}
+				return convertedValue
+			}()
+			return converted
+		}(),
 	}
 	if source.DefaultBool != nil {
 		target.DefaultBool = tdtypes.CustomBool(*source.DefaultBool)

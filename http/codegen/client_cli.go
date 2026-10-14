@@ -523,6 +523,7 @@ func payloadInitData(e *EndpointData, bodyFlag string, args []*codegen.InitArgDa
 	}
 	return &cli.PayloadInitData{
 		Code:                          initCode,
+		ErrorAware:                    init.ClientErrorAware,
 		ReturnTypeAttributeFlag:       bodyFlag,
 		ReturnTypeAttribute:           init.ReturnTypeAttribute,
 		ReturnTypeAttributePointer:    init.ReturnIsPrimitivePointer,

@@ -193,9 +193,9 @@ func TestInitStructFieldsPackageNames(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
-			got, _, err := InitStructFields(args, "v", "", "svc", c.Scope)
+			plan, err := InitStructFields(args, "v", "", "svc", c.Scope)
 			require.NoError(t, err)
-			assert.Contains(t, got, c.Want)
+			assert.Contains(t, plan.Code, c.Want)
 		})
 	}
 }

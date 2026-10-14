@@ -17,7 +17,12 @@ func websocketSendSection(ws *WebSocketData) codegen.Section {
 
 func writeClientWebSocketSend(b *strings.Builder, ws *WebSocketData) {
 	if ws.Payload != nil && ws.Payload.Init != nil {
-		fmt.Fprintf(b, "\tbody := %s(v)\n", ws.Payload.Init.Name)
+		if ws.Payload.Init.ClientErrorAware {
+			fmt.Fprintf(b, "\tbody, conversionError := %s(v)\n", ws.Payload.Init.Name)
+			b.WriteString("if conversionError != nil {\nreturn conversionError\n}\n")
+		} else {
+			fmt.Fprintf(b, "\tbody := %s(v)\n", ws.Payload.Init.Name)
+		}
 		b.WriteString("\treturn s.conn.WriteJSON(ctx, body)\n")
 	} else {
 		b.WriteString("\treturn s.conn.WriteJSON(ctx, v)\n")
@@ -66,7 +71,11 @@ func writeServerWebSocketResponseBody(b *strings.Builder, ws *WebSocketData) boo
 		prefix = "\t\tbody = "
 	}
 	writeServerStreamBodySelection(b, ws.Response.ServerBody, viewed, func(body *TypeData) {
-		fmt.Fprintf(b, "%s%s\n", prefix, ws.Response.EncodePlan.BodyValues[body])
+		if body.Init != nil && body.Init.ServerErrorAware {
+			fmt.Fprintf(b, "convertedBody, conversionError := %s\nif conversionError != nil {\nreturn conversionError\n}\n%sconvertedBody\n", ws.Response.EncodePlan.BodyValues[body], prefix)
+		} else {
+			fmt.Fprintf(b, "%s%s\n", prefix, ws.Response.EncodePlan.BodyValues[body])
+		}
 	})
 	b.WriteString("\treturn s.conn.WriteJSON(ctx, body)\n")
 	return true

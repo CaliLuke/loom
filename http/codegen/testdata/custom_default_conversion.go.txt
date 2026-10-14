@@ -1,0 +1,68 @@
+package customdefault_test
+
+import (
+	"context"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	svc "example.com/customdefault/gen/customdefault"
+	client "example.com/customdefault/gen/http/customdefault/client"
+	server "example.com/customdefault/gen/http/customdefault/server"
+	loomhttp "github.com/CaliLuke/loom/http"
+	"github.com/stretchr/testify/require"
+)
+
+func TestAbsentDefaultConversion(t *testing.T) {
+	calls := 0
+	mux := loomhttp.NewMuxer()
+	endpoints := &svc.Endpoints{
+		Good: func(_ context.Context, payload any) (any, error) {
+			calls++
+			value := payload.(*svc.GoodPayload)
+			require.Equal(t, "token:default", value.Token.String())
+			return &svc.GoodResult{Token: value.Token}, nil
+		},
+		Bad: func(context.Context, any) (any, error) {
+			calls++
+			return nil, nil
+		},
+	}
+	server.Mount(mux, server.New(endpoints, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil, nil, nil))
+	for _, name := range []string{"good", "bad"} {
+		recorder := httptest.NewRecorder()
+		request := httptest.NewRequest(http.MethodPost, "/"+name, strings.NewReader("{}"))
+		request.Header.Set("Content-Type", "application/json")
+		mux.ServeHTTP(recorder, request)
+		if name == "good" {
+			require.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
+		} else {
+			require.Equal(t, http.StatusInternalServerError, recorder.Code, recorder.Body.String())
+		}
+	}
+	require.Equal(t, 1, calls, "failed defaults must not reach the service")
+	good, err := client.BuildGoodPayload("{}")
+	require.NoError(t, err)
+	require.Equal(t, "token:default", good.Token.String())
+	bad, err := client.BuildBadPayload("{}")
+	require.ErrorContains(t, err, "invalid token prefix")
+	require.Nil(t, bad)
+	for _, name := range []string{"good", "bad"} {
+		response := &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: io.NopCloser(strings.NewReader("{}"))}
+		response.Header.Set("Content-Type", "application/json")
+		decode := client.DecodeGoodResponse(loomhttp.ResponseDecoder, false)
+		if name == "bad" {
+			decode = client.DecodeBadResponse(loomhttp.ResponseDecoder, false)
+		}
+		value, err := decode(response)
+		if name == "good" {
+			require.NoError(t, err)
+			require.Equal(t, "token:default", value.(*svc.GoodResult).Token.String())
+		} else {
+			require.ErrorContains(t, err, "invalid token prefix")
+			require.Nil(t, value)
+		}
+	}
+}

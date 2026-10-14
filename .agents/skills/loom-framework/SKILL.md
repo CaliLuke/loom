@@ -2194,6 +2194,16 @@ filter, and serialization rules belong here.
   declarations and recursion memoization. Preserve the different physical
   layouts of named pointer carriers and anonymous objects. Keep
   `codegen/service/tla/recursive_projection` aligned with these boundaries.
+- Custom String semantics belong to `pkg/string_representation.go` and the
+  shared conversion/default plans. `internal/representation` identifies actual
+  physical overrides. Validation projects text once; default parsing uses fresh
+  targets. Preserve authored method-set precedence and native defined strings;
+  never substitute JSON, panic, or discard a failed default. `GoTransform`
+  returns code, helpers and fallibility together. Its selected conversion graph
+  keys physical references and presence/default contexts, then propagates
+  failures to a fixed point. Transport callers consume this owner and check the
+  error before publishing results. Keep the custom-representation TLA+ models,
+  mixed sibling-order tests and bounded generated consumers aligned.
 - The shared service-to-view constructor owns the output contract: reject a nil
   object, select and project the view, then run its generated validator before
   returning a result. Unknown views and violated constraints become Loom faults

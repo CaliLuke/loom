@@ -140,6 +140,13 @@ func renderJSONRPCModule(t *testing.T, dir, modulePath string, root *expr.RootEx
 	files = append(files, ServerFiles(genpkg, jsonrpcData)...)
 	files = append(files, SSEServerFiles(genpkg, jsonrpcData)...)
 
+	for _, file := range files {
+		if header := file.HeaderTemplate(); header != nil {
+			for _, svc := range root.Services {
+				servicecodegen.AddServiceDataMetaTypeImports(header, serviceData.Get(svc.Name))
+			}
+		}
+	}
 	renderCodegenFiles(t, dir, files)
 
 	goMod := fmt.Sprintf(`module %s

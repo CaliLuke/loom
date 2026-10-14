@@ -1020,6 +1020,14 @@ clients and servers after upgrading to adopt typed Tag binding.
   custom type to supply the wire text used by generated HTTP clients and servers.
   Response headers and cookies, including mapped errors and viewed results,
   share this text representation; regenerate affected transports.
+- Custom String storage also uses its authored text representation for view
+  validation, defaults and gRPC conversion. A defined Go string works without
+  codecs; opaque storage needs `fmt.Stringer` for semantic text and
+  `encoding.TextUnmarshaler` for materialization. Identical physical copies do
+  not require codecs. Invalid defaults return errors rather than panicking.
+  Regenerate services and transports together; constructors and ConvertTo /
+  CreateFrom helpers gain an error result only when their selected conversion
+  can fail. See `docs/dsl-reference.md` for the complete capability contract.
 - Start each path parameter at the beginning of its segment, using ASCII letters,
   digits, or underscores in its name. `/{prefix}/{number}` and `/{name}.json`
   are supported; `/{prefix}-{number}` and `/item-{name}` fail DSL validation.

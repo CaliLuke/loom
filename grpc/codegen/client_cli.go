@@ -193,6 +193,9 @@ func payloadBuilders(genpkg string, svc *expr.GRPCServiceExpr, data *cli.Command
 		{Path: path.Join(genpkg, "grpc", svcName, pbPkgName), Name: sd.PkgName},
 	}
 	specs = append(specs, sd.Service.UserTypeImports...)
+	for _, endpoint := range svc.GRPCEndpoints {
+		specs = append(specs, codegen.GetMetaTypeImports(endpoint.MethodExpr.Payload)...)
+	}
 	// Add structpb import if Any type is used
 	needsAnyPb := false
 	for _, e := range svc.GRPCEndpoints {
@@ -255,6 +258,7 @@ func clientCLIPayloadTransformHelpers(svc *expr.GRPCServiceExpr, sd *ServiceData
 			continue
 		}
 		collectFromCode(endpoint.Request.ServerConvert.Init.Code)
+		collectFromCode(endpoint.Request.ServerConvert.Init.FieldCode)
 	}
 	return selected
 }
@@ -277,12 +281,14 @@ func makeFlags(e *EndpointData, args []*InitArgData) ([]*cli.FlagData, *cli.Buil
 	)
 	for i, arg := range args {
 		pInitArgs[i] = &codegen.InitArgData{
-			Name:         arg.Name,
-			Pointer:      arg.Pointer,
-			FieldPointer: arg.FieldPointer,
-			FieldName:    arg.FieldName,
-			FieldType:    arg.FieldType,
-			Type:         arg.Type,
+			Attribute:      arg.Attribute,
+			FieldAttribute: arg.FieldAttribute,
+			Name:           arg.Name,
+			Pointer:        arg.Pointer,
+			FieldPointer:   arg.FieldPointer,
+			FieldName:      arg.FieldName,
+			FieldType:      arg.FieldType,
+			Type:           arg.Type,
 		}
 
 		flag, field, needsError := cliMessageFlag(e, arg)

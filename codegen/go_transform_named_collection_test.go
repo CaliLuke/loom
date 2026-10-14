@@ -43,7 +43,8 @@ func TestNamedCollectionPresenceTransform(t *testing.T) {
 					sourceCtx := NewAttributeContext(false, false, true, "", NewNameScope())
 					targetCtx := NewAttributeContext(false, false, true, "", NewNameScope())
 					targetCtx.JSONPresence = !nullable
-					code, _, err := GoTransform(source, target, "source", "target", sourceCtx, targetCtx, "convert", true)
+					codePlan, err := GoTransform(source, target, "source", "target", sourceCtx, targetCtx, "convert", true)
+					code := codePlan.Code
 					require.NoError(t, err)
 					require.Contains(t, code, ".SetValue(")
 					require.NotContains(t, code, " = loom.NullableValue(")
@@ -86,7 +87,8 @@ func TestNamedCollectionDefaultTransform(t *testing.T) {
 			source := &expr.AttributeExpr{Type: &expr.UserTypeExpr{TypeName: "SourcePayload", AttributeExpr: &expr.AttributeExpr{Type: &expr.Object{{Name: "values", Attribute: &expr.AttributeExpr{Type: sourceType}}}}}}
 			target := &expr.AttributeExpr{Type: &expr.UserTypeExpr{TypeName: "TargetPayload", AttributeExpr: &expr.AttributeExpr{Type: &expr.Object{{Name: "values", Attribute: &expr.AttributeExpr{Type: targetType, DefaultValue: c.defaultValue}}}}}}
 			context := NewAttributeContext(false, false, true, "", NewNameScope())
-			code, _, err := GoTransform(source, target, "source", "target", context, context, "convert", true)
+			codePlan, err := GoTransform(source, target, "source", "target", context, context, "convert", true)
+			code := codePlan.Code
 			require.NoError(t, err)
 			require.NotContains(t, code, " = loom.NullableValue(")
 			body := strings.ReplaceAll(nullableCollectionModel, "convert(", "convertValue(")

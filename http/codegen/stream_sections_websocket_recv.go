@@ -91,13 +91,17 @@ func serverWebSocketPayloadValidation(ws *WebSocketData) string {
 func writeServerWebsocketRecvReturn(b *strings.Builder, ws *WebSocketData) {
 	switch {
 	case ws.Payload != nil && ws.Payload.Init != nil:
+		suffix := ", nil"
+		if ws.Payload.Init.ServerErrorAware {
+			suffix = ""
+		}
 		switch {
 		case ws.RecvTypeIsPointer:
-			fmt.Fprintf(b, "\treturn %s(body), nil\n", ws.Payload.Init.Name)
+			fmt.Fprintf(b, "\treturn %s(body)%s\n", ws.Payload.Init.Name, suffix)
 		case websocketPayloadIsPrimitive(ws):
-			fmt.Fprintf(b, "\treturn %s(*msg), nil\n", ws.Payload.Init.Name)
+			fmt.Fprintf(b, "\treturn %s(*msg)%s\n", ws.Payload.Init.Name, suffix)
 		default:
-			fmt.Fprintf(b, "\treturn %s(msg), nil\n", ws.Payload.Init.Name)
+			fmt.Fprintf(b, "\treturn %s(msg)%s\n", ws.Payload.Init.Name, suffix)
 		}
 	case ws.RecvTypeIsPointer:
 		b.WriteString("\treturn body, nil\n")
@@ -147,12 +151,19 @@ func writeClientWebsocketRecvReturn(b *strings.Builder, ws *WebSocketData) {
 		b.WriteString("\treturn body, nil\n")
 		return
 	}
-	b.WriteString("\tres := ")
+	if ws.Response.ResultInit.ClientErrorAware {
+		b.WriteString("\tres, err := ")
+	} else {
+		b.WriteString("\tres := ")
+	}
 	fmt.Fprintf(b, "%s(", ws.Response.ResultInit.Name)
 	for _, arg := range ws.Response.ResultInit.ClientArgs {
 		fmt.Fprintf(b, "%s,", arg.Ref)
 	}
 	b.WriteString(")\n")
+	if ws.Response.ResultInit.ClientErrorAware {
+		b.WriteString("\tif err != nil {\n\treturn rv, err\n\t}\n")
+	}
 	if ws.Endpoint.Method.ViewedResult == nil {
 		b.WriteString("\treturn res, nil\n")
 		return

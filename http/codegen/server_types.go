@@ -188,7 +188,7 @@ func (s *serverTypeSections) appendValidateSections() {
 
 // fieldCode initializes return fields using the selected response declaration
 // context. Other constructor owners supply their nominal scope through pkgs.
-func fieldCode(init *InitData, typ string, pkgs *codegen.NameScope) string {
+func fieldCode(init *InitData, typ string, pkgs *codegen.NameScope) codegen.TransformPlan {
 	varn := "res"
 	if init.ReturnTypeAttribute == "" {
 		varn = "v"
@@ -205,7 +205,7 @@ func fieldCode(init *InitData, typ string, pkgs *codegen.NameScope) string {
 	return initFieldAssignments(args, varn, pkg, pkgs)
 }
 
-func initFieldAssignments(args []*InitArgData, targetVar, targetPkg string, pkgs *codegen.NameScope) string {
+func initFieldAssignments(args []*InitArgData, targetVar, targetPkg string, pkgs *codegen.NameScope) codegen.TransformPlan {
 	initArgs := make([]*codegen.InitArgData, len(args))
 	for i, arg := range args {
 		initArgs[i] = &codegen.InitArgData{
@@ -219,9 +219,9 @@ func initFieldAssignments(args []*InitArgData, targetVar, targetPkg string, pkgs
 	}
 	// Transport-bound fields can be named scalar or collection types, but
 	// their inline conversions do not require object transform helpers.
-	c, _, err := codegen.InitStructFields(initArgs, targetVar, "", targetPkg, pkgs)
+	plan, err := codegen.InitStructFields(initArgs, targetVar, "", targetPkg, pkgs)
 	if err != nil {
 		panic(fmt.Errorf("build HTTP field init for %s: %w", targetVar, err))
 	}
-	return c
+	return plan
 }

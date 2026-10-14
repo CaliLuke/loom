@@ -273,9 +273,9 @@ func fieldCode(init *PayloadInitData, pkgs *codegen.NameScope) *jen.Statement {
 	}
 	// We can ignore the transform helpers as there won't be any generated
 	// because the args cannot be user types.
-	c, _, err := codegen.InitStructFields(init.Args, varn, "", init.ReturnTypePkg, pkgs)
+	plan, err := codegen.InitStructFields(init.Args, varn, "", init.ReturnTypePkg, pkgs)
 	if err != nil {
 		panic(fmt.Errorf("build CLI payload field init for %s: %w", init.ReturnTypeName, err))
 	}
-	return codegen.Expr(c)
+	return codegen.Expr(plan.Code)
 }

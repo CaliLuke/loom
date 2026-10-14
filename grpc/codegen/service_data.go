@@ -200,6 +200,12 @@ type (
 
 	// MetadataData describes a gRPC metadata field.
 	MetadataData struct {
+		// attribute is the native transport occurrence.
+		attribute *expr.AttributeExpr
+		// fieldAttribute retains the authored service representation.
+		fieldAttribute *expr.AttributeExpr
+		// publication converts custom service storage to native metadata text.
+		publication *codegen.TransformPlan
 		// elementCast converts a nominal service element to its primitive codec input.
 		elementCast string
 		// Bearer identifies a JWT/OAuth Authorization credential requiring protocol extraction.
@@ -418,6 +424,10 @@ type (
 
 	// InitArgData represents a single constructor argument.
 	InitArgData struct {
+		// Attribute preserves the metadata argument occurrence.
+		Attribute *expr.AttributeExpr
+		// FieldAttribute preserves the service destination occurrence.
+		FieldAttribute *expr.AttributeExpr
 		// Name is the argument name.
 		Name string
 		// Description is the argument description.

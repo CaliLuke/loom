@@ -15,52 +15,49 @@ func extractMetadata(a *expr.MappedAttributeExpr, service *expr.AttributeExpr, s
 	var metadata []*MetadataData
 	ctx := serviceTypeContext("", scope)
 	err := codegen.WalkMappedAttr(a, func(name, elem string, required bool, c *expr.AttributeExpr) error {
-		representation, err := metadataStorage(c, required, scope)
+		storage, err := metadataStorage(c, required, scope)
 		if err != nil {
 			return err
 		}
-		physical := representation.attribute
+		physical := storage.attribute
 		arr := expr.AsArray(physical.Type)
 		mp := expr.AsMap(physical.Type)
 		typeRef := scope.GoTypeRef(physical)
-		ft := service.Type
+		fieldName, fieldAttribute, pointer := metadataServiceField(service, name)
 		varn := vars.Unique(scope.PeekUnique(codegen.Goify(name, false)))
-		var fieldName string
-		var pointer bool
-		if !expr.IsObject(service.Type) {
-			fieldName = ""
-		} else {
-			key, attribute := service.FindAttribute(name)
-			fieldName = codegen.GoifyAtt(attribute, key, true)
-			pointer = service.IsPrimitivePointer(key, true)
-			ft = attribute.Type
-		}
 		if pointer {
 			typeRef = "*" + typeRef
 		}
+		publication, err := metadataPublicationPlan(fieldAttribute, physical, ctx)
+		if err != nil {
+			return err
+		}
 		metadata = append(metadata, &MetadataData{
-			elementCast:   representation.elementCast,
-			Name:          elem,
-			AttributeName: name,
-			Description:   c.Description,
-			FieldName:     fieldName,
-			FieldType:     ft,
-			VarName:       varn,
-			Required:      required,
-			Type:          physical.Type,
-			TypeName:      scope.GoTypeName(physical),
-			TypeRef:       typeRef,
-			Pointer:       pointer,
-			Slice:         arr != nil,
-			StringSlice:   arr != nil && arr.ElemType.Type.Kind() == expr.StringKind && representation.elementCast == "",
-			Map:           mp != nil,
+			attribute:      physical,
+			fieldAttribute: fieldAttribute,
+			publication:    publication,
+			elementCast:    storage.elementCast,
+			Name:           elem,
+			AttributeName:  name,
+			Description:    c.Description,
+			FieldName:      fieldName,
+			FieldType:      fieldAttribute.Type,
+			VarName:        varn,
+			Required:       required,
+			Type:           physical.Type,
+			TypeName:       scope.GoTypeName(physical),
+			TypeRef:        typeRef,
+			Pointer:        pointer,
+			Slice:          arr != nil,
+			StringSlice:    arr != nil && arr.ElemType.Type.Kind() == expr.StringKind && storage.elementCast == "",
+			Map:            mp != nil,
 			MapStringSlice: mp != nil &&
 				mp.KeyType.Type.Kind() == expr.StringKind &&
 				mp.ElemType.Type.Kind() == expr.ArrayKind &&
 				expr.AsArray(mp.ElemType.Type).ElemType.Type.Kind() == expr.StringKind,
 			Validate:       codegen.AttributeValidationCode(physical, nil, ctx, required, false, varn, name),
-			DefaultValue:   representation.defaultValue,
-			DefaultLiteral: representation.defaultLiteral,
+			DefaultValue:   storage.defaultValue,
+			DefaultLiteral: storage.defaultLiteral,
 			Example:        c.Example(services.Root.API.ExampleGenerator),
 		})
 		return nil

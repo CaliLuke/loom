@@ -300,19 +300,21 @@ func (d *ServicesData) buildRequestData(
 	}
 	for _, m := range reqMD {
 		request.CLIArgs = append(request.CLIArgs, &InitArgData{
-			Name:         m.VarName,
-			Ref:          m.VarName,
-			FieldName:    m.FieldName,
-			FieldPointer: endpoint.Request.Payload.IsPrimitivePointer(m.AttributeName, true),
-			FieldType:    m.FieldType,
-			TypeName:     m.TypeName,
-			TypeRef:      m.TypeRef,
-			Type:         m.Type,
-			Pointer:      m.Pointer,
-			Required:     m.Required,
-			Validate:     m.Validate,
-			Example:      m.Example,
-			DefaultValue: m.DefaultValue,
+			Attribute:      m.attribute,
+			FieldAttribute: m.fieldAttribute,
+			Name:           m.VarName,
+			Ref:            m.VarName,
+			FieldName:      m.FieldName,
+			FieldPointer:   endpoint.Request.Payload.IsPrimitivePointer(m.AttributeName, true),
+			FieldType:      m.FieldType,
+			TypeName:       m.TypeName,
+			TypeRef:        m.TypeRef,
+			Type:           m.Type,
+			Pointer:        m.Pointer,
+			Required:       m.Required,
+			Validate:       m.Validate,
+			Example:        m.Example,
+			DefaultValue:   m.DefaultValue,
 		})
 	}
 	if hasRequestMessage {

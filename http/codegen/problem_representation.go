@@ -45,12 +45,12 @@ func (b *errorBuilder) buildProblemClientResult(errorResponse *transportir.Respo
 	var fields []*InitArgData
 	origin, selected := body.Meta["origin:attribute"]
 	if body.Type != expr.Empty && !selected {
-		transform, helpers, err := codegen.GoTransform(body, problem, "body", variable, b.httpclictx, targetContext, "unmarshal", true)
+		plan, err := codegen.GoTransform(body, problem, "body", variable, b.httpclictx, targetContext, "unmarshal", true)
 		if err != nil {
 			panic(codegen.NewError(b.sds.Ctx, body, fmt.Errorf("project HTTP problem response: %w", err)))
 		}
-		b.sd.ClientTransformHelpers = codegen.AppendHelpers(b.sd.ClientTransformHelpers, helpers)
-		code.WriteString(transform)
+		b.sd.ClientTransformHelpers = codegen.AppendHelpers(b.sd.ClientTransformHelpers, plan.Helpers)
+		code.WriteString(plan.Code)
 		code.WriteByte('\n')
 	} else {
 		name := targetContext.Scope.Name(problem, targetContext.DefaultPkg, false, true)
@@ -71,7 +71,7 @@ func (b *errorBuilder) buildProblemClientResult(errorResponse *transportir.Respo
 			fields = append(fields, arg)
 		}
 	}
-	code.WriteString(initFieldAssignments(fields, variable, targetContext.DefaultPkg, targetContext.Scope.Scope()))
+	code.WriteString(initFieldAssignments(fields, variable, targetContext.DefaultPkg, targetContext.Scope.Scope()).Code)
 	fmt.Fprintf(&code, "v := loomhttp.ProblemErrorFromBody(*%s)", variable)
 	return code.String()
 }

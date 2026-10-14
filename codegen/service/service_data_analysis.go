@@ -392,7 +392,7 @@ func (d *ServicesData) buildServiceMethods(
 		}
 		projected := seenProj[projectionKey(rt)]
 		projAtt := &expr.AttributeExpr{Type: projected.Type, Nullable: methodExpr.Result.Nullable}
-		vrt := buildViewedResultType(methodExpr.Result, projAtt, viewspkg, scope, viewScope)
+		vrt := buildViewedResultType(methodExpr.Result, projAtt, viewspkg, scope, viewScope, projected.TypeInits)
 		if !containsViewedResultType(viewedRTs, vrt) {
 			viewedRTs = append(viewedRTs, vrt)
 		}

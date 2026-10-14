@@ -147,12 +147,13 @@ func (sds *ServicesData) prepareCLIBodyInputs(sd *ServiceData, closed bool) {
 			target = serviceFieldTransformAttribute(source.Payload, source.BodyOrigin, target)
 		}
 		pkg := sd.Service.LocationPackageName(endpoint.Method.PayloadLoc)
-		code, helpers, err := unmarshal(input.attribute, target, arg.VarName, input.context, serviceContext(pkg, sd.Service.Scope))
+		plan, err := unmarshal(input.attribute, target, arg.VarName, input.context, serviceContext(pkg, sd.Service.Scope))
 		if err != nil {
 			panic(codegen.NewError(sds.Ctx, source.Body, fmt.Errorf("build CLI JSON input conversion: %w", err)))
 		}
-		input.helpers = helpers
-		init.ClientCode = code
+		input.helpers = plan.Helpers
+		init.ClientCode = plan.Code
+		init.ClientErrorAware = plan.ErrorAware
 		arg.Type = input.attribute.Type
 		arg.TypeName = input.root.ValueRef
 		arg.TypeRef = input.root.Ref

@@ -49,9 +49,9 @@ func TestInitStructFieldsNominalScope(t *testing.T) {
 					Pointer: shape == "pointer", FieldPointer: shape == "pointer",
 				}}
 				for _, local := range []string{"v", "Client2"} {
-					got, _, err := InitStructFields(args, local, "", "labels", scope)
+					plan, err := InitStructFields(args, local, "", "labels", scope)
 					require.NoError(t, err)
-					require.Contains(t, got, want)
+					require.Contains(t, plan.Code, want)
 					require.Equal(t, want, scope.GoFullTypeRef(att, pkg))
 				}
 				require.Equal(t, "v", scope.Unique("v"), "constructor locals must not reserve package declarations")

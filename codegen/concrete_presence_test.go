@@ -82,7 +82,8 @@ func TestConcretePresenceAliasConsumers(t *testing.T) {
 			}
 			ctx := NewAttributeContext(false, false, true, "", NewNameScope())
 			for _, pair := range [][2]*expr.AttributeExpr{{source, target}, {target, source}} {
-				code, _, err := GoTransform(pair[0], pair[1], "source", "target", ctx, ctx, "convert", true)
+				codePlan, err := GoTransform(pair[0], pair[1], "source", "target", ctx, ctx, "convert", true)
+				code := codePlan.Code
 				require.NoError(t, err)
 				require.Contains(t, code, "source.Value()")
 			}

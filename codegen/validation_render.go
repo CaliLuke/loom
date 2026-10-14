@@ -9,6 +9,7 @@ import (
 
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/internal/enumvalue"
+	"github.com/CaliLuke/loom/internal/representation"
 )
 
 type (
@@ -96,6 +97,24 @@ func validationCodeFromSnapshot(
 	if !pointerGuard {
 		data.IsPointer = false
 	}
+	customText := representation.CustomString(att)
+	physicalValue, physicalPointer := data.TargetValue, data.IsPointer
+	if customText {
+		data.TargetValue = "customTextValue"
+		data.IsPointer = false
+	}
+	code := renderValidationPredicates(att, snapshot, attCtx, data)
+	if customText && code != "" {
+		code = "if customTextValue, customTextError := loom.StringValue(" + physicalValue + ", " + validationContextExpr(attCtx, context) + "); customTextError != nil {\nerr = loom.MergeErrors(err, customTextError)\n} else {\n" + code + "\n}"
+		if physicalPointer {
+			code = "if " + target + " != nil {\n" + code + "\n}"
+		}
+	}
+	return code
+}
+
+func renderValidationPredicates(att *expr.AttributeExpr, snapshot validationRenderSnapshot, attCtx *AttributeContext, data validationRenderData) string {
+	validation := snapshot.rules
 	res := make([]string, 0, 8) // preallocate with typical validation count
 	for _, values := range validation.Enums() {
 		data.Values = values
@@ -226,7 +245,9 @@ func newValidationRenderData(att *expr.AttributeExpr, attCtx *AttributeContext, 
 		targetValue = "*" + targetValue
 	}
 	if alias {
-		targetValue = GoNativeTypeName(unaliased) + "(" + targetValue + ")"
+		if !representation.CustomString(att) {
+			targetValue = GoNativeTypeName(unaliased) + "(" + targetValue + ")"
+		}
 		kind = unaliased.Kind()
 	}
 	return validationRenderData{

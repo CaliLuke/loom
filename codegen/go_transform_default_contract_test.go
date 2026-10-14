@@ -31,7 +31,8 @@ func TestDefaultApplicationScalarValues(t *testing.T) {
 				scope := NewNameScope()
 				source := NewAttributeContext(pointer, false, true, "", scope)
 				target := NewAttributeContext(false, false, true, "", scope)
-				code, _, err := GoTransform(parent, parent, "source", "target", source, target, "", true)
+				codePlan, err := GoTransform(parent, parent, "source", "target", source, target, "", true)
+				code := codePlan.Code
 				require.NoError(t, err)
 				require.NotContains(t, code, "== zero", "a native zero is a supplied value, not evidence of absence")
 				if pointer {
@@ -74,12 +75,14 @@ func TestDefaultApplicationCarrierControls(t *testing.T) {
 			source := NewAttributeContext(tc.pointer, false, true, "", scope)
 			source.JSONPresence = tc.json
 			target := NewAttributeContext(tc.targetPtr, false, tc.materialize, "", scope)
-			code, _, err := GoTransform(parent, parent, "source", "target", source, target, "", true)
+			codePlan, err := GoTransform(parent, parent, "source", "target", source, target, "", true)
+			code := codePlan.Code
 			require.NoError(t, err)
 			if tc.wantDefault {
 				value := expr.DupAtt(field)
 				value.Nullable = false
-				literal, err := target.DefaultValue(value, tc.fallback)
+				literalPlan, err := target.DefaultValue(value, tc.fallback)
+				literal := literalPlan.Expression
 				require.NoError(t, err)
 				require.Contains(t, code, literal)
 			} else {

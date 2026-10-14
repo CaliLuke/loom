@@ -57,7 +57,7 @@ func transformOptionalToNative(
 		conversion = new(jen.Statement).
 			Add(Expr(temp)).Op(":=").
 			Id(transformHelperName(sourceValue, targetValue, ta)).
-			Call(Expr("&actual"))
+			Call(transformCallArguments(sourceValue, targetValue, "&actual", ta)...)
 	} else {
 		conversion, err = transformAttributeStmt(sourceValue, targetValue, "actual", temp, true, ta)
 	}
@@ -75,11 +75,11 @@ func transformOptionalToNative(
 	})
 	plan := ta.DefaultForField(sourceParent, targetParent, name)
 	if plan.Apply {
-		literal, err := ta.TargetCtx.DefaultValue(targetValue, plan.Value)
+		defaultPlan, err := ta.TargetCtx.DefaultValue(targetValue, plan.Value)
 		if err != nil {
 			return nil, err
 		}
-		stmt.Else().Block(Expr(targetVar + " = " + literal))
+		stmt.Else().Block(Expr(targetVar + " = " + defaultPlan.Expression))
 	}
 	return stmt, nil
 }
@@ -109,7 +109,7 @@ func transformNativeToOptional(
 		conversion = new(jen.Statement).
 			Add(Expr(temp)).Op(":=").
 			Id(transformHelperName(sourceValue, targetValue, ta)).
-			Call(Expr(sourceVar))
+			Call(transformCallArguments(sourceValue, targetValue, sourceVar, ta)...)
 	} else {
 		conversion, err = transformAttributeStmt(sourceValue, targetValue, actual, temp, true, ta)
 	}
@@ -150,7 +150,7 @@ func transformNullablePresence(source, target *expr.AttributeExpr, sourceVar, ta
 		conversion = new(jen.Statement).
 			Add(Expr(temp)).Op(":=").
 			Id(transformHelperName(sourceValue, targetValue, ta)).
-			Call(Expr("&actual"))
+			Call(transformCallArguments(sourceValue, targetValue, "&actual", ta)...)
 	} else {
 		conversion, err = transformAttributeStmt(sourceValue, targetValue, "actual", temp, true, ta)
 	}
@@ -179,10 +179,11 @@ func transformNullablePresence(source, target *expr.AttributeExpr, sourceVar, ta
 		group.Add(presenceValueAssignment(targetValue, temp, targetVar, "NullableValue", userObject, ta.TargetCtx))
 	})
 	if plan.Apply {
-		value, err := ta.TargetCtx.DefaultValue(targetValue, plan.Value)
+		defaultPlan, err := ta.TargetCtx.DefaultValue(targetValue, plan.Value)
 		if err != nil {
 			return nil, err
 		}
+		value := defaultPlan.Expression
 		if expr.IsObject(targetValue.Type) {
 			value = "*(" + value + ")"
 		}
@@ -312,4 +313,12 @@ func nativeObjectFieldPointer(parent *expr.MappedAttributeExpr, name string, att
 
 func isAnyPresenceAttribute(attribute *expr.AttributeExpr) bool {
 	return attribute != nil && expr.IsAny(attribute.Type)
+}
+
+func attributeUsesJSONPresence(attribute *expr.AttributeExpr, context *AttributeContext) bool {
+	if attribute == nil || context == nil || len(context.JSONPresenceTypes) == 0 {
+		return false
+	}
+	userType, ok := attribute.Type.(expr.UserType)
+	return ok && context.JSONPresenceTypes[userType.Hash()]
 }

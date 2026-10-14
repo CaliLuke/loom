@@ -22,6 +22,7 @@ type (
 	viewedResultInitTemplateData struct {
 		ToViewed           bool
 		ToResult           bool
+		TypeInits          []*InitData
 		ArgVar             string
 		ReturnVar          string
 		Views              []*ViewData

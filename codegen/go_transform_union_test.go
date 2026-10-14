@@ -36,7 +36,8 @@ func TestGoTransformUnion(t *testing.T) {
 	}
 	for _, c := range tc {
 		t.Run(c.Name, func(t *testing.T) {
-			code, _, err := GoTransform(c.Source, c.Target, "source", "target", defaultCtx, defaultCtx, "", true)
+			codePlan, err := GoTransform(c.Source, c.Target, "source", "target", defaultCtx, defaultCtx, "", true)
+			code := codePlan.Code
 			require.NoError(t, err)
 			code = FormatTestCode(t, "package foo\nfunc transform(){\n"+code+"}")
 			testutil.AssertGo(t, "testdata/golden/go_transform_union_"+c.Name+".go.golden", code)
@@ -66,7 +67,7 @@ func TestGoTransformUnionError(t *testing.T) {
 	}
 	for _, c := range tc {
 		t.Run(c.Name, func(t *testing.T) {
-			_, _, err := GoTransform(c.Source, c.Target, "source", "target", defaultCtx, defaultCtx, "", true)
+			_, err := GoTransform(c.Source, c.Target, "source", "target", defaultCtx, defaultCtx, "", true)
 			if err == nil {
 				t.Errorf("unexpected success")
 				return
@@ -125,7 +126,8 @@ func TestGoTransformUnionUsesExplicitVariantTagsInSwitchCases(t *testing.T) {
 		},
 	}
 
-	code, _, err := GoTransform(source, target, "source", "target", ctx, ctx, "", true)
+	codePlan, err := GoTransform(source, target, "source", "target", ctx, ctx, "", true)
+	code := codePlan.Code
 	require.NoError(t, err)
 	formatted := FormatTestCode(t, "package foo\nfunc transform(){\n"+code+"}")
 
@@ -149,7 +151,8 @@ func TestGoTransformOptionalUnionFieldsPreserveAbsence(t *testing.T) {
 	scope := NewNameScope()
 	ctx := NewAttributeContext(false, false, true, "", scope)
 
-	code, _, err := GoTransform(source, target, "source", "target", ctx, ctx, "", true)
+	codePlan, err := GoTransform(source, target, "source", "target", ctx, ctx, "", true)
+	code := codePlan.Code
 	require.NoError(t, err)
 	require.Contains(t, code, "if source.Choice != nil && source.Choice.Kind() != \"\"")
 	require.Contains(t, code, "target.Choice = &u")
@@ -175,7 +178,8 @@ func TestGoTransformUnionWithUnionBranchKeepsOuterTempVar(t *testing.T) {
 	}}
 	ctx := NewAttributeContext(false, false, true, "", NewNameScope())
 
-	code, _, err := GoTransform(outer, expr.DupAtt(outer), "source", "target", ctx, ctx, "", true)
+	codePlan, err := GoTransform(outer, expr.DupAtt(outer), "source", "target", ctx, ctx, "", true)
+	code := codePlan.Code
 	require.NoError(t, err)
 	formatted := FormatTestCode(t, "package foo\nfunc transform(){\n"+code+"}")
 	testutil.AssertGo(t, "testdata/golden/go_transform_union_union-branch.go.golden", formatted)

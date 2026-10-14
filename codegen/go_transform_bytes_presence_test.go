@@ -29,7 +29,9 @@ func TestBytesDefaultPresenceTransform(t *testing.T) {
 				src := NewAttributeContext(sourcePointer, false, false, "", scope)
 				src.JSONPresence = !nullable
 				dst := NewAttributeContext(targetPointer, false, targetDefaults, "", scope)
-				code, helpers, err := GoTransform(parent, parent, "source", "target", src, dst, "", true)
+				codePlan, err := GoTransform(parent, parent, "source", "target", src, dst, "", true)
+				code := codePlan.Code
+				helpers := codePlan.Helpers
 				require.NoError(t, err, name)
 				require.Empty(t, helpers, name)
 				wrapper := "Optional"

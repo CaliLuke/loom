@@ -45,7 +45,8 @@ func TestGoTransformHelpers(t *testing.T) {
 	for _, c := range tc {
 		t.Run(c.Name, func(t *testing.T) {
 			require.NotNil(t, c.Type, "source type not found in testdata")
-			_, funcs, err := GoTransform(&expr.AttributeExpr{Type: c.Type}, &expr.AttributeExpr{Type: c.Type}, "source", "target", defaultCtx, defaultCtx, "", true)
+			funcsPlan, err := GoTransform(&expr.AttributeExpr{Type: c.Type}, &expr.AttributeExpr{Type: c.Type}, "source", "target", defaultCtx, defaultCtx, "", true)
+			funcs := funcsPlan.Helpers
 			require.NoError(t, err)
 			assert.Equal(t, len(c.HelperNames), len(funcs), "invalid helpers count")
 			var actual []string

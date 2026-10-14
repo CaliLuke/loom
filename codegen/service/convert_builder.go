@@ -24,6 +24,8 @@ type (
 		TypeName string
 		// Code is the function body.
 		Code string
+		// ErrorAware marks conversion that can fail before publishing its result.
+		ErrorAware bool
 	}
 
 	convertDataBuilder func(*expr.TypeMap, map[string]struct{}) (convertData, []*codegen.TransformFunctionData, error)
@@ -119,45 +121,67 @@ func appendTransformHelperSections(sections []codegen.Section, transformHelpers 
 func convertSection(name string, data convertData) codegen.Section {
 	return codegen.NewJenniferSection(name, func(stmt *jen.Statement) {
 		codegen.Doc(stmt, fmt.Sprintf("%s creates an instance of %s initialized from t.", data.Name, data.TypeName))
-		stmt.Func().
-			Params(jen.Id("t").Add(codegen.TypeRef(data.ReceiverTypeRef))).
-			Id(data.Name).
-			Params().
-			Add(codegen.TypeRef(data.TypeRef)).
-			BlockFunc(func(group *jen.Group) {
-				appendConvertRawBlock(group, data.Code)
-				group.Line()
+		declaration := stmt.Func().Params(jen.Id("t").Add(codegen.TypeRef(data.ReceiverTypeRef))).Id(data.Name).Params()
+		if data.ErrorAware {
+			declaration.Params(codegen.TypeRef(data.TypeRef), jen.Error())
+		} else {
+			declaration.Add(codegen.TypeRef(data.TypeRef))
+		}
+		declaration.BlockFunc(func(group *jen.Group) {
+			if data.ErrorAware {
+				group.Id("transformErr").Op(":=").New(jen.Error())
+			}
+			appendConvertRawBlock(group, data.Code)
+			group.Line()
+			if data.ErrorAware {
+				group.If(jen.Op("*").Id("transformErr").Op("!=").Nil()).Block(
+					jen.Var().Id("zero").Add(codegen.TypeRef(data.TypeRef)),
+					jen.Return(jen.Id("zero"), jen.Op("*").Id("transformErr")),
+				)
+				group.Return(jen.Id("v"), jen.Nil())
+			} else {
 				group.Return(jen.Id("v"))
-			})
+			}
+		})
 	})
 }
 
 func createSection(name string, data convertData) codegen.Section {
 	return codegen.NewJenniferSection(name, func(stmt *jen.Statement) {
 		codegen.Doc(stmt, fmt.Sprintf("%s initializes t from the fields of v", data.Name))
-		stmt.Func().
-			Params(jen.Id("t").Add(codegen.TypeRef(data.ReceiverTypeRef))).
-			Id(data.Name).
-			Params(jen.Id("v").Add(codegen.TypeRef(data.TypeRef))).
-			BlockFunc(func(group *jen.Group) {
-				appendConvertRawBlock(group, data.Code)
-				group.Op("*").Id("t").Op("=").Op("*").Id("temp")
-			})
+		declaration := stmt.Func().Params(jen.Id("t").Add(codegen.TypeRef(data.ReceiverTypeRef))).Id(data.Name).Params(jen.Id("v").Add(codegen.TypeRef(data.TypeRef)))
+		if data.ErrorAware {
+			declaration.Error()
+		}
+		declaration.BlockFunc(func(group *jen.Group) {
+			if data.ErrorAware {
+				group.Id("transformErr").Op(":=").New(jen.Error())
+			}
+			appendConvertRawBlock(group, data.Code)
+			if data.ErrorAware {
+				group.If(jen.Op("*").Id("transformErr").Op("!=").Nil()).Block(jen.Return(jen.Op("*").Id("transformErr")))
+			}
+			group.Op("*").Id("t").Op("=").Op("*").Id("temp")
+			if data.ErrorAware {
+				group.Return(jen.Nil())
+			}
+		})
 	})
 }
 
 func transformHelperSection(name string, data *codegen.TransformFunctionData) codegen.Section {
 	return codegen.NewJenniferSection(name, func(stmt *jen.Statement) {
 		codegen.Doc(stmt, fmt.Sprintf("%s builds a value of type %s from a value of type %s.", data.Name, data.ResultTypeRef, data.ParamTypeRef))
-		stmt.Func().
-			Id(data.Name).
-			Params(jen.Id("v").Add(codegen.TypeRef(data.ParamTypeRef))).
-			Add(codegen.TypeRef(data.ResultTypeRef)).
-			BlockFunc(func(group *jen.Group) {
-				appendConvertRawBlock(group, data.Code)
-				group.Line()
-				group.Return(jen.Id("res"))
-			})
+		stmt.Func().Id(data.Name).ParamsFunc(func(params *jen.Group) {
+			params.Id("v").Add(codegen.TypeRef(data.ParamTypeRef))
+			if data.ErrorAware {
+				params.Id("transformErr").Op("*").Error()
+			}
+		}).Add(codegen.TypeRef(data.ResultTypeRef)).BlockFunc(func(group *jen.Group) {
+			appendConvertRawBlock(group, data.Code)
+			group.Line()
+			group.Return(jen.Id("res"))
+		})
 		stmt.Line()
 	})
 }

@@ -397,6 +397,14 @@ func transformUnionFromProto(source, target *expr.AttributeExpr, sourceVar, targ
 // convertType produces code to initialize a target type from a source type
 // held by sourceVar.
 func convertType(src, tgt *expr.AttributeExpr, srcPtr bool, tgtPtr bool, srcVar string, ta *transformAttrs) string {
+	value := srcVar
+	if srcPtr {
+		value = "*" + value
+	}
+	if plan, ok := protobufStringPlan(src, tgt, value, ta); ok {
+		ref := ta.TargetCtx.Scope.Ref(tgt, ta.TargetCtx.Pkg(tgt))
+		return "func() " + ref + " {\n" + plan.Code + "\nreturn converted\n}()"
+	}
 	if expr.IsAlias(src.Type) || expr.IsAlias(tgt.Type) {
 		srcp, tgtp := unAlias(src), unAlias(tgt)
 		if srcp.Type == tgtp.Type {
@@ -429,7 +437,7 @@ func convertType(src, tgt *expr.AttributeExpr, srcPtr bool, tgtPtr bool, srcVar 
 
 func renderTransformHelperCall(src, tgt *expr.AttributeExpr, srcVar string, ta *transformAttrs) string {
 	args := []jen.Code{exprCode(srcVar)}
-	if conversionCanFail(src, tgt, ta.SourceCtx) {
+	if conversionCanFail(src, tgt, ta.SourceCtx, ta.TargetCtx) {
 		args = append(args, jen.Id("transformErr"))
 	}
 	return renderJen(jen.Id(transformHelperName(src, tgt, ta)).Call(args...))

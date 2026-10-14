@@ -32,9 +32,15 @@ func writeServerStreamBodySelection(b *strings.Builder, bodies []*TypeData, view
 }
 
 func writeServerBodyInitCall(b *strings.Builder, body *TypeData, prefix string) {
+	if body.Init.ServerErrorAware {
+		prefix = strings.Replace(prefix, "body :=", "body, conversionError :=", 1)
+	}
 	fmt.Fprintf(b, "%s%s(", prefix, body.Init.Name)
 	for _, arg := range body.Init.ServerArgs {
 		fmt.Fprintf(b, "%s, ", arg.Ref)
 	}
 	b.WriteString(")\n")
+	if body.Init.ServerErrorAware {
+		b.WriteString("if conversionError != nil {\nreturn conversionError\n}\n")
+	}
 }

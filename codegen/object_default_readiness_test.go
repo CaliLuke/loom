@@ -32,7 +32,9 @@ func TestObjectDefaultCarrierRuntime(t *testing.T) {
 			sourceCtx := NewAttributeContext(false, false, false, "", scope)
 			sourceCtx.JSONPresence = carrier == "Optional"
 			targetCtx := NewAttributeContext(false, false, true, "", scope)
-			code, helpers, err := GoTransform(source, target, "source", "target", sourceCtx, targetCtx, "", true)
+			codePlan, err := GoTransform(source, target, "source", "target", sourceCtx, targetCtx, "", true)
+			code := codePlan.Code
+			helpers := codePlan.Helpers
 			require.NoError(t, err)
 			require.Empty(t, helpers)
 			concrete := scope.GoTypeName(concretePresenceAttribute(leaf))

@@ -50,7 +50,8 @@ func TestTypedCollectionDefaultRepresentation(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := NewAttributeContext(false, false, true, "", NewNameScope())
-			got, err := ctx.DefaultValue(tc.target, tc.value)
+			gotPlan, err := ctx.DefaultValue(tc.target, tc.value)
+			got := gotPlan.Expression
 			require.NoError(t, err)
 			require.Equal(t, tc.want, got)
 		})
@@ -62,7 +63,8 @@ func TestTypedCollectionDefaultRepresentation(t *testing.T) {
 			targetMember := expr.DupAtt(tc.target)
 			targetMember.DefaultValue = tc.value
 			target := &expr.AttributeExpr{Type: &expr.Object{{Name: "values", Attribute: targetMember}}}
-			code, _, err := GoTransform(source, target, "source", "target", sourceCtx, targetCtx, "", true)
+			codePlan, err := GoTransform(source, target, "source", "target", sourceCtx, targetCtx, "", true)
+			code := codePlan.Code
 			require.NoError(t, err)
 			require.Contains(t, code, "target.Values = "+tc.want)
 		})
@@ -89,7 +91,8 @@ func TestTypedCollectionDefaultApplicationGates(t *testing.T) {
 			sourceCtx := NewAttributeContext(false, false, sourceDefaults, "", scope)
 			sourceCtx.JSONPresence = jsonPresence
 			targetCtx := NewAttributeContext(pointer, false, targetDefaults, "", scope)
-			code, _, err := GoTransform(source, target, "source", "target", sourceCtx, targetCtx, "", true)
+			codePlan, err := GoTransform(source, target, "source", "target", sourceCtx, targetCtx, "", true)
+			code := codePlan.Code
 			require.NoError(t, err)
 			if targetDefaults && !pointer && !required {
 				require.Contains(t, code, "target.Values = []float32{1.5}")

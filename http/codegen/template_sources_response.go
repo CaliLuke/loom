@@ -115,11 +115,19 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
 			{{- range $.ViewedResult.Views }}
 	case {{ printf "%q" .Name }}{{ if eq .Name "default" }}, ""{{ end }}:
 			{{- $vsb := (viewedServerBody $.ServerBody .Name) }}
-		body = {{ index $.EncodePlan.BodyValues $vsb }}
+		{{ if and $vsb.Init $vsb.Init.ServerErrorAware }}convertedBody, conversionError := {{ index $.EncodePlan.BodyValues $vsb }}
+		if conversionError != nil {
+			return conversionError
+		}
+		body = convertedBody{{ else }}body = {{ index $.EncodePlan.BodyValues $vsb }}{{ end }}
 			{{- end }}
 	}
 		{{- else }}
-	body {{ if not .ErrorHeader}}:{{ end }}= {{ index .EncodePlan.BodyValues .EncodePlan.FirstBody }}
+	{{ if and .EncodePlan.FirstBody.Init .EncodePlan.FirstBody.Init.ServerErrorAware }}convertedBody, conversionError := {{ index .EncodePlan.BodyValues .EncodePlan.FirstBody }}
+	if conversionError != nil {
+		return conversionError
+	}
+	body {{ if not .ErrorHeader}}:{{ end }}= convertedBody{{ else }}body {{ if not .ErrorHeader}}:{{ end }}= {{ index .EncodePlan.BodyValues .EncodePlan.FirstBody }}{{ end }}
 		{{- end }}
 		{{- if .ErrorHeader }}
 	}

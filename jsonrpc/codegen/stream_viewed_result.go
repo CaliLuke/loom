@@ -96,7 +96,7 @@ func responseBodyInit(source string, response *httpcodegen.ResponseData, bodies 
 	var b strings.Builder
 	fmt.Fprintf(&b, "var body any\n{\nres := %s\n", source)
 	if len(bodies) == 1 {
-		fmt.Fprintf(&b, "body = %s\n", response.EncodePlan.BodyValues[bodies[0]])
+		writeResponseBodyAssignment(&b, response, bodies[0])
 	} else {
 		b.WriteString("switch res.View {\n")
 		for _, body := range bodies {
@@ -105,7 +105,7 @@ func responseBodyInit(source string, response *httpcodegen.ResponseData, bodies 
 			} else {
 				fmt.Fprintf(&b, "case %q:\n", body.View)
 			}
-			fmt.Fprintf(&b, "body = %s\n", response.EncodePlan.BodyValues[body])
+			writeResponseBodyAssignment(&b, response, body)
 		}
 		b.WriteString("}\n")
 	}
@@ -136,4 +136,12 @@ func writeStreamMessage(g *jen.Group, connection, ctx, constructor jen.Code, ed 
 		message = jen.Id("message")
 	}
 	g.Return(jen.Add(connection).Dot("WriteJSON").Call(ctx, message))
+}
+
+func writeResponseBodyAssignment(output *strings.Builder, response *httpcodegen.ResponseData, body *httpcodegen.TypeData) {
+	if body.Init != nil && body.Init.ServerErrorAware {
+		fmt.Fprintf(output, "convertedBody, conversionError := %s\nif conversionError != nil {\nreturn conversionError\n}\nbody = convertedBody\n", response.EncodePlan.BodyValues[body])
+		return
+	}
+	fmt.Fprintf(output, "body = %s\n", response.EncodePlan.BodyValues[body])
 }

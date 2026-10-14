@@ -450,8 +450,10 @@ func (b *payloadBuilder) buildInitData(request *RequestData) *InitData {
 		ReturnIsStruct:           expr.IsObject(b.payload.Type),
 		ReturnTypeAttribute:      b.selectedBody.GoName,
 		ReturnTypePkg:            b.pkg,
-		ServerCode:               serverCode,
-		ClientCode:               clientCode,
+		ServerCode:               serverCode.Code,
+		ServerErrorAware:         serverCode.ErrorAware,
+		ClientCode:               clientCode.Code,
+		ClientErrorAware:         clientCode.ErrorAware,
 		ReturnIsPrimitivePointer: pointer,
 		ReturnIsUnionValue:       unionValue,
 		ReturnIsOptionalBody:     isOptionalNilBody(b.endpointIR.Request),
@@ -526,9 +528,8 @@ func (b *payloadBuilder) buildPayloadBodyArgs(request *RequestData, argsCap int)
 	return serverArgs, clientArgs
 }
 
-func (b *payloadBuilder) buildTransformCode(requestData *RequestData) (string, string, bool, bool) {
-	serverCode := ""
-	clientCode := ""
+func (b *payloadBuilder) buildTransformCode(requestData *RequestData) (codegen.TransformPlan, codegen.TransformPlan, bool, bool) {
+	var serverCode, clientCode codegen.TransformPlan
 	pointer := false
 	unionValue := false
 	pAtt := b.payload
@@ -542,39 +543,37 @@ func (b *payloadBuilder) buildTransformCode(requestData *RequestData) (string, s
 			pointer = b.payload.IsPrimitivePointer(field.Key, true) && !codegen.IsExplicitPresenceType(pAtt)
 			unionValue = bodyFieldIsUnionValue(b.payload, field.Name)
 		}
-		var helpers []*codegen.TransformFunctionData
 		var err error
 		serverContext := b.httpsvrctx.Dup()
 		serverContext.CollectionElementPresence = serverContext.JSONPresence
 		serverSource, clientSource := bodyTransformSources(request)
-		serverCode, helpers, err = unmarshal(request.Body, pAtt, serverSource, serverContext, b.svcctx)
+		serverCode, err = unmarshal(request.Body, pAtt, serverSource, serverContext, b.svcctx)
 		if err != nil {
 			panic(codegen.NewError(b.sds.Ctx, b.bodyAttr, fmt.Errorf("build HTTP server payload transform for %s: %w", b.endpointIR.MethodName, err)))
 		}
-		b.sd.ServerTransformHelpers = codegen.AppendHelpers(b.sd.ServerTransformHelpers, helpers)
+		b.sd.ServerTransformHelpers = codegen.AppendHelpers(b.sd.ServerTransformHelpers, serverCode.Helpers)
 		// JSON CLI arguments receive a detached decoding plan after existing
 		// wire declarations have claimed their names.
 		if !cli.IsJSONFlagType(b.sd.Scope.GoTypeNameWithDefaults(request.Body)) {
-			clientCode, helpers, err = marshal(request.Body, pAtt, clientSource, "v", b.httpclictx, b.svcctx)
+			clientCode, err = marshal(request.Body, pAtt, clientSource, "v", b.httpclictx, b.svcctx)
 			if err != nil {
 				panic(codegen.NewError(b.sds.Ctx, b.bodyAttr, fmt.Errorf("build HTTP client payload transform for %s: %w", b.endpointIR.MethodName, err)))
 			}
-			b.sd.ClientTransformHelpers = codegen.AppendHelpers(b.sd.ClientTransformHelpers, helpers)
+			b.sd.ClientTransformHelpers = codegen.AppendHelpers(b.sd.ClientTransformHelpers, clientCode.Helpers)
 		}
 	} else if expr.IsArray(b.payload.Type) || expr.IsMap(b.payload.Type) {
 		if sourceParam, source := b.collectionPayloadSource(requestData); sourceParam != nil {
-			var helpers []*codegen.TransformFunctionData
 			var err error
-			serverCode, helpers, err = unmarshal(sourceParam, b.payload, source, b.httpsvrctx, b.svcctx)
+			serverCode, err = unmarshal(sourceParam, b.payload, source, b.httpsvrctx, b.svcctx)
 			if err != nil {
 				panic(codegen.NewError(b.sds.Ctx, sourceParam, fmt.Errorf("build HTTP server collection payload transform for %s: %w", b.endpointIR.MethodName, err)))
 			}
-			b.sd.ServerTransformHelpers = codegen.AppendHelpers(b.sd.ServerTransformHelpers, helpers)
-			clientCode, helpers, err = marshal(sourceParam, b.payload, source, "v", b.httpclictx, b.svcctx)
+			b.sd.ServerTransformHelpers = codegen.AppendHelpers(b.sd.ServerTransformHelpers, serverCode.Helpers)
+			clientCode, err = marshal(sourceParam, b.payload, source, "v", b.httpclictx, b.svcctx)
 			if err != nil {
 				panic(codegen.NewError(b.sds.Ctx, sourceParam, fmt.Errorf("build HTTP client collection payload transform for %s: %w", b.endpointIR.MethodName, err)))
 			}
-			b.sd.ClientTransformHelpers = codegen.AppendHelpers(b.sd.ClientTransformHelpers, helpers)
+			b.sd.ClientTransformHelpers = codegen.AppendHelpers(b.sd.ClientTransformHelpers, clientCode.Helpers)
 		}
 	}
 	return serverCode, clientCode, pointer, unionValue

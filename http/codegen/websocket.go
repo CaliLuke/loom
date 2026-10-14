@@ -186,32 +186,32 @@ func initWebSocketPayloadConstructor(payload *TypeData, sds *ServicesData, endpo
 	name := websocketPayloadInitName(endpointIR.MethodName, typeName)
 	desc := fmt.Sprintf("%s builds a %s service %s endpoint payload.", name, sd.Service.Name, endpointIR.MethodName)
 	serverArgs := websocketPayloadInitArgs(sds, endpointIR.Request.StreamingBody, sd, body)
-	serverCode := ""
+	var plan codegen.TransformPlan
 	if body != expr.Empty {
 		var (
-			helpers []*codegen.TransformFunctionData
-			err     error
+			err error
 		)
 		httpctx := httpContext(sd.Scope, true, true)
 		httpctx.JSONPresence = true
 		httpctx.CollectionElementPresence = true
 		streamBody := makeHTTPType(endpointIR.Request.StreamingBody)
-		serverCode, helpers, err = marshal(streamBody, endpointIR.Stream.RequestPayload, "body", "v", httpctx, serviceContext(pkg, sd.Service.Scope))
+		plan, err = marshal(streamBody, endpointIR.Stream.RequestPayload, "body", "v", httpctx, serviceContext(pkg, sd.Service.Scope))
 		if err == nil {
-			sd.ServerTransformHelpers = codegen.AppendHelpers(sd.ServerTransformHelpers, helpers)
+			sd.ServerTransformHelpers = codegen.AppendHelpers(sd.ServerTransformHelpers, plan.Helpers)
 		} else {
 			panic(codegen.NewError(sds.Ctx, endpointIR.Request.StreamingBody, fmt.Errorf("build WebSocket payload transform for %s: %w", endpointIR.MethodName, err)))
 		}
 	}
 	payload.Init = &InitData{
-		Name:           name,
-		Description:    desc,
-		ServerArgs:     serverArgs,
-		ReturnTypeName: sd.Service.Scope.GoFullTypeName(endpointIR.Stream.RequestPayload, pkg),
-		ReturnTypeRef:  sd.Service.Scope.GoFullTypeRef(endpointIR.Stream.RequestPayload, pkg),
-		ReturnIsStruct: expr.IsObject(endpointIR.Stream.RequestPayload.Type),
-		ReturnTypePkg:  pkg,
-		ServerCode:     serverCode,
+		Name:             name,
+		Description:      desc,
+		ServerArgs:       serverArgs,
+		ReturnTypeName:   sd.Service.Scope.GoFullTypeName(endpointIR.Stream.RequestPayload, pkg),
+		ReturnTypeRef:    sd.Service.Scope.GoFullTypeRef(endpointIR.Stream.RequestPayload, pkg),
+		ReturnIsStruct:   expr.IsObject(endpointIR.Stream.RequestPayload.Type),
+		ReturnTypePkg:    pkg,
+		ServerCode:       plan.Code,
+		ServerErrorAware: plan.ErrorAware,
 	}
 }
 

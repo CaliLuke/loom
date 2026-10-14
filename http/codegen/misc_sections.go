@@ -36,7 +36,12 @@ func transformHelperSection(name string, data *codegen.TransformFunctionData) co
 		codegen.Doc(stmt, fmt.Sprintf("%s builds a value of type %s from a value of type %s.", data.Name, data.ResultTypeRef, data.ParamTypeRef))
 		stmt.Func().
 			Id(data.Name).
-			Params(jen.Id("v").Add(codegen.TypeRef(data.ParamTypeRef))).
+			ParamsFunc(func(params *jen.Group) {
+				params.Id("v").Add(codegen.TypeRef(data.ParamTypeRef))
+				if data.ErrorAware {
+					params.Id("transformErr").Op("*").Error()
+				}
+			}).
 			Add(codegen.TypeRef(data.ResultTypeRef)).
 			BlockFunc(func(group *jen.Group) {
 				appendRawBlock(group, data.Code)

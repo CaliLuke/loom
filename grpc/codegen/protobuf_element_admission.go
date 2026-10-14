@@ -8,7 +8,7 @@ import (
 // conversionCanFail reports whether this source/target conversion needs an
 // error channel, including errors from nested conversions. Callers and shared
 // helpers query their own conversion pair and physical source context.
-func conversionCanFail(source, target *expr.AttributeExpr, sourceCtx *codegen.AttributeContext) bool {
+func conversionCanFail(source, target *expr.AttributeExpr, sourceCtx, targetCtx *codegen.AttributeContext) bool {
 	if containsAny(source) || containsAny(target) {
 		return true
 	}
@@ -23,7 +23,7 @@ func conversionCanFail(source, target *expr.AttributeExpr, sourceCtx *codegen.At
 	}); err != nil {
 		panic(err)
 	}
-	return found
+	return found || protobufRepresentationCanFail(source, target, sourceCtx, targetCtx)
 }
 
 // elementNeedsAdmission classifies the physical source before protobuf wrappers

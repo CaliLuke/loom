@@ -22,6 +22,11 @@ import (
 // svr param indicates that the convert data is generated for server side.
 func (d *ServicesData) buildRequestConvertData(endpoint *transportir.Endpoint, md []*MetadataData, sd *ServiceData, svr bool) *ConvertData {
 	request := endpoint.Request.ProtoMessage
+	for _, metadata := range md {
+		if metadata.publication != nil {
+			sd.transformHelpers = appendTransformHelpers(sd.transformHelpers, metadata.publication.Helpers, false)
+		}
+	}
 	payload := endpoint.Request.Payload
 	if svr && payload.Type == expr.Empty {
 		return nil
@@ -44,20 +49,7 @@ func (d *ServicesData) buildRequestConvertData(endpoint *transportir.Endpoint, m
 		for _, m := range md {
 			// pass the metadata as arguments to payload constructor in server
 			key, _ := payload.FindAttribute(m.AttributeName)
-			data.Args = append(data.Args, &InitArgData{
-				Name:         m.VarName,
-				Ref:          m.VarName,
-				FieldName:    m.FieldName,
-				FieldPointer: payload.IsPrimitivePointer(key, true),
-				FieldType:    m.FieldType,
-				TypeName:     m.TypeName,
-				TypeRef:      m.TypeRef,
-				Type:         m.Type,
-				Pointer:      m.Pointer,
-				Required:     m.Required,
-				Validate:     m.Validate,
-				Example:      m.Example,
-			})
+			data.Args = append(data.Args, metadataInitArg(m, payload.IsPrimitivePointer(key, true)))
 		}
 		buildMetadataFieldInit(data, sd, svr)
 		return &ConvertData{
@@ -93,6 +85,11 @@ func (d *ServicesData) buildRequestConvertData(endpoint *transportir.Endpoint, m
 // svr param indicates that the convert data is generated for server side.
 func (d *ServicesData) buildResponseConvertData(endpoint *transportir.Endpoint, result *expr.AttributeExpr, svcCtx *codegen.AttributeContext, hdrs, trlrs []*MetadataData, sd *ServiceData, svr bool) *ConvertData {
 	response := endpoint.Response.ProtoMessage
+	for _, metadata := range slices.Concat(hdrs, trlrs) {
+		if metadata.publication != nil {
+			sd.transformHelpers = appendTransformHelpers(sd.transformHelpers, metadata.publication.Helpers, true)
+		}
+	}
 	if !svr && (endpoint.Stream.IsStreaming || endpoint.Response.Result.Type == expr.Empty) {
 		return nil
 	}
@@ -118,20 +115,7 @@ func (d *ServicesData) buildResponseConvertData(endpoint *transportir.Endpoint, 
 	for _, m := range slices.Concat(hdrs, trlrs) {
 		// Pass headers and trailers as arguments to the client result constructor.
 		key, _ := result.FindAttribute(m.AttributeName)
-		data.Args = append(data.Args, &InitArgData{
-			Name:         m.VarName,
-			Ref:          m.VarName,
-			FieldName:    m.FieldName,
-			FieldPointer: svcCtx.IsPrimitivePointer(key, result),
-			FieldType:    m.FieldType,
-			TypeName:     m.TypeName,
-			TypeRef:      m.TypeRef,
-			Type:         m.Type,
-			Pointer:      m.Pointer,
-			Required:     m.Required,
-			Validate:     m.Validate,
-			Example:      m.Example,
-		})
+		data.Args = append(data.Args, metadataInitArg(m, svcCtx.IsPrimitivePointer(key, result)))
 	}
 
 	buildMetadataFieldInit(data, sd, svr)
@@ -200,7 +184,28 @@ func (d *ServicesData) buildInitData(source, target *expr.AttributeExpr, sourceV
 		ReturnTypePkg:  tgtCtx.Pkg(target),
 		Code:           code,
 		Args:           args,
-		ErrorAware:     conversionCanFail(source, target, srcCtx),
+		ErrorAware:     conversionCanFail(source, target, srcCtx, tgtCtx),
+	}
+}
+
+// metadataInitArg retains native transport storage and the authored destination
+// occurrence for the shared field constructor.
+func metadataInitArg(metadata *MetadataData, fieldPointer bool) *InitArgData {
+	return &InitArgData{
+		Attribute:      metadata.attribute,
+		FieldAttribute: metadata.fieldAttribute,
+		Name:           metadata.VarName,
+		Ref:            metadata.VarName,
+		FieldName:      metadata.FieldName,
+		FieldPointer:   fieldPointer,
+		FieldType:      metadata.FieldType,
+		TypeName:       metadata.TypeName,
+		TypeRef:        metadata.TypeRef,
+		Type:           metadata.Type,
+		Pointer:        metadata.Pointer,
+		Required:       metadata.Required,
+		Validate:       metadata.Validate,
+		Example:        metadata.Example,
 	}
 }
 
@@ -217,15 +222,17 @@ func buildMetadataFieldInit(init *InitData, sd *ServiceData, svr bool) {
 		}
 		args = append(args, &codegen.InitArgData{
 			Name: arg.Name, Pointer: arg.Pointer, Type: arg.Type,
+			Attribute: arg.Attribute, FieldAttribute: arg.FieldAttribute,
 			FieldName: arg.FieldName, FieldPointer: arg.FieldPointer, FieldType: arg.FieldType,
 		})
 	}
-	code, helpers, err := codegen.InitStructFields(args, init.ReturnVarName, "", init.ReturnTypePkg, sd.Service.Scope)
+	plan, err := codegen.InitStructFields(args, init.ReturnVarName, "", init.ReturnTypePkg, sd.Service.Scope)
 	if err != nil {
 		panic(fmt.Errorf("build metadata fields for %s: %w", init.Name, err))
 	}
-	init.FieldCode = code
-	sd.transformHelpers = appendTransformHelpers(sd.transformHelpers, helpers, svr)
+	init.FieldCode = plan.Code
+	init.ErrorAware = init.ErrorAware || plan.ErrorAware
+	sd.transformHelpers = appendTransformHelpers(sd.transformHelpers, plan.Helpers, svr)
 }
 
 func appendTransformHelpers(oldH []*TransformHelperData, newH []*codegen.TransformFunctionData, svr bool) []*TransformHelperData {

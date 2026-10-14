@@ -222,7 +222,7 @@ func buildObjectHelper(source, target, body *expr.AttributeExpr, req bool, ta *t
 
 func objectHelperTransformAttrs(source, target *expr.AttributeExpr, ta *transformAttrs) *transformAttrs {
 	dup := dupTransformAttrs(ta)
-	dup.errorAware = conversionCanFail(source, target, ta.SourceCtx)
+	dup.errorAware = conversionCanFail(source, target, ta.SourceCtx, ta.TargetCtx)
 	if ta.proto && isUnionMessage(target) {
 		dup.message = dup.TargetCtx.Scope.Name(target, dup.TargetCtx.Pkg(target), false, false)
 	} else if !ta.proto && isUnionMessage(source) {

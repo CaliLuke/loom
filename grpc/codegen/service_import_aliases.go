@@ -76,6 +76,9 @@ func metadataVarScope(sd *ServiceData, att *expr.AttributeExpr) *codegen.NameSco
 	reserve(sd.Service.PkgName)
 	reserve(sd.Service.ViewsPkg)
 	reserve(sd.PkgName)
+	for _, imported := range codegen.GetMetaTypeImports(att) {
+		reserve(naming.ImportName(imported.Path, imported.Name))
+	}
 	if err := codegen.Walk(att, func(a *expr.AttributeExpr) error {
 		reserve(sd.Service.Scope.PackageName(codegen.UserTypeLocation(a.Type)))
 		return nil

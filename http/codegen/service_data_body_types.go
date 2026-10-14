@@ -455,11 +455,11 @@ func (sds *ServicesData) buildRequestBodyInit(
 	initName := fmt.Sprintf("New%s", codegen.Goify(sd.Scope.GoTypeName(body), true))
 	initDesc := fmt.Sprintf("%s builds the HTTP request body from the payload of the %q endpoint of the %q service.",
 		initName, endpointName, sd.Service.Name)
-	code, helpers, err := marshal(field.Attribute, body, src, "body", svcctx, httpctx)
+	plan, err := marshal(field.Attribute, body, src, "body", svcctx, httpctx)
 	if err != nil {
 		panic(codegen.NewError(nil, body, fmt.Errorf("build HTTP request body transform: %w", err)))
 	}
-	sd.ClientTransformHelpers = codegen.AppendHelpers(sd.ClientTransformHelpers, helpers)
+	sd.ClientTransformHelpers = codegen.AppendHelpers(sd.ClientTransformHelpers, plan.Helpers)
 
 	arg := &InitArgData{
 		Ref: sourceVar,
@@ -477,7 +477,8 @@ func (sds *ServicesData) buildRequestBodyInit(
 		Description:         initDesc,
 		ReturnTypeRef:       sd.Scope.GoTypeRef(body),
 		ReturnTypeAttribute: field.GoName,
-		ClientCode:          code,
+		ClientCode:          plan.Code,
+		ClientErrorAware:    plan.ErrorAware,
 		ClientArgs:          []*InitArgData{arg},
 	}
 }
@@ -512,11 +513,11 @@ func (sds *ServicesData) buildResponseBodyInit(
 
 	field, src := serviceBodyTransformSource(att, body, sourceVar)
 	pointer := svcctx.IsPrimitivePointer(field.Name, att)
-	code, rtref, helpers, err := marshalResponseBodySource(field.Attribute, body, src, rtref, pointer, svcctx, httpctx)
+	plan, rtref, err := marshalResponseBodySource(field.Attribute, body, src, rtref, pointer, svcctx, httpctx)
 	if err != nil {
 		panic(codegen.NewError(nil, body, fmt.Errorf("build HTTP response body transform: %w", err)))
 	}
-	sd.ServerTransformHelpers = codegen.AppendHelpers(sd.ServerTransformHelpers, helpers)
+	sd.ServerTransformHelpers = codegen.AppendHelpers(sd.ServerTransformHelpers, plan.Helpers)
 
 	argRef := sourceVar
 	argTypeRef := svcctx.Scope.Ref(att, pkg)
@@ -540,31 +541,32 @@ func (sds *ServicesData) buildResponseBodyInit(
 		Description:         initDesc,
 		ReturnTypeRef:       rtref,
 		ReturnTypeAttribute: field.GoName,
-		ServerCode:          code,
+		ServerCode:          plan.Code,
+		ServerErrorAware:    plan.ErrorAware,
 		ServerArgs:          []*InitArgData{arg},
 	}
 }
 
 // marshalResponseBodySource preserves a detached scalar source's physical
 // absence while the existing transform owns conversion of each present value.
-func marshalResponseBodySource(source, target *expr.AttributeExpr, sourceVar, typeRef string, pointer bool, sourcectx, targetctx *codegen.AttributeContext) (string, string, []*codegen.TransformFunctionData, error) {
+func marshalResponseBodySource(source, target *expr.AttributeExpr, sourceVar, typeRef string, pointer bool, sourcectx, targetctx *codegen.AttributeContext) (codegen.TransformPlan, string, error) {
 	valueSource, valueTarget := sourceVar, "body"
 	if pointer {
 		valueSource = "*" + sourceVar
 		valueTarget = "converted"
 	}
-	code, helpers, err := marshal(source, target, valueSource, valueTarget, sourcectx, targetctx)
+	plan, err := marshal(source, target, valueSource, valueTarget, sourcectx, targetctx)
 	if err != nil || !pointer {
-		return code, typeRef, helpers, err
+		return plan, typeRef, err
 	}
 	typeRef = fmt.Sprintf("%#v", jen.Op("*").Add(codegen.TypeRef(typeRef)))
-	conversion := code
-	code = fmt.Sprintf("%#v", jen.Var().Id("body").Add(codegen.TypeRef(typeRef)).Line().
+	conversion := plan.Code
+	plan.Code = fmt.Sprintf("%#v", jen.Var().Id("body").Add(codegen.TypeRef(typeRef)).Line().
 		If(codegen.Expr(sourceVar).Op("!=").Nil()).BlockFunc(func(group *jen.Group) {
 		appendHTTPRawBlock(group, conversion)
 		group.Id("body").Op("=").Op("&").Id(valueTarget)
 	}))
-	return code, typeRef, helpers, nil
+	return plan, typeRef, nil
 }
 
 func bodyValueRef(scope *codegen.NameScope, body *expr.AttributeExpr, varName string, httpctx *codegen.AttributeContext) string {

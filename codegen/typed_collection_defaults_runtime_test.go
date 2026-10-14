@@ -40,7 +40,8 @@ import (
 		sourceCtx := NewAttributeContext(false, false, false, "", scope)
 		sourceCtx.JSONPresence = carrier == "Optional"
 		targetCtx := NewAttributeContext(false, false, true, "", scope)
-		code, _, err := GoTransform(source, target, "source", "target", sourceCtx, targetCtx, "", true)
+		codePlan, err := GoTransform(source, target, "source", "target", sourceCtx, targetCtx, "", true)
+		code := codePlan.Code
 		require.NoError(t, err)
 		sourceRef, targetRef := "[]float32", "[]float32"
 		if carrier == "Optional" {

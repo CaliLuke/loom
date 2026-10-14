@@ -207,7 +207,7 @@ func viewedResultDefaultViewName(att *expr.AttributeExpr, rt *expr.ResultTypeExp
 
 // buildViewedResultType builds a viewed result type from the given result type
 // and projected type.
-func buildViewedResultType(att, projected *expr.AttributeExpr, viewspkg string, scope, viewScope *codegen.NameScope) *ViewedResultTypeData {
+func buildViewedResultType(att, projected *expr.AttributeExpr, viewspkg string, scope, viewScope *codegen.NameScope, typeInits []*InitData) *ViewedResultTypeData {
 	rt := att.Type.(*expr.ResultTypeExpr)
 	isarr := expr.IsArray(att.Type)
 	viewName := viewedResultDefaultViewName(att, rt)
@@ -230,7 +230,7 @@ func buildViewedResultType(att, projected *expr.AttributeExpr, viewspkg string, 
 	}
 	validate := buildViewedResultValidation(projected, views, scope, validationRef, resvar)
 	init := buildViewedResultInit(att, projected, envelope, views, viewspkg, scope, viewScope, resvar, vresref, isarr, viewspkg+"."+validate.Name)
-	resinit, resref := buildViewedResultResultInit(att, projected, views, scope, viewScope, resvar, vresref)
+	resinit, resref := buildViewedResultResultInit(att, projected, views, scope, viewScope, resvar, vresref, typeInits)
 	return &ViewedResultTypeData{
 		UserTypeData: &UserTypeData{
 			Name:        resvar,

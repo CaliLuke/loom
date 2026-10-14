@@ -37,7 +37,7 @@ func TestProjectedConstructorTargetContext(t *testing.T) {
 					}
 					require.Equal(t, want, init.ReturnTypePkg, "field casts must use the selected result declaration package")
 					require.Contains(t, init.ReturnTypeRef, want+".")
-					code := fieldCode(init, "client", data.Service.Scope)
+					code := fieldCode(init, "client", data.Service.Scope).Code
 					if viewed {
 						require.Contains(t, code, want+".LabelView(")
 						require.NotContains(t, code, data.Service.PkgName+".LabelView(")
@@ -170,5 +170,5 @@ func TestProjectedConstructorNominalScope(t *testing.T) {
 	// Repairing only the package still uses the wrong nominal declaration.
 	copy := *init
 	copy.ReturnTypePkg = data.Service.ViewsPkg
-	require.Contains(t, fieldCode(&copy, "client", data.Service.Scope), target+"(")
+	require.Contains(t, fieldCode(&copy, "client", data.Service.Scope).Code, target+"(")
 }

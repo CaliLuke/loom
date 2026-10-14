@@ -6,30 +6,46 @@ import (
 	"strings"
 
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/representation"
 )
 
-type defaultRenderer struct {
-	values *expr.ValueContext
-	active map[expr.ValueIdentity]bool
-}
+type (
+	// DefaultValueCode binds a default expression to its runtime error channel.
+	// Error-aware expressions record the first materialization failure through
+	// transformErr, a nonnil *error owned by the enclosing conversion boundary.
+	DefaultValueCode struct {
+		// Expression constructs the value in the selected physical Go layout.
+		Expression string
+		// ErrorAware reports whether Expression requires transformErr.
+		ErrorAware bool
+	}
+
+	defaultRenderer struct {
+		values     *expr.ValueContext
+		active     map[expr.ValueIdentity]bool
+		errorAware bool
+	}
+)
 
 // DefaultValue resolves authored input under the attribute's effective constraints
 // and renders it in this context's physical Go layout. It does not decide when a
 // default applies. Unrepresentable members return an error rather than being
 // dropped. Opaque values remain owned by an explicitly selected custom or raw
 // JSON representation; they are never reflected into guessed object fields.
-func (a *AttributeContext) DefaultValue(att *expr.AttributeExpr, value any) (string, error) {
+func (a *AttributeContext) DefaultValue(att *expr.AttributeExpr, value any) (DefaultValueCode, error) {
 	context := expr.NewValueContext()
 	occurrence, err := context.NewOccurrence(att)
 	if err != nil {
-		return "", fmt.Errorf("default representation: %w", err)
+		return DefaultValueCode{}, fmt.Errorf("default representation: %w", err)
 	}
 	result := context.Resolve(occurrence, context.SupplyValue(expr.ValueInput{Raw: value}), expr.ValueRoleDefault)
 	resolved, ok := result.RepresentationValue()
 	if !ok {
-		return "", fmt.Errorf("default representation: cannot resolve value: %v", result.Diagnostics())
+		return DefaultValueCode{}, fmt.Errorf("default representation: cannot resolve value: %v", result.Diagnostics())
 	}
-	return (&defaultRenderer{values: context, active: make(map[expr.ValueIdentity]bool)}).render(att, occurrence, resolved, a, "default")
+	renderer := &defaultRenderer{values: context, active: make(map[expr.ValueIdentity]bool)}
+	expression, err := renderer.render(att, occurrence, resolved, a, "default")
+	return DefaultValueCode{Expression: expression, ErrorAware: renderer.errorAware}, err
 }
 
 func (r *defaultRenderer) render(att *expr.AttributeExpr, occurrence expr.ValueOccurrence, value expr.ResolvedValue, context *AttributeContext, path string) (string, error) {
@@ -44,6 +60,10 @@ func (r *defaultRenderer) render(att *expr.AttributeExpr, occurrence expr.ValueO
 				return "", fmt.Errorf("%s: %w", path, err)
 			}
 			return literal, nil
+		}
+		if text, ok := source.(string); ok && representation.CustomString(att) {
+			r.errorAware = true
+			return renderCustomStringDefault(att, text, context, path), nil
 		}
 		return formatAttributeGoLiteral(att, source), nil
 	}

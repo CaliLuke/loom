@@ -47,7 +47,9 @@ func TestBytesDefaultTransformLayouts(t *testing.T) {
 			scope := NewNameScope()
 			src := NewAttributeContext(sourcePointer, false, sourceDefaults, "", scope)
 			dst := NewAttributeContext(targetPointer, false, targetDefaults, "", scope)
-			code, helpers, err := GoTransform(parent, parent, "source", "target", src, dst, "", true)
+			codePlan, err := GoTransform(parent, parent, "source", "target", src, dst, "", true)
+			code := codePlan.Code
+			helpers := codePlan.Helpers
 			require.NoError(t, err, name)
 			require.Empty(t, helpers, name)
 			sourceType := scope.GoTypeDef(parent, sourcePointer, sourceDefaults)

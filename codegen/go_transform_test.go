@@ -190,7 +190,8 @@ func TestGoTransform(t *testing.T) {
 				t.Run(c.Name, func(t *testing.T) {
 					require.NotNil(t, c.Source)
 					require.NotNil(t, c.Target)
-					code, _, err := GoTransform(&expr.AttributeExpr{Type: c.Source}, &expr.AttributeExpr{Type: c.Target}, "source", "target", c.SourceCtx, c.TargetCtx, "", true)
+					codePlan, err := GoTransform(&expr.AttributeExpr{Type: c.Source}, &expr.AttributeExpr{Type: c.Target}, "source", "target", c.SourceCtx, c.TargetCtx, "", true)
+					code := codePlan.Code
 					require.NoError(t, err)
 					code = FormatTestCode(t, "package foo\nfunc transform(){\n"+code+"}")
 					testutil.AssertGo(t, "testdata/golden/go_transform_"+name+"_"+c.Name+".go.golden", code)
@@ -206,7 +207,8 @@ func TestGoTransformPropagatesNestedCollectionErrors(t *testing.T) {
 	source := &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: expr.String}}}}}
 	target := &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: expr.Int}}}}}
 
-	code, _, err := GoTransform(source, target, "source", "target", ctx, ctx, "", true)
+	codePlan, err := GoTransform(source, target, "source", "target", ctx, ctx, "", true)
+	code := codePlan.Code
 
 	require.Error(t, err)
 	require.Empty(t, code)
@@ -226,7 +228,8 @@ func TestGoTransformUsesValueUnionArrayElements(t *testing.T) {
 	sourceCtx := NewAttributeContext(false, false, true, "transport", scope)
 	targetCtx := NewAttributeContext(false, false, true, "service", scope)
 
-	code, _, err := GoTransform(attribute, attribute, "source", "target", sourceCtx, targetCtx, "convert", true)
+	codePlan, err := GoTransform(attribute, attribute, "source", "target", sourceCtx, targetCtx, "convert", true)
+	code := codePlan.Code
 
 	require.NoError(t, err)
 	require.Contains(t, code, "target = make([]service.AOrB, len(source))")
@@ -235,7 +238,8 @@ func TestGoTransformUsesValueUnionArrayElements(t *testing.T) {
 	require.NotContains(t, code, "target[i] = &u")
 
 	nestedAttribute := &expr.AttributeExpr{Type: &expr.Array{ElemType: attribute}}
-	nestedCode, _, err := GoTransform(nestedAttribute, nestedAttribute, "source", "target", sourceCtx, targetCtx, "convert", true)
+	nestedCodePlan, err := GoTransform(nestedAttribute, nestedAttribute, "source", "target", sourceCtx, targetCtx, "convert", true)
+	nestedCode := nestedCodePlan.Code
 
 	require.NoError(t, err)
 	require.Contains(t, nestedCode, "target = make([][]service.AOrB, len(source))")
@@ -246,7 +250,8 @@ func TestGoTransformUsesValueUnionArrayElements(t *testing.T) {
 		ElemType: &expr.AttributeExpr{Type: union},
 	}}
 	nestedMapAttribute := &expr.AttributeExpr{Type: &expr.Array{ElemType: mapAttribute}}
-	nestedMapCode, _, err := GoTransform(nestedMapAttribute, nestedMapAttribute, "source", "target", sourceCtx, targetCtx, "convert", true)
+	nestedMapCodePlan, err := GoTransform(nestedMapAttribute, nestedMapAttribute, "source", "target", sourceCtx, targetCtx, "convert", true)
+	nestedMapCode := nestedMapCodePlan.Code
 
 	require.NoError(t, err)
 	require.Contains(t, nestedMapCode, "target = make([]map[string]service.AOrB, len(source))")
@@ -254,7 +259,8 @@ func TestGoTransformUsesValueUnionArrayElements(t *testing.T) {
 	require.NotContains(t, nestedMapCode, "*service.AOrB")
 
 	samePackageCtx := NewAttributeContextForConversion(false, false, true, "service", scope)
-	samePackageCode, _, err := GoTransform(nestedAttribute, nestedAttribute, "source", "target", sourceCtx, samePackageCtx, "convert", true)
+	samePackageCodePlan, err := GoTransform(nestedAttribute, nestedAttribute, "source", "target", sourceCtx, samePackageCtx, "convert", true)
+	samePackageCode := samePackageCodePlan.Code
 
 	require.NoError(t, err)
 	require.Contains(t, samePackageCode, "target = make([][]AOrB, len(source))")
@@ -288,7 +294,8 @@ func TestGoTransformRendersTypedMapDefaultFromMapVal(t *testing.T) {
 		},
 	}}
 
-	code, _, err := GoTransform(source, target, "source", "target", sourceCtx, targetCtx, "", true)
+	codePlan, err := GoTransform(source, target, "source", "target", sourceCtx, targetCtx, "", true)
+	code := codePlan.Code
 
 	require.NoError(t, err)
 	require.Contains(t, code, `map[string]int{"size": 1}`)
@@ -307,13 +314,17 @@ func TestGoTransformAnyDefaultsCompileAndEncodeStrings(t *testing.T) {
 	}}
 
 	type namedJSONMap map[string]any
-	direct, err := ta.TargetCtx.DefaultValue(anyAttribute, "direct")
+	directPlan, err := ta.TargetCtx.DefaultValue(anyAttribute, "direct")
+	direct := directPlan.Expression
 	require.NoError(t, err)
-	array, err := ta.TargetCtx.DefaultValue(arrayAttribute, []any{"array"})
+	arrayPlan, err := ta.TargetCtx.DefaultValue(arrayAttribute, []any{"array"})
+	array := arrayPlan.Expression
 	require.NoError(t, err)
-	mapped, err := ta.TargetCtx.DefaultValue(mapAttribute, map[string]any{"key": "map"})
+	mappedPlan, err := ta.TargetCtx.DefaultValue(mapAttribute, map[string]any{"key": "map"})
+	mapped := mappedPlan.Expression
 	require.NoError(t, err)
-	named, err := ta.TargetCtx.DefaultValue(anyAttribute, namedJSONMap{"exact": uint64(9007199254740993)})
+	namedPlan, err := ta.TargetCtx.DefaultValue(anyAttribute, namedJSONMap{"exact": uint64(9007199254740993)})
+	named := namedPlan.Expression
 	require.NoError(t, err)
 	require.Equal(t, `loom.JSONValue("\"direct\"")`, direct)
 	require.Equal(t, `[]loom.JSONValue{loom.JSONValue("\"array\"")}`, array)
@@ -358,7 +369,9 @@ func TestGoTransformTreatsMatchingExplicitTypesAsAtomic(t *testing.T) {
 	scope := NewNameScope()
 	ctx := NewAttributeContext(false, false, true, "", scope)
 
-	code, helpers, err := GoTransform(source, target, "source", "target", ctx, ctx, "", true)
+	codePlan, err := GoTransform(source, target, "source", "target", ctx, ctx, "", true)
+	code := codePlan.Code
+	helpers := codePlan.Helpers
 	require.NoError(t, err)
 	require.Equal(t, "target := source", code)
 	require.Empty(t, helpers)
@@ -373,7 +386,8 @@ func TestTransformJSONOptionalPrimitiveToServicePointer(t *testing.T) {
 	sourceCtx.JSONPresence = true
 	targetCtx := NewAttributeContext(false, false, true, "", scope)
 
-	code, _, err := GoTransform(attribute, attribute, "body", "payload", sourceCtx, targetCtx, "unmarshal", true)
+	codePlan, err := GoTransform(attribute, attribute, "body", "payload", sourceCtx, targetCtx, "unmarshal", true)
+	code := codePlan.Code
 	require.NoError(t, err)
 	require.Contains(t, code, "body.Count.Value()")
 	require.Contains(t, code, "payload.Count = &")
@@ -411,7 +425,8 @@ func TestTransformJSONOptionalDefaultFollowsTargetContext(t *testing.T) {
 			sourceCtx.JSONPresence = true
 			targetCtx := NewAttributeContext(c.Pointer, false, c.UseDefault, "", scope)
 
-			code, _, err := GoTransform(attribute, attribute, "body", "target", sourceCtx, targetCtx, "unmarshal", true)
+			codePlan, err := GoTransform(attribute, attribute, "body", "target", sourceCtx, targetCtx, "unmarshal", true)
+			code := codePlan.Code
 			require.NoError(t, err)
 			require.Contains(t, code, "body.Count.Value()")
 			require.Contains(t, code, "body.Tags.Value()")
@@ -434,7 +449,8 @@ func TestTransformServicePointerToJSONOptionalPrimitive(t *testing.T) {
 	targetCtx := NewAttributeContext(false, false, true, "", scope)
 	targetCtx.JSONPresence = true
 
-	code, _, err := GoTransform(attribute, attribute, "payload", "body", sourceCtx, targetCtx, "marshal", true)
+	codePlan, err := GoTransform(attribute, attribute, "payload", "body", sourceCtx, targetCtx, "marshal", true)
+	code := codePlan.Code
 	require.NoError(t, err)
 	require.Contains(t, code, "if payload.Count != nil")
 	require.Contains(t, code, "loom.OptionalValue")
@@ -457,7 +473,8 @@ func TestTransformNullableObjectCollectionPreservesNestedJSONPresence(t *testing
 	targetCtx := NewAttributeContext(false, false, true, "", scope)
 	targetCtx.JSONPresence = true
 
-	_, helpers, err := GoTransform(attribute, attribute, "values", "body", sourceCtx, targetCtx, "marshal", true)
+	helpersPlan, err := GoTransform(attribute, attribute, "values", "body", sourceCtx, targetCtx, "marshal", true)
+	helpers := helpersPlan.Helpers
 	require.NoError(t, err)
 	require.Len(t, helpers, 1)
 	require.NotContains(t, helpers[0].Code, "Name: v.Name")
@@ -472,7 +489,8 @@ func TestTransformArrayUnwrapsNonNullableJSONElements(t *testing.T) {
 	sourceCtx.CollectionElementPresence = true
 	targetCtx := NewAttributeContext(false, false, true, "", scope)
 
-	code, _, err := GoTransform(attribute, attribute, "body", "values", sourceCtx, targetCtx, "unmarshal", true)
+	codePlan, err := GoTransform(attribute, attribute, "body", "values", sourceCtx, targetCtx, "unmarshal", true)
+	code := codePlan.Code
 	require.NoError(t, err)
 	require.Contains(t, code, "actual, ok := val.Value()")
 	require.Contains(t, code, "values[i] = actual")
@@ -489,7 +507,8 @@ func TestTransformMapUnwrapsNonNullableJSONValues(t *testing.T) {
 	sourceCtx.CollectionElementPresence = true
 	targetCtx := NewAttributeContext(false, false, true, "", scope)
 
-	code, _, err := GoTransform(attribute, attribute, "body", "values", sourceCtx, targetCtx, "unmarshal", true)
+	codePlan, err := GoTransform(attribute, attribute, "body", "values", sourceCtx, targetCtx, "unmarshal", true)
+	code := codePlan.Code
 	require.NoError(t, err)
 	require.Contains(t, code, "actual, ok := val.Value()")
 	require.Contains(t, code, "tv = make([]string, len(actual))")
@@ -522,7 +541,8 @@ func TestTransformMapRendersTargetKeyAndValueTypes(t *testing.T) {
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			code, _, err := GoTransform(test.attribute, test.attribute, "source", "target", ctx, ctx, "convert", true)
+			codePlan, err := GoTransform(test.attribute, test.attribute, "source", "target", ctx, ctx, "convert", true)
+			code := codePlan.Code
 			require.NoError(t, err)
 			require.Contains(t, code, test.want)
 		})
@@ -540,7 +560,8 @@ func TestTransformNullableArrayUnwrapsNonNullableJSONElements(t *testing.T) {
 	sourceCtx.CollectionElementPresence = true
 	targetCtx := NewAttributeContext(false, false, true, "", scope)
 
-	code, _, err := GoTransform(attribute, attribute, "body", "values", sourceCtx, targetCtx, "unmarshal", true)
+	codePlan, err := GoTransform(attribute, attribute, "body", "values", sourceCtx, targetCtx, "unmarshal", true)
+	code := codePlan.Code
 	require.NoError(t, err)
 	require.Contains(t, code, "actual, ok := val.Value()")
 	require.Contains(t, code, "loom.NullableValue(valuesValue)")
@@ -565,7 +586,7 @@ func TestTransformNullableNamedObjectRootEmitsRequiredHelper(t *testing.T) {
 	scope := NewNameScope()
 	ctx := NewAttributeContext(false, false, true, "", scope)
 
-	code, helpers, err := GoTransform(
+	codePlan, err := GoTransform(
 		&expr.AttributeExpr{Type: serviceType},
 		&expr.AttributeExpr{Type: httpType},
 		"result",
@@ -575,6 +596,8 @@ func TestTransformNullableNamedObjectRootEmitsRequiredHelper(t *testing.T) {
 		"marshal",
 		true,
 	)
+	code := codePlan.Code
+	helpers := codePlan.Helpers
 	require.NoError(t, err)
 	require.Len(t, helpers, 1)
 	require.Contains(t, code, helpers[0].Name)
@@ -591,7 +614,9 @@ func TestTransformJSONOptionalRecursiveUserTypeUsesHelper(t *testing.T) {
 	targetCtx := NewAttributeContext(false, false, true, "", scope)
 	attribute := &expr.AttributeExpr{Type: recursive}
 
-	code, helpers, err := GoTransform(attribute, attribute, "body", "payload", sourceCtx, targetCtx, "unmarshal", true)
+	codePlan, err := GoTransform(attribute, attribute, "body", "payload", sourceCtx, targetCtx, "unmarshal", true)
+	code := codePlan.Code
+	helpers := codePlan.Helpers
 	require.NoError(t, err)
 	require.Contains(t, code, "unmarshalRecursiveToRecursive(&actual)")
 	require.Len(t, helpers, 1)
@@ -604,14 +629,16 @@ func TestTransformRawAnyAndNullablePresence(t *testing.T) {
 	raw := &expr.AttributeExpr{Type: expr.Any}
 	nullable := &expr.AttributeExpr{Type: expr.Any, Nullable: true}
 
-	decoded, _, err := GoTransform(raw, nullable, "body", "value", ctx, ctx, "unmarshal", true)
+	decodedPlan, err := GoTransform(raw, nullable, "body", "value", ctx, ctx, "unmarshal", true)
+	decoded := decodedPlan.Code
 	require.NoError(t, err)
 	require.Contains(t, decoded, "var value loom.Nullable[loom.JSONValue]")
 	require.Contains(t, decoded, "if valueValue == nil")
 	require.Contains(t, decoded, "value = loom.NullValue[loom.JSONValue]()")
 	require.Contains(t, decoded, "value = loom.NullableValue(valueValue)")
 
-	encoded, _, err := GoTransform(nullable, raw, "value", "body", ctx, ctx, "marshal", true)
+	encodedPlan, err := GoTransform(nullable, raw, "value", "body", ctx, ctx, "marshal", true)
+	encoded := encodedPlan.Code
 	require.NoError(t, err)
 	require.Contains(t, encoded, "var body loom.JSONValue")
 	require.Contains(t, encoded, "if value.IsNull()")

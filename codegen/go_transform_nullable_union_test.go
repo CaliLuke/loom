@@ -17,7 +17,9 @@ func TestUnionTransformNullableBranchDispatch(t *testing.T) {
 				target := nullableTransformUnion(shape, "Target", mode)
 				scope := NewNameScope()
 				ctx := NewAttributeContext(false, false, true, "", scope)
-				code, helpers, err := GoTransform(source, target, "source", "target", ctx, ctx, "convert", true)
+				codePlan, err := GoTransform(source, target, "source", "target", ctx, ctx, "convert", true)
+				code := codePlan.Code
+				helpers := codePlan.Helpers
 				require.NoError(t, err)
 				if mode == "ordinary" {
 					require.NotContains(t, code, "actual.IsNull()")
@@ -47,7 +49,7 @@ func TestUnionTransformRejectsNullableMismatch(t *testing.T) {
 			target := nullableTransformUnion("object", "Target", modes[1])
 			scope := NewNameScope()
 			ctx := NewAttributeContext(false, false, true, "", scope)
-			_, _, err := GoTransform(source, target, "source", "target", ctx, ctx, "convert", true)
+			_, err := GoTransform(source, target, "source", "target", ctx, ctx, "convert", true)
 			require.ErrorContains(t, err, "cannot transform nullable attribute to a non-nullable representation")
 		})
 	}

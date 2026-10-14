@@ -79,11 +79,11 @@ func (b *payloadBuilder) buildJSONRPCID() *JSONRPCIDData {
 	if layout.Pointer {
 		typeRef = "*" + typeRef
 	}
-	conversion, helpers, err := codegen.GoTransform(source, target, carrier, converted, sourceContext, b.svcctx, "unmarshal", true)
+	plan, err := codegen.GoTransform(source, target, carrier, converted, sourceContext, b.svcctx, "unmarshal", true)
 	if err != nil {
 		panic(codegen.NewError(b.sds.Ctx, attribute, fmt.Errorf("JSON-RPC ID conversion: %w", err)))
 	}
-	b.sd.ServerTransformHelpers = codegen.AppendHelpers(b.sd.ServerTransformHelpers, helpers)
+	b.sd.ServerTransformHelpers = codegen.AppendHelpers(b.sd.ServerTransformHelpers, plan.Helpers)
 	validation := codegen.ValidationCode(source, nil, sourceContext, true, false, false, carrier)
 	defaultValue, _ := selectedTransportConstraints(attribute).Default()
 	argument := &InitArgData{Ref: value, AttributeData: &AttributeData{
@@ -104,6 +104,6 @@ func (b *payloadBuilder) buildJSONRPCID() *JSONRPCIDData {
 		AllowsNull: expr.AllowsNull(attribute), ClientPresence: presence,
 		Argument: argument, FieldName: field,
 		DecodeCode: jsonrpcIDDecodeCode(binding, argument, carrier, converted,
-			goTypeDef(b.sd.Scope, source, true, false, false), validation, conversion),
+			goTypeDef(b.sd.Scope, source, true, false, false), validation, inlineConversionCode(plan)),
 	}
 }

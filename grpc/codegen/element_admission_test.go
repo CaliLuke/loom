@@ -33,7 +33,7 @@ func TestElementAdmissionFallibility(t *testing.T) {
 		{"Any null", array(&expr.AttributeExpr{Type: expr.Any}), array(&expr.AttributeExpr{Type: expr.Any}), true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			require.Equal(t, tc.want, conversionCanFail(tc.source, tc.target, serviceTypeContext("svc", codegen.NewNameScope())))
+			require.Equal(t, tc.want, conversionCanFail(tc.source, tc.target, serviceTypeContext("svc", codegen.NewNameScope()), serviceTypeContext("svc", codegen.NewNameScope())))
 		})
 	}
 }
@@ -66,8 +66,8 @@ func TestElementAdmissionPhysicalCarrier(t *testing.T) {
 			// Fallibility derives from the physical occurrence, never from the target's carrier.
 			if tc.attribute.Type != expr.Any {
 				collection := &expr.AttributeExpr{Type: &expr.Array{ElemType: tc.attribute}}
-				require.Equal(t, tc.service, conversionCanFail(collection, collection, serviceContext))
-				require.Equal(t, tc.protobuf, conversionCanFail(collection, collection, protobufContext))
+				require.Equal(t, tc.service, conversionCanFail(collection, collection, serviceContext, serviceContext))
+				require.Equal(t, tc.protobuf, conversionCanFail(collection, collection, protobufContext, protobufContext))
 			}
 		})
 	}

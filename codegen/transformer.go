@@ -126,7 +126,8 @@ type (
 		// Prefix is the transform function helper prefix.
 		Prefix string
 		// Options controls semantic helper identity.
-		Options TransformOptions
+		Options  TransformOptions
+		failures *transformFailures
 	}
 
 	// TransformFunctionData describes a helper function used to transform

@@ -115,7 +115,7 @@ type (
 // At most one options value may override helper naming. The same callback names
 // helper declarations, recursive references and calls; an empty name uses the
 // default physical-type naming rule.
-func GoTransform(source, target *expr.AttributeExpr, sourceVar, targetVar string, sourceCtx, targetCtx *AttributeContext, prefix string, newVar bool, options ...TransformOptions) (string, []*TransformFunctionData, error) {
+func GoTransform(source, target *expr.AttributeExpr, sourceVar, targetVar string, sourceCtx, targetCtx *AttributeContext, prefix string, newVar bool, options ...TransformOptions) (TransformPlan, error) {
 	ta := &TransformAttrs{
 		SourceCtx: sourceCtx,
 		TargetCtx: targetCtx,
@@ -123,23 +123,28 @@ func GoTransform(source, target *expr.AttributeExpr, sourceVar, targetVar string
 	}
 
 	if len(options) > 1 {
-		return "", nil, fmt.Errorf("GoTransform accepts at most one options value")
+		return TransformPlan{}, fmt.Errorf("GoTransform accepts at most one options value")
 	}
 	if len(options) == 1 {
 		ta.Options = options[0]
 	}
 
+	var err error
+	ta.failures, err = transformFailurePlan(source, target, ta)
+	if err != nil {
+		return TransformPlan{}, err
+	}
 	code, err := transformAttribute(source, target, sourceVar, targetVar, newVar, ta)
 	if err != nil {
-		return "", nil, err
+		return TransformPlan{}, err
 	}
 
 	funcs, err := transformAttributeHelpers(source, target, ta, make(map[string]*TransformFunctionData))
 	if err != nil {
-		return "", nil, err
+		return TransformPlan{}, err
 	}
 
-	return strings.TrimRight(code, "\n"), funcs, nil
+	return TransformPlan{Code: strings.TrimRight(code, "\n"), Helpers: funcs, ErrorAware: ta.failures.fallible(source, target, ta)}, nil
 }
 
 // transformAttribute returns the code to transform source attribute to target
@@ -154,17 +159,7 @@ func transformAttribute(source, target *expr.AttributeExpr, sourceVar, targetVar
 }
 
 func transformAttributeStmt(source, target *expr.AttributeExpr, sourceVar, targetVar string, newVar bool, ta *TransformAttrs) (*jen.Statement, error) {
-	if attributeUsesJSONPresence(source, ta.SourceCtx) || attributeUsesJSONPresence(target, ta.TargetCtx) {
-		nested := *ta
-		nested.SourceCtx, nested.TargetCtx = ta.SourceCtx.Dup(), ta.TargetCtx.Dup()
-		if attributeUsesJSONPresence(source, ta.SourceCtx) {
-			nested.SourceCtx.JSONPresence, nested.SourceCtx.CollectionElementPresence = true, true
-		}
-		if attributeUsesJSONPresence(target, ta.TargetCtx) {
-			nested.TargetCtx.JSONPresence, nested.TargetCtx.CollectionElementPresence = true, true
-		}
-		ta = &nested
-	}
+	ta = transformPresenceContext(source, target, ta)
 	if err := IsCompatible(source.Type, target.Type, sourceVar, targetVar); err != nil {
 		return nil, err
 	}
@@ -220,6 +215,10 @@ func transformPrimitive(source, target *expr.AttributeExpr, sourceVar, targetVar
 	assign := "="
 	if newVar {
 		assign = ":="
+	}
+
+	if stringRepresentationCrossing(source, target, ta) {
+		return new(jen.Statement).Add(Expr(targetVar)).Op(assign).Add(Expr(transformStringExpression(source, target, sourceVar, targetVar, ta))), nil
 	}
 
 	srcRef := ta.SourceCtx.Scope.Ref(source, ta.SourceCtx.Pkg(source))
@@ -315,6 +314,21 @@ func transformObjectPrimitiveInitExpression(srcMatt, tgtMatt *expr.MappedAttribu
 		return Expr(srcField), nil
 	}
 
+	if stringRepresentationCrossing(srcc, tgtc, ta) {
+		value := srcField
+		if srcPtr {
+			value = "*" + value
+		}
+		expression := Expr(transformStringExpression(srcc, tgtc, value, targetVar+"."+tgtField, ta))
+		if srcPtr && (tgtPtr || !srcMatt.IsRequired(name)) {
+			return nil, buildConditionalPrimitiveAssignmentStmt(srcField, targetVar, tgtField, expression, tgtPtr, Goify(name, false))
+		}
+		if tgtPtr {
+			return nil, buildPointerPrimitiveAssignmentStmt(targetVar, tgtField, expression, Goify(name, false))
+		}
+		return expression, nil
+	}
+
 	switch {
 	case isSrcUT || isTgtUT:
 		baseExpr := srcField
@@ -407,7 +421,7 @@ func transformObjectFieldAssignment(srcc, tgtc *expr.AttributeExpr, srcVar, tgtV
 		return nil, nil
 	case transformUsesHelper(srcc, tgtc):
 		stmt := &jen.Statement{}
-		stmt.Add(Expr(tgtVar)).Op("=").Id(transformHelperName(srcc, tgtc, ta)).Call(Expr(srcVar))
+		stmt.Add(Expr(tgtVar)).Op("=").Id(transformHelperName(srcc, tgtc, ta)).Call(transformCallArguments(srcc, tgtc, srcVar, ta)...)
 		return stmt, nil
 	case expr.IsObject(srcc.Type):
 		return transformAttributeStmt(srcc, tgtc, srcVar, tgtVar, false, ta)
@@ -461,10 +475,11 @@ func transformObjectDefaultValueCode(tgtc *expr.AttributeExpr, srcMatt, tgtMatt 
 	if !plan.Apply {
 		return nil, nil
 	}
-	defaultLiteral, err := ta.TargetCtx.DefaultValue(tgtc, plan.Value)
+	defaultPlan, err := ta.TargetCtx.DefaultValue(tgtc, plan.Value)
 	if err != nil {
 		return nil, err
 	}
+	defaultLiteral := defaultPlan.Expression
 	stmt := &jen.Statement{}
 	stmt.If(Expr(srcVar + " == nil")).BlockFunc(func(group *jen.Group) {
 		if ta.TargetCtx.IsPrimitivePointer(name, tgtMatt.AttributeExpr) && expr.IsPrimitive(tgtc.Type) {

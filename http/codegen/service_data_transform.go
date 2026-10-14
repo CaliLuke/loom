@@ -67,7 +67,7 @@ func viewContext(pkg string, scope *codegen.NameScope) *codegen.AttributeContext
 // the transformation code
 //
 // sourceCtx, targetCtx are the source and target attribute contexts
-func unmarshal(source, target *expr.AttributeExpr, sourceVar string, sourceCtx, targetCtx *codegen.AttributeContext) (string, []*codegen.TransformFunctionData, error) {
+func unmarshal(source, target *expr.AttributeExpr, sourceVar string, sourceCtx, targetCtx *codegen.AttributeContext) (codegen.TransformPlan, error) {
 	return codegen.GoTransform(source, target, sourceVar, "v", sourceCtx, targetCtx, "unmarshal", true)
 }
 
@@ -81,7 +81,7 @@ func unmarshal(source, target *expr.AttributeExpr, sourceVar string, sourceCtx, 
 // the transformation code
 //
 // sourceCtx, targetCtx are the source and target attribute contexts
-func marshal(source, target *expr.AttributeExpr, sourceVar, targetVar string, sourceCtx, targetCtx *codegen.AttributeContext) (string, []*codegen.TransformFunctionData, error) {
+func marshal(source, target *expr.AttributeExpr, sourceVar, targetVar string, sourceCtx, targetCtx *codegen.AttributeContext) (codegen.TransformPlan, error) {
 	return codegen.GoTransform(source, target, sourceVar, targetVar, sourceCtx, targetCtx, "marshal", true)
 }
 
@@ -254,4 +254,13 @@ func (s *httpAttributeScope) Name(att *expr.AttributeExpr, pkg string, ptr, useD
 		return goTypeDef(s.Scope(), att, ptr, useDefault, false)
 	}
 	return s.AttributeScope.Name(att, pkg, ptr, useDefault)
+}
+
+// inlineConversionCode adapts an owned conversion plan inside an existing
+// decoder whose result is (value, error). Its caller supplies the lexical scope.
+func inlineConversionCode(plan codegen.TransformPlan) string {
+	if !plan.ErrorAware {
+		return plan.Code
+	}
+	return "transformErr := new(error)\n" + plan.Code + "\nif *transformErr != nil {\nreturn nil, *transformErr\n}"
 }

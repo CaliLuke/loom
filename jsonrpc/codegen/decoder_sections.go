@@ -109,7 +109,7 @@ func writeJSONRPCDecodedInitReturn(g *jen.Group, e *httpcodegen.EndpointData, re
 		writeJSONRPCViewedInitReturn(g, e, resp, nil)
 		return
 	}
-	g.Id("res").Op(":=").Id(resp.ResultInit.Name).Call(jsonrpcInitArgs(resp.ResultInit.ClientArgs)...)
+	writeJSONRPCConstructorCall(g, e, resp.ResultInit, "res")
 	if resp.Tag != nil {
 		g.Add(codegen.Expr(resp.Tag.Assignment))
 	}
@@ -117,7 +117,7 @@ func writeJSONRPCDecodedInitReturn(g *jen.Group, e *httpcodegen.EndpointData, re
 }
 
 func writeJSONRPCViewedInitReturn(g *jen.Group, e *httpcodegen.EndpointData, resp *httpcodegen.ResponseData, responseID jen.Code) {
-	g.Id("p").Op(":=").Id(resp.ResultInit.Name).Call(jsonrpcInitArgs(resp.ResultInit.ClientArgs)...)
+	writeJSONRPCConstructorCall(g, e, resp.ResultInit, "p")
 	if responseID != nil && e.Result.IDAttribute != "" {
 		attr := e.Result.IDAttribute
 		g.If(jen.Id("p").Op("!=").Nil().Op("&&").Parens(jen.Id("p").Dot(attr).Op("==").Nil().Op("||").Op("*").Id("p").Dot(attr).Op("==").Lit(""))).Block(
@@ -161,7 +161,11 @@ func jsonrpcInitArgs(args []*httpcodegen.InitArgData) []jen.Code {
 func writeErrorCandidateReturn(g *jen.Group, resp *httpcodegen.ResponseData) {
 	switch {
 	case resp.ResultInit != nil:
-		g.Return(jen.Id(resp.ResultInit.Name).Call(jsonrpcInitArgs(resp.ResultInit.ClientArgs)...), jen.Nil())
+		if resp.ResultInit.ClientErrorAware {
+			g.Return(jen.Id(resp.ResultInit.Name).Call(jsonrpcInitArgs(resp.ResultInit.ClientArgs)...))
+		} else {
+			g.Return(jen.Id(resp.ResultInit.Name).Call(jsonrpcInitArgs(resp.ResultInit.ClientArgs)...), jen.Nil())
+		}
 	case resp.ClientBody != nil:
 		g.Return(jen.Id("body"), jen.Nil())
 	default:
@@ -218,4 +222,17 @@ func errValidationExpr(serviceName, methodName string, errExpr jen.Code) jen.Cod
 		jen.Lit(methodName),
 		errExpr,
 	)
+}
+
+func writeJSONRPCConstructorCall(group *jen.Group, endpoint *httpcodegen.EndpointData, init *httpcodegen.InitData, target string) {
+	assignment := jen.Id(target)
+	if init.ClientErrorAware {
+		assignment = jen.List(jen.Id(target), jen.Id("err"))
+	}
+	group.Add(assignment).Op(":=").Id(init.Name).Call(jsonrpcInitArgs(init.ClientArgs)...)
+	if init.ClientErrorAware {
+		group.If(jen.Id("err").Op("!=").Nil()).Block(
+			jen.Return(jen.Nil(), errValidationExpr(endpoint.ServiceName, endpoint.Method.Name, jen.Id("err"))),
+		)
+	}
 }

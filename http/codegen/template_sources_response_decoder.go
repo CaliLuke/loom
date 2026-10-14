@@ -36,7 +36,12 @@ func {{ .ResponseDecoder }}(decoder func(*http.Response) loomhttp.Decoder, resto
 			{{- template "partial_single_response" (buildResponseData . $.ServiceName $.Method) }}
 		{{- if .ResultInit }}
 			{{- if .ViewedResult }}
-			p := {{ .ResultInit.Name }}({{ range $i, $arg := .ResultInit.ClientArgs }}{{ if $i }}, {{ end }}{{ $arg.Ref }}{{ end }})
+			p{{ if .ResultInit.ClientErrorAware }}, err{{ end }} := {{ .ResultInit.Name }}({{ range $i, $arg := .ResultInit.ClientArgs }}{{ if $i }}, {{ end }}{{ $arg.Ref }}{{ end }})
+			{{- if .ResultInit.ClientErrorAware }}
+			if err != nil {
+				return nil, loomhttp.ErrValidationError("{{ $.ServiceName }}", "{{ $.Method.Name }}", err)
+			}
+			{{- end }}
 				{{- if .Tag }}
 				{{ .Tag.Assignment }}
 				{{- end }}
@@ -56,7 +61,12 @@ func {{ .ResponseDecoder }}(decoder func(*http.Response) loomhttp.Decoder, resto
 				return nil, loomhttp.ErrValidationError("{{ $.ServiceName }}", "{{ $.Method.Name }}", err)
 			}
 			{{- else }}
-			res := {{ .ResultInit.Name }}({{ range $i, $arg := .ResultInit.ClientArgs }}{{ if $i }}, {{ end }}{{ $arg.Ref }}{{ end }})
+			res{{ if .ResultInit.ClientErrorAware }}, err{{ end }} := {{ .ResultInit.Name }}({{ range $i, $arg := .ResultInit.ClientArgs }}{{ if $i }}, {{ end }}{{ $arg.Ref }}{{ end }})
+			{{- if .ResultInit.ClientErrorAware }}
+			if err != nil {
+				return nil, loomhttp.ErrValidationError("{{ $.ServiceName }}", "{{ $.Method.Name }}", err)
+			}
+			{{- end }}
 			{{- end }}
 			{{- if and .Tag (not .ViewedResult) }}
 			{{ .Tag.Assignment }}
@@ -82,7 +92,11 @@ func {{ .ResponseDecoder }}(decoder func(*http.Response) loomhttp.Decoder, resto
 				{{- with .Response }}
 					{{- template "partial_single_response" (buildResponseData . $.ServiceName $.Method) }}
 					{{- if .ResultInit }}
-			return nil, {{ .ResultInit.Name }}({{ range $i, $arg := .ResultInit.ClientArgs }}{{ if $i }}, {{ end }}{{ $arg.Ref }}{{ end }})
+			{{ if .ResultInit.ClientErrorAware }}result, conversionError := {{ .ResultInit.Name }}({{ range $i, $arg := .ResultInit.ClientArgs }}{{ if $i }}, {{ end }}{{ $arg.Ref }}{{ end }})
+			if conversionError != nil {
+				return nil, loomhttp.ErrValidationError("{{ $.ServiceName }}", "{{ $.Method.Name }}", conversionError)
+			}
+			return nil, result{{ else }}return nil, {{ .ResultInit.Name }}({{ range $i, $arg := .ResultInit.ClientArgs }}{{ if $i }}, {{ end }}{{ $arg.Ref }}{{ end }}){{ end }}
 					{{- else if .ClientBody }}
 			return nil, body
 					{{- else }}
@@ -101,7 +115,11 @@ func {{ .ResponseDecoder }}(decoder func(*http.Response) loomhttp.Decoder, resto
 			{{- with (index .Errors 0).Response }}
 				{{- template "partial_single_response" (buildResponseData . $.ServiceName $.Method) }}
 				{{- if .ResultInit }}
-			return nil, {{ .ResultInit.Name }}({{ range $i, $arg := .ResultInit.ClientArgs }}{{ if $i }}, {{ end }}{{ $arg.Ref }}{{ end }})
+			{{ if .ResultInit.ClientErrorAware }}result, conversionError := {{ .ResultInit.Name }}({{ range $i, $arg := .ResultInit.ClientArgs }}{{ if $i }}, {{ end }}{{ $arg.Ref }}{{ end }})
+			if conversionError != nil {
+				return nil, loomhttp.ErrValidationError("{{ $.ServiceName }}", "{{ $.Method.Name }}", conversionError)
+			}
+			return nil, result{{ else }}return nil, {{ .ResultInit.Name }}({{ range $i, $arg := .ResultInit.ClientArgs }}{{ if $i }}, {{ end }}{{ $arg.Ref }}{{ end }}){{ end }}
 				{{- else if .ClientBody }}
 			return nil, body
 				{{- else }}

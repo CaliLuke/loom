@@ -1,6 +1,20 @@
 func transform() {
 	target := &proto.Simple{}
-	requiredString := string(source.RequiredString)
+	requiredString := func() string {
+		converted := func() string {
+			var convertedValue string
+			if *transformErr != nil {
+				return convertedValue
+			}
+			semanticText, conversionError := loom.StringValue(source.RequiredString, "converted")
+			if conversionError != nil {
+				*transformErr = conversionError
+				return convertedValue
+			}
+			return string(semanticText)
+		}()
+		return converted
+	}()
 	target.RequiredString = &requiredString
 	defaultBool := bool(source.DefaultBool)
 	target.DefaultBool = &defaultBool

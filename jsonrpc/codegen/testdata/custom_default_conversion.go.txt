@@ -1,0 +1,51 @@
+package customdefault_test
+
+import (
+	"encoding/json/jsontext"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	svc "example.com/customdefault/gen/customdefault"
+	client "example.com/customdefault/gen/jsonrpc/customdefault/client"
+	server "example.com/customdefault/gen/jsonrpc/customdefault/server"
+	loomhttp "github.com/CaliLuke/loom/http"
+	rpc "github.com/CaliLuke/loom/jsonrpc"
+	"github.com/stretchr/testify/require"
+)
+
+func TestDefaultConversion(t *testing.T) {
+	const fallback = "550e8400-e29b-41d4-a716-446655440000"
+	mux := loomhttp.NewMuxer()
+	request := httptest.NewRequest(http.MethodPost, "/rpc", nil)
+	good, err := server.DecodeGoodRequest(mux, loomhttp.RequestDecoder)(request, &rpc.RawRequest{Params: jsontext.Value("{}")})
+	require.NoError(t, err)
+	require.Equal(t, fallback, good.Token.String())
+	bad, err := server.DecodeBadRequest(mux, loomhttp.RequestDecoder)(request, &rpc.RawRequest{Params: jsontext.Value("{}")})
+	require.Error(t, err)
+	require.Nil(t, bad)
+	goodCLI, err := client.BuildGoodPayload("{}")
+	require.NoError(t, err)
+	require.Equal(t, fallback, goodCLI.Token.String())
+	badCLI, err := client.BuildBadPayload("{}")
+	require.Error(t, err)
+	require.Nil(t, badCLI)
+	for _, name := range []string{"good", "bad"} {
+		response := &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{"jsonrpc":"2.0","id":"1","result":{}}`))}
+		response.Header.Set("Content-Type", "application/json")
+		decode := client.DecodeGoodResponse(loomhttp.ResponseDecoder, false)
+		if name == "bad" {
+			decode = client.DecodeBadResponse(loomhttp.ResponseDecoder, false)
+		}
+		value, err := decode(response)
+		if name == "good" {
+			require.NoError(t, err)
+			require.Equal(t, fallback, value.(*svc.GoodResult).Token.String())
+		} else {
+			require.Error(t, err)
+			require.Nil(t, value)
+		}
+	}
+}

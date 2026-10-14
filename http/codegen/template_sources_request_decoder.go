@@ -181,7 +181,12 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ el
 	{{- end }}
 {{- if not .MultipartRequestDecoder }}
 	{{- if .Payload.Request.PayloadInit }}
-	payload = {{ .Payload.Request.PayloadInit.Name }}({{ range .Payload.Request.PayloadInit.ServerArgs }}{{ .Ref }}, {{ end }})
+	payload{{ if .Payload.Request.PayloadInit.ServerErrorAware }}, err{{ end }} = {{ .Payload.Request.PayloadInit.Name }}({{ range .Payload.Request.PayloadInit.ServerArgs }}{{ .Ref }}, {{ end }})
+	{{- if .Payload.Request.PayloadInit.ServerErrorAware }}
+	if err != nil {
+		return payload, err
+	}
+	{{- end }}
 	{{- else if .Payload.DecoderReturnValue }}
 	payload = {{ .Payload.DecoderReturnValue }}
 	{{- else }}

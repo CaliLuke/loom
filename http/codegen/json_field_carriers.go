@@ -83,10 +83,10 @@ func (b *payloadBuilder) jsonQueryCarrier(parameter *ParamData, attribute *expr.
 		parameter.JSONDecodeCode = parameter.VarName + " = decoded"
 		return
 	}
-	conversion, helpers, err := codegen.GoTransform(attribute, attribute, "decoded", parameter.VarName, context, serviceContext("", b.sd.Scope), "unmarshal", false)
+	plan, err := codegen.GoTransform(attribute, attribute, "decoded", parameter.VarName, context, serviceContext("", b.sd.Scope), "unmarshal", false)
 	if err != nil {
 		panic(codegen.NewError(b.sds.Ctx, attribute, fmt.Errorf("JSON query carrier: %w", err)))
 	}
-	parameter.JSONDecodeCode = conversion
-	b.sd.ServerTransformHelpers = codegen.AppendHelpers(b.sd.ServerTransformHelpers, helpers)
+	parameter.JSONDecodeCode = inlineConversionCode(plan)
+	b.sd.ServerTransformHelpers = codegen.AppendHelpers(b.sd.ServerTransformHelpers, plan.Helpers)
 }

@@ -10,6 +10,7 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/representation"
 	"github.com/CaliLuke/loom/internal/transformassign"
 )
 
@@ -74,7 +75,7 @@ func protoBufTransform(source, target *expr.AttributeExpr, sourceVar, targetVar 
 		SourceCtx: sourceCtx,
 		TargetCtx: targetCtx,
 	}}
-	ta.errorAware = conversionCanFail(source, target, sourceCtx)
+	ta.errorAware = conversionCanFail(source, target, sourceCtx, targetCtx)
 	if proto {
 		target = expr.DupAtt(target)
 		removeMeta(target)
@@ -437,13 +438,14 @@ func applyObjectFieldDefaults(code, srcVar, tgtVar string, srcMatt, tgtMatt *exp
 	if !plan.Apply {
 		return code, nil
 	}
-	literal, err := ta.TargetCtx.DefaultValue(tgtc, plan.Value)
+	defaultPlan, err := ta.TargetCtx.DefaultValue(tgtc, plan.Value)
 	if err != nil {
 		return "", err
 	}
+	literal := defaultPlan.Expression
 	code += "if " + srcVar + " == nil {\n\t"
 	if ta.TargetCtx.IsPrimitivePointer(n, tgtMatt.AttributeExpr) && expr.IsPrimitive(tgtc.Type) {
-		nativeTypeName := codegen.GoNativeTypeName(tgtc.Type)
+		nativeTypeName := ta.TargetCtx.Scope.Ref(tgtc, ta.TargetCtx.Pkg(tgtc))
 		if ta.proto {
 			nativeTypeName = protoBufNativeGoTypeName(tgtc.Type)
 		}
@@ -511,7 +513,7 @@ func convertedPrimitiveObjectFieldExpr(srcc, tgtc *expr.AttributeExpr, srcField,
 		deref = "*"
 	}
 	exp := srcFieldConv
-	if _, isSrcUT := srcc.Type.(expr.UserType); isSrcUT && !ta.proto {
+	if _, isSrcUT := srcc.Type.(expr.UserType); isSrcUT && !ta.proto && !representation.CustomString(tgtc) {
 		exp = ta.TargetCtx.Scope.Ref(tgtc, ta.TargetCtx.Pkg(tgtc)) + "(" + deref + srcField + ")"
 	}
 	return exp

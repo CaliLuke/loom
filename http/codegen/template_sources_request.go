@@ -135,7 +135,11 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 		}
 		{{- if .Payload.Request.ClientBody }}
 		if p.{{ .Payload.Request.PayloadAttr }}{{ if .Payload.Request.OptionalBodyNullable }}.Present(){{ else }} != nil{{ end }} {
-			body.Params = {{ .Payload.Request.ClientBodyValue }}
+			{{ if and .Payload.Request.ClientBody.Init .Payload.Request.ClientBody.Init.ClientErrorAware }}convertedBody, conversionError := {{ .Payload.Request.ClientBodyValue }}
+			if conversionError != nil {
+				return loomhttp.ErrEncodingError("{{ .ServiceName }}", "{{ .Method.Name }}", conversionError)
+			}
+			body.Params = convertedBody{{ else }}body.Params = {{ .Payload.Request.ClientBodyValue }}{{ end }}
 		}
 		{{- end }}
 		{{- else }}
@@ -143,9 +147,19 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 		if p.{{ .Payload.Request.PayloadAttr }}{{ if .Payload.Request.OptionalBodyNullable }}.Present(){{ else }} != nil{{ end }} {
 		{{- end }}
 		{{- if .Method.IsJSONRPC }}
-		b := {{ .Payload.Request.ClientBodyValue }}
+		b{{ if and .Payload.Request.ClientBody.Init .Payload.Request.ClientBody.Init.ClientErrorAware }}, conversionError{{ end }} := {{ .Payload.Request.ClientBodyValue }}
+		{{- if and .Payload.Request.ClientBody.Init .Payload.Request.ClientBody.Init.ClientErrorAware }}
+		if conversionError != nil {
+			return loomhttp.ErrEncodingError("{{ .ServiceName }}", "{{ .Method.Name }}", conversionError)
+		}
+		{{- end }}
 		{{- else }}
-		body := {{ .Payload.Request.ClientBodyValue }}
+		body{{ if and .Payload.Request.ClientBody.Init .Payload.Request.ClientBody.Init.ClientErrorAware }}, conversionError{{ end }} := {{ .Payload.Request.ClientBodyValue }}
+		{{- if and .Payload.Request.ClientBody.Init .Payload.Request.ClientBody.Init.ClientErrorAware }}
+		if conversionError != nil {
+			return loomhttp.ErrEncodingError("{{ .ServiceName }}", "{{ .Method.Name }}", conversionError)
+		}
+		{{- end }}
 		{{- end }}
 		{{- if .Method.IsJSONRPC }}
 		body := &jsonrpc.Request{

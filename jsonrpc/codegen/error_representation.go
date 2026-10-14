@@ -26,7 +26,11 @@ func mappedErrorBody(response *httpcodegen.ResponseData) (initialization, value,
 		for _, arg := range body.Init.ServerArgs {
 			args = append(args, arg.Ref)
 		}
-		fmt.Fprintf(&code, "data := %s(%s)\n", body.Init.Name, strings.Join(args, ", "))
+		if body.Init.ServerErrorAware {
+			fmt.Fprintf(&code, "data, conversionError := %s(%s)\nif conversionError != nil {\nreturn conversionError\n}\n", body.Init.Name, strings.Join(args, ", "))
+		} else {
+			fmt.Fprintf(&code, "data := %s(%s)\n", body.Init.Name, strings.Join(args, ", "))
+		}
 		value = "data"
 	} else if response.ResultAttr != "" {
 		value += "." + response.ResultAttr

@@ -347,7 +347,7 @@ func renderTransformGoArray(data transformArrayRenderData) (*jen.Statement, erro
 				Index(Expr(data.LoopVar)).
 				Op("=").
 				Id(transformHelperName(data.SourceElem, data.TargetElem, data.TransformAttrs)).
-				Call(Expr(sourceElement))
+				Call(transformCallArguments(data.SourceElem, data.TargetElem, sourceElement, data.TransformAttrs)...)
 			return
 		}
 		group.Add(elemCode)
@@ -390,7 +390,7 @@ func renderTransformGoMap(data transformMapRenderData) (*jen.Statement, error) {
 			group.If(jen.Op("!").Id("ok")).Block(jen.Continue())
 		}
 		if data.IsKeyStruct {
-			group.Id("tk").Op(":=").Id(transformHelperName(data.SourceKey, data.TargetKey, data.TransformAttrs)).Call(Expr("key"))
+			group.Id("tk").Op(":=").Id(transformHelperName(data.SourceKey, data.TargetKey, data.TransformAttrs)).Call(transformCallArguments(data.SourceKey, data.TargetKey, "key", data.TransformAttrs)...)
 		} else {
 			group.Add(keyCode)
 		}
@@ -405,7 +405,7 @@ func renderTransformGoMap(data transformMapRenderData) (*jen.Statement, error) {
 				Index(Expr("tk")).
 				Op("=").
 				Id(transformHelperName(data.SourceElem, data.TargetElem, data.TransformAttrs)).
-				Call(Expr(sourceElement))
+				Call(transformCallArguments(data.SourceElem, data.TargetElem, sourceElement, data.TransformAttrs)...)
 			return
 		}
 		temp := "tv" + data.LoopVar
@@ -445,7 +445,7 @@ func renderTransformGoUnion(data transformUnionRenderData) (*jen.Statement, erro
 			group.Case(jen.Lit(c.CaseTag)).BlockFunc(func(caseGroup *jen.Group) {
 				caseGroup.List(jen.Id("actual"), jen.Id("_")).Op(":=").Add(Expr(data.SourceVar)).Dot("As" + c.SourceFieldName).Call()
 				if c.UseHelper {
-					caseGroup.Id(data.TempVarName).Op(":=").Id(c.HelperName).Call(Expr("actual"))
+					caseGroup.Id(data.TempVarName).Op(":=").Id(c.HelperName).Call(transformCallArguments(c.SourceAttr, c.TargetAttr, "actual", data.TransformAttrs)...)
 					caseGroup.Line()
 				} else {
 					caseGroup.Add(c.TransformCode)
@@ -646,17 +646,10 @@ func generateHelper(source, target *expr.AttributeExpr, req bool, ta *TransformA
 		ParamTypeRef:  ta.SourceCtx.Scope.Ref(source, ta.SourceCtx.Pkg(source)),
 		ResultTypeRef: ta.TargetCtx.Scope.Ref(target, ta.TargetCtx.Pkg(target)),
 		Code:          code,
+		ErrorAware:    ta.failures.fallible(source, target, ta),
 	}
 	seen[name] = tfd
 	return tfd, nil
-}
-
-func attributeUsesJSONPresence(attribute *expr.AttributeExpr, context *AttributeContext) bool {
-	if attribute == nil || context == nil || len(context.JSONPresenceTypes) == 0 {
-		return false
-	}
-	userType, ok := attribute.Type.(expr.UserType)
-	return ok && context.JSONPresenceTypes[userType.Hash()]
 }
 
 // walkMatches iterates through the attributes of source and looks for

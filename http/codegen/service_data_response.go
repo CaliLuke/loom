@@ -314,7 +314,8 @@ func (sds *ServicesData) buildResponseResultInit(
 		ReturnTypePkg:            svcctx.DefaultPkg,
 		ReturnIsPrimitivePointer: pointer,
 		ReturnIsUnionValue:       bodyFieldIsUnionValue(result, field.Name),
-		ClientCode:               code,
+		ClientCode:               code.Code,
+		ClientErrorAware:         code.ErrorAware,
 	}
 }
 
@@ -330,7 +331,7 @@ func (sds *ServicesData) buildResponseResultInitCode(
 	cookiesData []*CookieData,
 	endpointIR *transportir.Endpoint,
 	sd *ServiceData,
-) (string, bool, []*InitArgData) {
+) (codegen.TransformPlan, bool, []*InitArgData) {
 	body := effectiveClientResponseBody(resp.Body, endpointIR.Response.Result, md)
 	clientArgs := buildResponseResultInitArgs(resp, body, httpclictx, headersData, cookiesData, sd)
 	code, err := sds.buildClientResultTransformCode(body, resAttr, result, endpointIR.Request, httpclictx, svcctx, sd)
@@ -385,16 +386,16 @@ func (sds *ServicesData) buildClientResultTransformCode(
 	httpclictx *codegen.AttributeContext,
 	targetctx *codegen.AttributeContext,
 	sd *ServiceData,
-) (string, error) {
+) (codegen.TransformPlan, error) {
 	if body.Type != expr.Empty {
 		return sds.buildClientBodyUnmarshalCode(body, bodyTarget, httpclictx, targetctx, sd)
 	}
 	if !expr.IsArray(fallbackTarget.Type) && !expr.IsMap(fallbackTarget.Type) {
-		return "", nil
+		return codegen.TransformPlan{}, nil
 	}
 	fallbackSource, fallbackVar := buildQueryFallbackSource(request)
 	if fallbackSource == nil {
-		return "", nil
+		return codegen.TransformPlan{}, nil
 	}
 	return sds.buildClientBodyUnmarshalCode(fallbackSource, fallbackTarget, httpclictx, targetctx, sd, fallbackVar)
 }
@@ -406,7 +407,7 @@ func (sds *ServicesData) buildClientBodyUnmarshalCode(
 	targetctx *codegen.AttributeContext,
 	sd *ServiceData,
 	sourceVar ...string,
-) (string, error) {
+) (codegen.TransformPlan, error) {
 	src := "body"
 	if len(sourceVar) > 0 && sourceVar[0] != "" {
 		src = sourceVar[0]
@@ -416,12 +417,12 @@ func (sds *ServicesData) buildClientBodyUnmarshalCode(
 		sourceContext = httpclictx.Dup()
 		sourceContext.CollectionElementPresence = true
 	}
-	code, helpers, err := unmarshal(source, target, src, sourceContext, targetctx)
+	plan, err := unmarshal(source, target, src, sourceContext, targetctx)
 	if err != nil {
-		return "", err
+		return codegen.TransformPlan{}, err
 	}
-	sd.ClientTransformHelpers = codegen.AppendHelpers(sd.ClientTransformHelpers, helpers)
-	return code, nil
+	sd.ClientTransformHelpers = codegen.AppendHelpers(sd.ClientTransformHelpers, plan.Helpers)
+	return plan, nil
 }
 
 func buildQueryFallbackSource(request *transportir.Request) (*expr.AttributeExpr, string) {

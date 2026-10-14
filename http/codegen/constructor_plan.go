@@ -15,6 +15,7 @@ type (
 	constructorPlan struct {
 		parameters []constructorParameter
 		result     string
+		errorAware bool
 		body       string
 	}
 	constructorParameter struct {
@@ -24,21 +25,37 @@ type (
 
 func newConstructorPlan(init *InitData, client, body bool, pkgs *codegen.NameScope) *constructorPlan {
 	args, code := initRenderData(init, client)
-	plan := &constructorPlan{result: init.ReturnTypeRef}
+	plan := &constructorPlan{result: init.ReturnTypeRef, errorAware: init.ServerErrorAware}
+	if client {
+		plan.errorAware = init.ClientErrorAware
+	}
 	for _, arg := range args {
 		plan.parameters = append(plan.parameters, constructorParameter{arg.VarName, arg.TypeRef})
 	}
+	var fields codegen.TransformPlan
+	if !body && !init.SkipFieldInit {
+		fields = fieldCode(init, initRenderTarget(client), pkgs)
+		plan.errorAware = plan.errorAware || fields.ErrorAware
+	}
+	if client {
+		init.ClientErrorAware = plan.errorAware
+	} else {
+		init.ServerErrorAware = plan.errorAware
+	}
 	plan.body = fmt.Sprintf("%#v", jen.BlockFunc(func(group *jen.Group) {
+		if plan.errorAware {
+			group.Id("transformErr").Op(":=").New(jen.Error())
+		}
 		if body {
 			if code != "" {
 				appendHTTPRawBlock(group, code)
 			}
-			group.Return(jen.Id("body"))
+			plan.returnValue(group, "body")
 			return
 		}
 		fieldInitCode := ""
 		if !init.SkipFieldInit {
-			fieldInitCode = strings.TrimRight(fieldCode(init, initRenderTarget(client), pkgs), "\n\t ")
+			fieldInitCode = strings.TrimRight(fields.Code, "\n\t ")
 		}
 		appendInitResult(group, init, code, client)
 		if fieldInitCode != "" {
@@ -48,9 +65,9 @@ func newConstructorPlan(init *InitData, client, body bool, pkgs *codegen.NameSco
 			group.Line()
 		}
 		if init.ReturnTypeAttribute != "" {
-			group.Return(jen.Id("res"))
+			plan.returnValue(group, "res")
 		} else {
-			group.Return(jen.Id("v"))
+			plan.returnValue(group, "v")
 		}
 	}))
 	return plan
@@ -63,11 +80,17 @@ func (p *constructorPlan) Hash() string {
 }
 
 func (p *constructorPlan) declaration(name string) *jen.Statement {
-	return jen.Func().Id(name).ParamsFunc(func(group *jen.Group) {
+	declaration := jen.Func().Id(name).ParamsFunc(func(group *jen.Group) {
 		for _, arg := range p.parameters {
 			group.Id(arg.name).Add(codegen.TypeRef(arg.typ))
 		}
-	}).Add(codegen.TypeRef(p.result)).Add(codegen.Expr(p.body))
+	})
+	if p.errorAware {
+		declaration.Params(codegen.TypeRef(p.result), jen.Error())
+	} else {
+		declaration.Add(codegen.TypeRef(p.result))
+	}
+	return declaration.Add(codegen.Expr(p.body))
 }
 
 func constructorSection(name string, init *InitData, client, body bool, pkgs *codegen.NameScope) codegen.Section {
@@ -83,4 +106,16 @@ func constructorSection(name string, init *InitData, client, body bool, pkgs *co
 		stmt.Add(plan.declaration(init.Name))
 		stmt.Line()
 	})
+}
+
+func (p *constructorPlan) returnValue(group *jen.Group, value string) {
+	if !p.errorAware {
+		group.Return(jen.Id(value))
+		return
+	}
+	group.If(jen.Op("*").Id("transformErr").Op("!=").Nil()).Block(
+		jen.Var().Id("zero").Add(codegen.TypeRef(p.result)),
+		jen.Return(jen.Id("zero"), jen.Op("*").Id("transformErr")),
+	)
+	group.Return(jen.Id(value), jen.Nil())
 }

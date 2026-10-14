@@ -71,6 +71,16 @@ func grpcTypeImports(genpkg string, svc *expr.GRPCServiceExpr, sd *ServiceData) 
 			&codegen.ImportSpec{Path: "google.golang.org/protobuf/types/known/structpb", Name: "structpb"},
 		)
 	}
+	for _, endpoint := range svc.GRPCEndpoints {
+		for _, attribute := range []*expr.AttributeExpr{endpoint.MethodExpr.Payload, endpoint.MethodExpr.Result, endpoint.MethodExpr.StreamingPayload} {
+			if attribute != nil {
+				imports = append(imports, codegen.GetMetaTypeImports(attribute)...)
+			}
+		}
+		for _, response := range endpoint.MethodExpr.Errors {
+			imports = append(imports, codegen.GetMetaTypeImports(response.AttributeExpr)...)
+		}
+	}
 	imports = append(imports, sd.ProtoGoImports...)
 	return append(imports, sd.Service.UserTypeImports...)
 }

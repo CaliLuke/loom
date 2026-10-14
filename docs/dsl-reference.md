@@ -2228,6 +2228,24 @@ If the DSL field also uses `Format(...)`, Loom skips the duplicate generated
 string format check and lets the custom type's parser own that validation.
 Other string constraints, such as `MinLength`, validate the original text.
 
+Custom String fields also participate in service view validation, defaults and
+gRPC conversion. Loom uses `fmt.Stringer` on the value or its address to obtain
+semantic text; native and defined string storage otherwise keep their string
+value. For materialization, an authored `encoding.TextUnmarshaler` takes
+precedence over assignment to native or defined string storage. Concrete pointer
+chains preserve this precedence; nil values cannot supply semantic text. Opaque
+types without the required capability return an error when that operation is
+needed. Copying an unchanged custom representation needs neither capability.
+JSON codecs do not substitute for these semantic operations.
+
+Defaults still apply only to absence. A failed custom default or text conversion
+returns an error and does not publish a partial result. Regenerate service and
+transport code together: constructors such as `NewRecordFromRecordView`, and
+`ConvertTo` / `CreateFrom` methods, now return an error when their selected
+conversion can fail. Constructors for native values or views excluding every
+fallible conversion keep their existing signatures. Existing outer viewed-result
+constructors propagate these errors.
+
 ---
 
 ## gRPC Transport Mapping

@@ -106,17 +106,18 @@ func (b *errorBuilder) buildResultInit(errorResponse *transportir.ResponseStatus
 		ReturnTypeAttribute:      fieldName,
 		ReturnIsPrimitivePointer: fieldPointer,
 		ReturnTypePkg:            pkg,
-		ClientCode:               code,
+		ClientCode:               code.Code,
+		ClientErrorAware:         code.ErrorAware,
 		SkipFieldInit:            skipFieldInit,
 	}
 }
 
-func (b *errorBuilder) buildResultInitCode(errorResponse *transportir.ResponseStatus, errctx *codegen.AttributeContext, args []*InitArgData) (string, string, bool) {
+func (b *errorBuilder) buildResultInitCode(errorResponse *transportir.ResponseStatus, errctx *codegen.AttributeContext, args []*InitArgData) (codegen.TransformPlan, string, bool) {
 	origin := ""
 	httpError := errorResponse.Error
 	body := responseStatusBody(errorResponse)
 	if expr.IsDefaultErrorResult(httpError.Attribute.Type) {
-		return b.buildProblemClientResult(errorResponse, args), "", true
+		return codegen.TransformPlan{Code: b.buildProblemClientResult(errorResponse, args)}, "", true
 	}
 	errAtt := httpError.Attribute
 	if o, ok := body.Meta["origin:attribute"]; ok {

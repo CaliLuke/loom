@@ -39,7 +39,8 @@ func TestTransformAnyDefaultContext(t *testing.T) {
 			source := NewAttributeContext(true, false, sourceDefaults, "", scope)
 			source.JSONPresence = jsonPresence
 			target := NewAttributeContext(pointer, false, targetDefaults, "", scope)
-			code, _, err := GoTransform(attribute, attribute, "body", "payload", source, target, "", true)
+			codePlan, err := GoTransform(attribute, attribute, "body", "payload", source, target, "", true)
+			code := codePlan.Code
 			require.NoError(t, err)
 			if defaulted && targetDefaults && !pointer && !required {
 				require.Contains(t, code, `loom.JSONValue("\"fallback\"")`)
@@ -63,7 +64,8 @@ func TestTransformAnyDefaultPreservesCustomRepresentation(t *testing.T) {
 	scope := NewNameScope()
 	source := NewAttributeContext(false, false, false, "", scope)
 	target := NewAttributeContext(false, false, true, "", scope)
-	code, _, err := GoTransform(attribute, attribute, "body", "payload", source, target, "", true)
+	codePlan, err := GoTransform(attribute, attribute, "body", "payload", source, target, "", true)
+	code := codePlan.Code
 	require.NoError(t, err)
 	require.NotContains(t, code, "== nil")
 	require.NotContains(t, code, "loom.JSONValue")

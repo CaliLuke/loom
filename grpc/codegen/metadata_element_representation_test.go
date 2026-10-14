@@ -80,7 +80,7 @@ func TestMetadataElementConstructorProjection(t *testing.T) {
 			original := expr.AsArray(field.FieldType)
 			primitive := unalias(original.ElemType)
 			physical := &expr.Array{ElemType: &expr.AttributeExpr{Type: primitive.Type}}
-			code, _, err := loomcodegen.InitStructFields([]*loomcodegen.InitArgData{{
+			plan, err := loomcodegen.InitStructFields([]*loomcodegen.InitArgData{{
 				Name: field.VarName, Type: physical, FieldName: field.FieldName, FieldType: field.FieldType,
 			}}, "result", "", service.Service.PkgName, service.Service.Scope)
 			require.NoError(t, err)
@@ -89,7 +89,7 @@ func TestMetadataElementConstructorProjection(t *testing.T) {
 				pkg = service.Service.Scope.PackageName(location)
 			}
 			name := service.Service.Scope.GoFullTypeRef(original.ElemType, pkg)
-			require.Contains(t, code, name, "shared constructor must restore qualified service element identity")
+			require.Contains(t, plan.Code, name, "shared constructor must restore qualified service element identity")
 		})
 	}
 }
