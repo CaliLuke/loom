@@ -23,20 +23,32 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
   and a return-to-release condition. No cache injection or local source override
   counts as delivery. Redis client types carry their module identity, so Pulse
   applications must migrate their Redis import while this fork is required.
-- **243 of 251 tracked reports are delivered, pushed and confirmed closed.**
-  All 242 reports in the completed review/follow-up scope are closed. The scope
-  now also includes eight older reports #671–#678 and new independent
-  indexing defect #922; seven older reports and #922 remain active. #671 is independently
-  reconciled and closed through the delivered backup owner #899 (`18ae28c9e`).
-  The [inventory](framework-correctness-inventory.md) records each report;
-  `/tmp/loom-tracker-251-issues.json` is the GitHub reconciliation input.
+- **248 of 254 tracked reports are delivered, pushed and confirmed closed.**
+  Six reports remain: #672/#673 (replica authority), #675 (declaration merging),
+  #678 (pattern admission), #923 (custom response scalar representation), and
+  #924 (effective schema inspection). New findings #923–#925 came from bounded
+  verification; #925 is already delivered. The original 242-report scope stays
+  closed. The [inventory](framework-correctness-inventory.md) records each report;
+  `/tmp/loom-tracker-254-issues.json` is the live GitHub reconciliation input.
+- **Latest structural deliveries:** #676 `1d03a9e9b` unifies validated notification
+  eligibility; #677 `050461172` composes schema annotations after normalization;
+  #925 `a231863c0` deterministically serializes extension values; #922 `f4c12945d`
+  adopts effective index ownership; #674 `89920d3f0` unifies scalar presence
+  decoding. Each exact commit was independently reviewed, pushed and closed.
+  Root integration races pass for importer (6.011s), HTTP generator (7.086s),
+  and JSON-RPC generator (4.332s). Selected artifact, compilation and model
+  checks are recorded in each owning plan. #676/#677 inactive validation builds
+  and checker state were removed after retaining reproduction inputs/evidence.
 - **Integrated validation at `4ac58a013`:** `make lint` passes, including root,
   testdata and nested modules. Every top-level test that failed in the previous
   `c304` CI run passes with race checking across generator, HTTP, gRPC, JSON-RPC
   and importer packages. Commands/logs: `/tmp/loom-242-ci-recheck-command.txt`,
   `/tmp/loom-242-ci-recheck.log`, `/tmp/loom-242-integrated-lint.log`.
-  CodeQL is green. Required CI run `38577316443` remains queued; full remote CI
-  is not yet confirmed green. No release was attempted.
+  CodeQL is green on the preceding checked commits. Required CI run
+  `38580114972` at `1d03a9e9b` has passed OpenAPI, native Redis, generated-code
+  quality and all five testdata compilation jobs; build, races and proof/conformance
+  jobs remain running. Newer-source CI is queued/running, so full latest-source
+  remote CI is not yet confirmed green. No release was attempted.
 - **Dependency deliveries:** #820 `7fab1bb05`, #800 `d899a0112` and #687
   `a9a597a3c` are independently reviewed, pushed and closed. Ordinary downstream
   Go modules fetch both real fork dependencies without replacements. Pulse
@@ -312,7 +324,7 @@ reconciliation with the inventory before they can establish remaining work.
 1. [x] Publish real fork modules on current stable bases, preserving upstream
    PR branches. Redis: `github.com/CaliLuke/go-redis/v9`
    `v9.23.1-0.20261014134601-1073297e76ea`; libopenapi:
-   `github.com/CaliLuke/libopenapi` `v0.41.7-0.20261014134838-856f6f2d80e0`.
+   `github.com/CaliLuke/libopenapi` `v0.41.7-0.20261014145029-7886f0170cc4`.
    Return to containing stable upstream releases after the regressions pass,
    migrating imports together. Upstream PRs remain #4095 and #658.
 2. [x] Deliver immutable YAML ownership #820, finite operation/lifetime ownership
@@ -332,17 +344,29 @@ reconciliation with the inventory before they can establish remaining work.
    share replica revision/snapshot ownership; #674 scalar binding presence;
    #675 declaration identity; #676 validated notification eligibility; #677
    normalized annotation ownership; #678 imported pattern representability.
-   These seven require scoped regression/readiness and delivery; no closure is
-   inferred from related fixes. Reconciliation: `dependency_strategy_review`.
-5. [ ] Repair #922 at libopenapi's shared effective YAML index traversal.
-   Released and fork versions both fail inherited component lookup; this is
-   separate from the repaired mutation race. Model path-local cycles and valid
-   alias reuse, then cover fragment lookup, component enumeration and reference
-   traversal without flattening YAML in Loom. Implementation: `openapi_delivery`;
-   independent readiness/review: `redis_delivery`. Preserve upstream PR658.
-6. [ ] Inspect required CI completion on the latest source and address concrete
-   remaining failures. Queued remote CI is not a reason to repeat the full
-   exported-design corpus locally or stop independent backlog work.
+   #674/#676/#677 are now delivered; #672/#673/#675/#678 retain their own
+   scoped acceptance obligations. No closure is inferred from related fixes.
+5. [x] Repair #922 at libopenapi's shared effective YAML index traversal and
+   #925 at imported extension serialization. Fork source `7886f0170cc4` and
+   framework adoption `f4c12945d` are independently reviewed and published.
+   A fresh downstream module fetches Loom without replacements, imports merged
+   referenced components, generates and compiles every package. Receipt:
+   `/tmp/loom-922-downstream-delivery-receipt.json`. Upstream PR658 is unchanged.
+6. [ ] Complete replica authority #672/#673: one serialized snapshot/delta owner,
+   generation/revision completeness and periodic reconciliation. Shared protocol
+   ownership includes Pool atomic Lua writers, not just rmap. Agent: redis_delivery.
+7. [ ] Complete effective schema inspection #924 through one immutable semantic
+   accessor shared by boolean, unknown-keyword and null-branch admission.
+   Agent: openapi_delivery; failing tests/readiness approved.
+8. [ ] Complete shared declaration identity #675 after failing merge matrix and
+   bounded model. Agent: dependency_strategy_review. Then repair custom scalar
+   response conversion #923; preserve the compiled failing witness.
+9. [ ] Complete imported pattern admission #678 through a shared portable pattern
+   owner. Root has failing semantic/compilation regressions and a bounded grammar
+   proposal under readiness review; do not merely check Go compilation.
+10. [ ] Inspect required CI completion on latest source and address concrete
+    failures. Running CI is not a reason to repeat the full exported-design corpus
+    locally or stop independent backlog work.
 
 Delivery acceptance remains sequential: dependency availability → exact pin and
 provenance → affected integration checks and independent final review → atomic
