@@ -535,6 +535,9 @@ type (
 	// InitData contains the data required to render a constructor.
 	InitData struct {
 		constructor *constructorPlan
+		// returnContext retains a response's selected declaration owner through
+		// constructor finalization, including projected names and import aliases.
+		returnContext *codegen.AttributeContext
 		// Name is the constructor function name.
 		Name string
 		// Description is the function description.

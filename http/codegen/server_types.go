@@ -186,9 +186,8 @@ func (s *serverTypeSections) appendValidateSections() {
 	}
 }
 
-// fieldCode returns the code to initialize the return struct fields. pkgs
-// names the struct:pkg:path packages of the field types. It is used only in
-// templates.
+// fieldCode initializes return fields using the selected response declaration
+// context. Other constructor owners supply their nominal scope through pkgs.
 func fieldCode(init *InitData, typ string, pkgs *codegen.NameScope) string {
 	varn := "res"
 	if init.ReturnTypeAttribute == "" {
@@ -198,7 +197,12 @@ func fieldCode(init *InitData, typ string, pkgs *codegen.NameScope) string {
 	if typ == "client" {
 		args = init.ClientArgs
 	}
-	return initFieldAssignments(args, varn, init.ReturnTypePkg, pkgs)
+	pkg := init.ReturnTypePkg
+	if init.returnContext != nil {
+		pkg = init.returnContext.DefaultPkg
+		pkgs = init.returnContext.Scope.Scope()
+	}
+	return initFieldAssignments(args, varn, pkg, pkgs)
 }
 
 func initFieldAssignments(args []*InitArgData, targetVar, targetPkg string, pkgs *codegen.NameScope) string {
@@ -213,8 +217,8 @@ func initFieldAssignments(args []*InitArgData, targetVar, targetPkg string, pkgs
 			FieldType:    arg.FieldType,
 		}
 	}
-	// We can ignore the transform helpers as there won't be any generated
-	// because the headers and params cannot be user types.
+	// Transport-bound fields can be named scalar or collection types, but
+	// their inline conversions do not require object transform helpers.
 	c, _, err := codegen.InitStructFields(initArgs, targetVar, "", targetPkg, pkgs)
 	if err != nil {
 		panic(fmt.Errorf("build HTTP field init for %s: %w", targetVar, err))

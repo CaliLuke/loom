@@ -111,3 +111,49 @@ now locates the actual field and excludes nonprimitive carriers before consultin
 ServiceFieldLayout; its Pointer flag alone is insufficient. FieldPresence still
 owns transport wrappers. Direct carrier/binding tests and the original named-slice
 view header compile/wire witness check the previously uncovered consumer.
+
+
+## Constructor declaration context (#930)
+
+The storage models above assume the selected target context is correct. The
+`ConstructorContext` model explores that premise separately: return declaration
+and mapped-field casts must use the same package and allocated nominal identity.
+The finite declaration facts cover ordinary service, projected view, a view whose
+projection scope allocates a suffixed name, and a located shared-package alias.
+They are checked against direct Go analysis and actual generated compilation;
+the model does not prove NameScope allocation or import resolution.
+
+`split` reproduces the old response constructor: selected return declaration,
+service package/scope for fields. `package` corrects only the default package and
+still fails on a nominal collision. `selected` derives both from the already
+selected AttributeContext. Body transformation and physical pointer layout stay
+with their existing owners; this change concerns declaration identity only.
+
+```sh
+java -cp "$TLA_JAR" tlc2.TLC -workers 1 -config constructor-split.cfg ConstructorContext
+java -cp "$TLA_JAR" tlc2.TLC -workers 1 -config constructor-package.cfg ConstructorContext
+java -cp "$TLA_JAR" tlc2.TLC -workers 1 -config constructor-selected.cfg ConstructorContext
+```
+
+TLC1.7.4 on Corretto25 reports split6 states and package7 states, both exit12
+on AssignmentNamesDeclaration; selected exits0 after8 states. The nominal Go
+witness authors `Label` and `label`: the projected declarations allocate
+`LabelView` and `LabelView2`, while service-scope casting loses the suffix even
+when the default package is manually corrected.
+The selected response context must reach `fieldCode` even though other constructor
+owners still supply their own existing context. No global InitData redesign,
+codec handling, defaults or view-selection policy is implied.
+
+
+Implemented correspondence: `buildResponsesFromIR` selects the AttributeContext;
+`buildResponseResultInit` derives return name/ref/package and naming scope from
+it, retaining it as private InitData.returnContext. `fieldCode` consumes that
+context through finalization and direct rendering, while other constructor
+owners retain their existing supplied scope. `TestProjectedConstructorTargetContext`
+covers header/cookie, service/view and required/optional combinations;
+`TestProjectedConstructorNominalScope` is the real allocated-name witness.
+`TestProjectedConstructorTargetCompiles` compiles those eight generated shapes
+and exercises empty/nonempty supplied values and optional absence, plus the
+collision shape. Existing located-package/import-alias and selected-body
+HTTP/JSON-RPC controls remain green. This does not establish arbitrary custom
+codec/default behavior or change invalid-design admission.

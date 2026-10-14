@@ -248,7 +248,12 @@ consumer validation.
   reserve package type names. Preserve that scope for primitive casts and nested
   collection transformations; do not replace it with `NewNameScopeLike`. HTTP,
   JSON-RPC and gRPC constructor/CLI callers share this boundary. Problem responses
-  retain their independent runtime carrier scope.
+  retain their independent runtime carrier scope. HTTP response analysis selects
+  one service/view AttributeContext and retains it privately through constructor
+  finalization: return declarations and mapped-field casts derive package and
+  nominal scope from that context. A package-only view repair loses allocated
+  collision names. Keep the constructor-context model and generated controls in
+  `http/codegen/tla/response_field_storage` aligned.
 
 - Explicit HTTP response bodies detach before field initialization and naming
   metadata writes. `bindValueSource` alone grants private binding provenance;

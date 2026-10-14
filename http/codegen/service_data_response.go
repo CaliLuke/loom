@@ -96,16 +96,14 @@ func (sds *ServicesData) buildResponsesFromIR(endpointIR *transportir.Endpoint, 
 		md         = svc.Method(endpointIR.Name)
 		pkg        = svc.LocationPackageName(md.ResultLoc)
 		httpclictx = httpContext(sd.Scope, false, false)
-		scope      = svc.Scope
 		svcctx     = serviceContext(pkg, sd.Service.Scope)
 	)
 	httpclictx.JSONPresence = true
 	if viewed {
-		scope = svc.ViewScope
 		svcctx = viewContext(sd.Service.ViewsPkg, sd.Service.ViewScope)
 	}
 	for _, resp := range endpointIR.Response.Responses {
-		responses = append(responses, sds.buildSingleResponseData(endpointIR, resp, result, viewed, md, pkg, httpclictx, scope, svcctx, sd))
+		responses = append(responses, sds.buildSingleResponseData(endpointIR, resp, result, viewed, md, httpclictx, svcctx, sd))
 	}
 	return responses
 }
@@ -116,19 +114,17 @@ func (sds *ServicesData) buildSingleResponseData(
 	result *expr.AttributeExpr,
 	viewed bool,
 	md *service.MethodData,
-	pkg string,
 	httpclictx *codegen.AttributeContext,
-	scope *codegen.NameScope,
 	svcctx *codegen.AttributeContext,
 	sd *ServiceData,
 ) *ResponseData {
 	vars := newResponseVarScope(sd)
-	headersData := sds.extractHeaders(resp.Headers, result, svcctx, scope, vars, sds.examplesFor(sd))
-	cookiesData := sds.extractResponseCookies(resp.Cookies, result, svcctx, scope, vars, sds.examplesFor(sd))
+	headersData := sds.extractHeaders(resp.Headers, result, svcctx, svcctx.Scope.Scope(), vars, sds.examplesFor(sd))
+	cookiesData := sds.extractResponseCookies(resp.Cookies, result, svcctx, svcctx.Scope.Scope(), vars, sds.examplesFor(sd))
 	field := selectBodyField(result, resp.Body)
 	origin := field.Name
 	serverBodyData, clientBodyData := sds.buildResponseBodyData(resp, result, origin, viewed, md, endpointIR, sd)
-	init := sds.buildResponseResultInit(resp, result, field, viewed, md, pkg, httpclictx, scope, svcctx, headersData, cookiesData, endpointIR, sd)
+	init := sds.buildResponseResultInit(resp, result, field, md, httpclictx, svcctx, headersData, cookiesData, endpointIR, sd)
 	tag := responseTagData(resp.Tag, result, viewed, svcctx)
 	return newResponseData(
 		resp.Description,
@@ -281,11 +277,8 @@ func (sds *ServicesData) buildResponseResultInit(
 	resp *transportir.ResponseStatus,
 	result *expr.AttributeExpr,
 	field selectedServiceField,
-	viewed bool,
 	md *service.MethodData,
-	pkg string,
 	httpclictx *codegen.AttributeContext,
-	scope *codegen.NameScope,
 	svcctx *codegen.AttributeContext,
 	headersData []*HeaderData,
 	cookiesData []*CookieData,
@@ -295,12 +288,9 @@ func (sds *ServicesData) buildResponseResultInit(
 	if !needInit(result) && !expr.ContainsNonNullableCollectionElement(responseStatusBody(resp)) {
 		return nil
 	}
-	tname := sd.Service.Scope.GoFullTypeName(result, pkg)
-	tref := sd.Service.Scope.GoFullTypeRef(result, pkg)
-	if viewed {
-		tname = sd.Service.ViewScope.GoFullTypeName(result, sd.Service.ViewsPkg)
-		tref = sd.Service.ViewScope.GoFullTypeRef(result, sd.Service.ViewsPkg)
-	}
+	scope := svcctx.Scope.Scope()
+	tname := scope.GoFullTypeName(result, svcctx.DefaultPkg)
+	tref := scope.GoFullTypeRef(result, svcctx.DefaultPkg)
 	status := codegen.Goify(http.StatusText(resp.StatusCode), true)
 	n := codegen.Goify(md.Name, true)
 	r := codegen.Goify(md.Result, true)
@@ -313,6 +303,7 @@ func (sds *ServicesData) buildResponseResultInit(
 	}
 	code, pointer, clientArgs := sds.buildResponseResultInitCode(resp, result, field.Attribute, field.Name, md, httpclictx, svcctx, headersData, cookiesData, endpointIR, sd)
 	return &InitData{
+		returnContext:            svcctx,
 		Name:                     name,
 		Description:              fmt.Sprintf("%s builds a %q service %q endpoint result from a HTTP %q response.", name, sd.Service.Name, endpointIR.Name, status),
 		ClientArgs:               clientArgs,
@@ -320,7 +311,7 @@ func (sds *ServicesData) buildResponseResultInit(
 		ReturnTypeRef:            tref,
 		ReturnIsStruct:           expr.IsObject(result.Type),
 		ReturnTypeAttribute:      field.GoName,
-		ReturnTypePkg:            pkg,
+		ReturnTypePkg:            svcctx.DefaultPkg,
 		ReturnIsPrimitivePointer: pointer,
 		ReturnIsUnionValue:       bodyFieldIsUnionValue(result, field.Name),
 		ClientCode:               code,
