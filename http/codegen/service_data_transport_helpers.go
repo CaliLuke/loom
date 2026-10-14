@@ -64,7 +64,7 @@ func (sds *ServicesData) buildTransportAttributeData(
 	validateRequired := required
 	textUnmarshaler := isStringMetaType(attr)
 	if textUnmarshaler {
-		validateAttr = attributeWithoutFormatValidation(attr)
+		validateAttr = rawTextValidationAttribute(attr)
 		validateTarget = locals.Raw
 		validateRequired = true
 	}
@@ -80,7 +80,7 @@ func (sds *ServicesData) buildTransportAttributeData(
 		TypeName:          scope.GoTypeName(attr),
 		TypeRef:           typeRef,
 		Pointer:           pointer,
-		Validate:          codegen.AttributeValidationCode(validateAttr, nil, validateCtx, validateRequired, expr.IsAlias(attr.Type), validateTarget, name),
+		Validate:          codegen.AttributeValidationCode(validateAttr, nil, validateCtx, validateRequired, expr.IsAlias(validateAttr.Type), validateTarget, name),
 		IsTextUnmarshaler: textUnmarshaler,
 		DefaultValue:      attr.DefaultValue,
 		Example:           attr.Example(examples),
@@ -96,16 +96,21 @@ func isStringMetaType(attr *expr.AttributeExpr) bool {
 	return typeName != ""
 }
 
-func attributeWithoutFormatValidation(attr *expr.AttributeExpr) *expr.AttributeExpr {
-	if attr == nil || attr.Validation == nil || len(attr.Validation.Formats()) == 0 {
-		return attr
+// rawTextValidationAttribute describes the native string supplied to a custom
+// text parser. Only effective non-format constraints apply to this carrier:
+// authored format validation belongs to the parser, and custom Go metadata
+// describes the parsed destination rather than the raw transport text.
+func rawTextValidationAttribute(attr *expr.AttributeExpr) *expr.AttributeExpr {
+	constraints := selectedTransportConstraints(attr)
+	validation := constraints.Validation().Lowered()
+	validation.Format = ""
+	validation.FormatClauses = nil
+	defaultValue, _ := constraints.Default()
+	return &expr.AttributeExpr{
+		Type:         expr.String,
+		Validation:   validation,
+		DefaultValue: defaultValue,
 	}
-	copyAttr := *attr
-	copyValidation := attr.Validation.Dup()
-	copyValidation.Format = ""
-	copyValidation.FormatClauses = nil
-	copyAttr.Validation = copyValidation
-	return &copyAttr
 }
 
 func (sds *ServicesData) buildTransportElement(
