@@ -158,7 +158,7 @@ func TestHTTPByteRequestDecoderDispatch(t *testing.T) {
 	for _, test := range []httpByteCodecCase{
 		{"", "json"}, {"application/json", "json"}, {"application/json; charset=utf-8", "json"},
 		{"application/xml", "xml"}, {"application/gob", "gob"}, {"text/html", "text"}, {"text/plain", "text"},
-		{"text/plain; charset=utf-8", "text"}, {"application/vnd.bytes+json", "unsupported"},
+		{"text/plain; charset=utf-8", "text"}, {"application/vnd.bytes+json", "json"},
 		{"application/vnd.bytes+xml", "unsupported"}, {"application/vnd.bytes+gob", "unsupported"},
 		{"application/vnd.bytes+html", "unsupported"}, {"application/vnd.bytes+txt", "unsupported"},
 		{"application/octet-stream", "unsupported"}, {"application/unknown", "unsupported"},
