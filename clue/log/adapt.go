@@ -50,7 +50,9 @@ func AsAWSLogger(ctx context.Context) *AWSLogger {
 	return &AWSLogger{ctx}
 }
 
-// ToLogrSink returns a logr.LogSink.
+// ToLogrSink returns a logr.LogSink. Argument keys use fmt.Sprint; an unmatched
+// trailing key receives the value "<no-value>". Bound and per-event arguments
+// are normalized independently, preserving field order and repeated keys.
 //
 // Usage:
 //
@@ -136,33 +138,21 @@ func (l *LogrSink) Enabled(level int) bool {
 }
 
 func (l *LogrSink) Info(level int, msg string, keysAndValues ...any) {
-	kvs := make([]KV, len(keysAndValues)/2+1)
-	kvs[0] = KV{K: "msg", V: msg}
-	for i := 0; i < len(keysAndValues); i += 2 {
-		kvs[i/2+1] = KV{K: fmt.Sprint(keysAndValues[i]), V: keysAndValues[i+1]}
-	}
+	kvs := logrFields(keysAndValues, KV{K: "msg", V: msg})
 	if level == 0 {
-		Info(l, kvList(kvs))
+		Info(l, kvs)
 	} else {
-		Debug(l, kvList(kvs))
+		Debug(l, kvs)
 	}
 }
 
 func (l *LogrSink) Error(err error, msg string, keysAndValues ...any) {
-	kvs := make([]KV, len(keysAndValues)/2+1)
-	kvs[0] = KV{K: "msg", V: msg}
-	for i := 0; i < len(keysAndValues); i += 2 {
-		kvs[i/2+1] = KV{K: fmt.Sprint(keysAndValues[i]), V: keysAndValues[i+1]}
-	}
-	Error(l, err, kvList(kvs))
+	kvs := logrFields(keysAndValues, KV{K: "msg", V: msg})
+	Error(l, err, kvs)
 }
 
 func (l *LogrSink) WithValues(keysAndValues ...any) logr.LogSink {
-	kvs := make([]KV, len(keysAndValues)/2)
-	for i := 0; i < len(keysAndValues); i += 2 {
-		kvs[i/2] = KV{K: fmt.Sprint(keysAndValues[i]), V: keysAndValues[i+1]}
-	}
-	return &LogrSink{Context: With(l, kvList(kvs)), name: l.name}
+	return &LogrSink{Context: With(l, logrFields(keysAndValues)), name: l.name}
 }
 
 func (l *LogrSink) WithName(name string) logr.LogSink {
@@ -172,4 +162,18 @@ func (l *LogrSink) WithName(name string) logr.LogSink {
 	}
 	cur += name
 	return &LogrSink{Context: With(l, KV{NameKey, cur}), name: cur}
+}
+
+// logrFields owns conversion of alternating arguments to detached ordered fields.
+func logrFields(keysAndValues []any, prefix ...KV) kvList {
+	fields := make(kvList, len(prefix), len(prefix)+(len(keysAndValues)+1)/2)
+	copy(fields, prefix)
+	for i := 0; i < len(keysAndValues); i += 2 {
+		var value any = "<no-value>"
+		if i+1 < len(keysAndValues) {
+			value = keysAndValues[i+1]
+		}
+		fields = append(fields, KV{K: fmt.Sprint(keysAndValues[i]), V: value})
+	}
+	return fields
 }

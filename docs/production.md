@@ -95,6 +95,11 @@ func (s *Service) CreateOrder(ctx context.Context, order *Order) error {
 }
 ```
 
+`log.ToLogrSink` adapts this context to `logr.New`. An unmatched trailing key
+is recorded as `<no-value>` instead of panicking. Bound `WithValues` arguments
+and per-event arguments are normalized separately; field order and repeated keys
+are preserved, and non-string keys retain their `fmt.Sprint` spelling.
+
 ### Log output encoding
 
 `log.FormatJSON` preserves field order and repeated names. It escapes field names

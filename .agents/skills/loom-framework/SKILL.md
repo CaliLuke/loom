@@ -75,6 +75,11 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- The logr adapter normalizes alternating arguments in one private `logrFields`
+  owner shared by Info, Error and WithValues. Preserve ordered duplicate fields,
+  existing key conversion and independent bound/event normalization; never mutate
+  caller slices or move malformed-argument policy into output formatters.
+
 - Sink active registrations own each stream's authored group-start selector and
   unfinished recovery. Read, rotation and existing keepalive paths use one locked
   reconciler: publish membership before absent-group creation, never reset a live
