@@ -204,7 +204,7 @@
     "stage": "dsl"
   },
   "expr/EndpointRecursiveParentDSL": {
-    "contains": "service \"Parent\": Parent service Child is also child",
+    "contains": "service \"Parent\": HTTP parent cycle at service \"Parent\"",
     "phase": "gen",
     "reason": "intentional validation failure",
     "stage": "dsl"

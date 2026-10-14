@@ -151,7 +151,7 @@ var ServerHostingMultipleServicesDSL = func() {
 	Service("AnotherService", func() {
 		Method("Method", func() {
 			HTTP(func() {
-				GET("/")
+				GET("/another")
 			})
 			GRPC(func() {})
 		})
@@ -266,7 +266,7 @@ var ServiceForHTTPAndPartOfGRPCDSL = func() {
 	Service("AnotherService", func() {
 		Method("Method", func() {
 			HTTP(func() {
-				GET("/")
+				GET("/another")
 			})
 		})
 	})
@@ -293,7 +293,7 @@ var ConflictWithAPINameAndServiceNamesIncludingMultipartDSL = func() {
 				Attribute("price", Int)
 			})
 			HTTP(func() {
-				POST("/aloha")
+				POST("/alohaapi")
 			})
 		})
 	})
@@ -303,7 +303,7 @@ var ConflictWithAPINameAndServiceNamesIncludingMultipartDSL = func() {
 				Attribute("price", Int)
 			})
 			HTTP(func() {
-				POST("/aloha")
+				POST("/alohaapi1")
 			})
 		})
 	})

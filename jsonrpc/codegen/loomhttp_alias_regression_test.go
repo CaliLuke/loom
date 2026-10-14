@@ -278,7 +278,7 @@ var jsonrpcServicePackageAliasDSL = func() {
 	for _, serviceName := range []string{"foo", "foojssvr"} {
 		dsl.Service(serviceName, func() {
 			dsl.JSONRPC(func() {
-				dsl.POST("/rpc")
+				dsl.POST("/" + serviceName + "/rpc")
 			})
 			dsl.Method("call", func() {
 				dsl.Payload(func() {
@@ -312,7 +312,7 @@ var jsonrpcMixedServicePackageAliasDSL = func() {
 			})
 		})
 		dsl.JSONRPC(func() {
-			dsl.POST("/rpc")
+			dsl.POST("/foo/rpc")
 		})
 		dsl.Method("call", func() {
 			dsl.Payload(func() {
@@ -327,7 +327,7 @@ var jsonrpcMixedServicePackageAliasDSL = func() {
 	})
 	dsl.Service("foojssvr", func() {
 		dsl.JSONRPC(func() {
-			dsl.POST("/rpc")
+			dsl.POST("/foojssvr/rpc")
 		})
 		dsl.Method("call", func() {
 			dsl.Payload(func() {

@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	. "github.com/CaliLuke/loom/dsl"
+	"github.com/CaliLuke/loom/expr"
 	httpgen "github.com/CaliLuke/loom/http/codegen"
 	openapiv3 "github.com/CaliLuke/loom/http/codegen/openapi/v3"
 )
@@ -102,7 +103,7 @@ func TestFilesRejectsDuplicateOperationIDs(t *testing.T) {
 }
 
 func TestFilesRejectsFileServerRouteCollision(t *testing.T) {
-	root := httpgen.RunHTTPDSL(t, func() {
+	err := expr.RunInvalidDSL(t, func() {
 		API("assets", func() {
 		})
 		Service("assets", func() {
@@ -115,8 +116,9 @@ func TestFilesRejectsFileServerRouteCollision(t *testing.T) {
 		})
 	})
 
-	_, err := openapiv3.Files(root)
 	require.ErrorContains(t, err, "GET /assets")
+	require.ErrorContains(t, err, `HTTP endpoint "get"`)
+	require.ErrorContains(t, err, "file server dist")
 }
 
 func TestFilesRejectsConflictingExplicitMediaTypeNames(t *testing.T) {

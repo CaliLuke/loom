@@ -286,7 +286,7 @@ func responseContractAliasCollisionDSL() {
 			Method("show", func() {
 				Result(String)
 				HTTP(func() {
-					GET("/items")
+					GET("/" + serviceName + "/items")
 					Response(StatusOK)
 				})
 			})

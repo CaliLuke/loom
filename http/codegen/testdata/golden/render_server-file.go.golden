@@ -81,9 +81,9 @@ func (s *Server) MethodNames() []string {
 
 // Mount configures the mux to serve the ServiceFileServer endpoints.
 func Mount(mux loomhttp.Muxer, h *Server) {
-	MountPathToFile1JSON(mux, http.StripPrefix("/server_file_server", h.PathToFile1JSON))
-	MountPathToFile2JSON(mux, http.StripPrefix("/server_file_server", h.PathToFile2JSON))
-	MountPathToFile3JSON(mux, http.StripPrefix("/server_file_server", h.PathToFile3JSON))
+	mux.Handle("GET", "/server_file_server/file1.json", http.StripPrefix("/server_file_server", h.PathToFile1JSON).ServeHTTP)
+	mux.Handle("GET", "/server_file_server/file2.json", http.StripPrefix("/server_file_server", h.PathToFile2JSON).ServeHTTP)
+	mux.Handle("GET", "/server_file_server/file3.json", http.StripPrefix("/server_file_server", h.PathToFile3JSON).ServeHTTP)
 }
 
 // Mount configures the mux to serve the ServiceFileServer endpoints.

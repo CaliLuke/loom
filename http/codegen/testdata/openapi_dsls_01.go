@@ -675,7 +675,7 @@ var WithTagsDSL = func() {
 			HTTP(func() {
 				Meta("openapi:generate", "false")
 				Meta("openapi:tag:AnotherTag")
-				POST("/{*int_map}")
+				POST("/excluded/{*int_map}")
 			})
 		})
 	})
@@ -690,7 +690,7 @@ var WithTagsDSL = func() {
 			})
 			HTTP(func() {
 				Meta("openapi:tag:AnotherService")
-				POST("/{*int_map}")
+				POST("/another/{*int_map}")
 			})
 		})
 	})

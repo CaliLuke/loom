@@ -112,7 +112,7 @@ func httpServicePackageAliasDSL() {
 					Required("id")
 				})
 				HTTP(func() {
-					POST("/items")
+					POST("/" + serviceName + "/items")
 				})
 			})
 		})
@@ -145,7 +145,7 @@ func httpServicePackageAliasAggregateDSL() {
 			Method("show", func() {
 				Result(String)
 				HTTP(func() {
-					GET("/items")
+					GET("/" + serviceName + "/items")
 				})
 			})
 		})
