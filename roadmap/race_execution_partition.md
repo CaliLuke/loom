@@ -26,7 +26,8 @@ reduces competing nested builds; no specific speedup is assumed or promised.
   inventory, preserving exact test flags and default invocation. Test unknown,
   empty and missing-owner admission without running the full suites locally.
 - [x] Run bounded native lane smoke checks and the existing CI contract lint.
-- [ ] Independent exact-diff review, atomic delivery and final remote validation.
+- [x] Independent exact-diff review and atomic delivery as `a23bc990f`. All four
+  remote race lanes passed; #941 is closed.
 
 ## Acceptance and limits
 
@@ -63,3 +64,18 @@ an ordinary root, the three dedicated packages and a race-only package proves
 that the remainder includes the race-only package; test execution is stubbed
 but discovery uses real Go. Baseline Make assertions explicitly set default
 options so caller-selected lanes/timeouts do not invalidate contract lint.
+
+Remote capacity acceptance at `a23bc990f01c2c0c57d33df5ba15d2bff99c3400`
+passed in [run 38614785410](https://github.com/CaliLuke/loom/actions/runs/38614785410):
+gRPC 11m09s, generator 11m44s, HTTP 13m48s and remaining packages 17m16s.
+Every lane executed its complete package set under the unchanged budget.
+The immutable snapshot and concise receipt are
+`/tmp/loom-941-four-race-lanes-passed.json` and
+`/tmp/loom-941-capacity-receipt.json`. This proves the partition's remote capacity;
+final required CI on the later `a0642853c` source remains separately pending.
+
+Exact source inputs, independent review, reproduction and capacity evidence are
+archived at `/tmp/loom-941-durable-inputs.tar.gz`, SHA-256
+`d2cf68fd664e491e73c855cb14424d82186cf7717f40ec4f0f7246cf12a9488e`.
+Activity-checked cleanup removed 11 inactive temporary paths; receipt:
+`/tmp/loom-941-cleanup-receipt.json`.

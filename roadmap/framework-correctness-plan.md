@@ -23,10 +23,10 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
   and a return-to-release condition. No cache injection or local source override
   counts as delivery. Redis client types carry their module identity, so Pulse
   applications must migrate their Redis import while this fork is required.
-- **270 of 271 tracked reports are delivered, pushed and confirmed closed.**
-  GitHub reconciliation finds no missing or duplicate IDs. #941 remains open
-  pending remote capacity acceptance of its reviewed/pushed race partition
-  (`a23bc990f`). #947 is reviewed, pushed and closed as `a0642853c`: shared test
+- **All 271 tracked reports are delivered, pushed and confirmed closed.**
+  GitHub reconciliation finds no missing or duplicate IDs. #941 completed remote
+  capacity acceptance for its reviewed/pushed race partition (`a23bc990f`).
+  #947 is reviewed, pushed and closed as `a0642853c`: shared test
   fault ownership is scoped and atomic; no production lease behavior changed.
   #936 is delivered as `524322558`: authored union branch physical identity
   retains its codecs.
@@ -44,18 +44,20 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
   The [inventory](framework-correctness-inventory.md) records each report.
 - **Latest CI snapshot, source `a0642853c`:**
   [required CI run 38617488691](https://github.com/CaliLuke/loom/actions/runs/38617488691)
-  and [CodeQL run 38617488686](https://github.com/CaliLuke/loom/actions/runs/38617488686)
-  are queued. Required validation on this exact code remains incomplete.
+  remains incomplete; generated quality, expression and service compilation have
+  passed, while other jobs are queued or running. Its
+  [CodeQL run 38617488686](https://github.com/CaliLuke/loom/actions/runs/38617488686)
+  passed. No aggregate success or release is claimed.
   The older partition-capacity [run 38614785410](https://github.com/CaliLuke/loom/actions/runs/38614785410)
-  at `a23bc990f` is retained: gRPC and generator race lanes passed in 11m09s
-  and 11m44s; HTTP is queued and remaining packages are running at this snapshot.
-  Its CodeQL, generated quality, OpenAPI, service, gRPC and JSON-RPC
-  compilation passed.
-  #941 stays open until all four remote race lanes pass within the unchanged
-  budget. This older capacity evidence does not establish final-source success.
-  The superseded `1af9eaffa` run passed its non-race gates except the #947 test
-  failure; status and the actual failure log were preserved before requesting
-  cancellation. No aggregate CI success or release is claimed.
+  at `a23bc990f` passed all four race lanes: gRPC 11m09s, generator 11m44s,
+  HTTP 13m48s and remaining packages 17m16s, within the unchanged budget.
+  That satisfies #941's capacity gate, and the report is closed. Its unfinished
+  non-race jobs were then requested canceled to free runners for the final code
+  source. The full older workflow is not reported green. Immutable four-lane
+  evidence is preserved in `/tmp/loom-941-capacity-receipt.json`.
+  The superseded `1af9eaffa` run's #947 failure was preserved and repaired;
+  docs-only duplicate runs were canceled. Final-source validation remains
+  a separate exit condition.
 - **Race execution ownership #941:** one shared selector partitions all 93
   race-enabled root packages exactly once into four whole-package lanes. Default
   local `make test-race` still runs the entire suite; shuffle, race instrumentation,
@@ -493,12 +495,12 @@ reconciliation with the inventory before they can establish remaining work.
     448 layouts and adding 64 rejected-parser layouts. Generated compilation,
     vet, focused races, error-loss mutation and lint checks pass. See
     [owning plan](bytes-default-plan-adoption.md).
-21. [ ] Complete remote acceptance for implemented/pushed #941 (`a23bc990f`).
-    Check all four race jobs in required run `38614785410`; each must execute its
-    complete assigned packages and pass within the unchanged timeout. Keep #941
-    open until this capacity evidence is recorded. The shared selector already
-    passed exact 93-package coverage, race-only inclusion, flag/error propagation
-    and bounded native smoke checks; no test-name partition or skipped coverage.
+21. [x] Complete remote acceptance for #941 (`a23bc990f`). All four race jobs
+    in required run `38614785410` passed: HTTP 13m48s, gRPC 11m09s, generator
+    11m44s and remaining packages 17m16s. Each runs its complete package set
+    within the unchanged timeout. Independent review, push and closure are
+    complete; exact 93-package coverage and race-only inclusion remain tested.
+    See [owning plan](race_execution_partition.md).
 22. [x] Deliver #947 (`a0642853c`) through shared scoped, atomic release-fault
     ownership in tests. Controlled parent reproduction, bounded ownership model,
     affected miniredis/native Redis races and repeated root checks pass. Exact
@@ -547,6 +549,13 @@ reconciliation with the inventory before they can establish remaining work.
     `a76a6e03a2a21b33a92dc5ca260105b1ed53fcc0d5854c9781812834fcc04a7e`.
     Activity-checked source, raw logs and checker states are removed; receipt:
     `/tmp/loom-947-cleanup-receipt.json`.
+
+30. [x] Preserve #941's exact seven source inputs, independent review,
+    reproduction and four-lane remote capacity evidence in
+    `/tmp/loom-941-durable-inputs.tar.gz`, SHA-256
+    `d2cf68fd664e491e73c855cb14424d82186cf7717f40ec4f0f7246cf12a9488e`.
+    Activity-checked cleanup removed 11 inactive source, fixture and raw-log
+    paths; receipt: `/tmp/loom-941-cleanup-receipt.json`.
 
 Delivery acceptance remains sequential: dependency availability → exact pin and
 provenance → affected integration checks and independent final review → atomic
