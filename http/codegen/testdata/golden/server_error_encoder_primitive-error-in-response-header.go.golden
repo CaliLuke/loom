@@ -15,8 +15,8 @@ func EncodeMethodPrimitiveErrorInResponseHeaderError(encoder func(context.Contex
 				return encodeError(ctx, w, v)
 			}
 			{
-				val := string(res)
-				string_s := val
+				val := res
+				string_s := string(val)
 				w.Header().Set("String", string_s)
 			}
 			w.Header().Set("loom-error", res.LoomErrorName())
@@ -28,8 +28,8 @@ func EncodeMethodPrimitiveErrorInResponseHeaderError(encoder func(context.Contex
 				return encodeError(ctx, w, v)
 			}
 			{
-				val := int(res)
-				int_s := strconv.Itoa(val)
+				val := res
+				int_s := strconv.Itoa(int(val))
 				w.Header().Set("Int", int_s)
 			}
 			w.Header().Set("loom-error", res.LoomErrorName())

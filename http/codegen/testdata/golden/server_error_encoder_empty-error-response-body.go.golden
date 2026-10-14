@@ -52,8 +52,8 @@ func EncodeMethodEmptyErrorResponseBodyError(encoder func(context.Context, http.
 				return encodeError(ctx, w, v)
 			}
 			{
-				val := string(res)
-				inHeaders := val
+				val := res
+				inHeaders := string(val)
 				w.Header().Set("In-Header", inHeaders)
 			}
 			w.Header().Set("loom-error", res.LoomErrorName())

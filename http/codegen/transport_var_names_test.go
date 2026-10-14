@@ -284,7 +284,7 @@ func TestTransportVarNamesAreUniquePerFunction(t *testing.T) {
 			Contains: []string{
 				"levelRaw = &levelRawRaw",
 				"levelRaw2 := resp.Header.Get(\"X-Level\")",
-				"NewCollidingResultOK(body, resID, err3, resp2, v2, tag, tags2, tagsSlice2, nums, numss2, levelRaw, level, utf82, fmt_, strings2, count, countraw2, countSlice2, resID2, resID3, res2, ctx2)",
+				"NewCollidingResultOK(body, resID, err3, resp2, v2, tag, tags2, tagsSlice, nums, numss2, levelRaw, level, utf82, fmt_, strings2, count, countraw2, countSlice2, resID2, resID3, res2, ctx2)",
 				"NewCollidingFault(&body, resID, resID2, err3, w2)",
 			},
 		},
@@ -292,10 +292,13 @@ func TestTransportVarNamesAreUniquePerFunction(t *testing.T) {
 			Name: "server response encoder",
 			Func: "EncodeCollidingResponse",
 			Contains: []string{
-				"tags := strconv.Itoa(*val)",
-				"numssSlice := make([]string, len(val))",
-				"countraw := res.Count",
-				"count := strconv.Itoa(*countraw)",
+				"val := *res.Tag",
+				"tags := strconv.Itoa(val)",
+				"var numss []string",
+				"numss = make([]string, len(val))",
+				`loomhttp.SetHeaderValues(w.Header(), "X-Nums", numss)`,
+				"countraw := *res.Count",
+				"count := strconv.Itoa(countraw)",
 			},
 		},
 		{
