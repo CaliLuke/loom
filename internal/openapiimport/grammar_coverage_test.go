@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pb33f/libopenapi/datamodel/high/base"
-	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
+	"github.com/CaliLuke/libopenapi/datamodel/high/base"
+	v3 "github.com/CaliLuke/libopenapi/datamodel/high/v3"
 	"github.com/stretchr/testify/require"
 )
 

@@ -1,8 +1,8 @@
 package openapiimport
 
 import (
-	"github.com/pb33f/libopenapi/datamodel/high/base"
-	"github.com/pb33f/libopenapi/orderedmap"
+	"github.com/CaliLuke/libopenapi/datamodel/high/base"
+	"github.com/CaliLuke/libopenapi/orderedmap"
 )
 
 func (a *analyzer) tags(source []*base.Tag) ([]string, []Tag) {

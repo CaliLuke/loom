@@ -1,0 +1,38 @@
+package mergerace_test
+
+import (
+	"github.com/pb33f/libopenapi"
+	"testing"
+)
+
+func TestMergedComponents(t *testing.T) {
+	const source = `openapi: 3.1.1
+info: {title: Merge example, version: '1'}
+paths: {}
+x-base: &base
+  schemas:
+    Bound: {type: integer, minimum: 5, maximum: 10}
+x-sources: &sources [*base]
+components:
+  <<: *sources
+`
+	document, err := libopenapi.NewDocument([]byte(source))
+	if err != nil {
+		t.Fatal(err)
+	}
+	model, err := document.BuildV3Model()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if model.Model.Components == nil {
+		t.Fatal("missing components")
+	}
+	proxy, ok := model.Model.Components.Schemas.Get("Bound")
+	if !ok {
+		t.Fatal("missing merged schema")
+	}
+	schema := proxy.Schema()
+	if schema == nil || schema.Minimum == nil || *schema.Minimum != 5 || schema.Maximum == nil || *schema.Maximum != 10 {
+		t.Fatal("merged bounds changed")
+	}
+}

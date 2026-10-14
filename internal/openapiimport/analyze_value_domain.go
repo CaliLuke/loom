@@ -5,8 +5,8 @@ import (
 	"math/big"
 	"strconv"
 
+	"github.com/CaliLuke/libopenapi/datamodel/high/base"
 	"github.com/pb33f/go-yaml"
-	"github.com/pb33f/libopenapi/datamodel/high/base"
 
 	"github.com/CaliLuke/loom/internal/exactnum"
 )

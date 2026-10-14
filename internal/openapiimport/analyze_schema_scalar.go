@@ -3,7 +3,7 @@ package openapiimport
 import (
 	"fmt"
 
-	"github.com/pb33f/libopenapi/datamodel/high/base"
+	"github.com/CaliLuke/libopenapi/datamodel/high/base"
 )
 
 // schemaDefault decodes the JSON Schema default keyword and retains it when

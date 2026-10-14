@@ -7,8 +7,8 @@ import (
 	"sort"
 	"strings"
 
+	v3 "github.com/CaliLuke/libopenapi/datamodel/high/v3"
 	"github.com/CaliLuke/loom/internal/openapiref"
-	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 )
 
 type (

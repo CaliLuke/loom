@@ -5,13 +5,13 @@ import (
 	"reflect"
 	"unicode/utf8"
 
+	"github.com/CaliLuke/libopenapi/datamodel/high/base"
+	v3 "github.com/CaliLuke/libopenapi/datamodel/high/v3"
+	"github.com/CaliLuke/libopenapi/orderedmap"
 	"github.com/CaliLuke/loom/internal/exactnum"
 	"github.com/CaliLuke/loom/internal/openapiref"
 	loom "github.com/CaliLuke/loom/pkg"
 	"github.com/pb33f/go-yaml"
-	"github.com/pb33f/libopenapi/datamodel/high/base"
-	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
-	"github.com/pb33f/libopenapi/orderedmap"
 )
 
 func (a *analyzer) mediaExamples(media *v3.MediaType, schema *Schema, path string) []Example {

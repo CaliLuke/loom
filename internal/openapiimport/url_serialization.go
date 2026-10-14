@@ -4,10 +4,10 @@ import (
 	"maps"
 	"slices"
 
+	v3 "github.com/CaliLuke/libopenapi/datamodel/high/v3"
+	"github.com/CaliLuke/libopenapi/orderedmap"
 	"github.com/CaliLuke/loom/internal/httpencoding"
 	"github.com/CaliLuke/loom/internal/openapiref"
-	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
-	"github.com/pb33f/libopenapi/orderedmap"
 )
 
 func formSerialization(content *orderedmap.Map[string, *v3.MediaType]) map[string]httpencoding.Serialization {

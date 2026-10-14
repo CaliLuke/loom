@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/pb33f/libopenapi"
+	"github.com/CaliLuke/libopenapi"
 	"github.com/stretchr/testify/require"
 )
 

@@ -1,5 +1,7 @@
 github.com/CaliLuke/go-sse v0.11.1-0.20261008010800-b29b33ae1a1e h1:8ikgsAY/zoRUd/7kLCrBjEVTKxNc99TA647E+Jcke8k=
 github.com/CaliLuke/go-sse v0.11.1-0.20261008010800-b29b33ae1a1e/go.mod h1:lXdhhI7K/QSTmuy5OiNyu32AQ/bUZ8aE8wj8taCn3QE=
+github.com/CaliLuke/libopenapi v0.41.7-0.20261014134838-856f6f2d80e0 h1:BkjUQuw3P7JLDdLxi5kqwj5KyIRgkpfEBjFugP6t6Do=
+github.com/CaliLuke/libopenapi v0.41.7-0.20261014134838-856f6f2d80e0/go.mod h1:gEQ2ydf5xr92Ql+uRl54gig6N/DAc/zuIrfZNqtFqPA=
 github.com/alecthomas/assert/v2 v2.11.0 h1:2Q9r3ki8+JYXvGsDyBXwH3LcJ+WK5D0gc5E8vS6K3D0=
 github.com/alecthomas/assert/v2 v2.11.0/go.mod h1:Bze95FyfUr7x34QZrjL+XP+0qgp/zg8yS+TtBj1WA3k=
 github.com/alecthomas/kong v1.16.1 h1:ixhCt93XkJ98kGposQ54+bl0IK6XwqB40AsMynU7Z8E=
@@ -62,8 +64,6 @@ github.com/pb33f/go-yaml v0.1.1 h1:yWGmhVdwzionRnSc/hEJwcfq6PaZL2QdYzyReXBbX7Q=
 github.com/pb33f/go-yaml v0.1.1/go.mod h1:QvWdkHP5VjFYAeHMQUkaPQqREaQnBNOXmWzAjNrnSdo=
 github.com/pb33f/jsonpath v0.8.4 h1:Yx7fxsKl8scgERL22WhKDs2c6gYNNUonPSWEG8Y194s=
 github.com/pb33f/jsonpath v0.8.4/go.mod h1:eO6mgdhw5RgzCxm/bXTi75VUs0/cCYJzdGjMCCUEI6M=
-github.com/pb33f/libopenapi v0.41.5 h1:kwEFkd/6W3tmTfsWQCVsMa0a9b1x3HYIZvt9Ek4jIDw=
-github.com/pb33f/libopenapi v0.41.5/go.mod h1:mUldESjO6ownR1TCcywvoYp7e4v/bCdQyiiIqsgWne0=
 github.com/pb33f/ordered-map/v2 v2.3.2 h1:wDyaZ2Pv9QLh64X4utCeD5Zoi9nIv2aW3lwv172O5PQ=
 github.com/pb33f/ordered-map/v2 v2.3.2/go.mod h1:1OhFrXu3OYw3kM+FXF+Ug3ugmmZ9LE8z0JfQMLvtV0w=
 github.com/pb33f/testify v0.1.1 h1:mnHe7uxKt8dyNYEGUspow72VjD264DB5rOJq4bz5tJw=

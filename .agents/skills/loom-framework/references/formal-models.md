@@ -129,6 +129,12 @@ Name-allocation assumptions are not proved merely by proving declaration lookup.
 
 ## OpenAPI contracts
 
+- [YAML merge ownership](../../../../internal/openapiimport/tla/yaml_merge_ownership/README.md):
+  shared-source mutation counterexample and immutable worker-view invariants;
+  dependency race, metadata and rendering tests establish correspondence, while
+  alias expansion correctness and arbitrary application mutation remain outside
+  the bounded model.
+
 - [Import contract comparison](../../../../cmd/loom/tla/import_contract_comparison/README.md):
   test-only retained reference ownership prevents occurrence loss and premature
   target pruning. Raw schema-position rewriting and exact numeric literal

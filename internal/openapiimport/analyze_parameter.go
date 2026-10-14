@@ -3,7 +3,7 @@ package openapiimport
 import (
 	"strings"
 
-	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
+	v3 "github.com/CaliLuke/libopenapi/datamodel/high/v3"
 )
 
 func (a *analyzer) parameterReference(source *v3.Parameter, reference string) Parameter {

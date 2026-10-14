@@ -3,9 +3,9 @@ package openapiimport
 import (
 	"fmt"
 
+	"github.com/CaliLuke/libopenapi/datamodel/high/base"
+	"github.com/CaliLuke/libopenapi/orderedmap"
 	"github.com/CaliLuke/loom/internal/openapiref"
-	"github.com/pb33f/libopenapi/datamodel/high/base"
-	"github.com/pb33f/libopenapi/orderedmap"
 )
 
 func nullableUnionType(types []string) (string, bool) {

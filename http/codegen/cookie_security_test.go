@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/pb33f/libopenapi"
-	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
+	"github.com/CaliLuke/libopenapi"
+	v3 "github.com/CaliLuke/libopenapi/datamodel/high/v3"
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/codegen"

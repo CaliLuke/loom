@@ -4,8 +4,8 @@ import (
 	"encoding/json/v2"
 	"fmt"
 
+	"github.com/CaliLuke/libopenapi/orderedmap"
 	"github.com/pb33f/go-yaml"
-	"github.com/pb33f/libopenapi/orderedmap"
 )
 
 func (a *analyzer) extensions(path string, extensions *orderedmap.Map[string, *yaml.Node]) map[string]any {
