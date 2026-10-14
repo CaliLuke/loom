@@ -287,7 +287,10 @@ reconciliation with the inventory before they can establish remaining work.
    covers retries, and one lifecycle owner cancels before joining reads. Native
    Redis, race and model checks pass. Frozen packet:
    `/tmp/loom-800-refreshed-final-manifest.json`; review:
-   `/tmp/loom-800-independent-refreshed-verdict.json`. Original-module dependency
+   `/tmp/loom-800-independent-refreshed-verdict.json`. Public lifecycle guidance
+   is separately reviewed in `/tmp/loom-800-documentation-final-manifest.json`
+   and `/tmp/loom-800-documentation-independent-verdict.json`; integrate those
+   additions without replacing newer main skill guidance. Original-module
    fetchability, final pin/provenance and integration review still gate delivery.
 3. **Pool construction (#687):** conditional implementation and narrow re-review
    are approved. One acquisition owner rolls back in reverse order, enrolls
@@ -301,7 +304,10 @@ reconciliation with the inventory before they can establish remaining work.
    generated-code quality, OpenAPI, value contracts and all compile partitions
    except HTTP. Its checksum, response/projection admission and stale expectation
    failures are tracked through #910–#916; #820 remains the known importer race.
-   Current required runs remain queued. Do not claim overall green CI or repeat
+   Current required runs remain queued. Local `make lint` passes on integrated
+   source `8f18d3d74`, including root, testdata and all three nested modules;
+   only existing file-size warnings remain. Evidence:
+   `/tmp/loom-234-integrated-lint.log`. Do not claim overall green CI or repeat
    the full exported corpus as a local gate.
 5. **Dependency gates:** #820 libopenapi
    [PR #658](https://github.com/pb33f/libopenapi/pull/658) and #800 go-redis
@@ -311,7 +317,10 @@ reconciliation with the inventory before they can establish remaining work.
    injection. The reviewed libopenapi candidate passes focused importer merge
    races using a disposable modfile. Its 537.842 s affected-package run failed
    only the separately reproduced diagnostic expectation now corrected by #915;
-   no package-wide green result is claimed.
+   no package-wide green result is claimed. A direct original-module Go lookup
+   of libopenapi commit `3180fde17f85cf6b6ed5b3f738f0de9d915161bb` also fails
+   with `unknown revision`; this gate is verified rather than inferred from PR
+   status. Evidence: `/tmp/loom-820-original-module-fetch-receipt.json`.
 
 Delivery acceptance remains sequential: dependency availability → exact pin and
 provenance → affected integration checks and independent final review → atomic
