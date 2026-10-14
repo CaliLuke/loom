@@ -23,15 +23,21 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
   and a return-to-release condition. No cache injection or local source override
   counts as delivery. Redis client types carry their module identity, so Pulse
   applications must migrate their Redis import while this fork is required.
-- **260 of 261 tracked reports are delivered, pushed and confirmed closed.**
-  Remaining: #926 (custom view validation/default representation). Its shared
+- **263 of 265 tracked reports are delivered, pushed and confirmed closed.**
+  Remaining: #926 (custom String validation/default/conversion representation)
+  and #936 (union declaration method-set loss). #926’s shared
   capability/default/conversion-plan design has independent readiness approval;
   implementation is active in `/tmp/loom-926-source` with openapi_delivery.
+  Focused native/custom boundary comparisons and lint pass; final independent
+  review and delivery remain pending. Root main is `b4e659f1f`.
   The bounded recursive dependency model covers reachable failures, pure cycles,
   excluded views and default-disabled contexts. The original 242-report scope
   stays closed. The [inventory](framework-correctness-inventory.md) records each
   report. Continue autonomously through this repair and actual CI failures.
-- **Latest structural deliveries:** #930 `d52c727c5` retains the selected
+- **Latest structural deliveries:** #934 `9f16cc3dc` moves both custom-type
+  import collectors onto one cycle-safe attribute traversal, preserving union
+  branches, occurrence metadata and plugin types. Independent race/generation
+  checks pass; only the previously missing plugin import changes. #930 `d52c727c5` retains the selected
   response constructor context through package and nominal casts; eight mapped
   constructor shapes, actual naming collisions and import aliases compile, with
   only five intended changes among 166 compared artifacts. #672/#673 `1e7dfcaca` centralizes replica
@@ -56,6 +62,11 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
   #932 `5870a8e90` separates omitted and supplied-empty multipart bindings and
   adopts current extraction/validation guards. Exact CI failures were reproduced
   before correction; affected generated wire tests pass with race checking.
+  #933 `23acfe91f` gives SSE test observations one completion owner; #935
+  `b4e659f1f` establishes pending replica observations before cancellation and
+  separately checks the valid already-published fast path. Both have modeled
+  counterexamples, independent review and passing race controls. No production
+  behavior is changed by those two test repairs.
 - **Integrated validation at `4ac58a013`:** `make lint` passes, including root,
   testdata and nested modules. Every top-level test that failed in the previous
   `c304` CI run passes with race checking across generator, HTTP, gRPC, JSON-RPC
@@ -71,8 +82,11 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
   at `2b440e053` (root, testdata and nested modules; log
   `/tmp/loom-final-integrated-lint.log`); CodeQL is green and required CI is
   queued at that snapshot. Superseded runs are canceled after saving job results
-  to prioritize current source. CI at `5870a8e90` remains pending; latest-source
-  full CI is not yet confirmed green. No release was attempted.
+  to prioritize current source. Latest-source full CI is not yet confirmed
+  green. Subsequent completed runs exposed #933
+  and #935, now delivered. Superseded in-progress runs at `23acfe91f` and
+  `9f16cc3dc` are canceled after preserving their job snapshots; required CI
+  continues on `b4e659f1f`. No release was attempted.
 - **Dependency deliveries:** #820 `7fab1bb05`, #800 `d899a0112` and #687
   `a9a597a3c` are independently reviewed, pushed and closed. Ordinary downstream
   Go modules fetch both real fork dependencies without replacements. Pulse
@@ -400,7 +414,14 @@ reconciliation with the inventory before they can establish remaining work.
     integrated constructor races pass; temporary source cleanup is complete.
 14. [x] Deliver actual CI test adoption #931 (`e81208089`) and #932 (`5870a8e90`)
     without changing production behavior or weakening wire/cleanup assertions.
-15. [ ] Inspect required CI completion on latest source and address remaining
+15. [x] Deliver #933 (`23acfe91f`), #934 (`9f16cc3dc`) and #935
+    (`b4e659f1f`): shared SSE observation completion, cycle-safe import traversal
+    and deterministic replica cancellation admission. Each exact diff was
+    independently reviewed, pushed and closed.
+16. [ ] Repair #936’s union declaration method-set loss through
+    its shared declaration owner. Agent: redis_delivery; isolated source, no
+    per-transport codec workaround. Coordinate acceptance with #926.
+17. [ ] Inspect required CI completion on latest source and address remaining
     concrete failures. Running CI is not a reason to repeat the full exported-
     design corpus locally or stop independent backlog work.
 
