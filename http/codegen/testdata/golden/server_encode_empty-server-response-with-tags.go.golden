@@ -11,6 +11,7 @@ func EncodeMethodEmptyServerResponseWithTagsResponse(encoder func(context.Contex
 			w.WriteHeader(http.StatusNotModified)
 			return nil
 		}
+		w.Header().Set("X-Result-H", res.H)
 		w.WriteHeader(http.StatusNoContent)
 		return nil
 	}

@@ -3,6 +3,11 @@
 // endpoint.
 func EncodeMethodEmptyServerResponseResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
+		res, ok := v.(*serviceemptyserverresponse.MethodEmptyServerResponseResult)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceEmptyServerResponse", "MethodEmptyServerResponse", "*serviceemptyserverresponse.MethodEmptyServerResponseResult", v)
+		}
+		w.Header().Set("X-Result-H", res.H)
 		w.WriteHeader(http.StatusOK)
 		return nil
 	}

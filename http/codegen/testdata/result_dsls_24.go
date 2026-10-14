@@ -20,6 +20,7 @@ var EmptyServerResponseDSL = func() {
 			HTTP(func() {
 				GET("/")
 				Response(StatusOK, func() {
+					Header("h:X-Result-H")
 					Body(Empty)
 				})
 			})

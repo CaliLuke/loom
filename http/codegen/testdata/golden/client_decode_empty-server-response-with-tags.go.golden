@@ -11,7 +11,19 @@ func DecodeMethodEmptyServerResponseWithTagsResponse(decoder func(*http.Response
 				res.H = "true"
 				return res, nil
 			case http.StatusNoContent:
-				res := NewMethodEmptyServerResponseWithTagsResultNotModified()
+				var (
+					h   string
+					err error
+				)
+				hRaw := resp.Header.Get("X-Result-H")
+				if hRaw == "" {
+					err = loom.MergeErrors(err, loom.MissingFieldError("h", "header"))
+				}
+				h = hRaw
+				if err != nil {
+					return nil, loomhttp.ErrValidationError("ServiceEmptyServerResponseWithTags", "MethodEmptyServerResponseWithTags", err)
+				}
+				res := NewMethodEmptyServerResponseWithTagsResultNoContent(h)
 				return res, nil
 			default:
 				body, err := loomhttp.ReadUnexpectedResponseBody(resp)

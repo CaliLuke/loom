@@ -20,6 +20,7 @@ var EmptyServerResponseWithTagsDSL = func() {
 			HTTP(func() {
 				GET("/")
 				Response(StatusNoContent, func() {
+					Header("h:X-Result-H")
 					Body(Empty)
 				})
 				Response(StatusNotModified, func() {
