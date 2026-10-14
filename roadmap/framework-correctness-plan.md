@@ -4,28 +4,48 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 
 ## Current state
 
-- **Delivery resumed:** the user directed us to remove the dependency gate rather
+- **Dependency delivery completed:** the user directed us to remove the dependency gate rather
   than wait for upstream merges. The sequence below supersedes earlier notes
   requiring original-module fetchability. Preserve the upstream PRs unchanged.
-  1. [ ] Publish independently reviewed, exact fork revisions containing the
+  1. [x] Publish independently reviewed, exact fork revisions containing the
      required fixes on current stable dependency bases. Use real fork module
      identities; dependency-local `replace` directives do not reach consumers.
-  2. [ ] Deliver #820 with the immutable YAML merge fix, focused race checks,
+  2. [x] Deliver #820 with the immutable YAML merge fix, focused race checks,
      importer/output controls and a clean consuming-module fetch/build.
-  3. [ ] Integrate #800's reviewed lifetime/finite-operation owner and public
+  3. [x] Integrate #800's reviewed lifetime/finite-operation owner and public
      guidance, pin the hook-preserving Redis fork, document the Redis import
      migration and verify shutdown against native Redis and a consumer module.
-  4. [ ] Integrate #687's reviewed construction acquisition/rollback owner on
+  4. [x] Integrate #687's reviewed construction acquisition/rollback owner on
      delivered #800; repeat affected failure, cleanup and healthy-peer checks.
-  5. [ ] Independently review each exact atomic delivery, push, reconcile the
+  5. [x] Independently review each exact atomic delivery, push, reconcile the
      three tickets, run affected integration gates and record CI status.
   Forks are temporary correctness dependencies with explicit upstream PR links
   and a return-to-release condition. No cache injection or local source override
   counts as delivery. Redis client types carry their module identity, so Pulse
   applications must migrate their Redis import while this fork is required.
-- **234 of 237 tracked reports are delivered, pushed and confirmed closed.**
+- **243 of 251 tracked reports are delivered, pushed and confirmed closed.**
+  All 242 reports in the completed review/follow-up scope are closed. The scope
+  now also includes eight older reports #671–#678 and new independent
+  indexing defect #922; seven older reports and #922 remain active. #671 is independently
+  reconciled and closed through the delivered backup owner #899 (`18ae28c9e`).
   The [inventory](framework-correctness-inventory.md) records each report;
-  `/tmp/loom-tracker-234-issues.json` is the frozen GitHub reconciliation input.
+  `/tmp/loom-tracker-251-issues.json` is the GitHub reconciliation input.
+- **Integrated validation at `4ac58a013`:** `make lint` passes, including root,
+  testdata and nested modules. Every top-level test that failed in the previous
+  `c304` CI run passes with race checking across generator, HTTP, gRPC, JSON-RPC
+  and importer packages. Commands/logs: `/tmp/loom-242-ci-recheck-command.txt`,
+  `/tmp/loom-242-ci-recheck.log`, `/tmp/loom-242-integrated-lint.log`.
+  CodeQL is green. Required CI run `38577316443` remains queued; full remote CI
+  is not yet confirmed green. No release was attempted.
+- **Dependency deliveries:** #820 `7fab1bb05`, #800 `d899a0112` and #687
+  `a9a597a3c` are independently reviewed, pushed and closed. Ordinary downstream
+  Go modules fetch both real fork dependencies without replacements. Pulse
+  applications must use `github.com/CaliLuke/go-redis/v9` consistently, including
+  custom hooks; the public Redis client type changed module identity.
+- **CI follow-ups:** #917 `219a77c72`, #918 `e0d1cfdb7`, #919 `bae61e792`,
+  #920 `3fa5aa1ab` and #921 `4ac58a013` are independently reviewed, pushed and
+  closed. They adopt delivered contracts in fixtures and join the hijacked
+  handler before asserting completion; no production contract was weakened.
 - **User-delegated technical decisions:** choose the best coherent framework
   contract, document tradeoffs and migration effects, and continue work. The user
   explicitly superseded the repository rule requiring questions for unresolved
@@ -257,18 +277,10 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
   operation identity and finite lifecycle delivery feed shared SSE/WebSocket
   owners; generated SSE terminal flags and write locks are removed. Runtime
   races and actual generated integration pass on the delivered parent.
-- Required CI is not confirmed green. Nullable alias failures are fixed by #892.
-  The explicit alias error-body failure and recursive declaration mutation are
-  fixed by #893 (`222f0a269`), with the original pointer assertion unchanged.
-  The existing #820 dependency race also remains open. Source `2a98e4123` run
-  `38473286562` passes Redis, generated-code-quality, OpenAPI, value-contract and
-  all generated-design jobs; its `ci` and race jobs failed. The `ci` log records
-  collection/query snapshots and structural expectations,
-  importer parameter assertions, JSON-RPC lifecycle assertions, and a worker-event
-  delivery timeout. Service/HTTP collection, JSON-RPC lifecycle and importer
-  assertions are now reconciled by #896/#897/#898/#900 with focused current-source
-  checks. The worker-delivery timeout did not recur in 15 current-source race
-  repetitions; its cause remains unresolved. Newer required runs are queued.
+- Earlier CI snapshots below are historical evidence. Current validation and
+  queued-run status are recorded at the top of this section. A previously
+  intermittent worker-event delivery timeout remains an observation to revisit
+  if it recurs; fifteen focused race repetitions did not reproduce it.
 - #703 parent parity evidence uses an exact archived parent, superseding the
   invalid CLI-overlay claim. All 30 artifacts match and modules build/vet;
   its owning plan preserves the independently checked correction.
@@ -297,49 +309,40 @@ reconciliation with the inventory before they can establish remaining work.
 
 ## Current execution queue
 
-1. **Completed client expectations (#916):** independently reviewed, pushed and
-   closed as `1d822fc10`. The shared decoder expectation retains HTTP mapping
-   isolation and viewed-constructor error checks. This completes the currently
-   reproduced non-dependency CI repairs.
-2. **Bounded shutdown (#800):** conditional implementation is independently
-   approved against delivered membership/recovery owners. One operation budget
-   covers retries, and one lifecycle owner cancels before joining reads. Native
-   Redis, race and model checks pass. Frozen packet:
-   `/tmp/loom-800-refreshed-final-manifest.json`; review:
-   `/tmp/loom-800-independent-refreshed-verdict.json`. Public lifecycle guidance
-   is separately reviewed in `/tmp/loom-800-documentation-final-manifest.json`
-   and `/tmp/loom-800-documentation-independent-verdict.json`; integrate those
-   additions without replacing newer main skill guidance. Original-module
-   fetchability, final pin/provenance and integration review still gate delivery.
-3. **Pool construction (#687):** conditional implementation and narrow re-review
-   are approved. One acquisition owner rolls back in reverse order, enrolls
-   attempted private writes before publication, joins cleanup errors and
-   transfers ownership once. Shared pool state is retained. Frozen packet:
-   `/tmp/loom-687-final-manifest.json`; review:
-   `/tmp/loom-687-independent-final-rereview-verdict.json`. Its exact base is
-   reviewed #800 applied to `ce26ecbe9`; deliver #800 before refreshing and
-   delivering #687. Neither conditional candidate is committed.
-4. **CI reconciliation:** run `38498585620` at `6ba2dbf86` passed Redis,
-   generated-code quality, OpenAPI, value contracts and all compile partitions
-   except HTTP. Its checksum, response/projection admission and stale expectation
-   failures are tracked through #910–#916; #820 remains the known importer race.
-   Current required runs remain queued. Local `make lint` passes on integrated
-   source `8f18d3d74`, including root, testdata and all three nested modules;
-   only existing file-size warnings remain. Evidence:
-   `/tmp/loom-234-integrated-lint.log`. Do not claim overall green CI or repeat
-   the full exported corpus as a local gate.
-5. **Dependency gates:** #820 libopenapi
-   [PR #658](https://github.com/pb33f/libopenapi/pull/658) and #800 go-redis
-   [PR #4095](https://github.com/redis/go-redis/pull/4095) remain open/unmerged at
-   heads `3180fde1` and `8df7cf3` (rechecked 2026-10-14). Production pins remain
-   unchanged. Do not bypass original-module fetchability with forks or cache
-   injection. The reviewed libopenapi candidate passes focused importer merge
-   races using a disposable modfile. Its 537.842 s affected-package run failed
-   only the separately reproduced diagnostic expectation now corrected by #915;
-   no package-wide green result is claimed. A direct original-module Go lookup
-   of libopenapi commit `3180fde17f85cf6b6ed5b3f738f0de9d915161bb` also fails
-   with `unknown revision`; this gate is verified rather than inferred from PR
-   status. Evidence: `/tmp/loom-820-original-module-fetch-receipt.json`.
+1. [x] Publish real fork modules on current stable bases, preserving upstream
+   PR branches. Redis: `github.com/CaliLuke/go-redis/v9`
+   `v9.23.1-0.20261014134601-1073297e76ea`; libopenapi:
+   `github.com/CaliLuke/libopenapi` `v0.41.7-0.20261014134838-856f6f2d80e0`.
+   Return to containing stable upstream releases after the regressions pass,
+   migrating imports together. Upstream PRs remain #4095 and #658.
+2. [x] Deliver immutable YAML ownership #820, finite operation/lifetime ownership
+   #800 and construction acquisition/rollback #687. Fresh downstream fetch/build
+   receipts: `/tmp/loom-820-remote-consumer-receipt.json` and
+   `/tmp/loom-800-remote-consumer-receipt.json`. Final exact independent reviews:
+   `/tmp/loom-820-root-review-verdict.json`,
+   `/tmp/loom-800-final-independent-verdict.json`,
+   `/tmp/loom-687-final-delivery-independent-verdict.json`.
+   Native Redis, model, race and healthy-peer controls pass. Cleanup receipts:
+   `/tmp/loom-800-687-delivery-cleanup-receipt.json` and
+   `/tmp/loom-919-921-cleanup-receipt.json`; managed sources remain recoverable.
+3. [x] Deliver #917–#921 CI follow-ups and rerun every previously failing test
+   name with races on integrated `4ac58a013`. Full lint also passes.
+4. [x] Reconcile older #671–#678 against current architecture. #671 is resolved
+   by #899 (`18ae28c9e`); fresh recovery/cleanup race controls pass. #672/#673
+   share replica revision/snapshot ownership; #674 scalar binding presence;
+   #675 declaration identity; #676 validated notification eligibility; #677
+   normalized annotation ownership; #678 imported pattern representability.
+   These seven require scoped regression/readiness and delivery; no closure is
+   inferred from related fixes. Reconciliation: `dependency_strategy_review`.
+5. [ ] Repair #922 at libopenapi's shared effective YAML index traversal.
+   Released and fork versions both fail inherited component lookup; this is
+   separate from the repaired mutation race. Model path-local cycles and valid
+   alias reuse, then cover fragment lookup, component enumeration and reference
+   traversal without flattening YAML in Loom. Implementation: `openapi_delivery`;
+   independent readiness/review: `redis_delivery`. Preserve upstream PR658.
+6. [ ] Inspect required CI completion on the latest source and address concrete
+   remaining failures. Queued remote CI is not a reason to repeat the full
+   exported-design corpus locally or stop independent backlog work.
 
 Delivery acceptance remains sequential: dependency availability → exact pin and
 provenance → affected integration checks and independent final review → atomic
@@ -351,8 +354,8 @@ PR #826 is closed with the user's authorization as superseded by delivered
 roundtrips pass on main. #905 inactive validation scratch cleanup is complete;
 receipt `/tmp/loom-905-cleanup-receipt.json` preserves the verified archive.
 Cleanup for #908/#911/#912/#913 is also complete, with verified archives and
-receipts at `/tmp/loom-<issue>-cleanup-receipt.json`. Active #800/#687 sources
-and dependency reproductions remain preserved.
+receipts at `/tmp/loom-<issue>-cleanup-receipt.json`. Completed #800/#687 temporary sources were archived and removed; managed
+worktrees, fork checkouts and durable reproductions remain preserved.
 
 Current evidence: `/tmp/loom-ci-227-runs.json`,
 `/tmp/loom-ci-226-active.json`, `/tmp/loom-910-final-manifest.json`,
@@ -640,7 +643,7 @@ Source worktrees and active #829 reproduction inputs remain intact.
 - [x] #825 socket-close observation: `bf47b5d43`, independently reviewed, pushed and confirmed closed; deterministic gated witness, two isolated 100-iteration race runs, unchanged generated bytes.
 - [x] #679 Debug response transparency: `fa5897578`, independently reviewed, pushed and confirmed closed; shared bounded capture and response capabilities, accepted-byte and real-network SSE checks pass.
 - [x] #823 union branch carrier: `73451e4da`, independently reviewed, pushed and confirmed closed; review found and corrected predicate-free pointer admission, 78 artifacts repeat exactly and integrated regressions pass.
-- [ ] Active CI repair: #820 YAML merge race; #819 is delivered. Aggregate release failures remain consequences, not independent tickets.
+- [x] #820 YAML merge race delivered at `7fab1bb05`; #819 is also delivered. Aggregate release failures remain consequences, not independent tickets.
 
 CI audit update: completed job `115077869674` at `abeb200e9` contains exactly the
 three lint failures repaired by #815. Full local lint also passes on the exact integrated source delivered as `68299ad7b`
@@ -931,6 +934,12 @@ Use direct regressions and affected packages, then bounded generated comparisons
 - `gen/` is wholly framework-owned and regenerated. Reject create-only (`SkipExist`) declarations inside it before live mutation. Outside it, create-only files preserve any existing destination and create an absent destination atomically.
 
 ## Milestones
+
+The original checklists below preserve the planned verification steps. They are
+historical, not the current work queue: scoped readiness records and the issue
+inventory superseded their generic commands. Do not rerun or mark exact commands
+as executed merely because their owning reports are delivered. Use the checked
+delivery sequence and active queue above to recover work.
 
 ### Milestone 1: Durable inventory and execution readiness
 
