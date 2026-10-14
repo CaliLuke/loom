@@ -6,16 +6,26 @@ import (
 
 	"github.com/CaliLuke/libopenapi/datamodel/high/base"
 	"github.com/CaliLuke/libopenapi/orderedmap"
+	"github.com/CaliLuke/libopenapi/utils"
 	"github.com/pb33f/go-yaml"
 )
 
 var knownSchemaKeywords = schemaKeywordSet()
 
+// semanticSchemaNode supplies the effective YAML value for admission checks.
+// The proxy keeps its authored node for source locations and rendering.
+func semanticSchemaNode(proxy *base.SchemaProxy) *yaml.Node {
+	if proxy == nil {
+		return nil
+	}
+	return utils.ResolveMergeNodes(proxy.GetValueNode())
+}
+
 func (a *analyzer) schemaUnknownKeywordDiagnostics(proxy *base.SchemaProxy, path string) {
 	if proxy == nil {
 		return
 	}
-	node := proxy.GetValueNode()
+	node := semanticSchemaNode(proxy)
 	if node == nil || node.Kind != yaml.MappingNode {
 		return
 	}

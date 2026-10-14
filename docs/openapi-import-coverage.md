@@ -49,6 +49,13 @@ sources overlap. Import keeps the original source locations while reading those
 effective values. Re-import documents previously rejected because an inherited
 component could not be found, then regenerate the design.
 
+Schema-level aliases and merge keys obey the same effective-value rules.
+Equivalent explicit, aliased and merged schemas produce the same design,
+including null-only alternatives and aliased boolean schemas. Inherited unknown
+keywords and constrained or annotated null alternatives remain fatal errors,
+even with `--allow-lossy`. Re-import and regenerate designs affected by these
+previously rejected forms or by an aliased `false` schema that escaped rejection.
+
 ## Object coverage
 
 Imported schema and operation declarations, security credentials, and HTTP

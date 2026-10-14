@@ -534,7 +534,7 @@ func (a *analyzer) schema(proxy *base.SchemaProxy, path string) *Schema {
 		}
 		return &Schema{Ref: proxy.GetReference()}
 	}
-	if node := proxy.GetValueNode(); node != nil && node.Kind == yaml.ScalarNode && node.Tag == "!!bool" {
+	if node := semanticSchemaNode(proxy); node != nil && node.Kind == yaml.ScalarNode && node.Tag == "!!bool" {
 		var value bool
 		if err := node.Decode(&value); err != nil {
 			a.unsupported("schema-boolean", path, fmt.Sprintf("boolean schema could not be decoded: %v", err))

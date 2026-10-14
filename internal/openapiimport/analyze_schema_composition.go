@@ -120,7 +120,7 @@ func isNullOnlySchema(proxy *base.SchemaProxy) bool {
 	if schema == nil || len(schema.Type) != 1 || schema.Type[0] != "null" {
 		return false
 	}
-	node := proxy.GetValueNode()
+	node := semanticSchemaNode(proxy)
 	return node != nil && len(node.Content) == 2 && node.Content[0].Value == "type"
 }
 
