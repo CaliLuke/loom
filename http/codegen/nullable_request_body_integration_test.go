@@ -23,7 +23,9 @@ import (
 func TestNullableRequestBodyGeneratedIntegration(t *testing.T) {
 	const modulePath = "example.com/nullbody"
 
-	root := RunHTTPDSL(t, nullableRequestBodyIntegrationDSL)
+	root := RunHTTPDSL(t, func() {
+		nullableRequestBodyIntegrationDSL("")
+	})
 	dir := t.TempDir()
 	renderHTTPModule(t, dir, modulePath, root)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "nullable_body_test.go"), []byte(nullableRequestBodyHarness), 0o600))
@@ -33,7 +35,7 @@ func TestNullableRequestBodyGeneratedIntegration(t *testing.T) {
 	runGoCommand(t, dir, "test", "-race", "-count=1", ".")
 }
 
-func nullableRequestBodyIntegrationDSL() {
+func nullableRequestBodyIntegrationDSL(media string) {
 	var Leaf = Type("Leaf", func() {
 		Attribute("name", String)
 		Required("name")
@@ -69,6 +71,9 @@ func nullableRequestBodyIntegrationDSL() {
 					POST("/" + s.name)
 					Param("q")
 					Body("b")
+					if media != "" {
+						ContentType(media)
+					}
 				})
 			})
 		})

@@ -129,6 +129,7 @@ func (b *payloadBuilder) buildRequestData() (*RequestData, *ParamData) {
 	multipartGen, multipartFiles := generatedMultipartRequestData(b.endpointIR.Request)
 	registerRequestBodyTypeNames(serverBodyData, b.sd)
 	request := &RequestData{
+		ContentType:           b.endpointIR.Request.ContentType,
 		PathParams:            paramsData,
 		QueryParams:           queryData,
 		Headers:               headersData,

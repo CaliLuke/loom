@@ -839,6 +839,22 @@ excluded. The default encoder remains permissive when no policy is installed.
 Request decoding uses the request `Content-Type`, not `Accept`. A missing
 request content type defaults to JSON. Unsupported request media types produce
 an unsupported-media-type error rather than silently decoding as JSON.
+Valid structured `+json` media types (for example `application/merge-patch+json`)
+use the JSON decoder everywhere. This parses JSON; merge-patch or other
+media-specific business semantics remain the service's responsibility.
+
+Inside a method's `HTTP` block, `ContentType("application/vnd.example+json")`
+declares the exact media for a typed JSON request. MIME parameters are preserved.
+Generated clients set it only when supplying the body, before calling a custom
+encoder factory; OpenAPI advertises the same media. Absent optional bodies have
+no static media header, while explicit null and empty collections remain supplied
+bodies. Regenerate clients after importing or declaring a request media type.
+
+Request `ContentType` cannot be combined with a mapped Content-Type header,
+form/multipart framing, raw requests, JSON-RPC or WebSocket transport. It does not
+add strict server negotiation: existing supported request codecs remain accepted,
+and custom decoders still receive the original request and header.
+
 
 Set a default response content type:
 

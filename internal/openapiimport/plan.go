@@ -234,21 +234,19 @@ func (p *documentPlanner) requestBody(body *RequestBody, path string) {
 	}
 	for _, contentType := range body.ContentTypes {
 		contentPath := path + "/content/" + escapeJSONPointer(contentType)
-		switch {
-		case isJSONMediaType(contentType):
-		case isMultipartMediaType(contentType), isFormMediaType(contentType):
-		default:
+		mode, err := requestBodyModeFor(contentType, contentPath)
+		if err != nil {
 			p.unsupported("media-type", contentPath, fmt.Sprintf("content type %q is not renderable", contentType))
 		}
 		if body.Schema == nil {
 			p.unsupported("content-schema", contentPath+"/schema", "content type has no schema")
 			continue
 		}
-		if !isJSONMediaType(contentType) && p.schemaContainsUntaggedOneOf(body.Schema, make(map[string]struct{})) {
+		if mode != requestBodyJSON && p.schemaContainsUntaggedOneOf(body.Schema, make(map[string]struct{})) {
 			p.unsupported("schema-oneof-location", contentPath+"/schema", "untagged oneOf is supported only in JSON bodies and component schemas")
 		}
 		encoding := schemaEncodedValue
-		if isMultipartMediaType(contentType) {
+		if mode == requestBodyMultipart {
 			encoding = schemaMultipartBody
 		}
 		p.schemaEncoding(body.Schema, contentPath+"/schema", encoding, make(map[schemaEncodingOccurrence]bool))

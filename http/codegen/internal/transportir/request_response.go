@@ -28,7 +28,12 @@ func buildRequest(endpoint *expr.HTTPEndpointExpr) *Request {
 	if bodyOriginKey != "" && !payload.IsRequired(bodyOriginKey) {
 		mustHaveBody = false
 	}
+	var contentType string
+	if endpoint.RequestContentType != nil {
+		contentType = *endpoint.RequestContentType
+	}
 	return &Request{
+		ContentType:          contentType,
 		JSONRPCID:            endpoint.JSONRPCID,
 		Payload:              payload,
 		Body:                 body,

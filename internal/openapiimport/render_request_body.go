@@ -79,6 +79,9 @@ func (r *renderer) operationRequestBodyHTTP(body *renderedBody, path string) err
 			return err
 		}
 	default:
+		if media := body.body.ContentTypes[0]; media != "application/json" {
+			r.line("ContentType(%q)", media)
+		}
 		if err := r.renderJSONBodyMapping(body, path); err != nil {
 			return err
 		}

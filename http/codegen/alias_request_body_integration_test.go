@@ -22,7 +22,9 @@ import (
 func TestAliasRequestBodyGeneratedIntegration(t *testing.T) {
 	const modulePath = "example.com/aliasbody"
 
-	root := RunHTTPDSL(t, aliasBodyModuleDSL)
+	root := RunHTTPDSL(t, func() {
+		aliasBodyModuleDSL("")
+	})
 	dir := t.TempDir()
 	renderHTTPModule(t, dir, modulePath, root)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "alias_body_test.go"), []byte(aliasRequestBodyHarness), 0o600))
@@ -35,7 +37,7 @@ func TestAliasRequestBodyGeneratedIntegration(t *testing.T) {
 // aliasBodyModuleDSL declares a service whose methods select an optional
 // and a required alias of String, Int, an array and a map with validations,
 // and a union with an alias of String branch, with Body("v").
-func aliasBodyModuleDSL() {
+func aliasBodyModuleDSL(media string) {
 	var Code = Type("Code", String, func() {
 		MinLength(1)
 	})
@@ -81,6 +83,9 @@ func aliasBodyModuleDSL() {
 						POST("/" + name)
 						Param("q")
 						Body("v")
+						if media != "" {
+							ContentType(media)
+						}
 					})
 				})
 			}

@@ -5,6 +5,13 @@ description: Use Loom from a consuming Go service. Covers authoring the design D
 
 # Use Loom
 
+For typed HTTP JSON requests, method-level `HTTP` may declare
+`ContentType("application/vnd.example+json")`. Regenerate clients to publish that
+exact media only for supplied bodies and describe it in OpenAPI. The built-in
+request decoder accepts valid `+json` media everywhere; services still implement
+media-specific semantics. Do not combine static request media with a mapped
+Content-Type header, form/multipart, raw, JSON-RPC or WebSocket framing.
+
 Use this skill when an application consumes `github.com/CaliLuke/loom`: writing
 or changing `design/*.go`, regenerating `gen/`, implementing service methods,
 or wiring generated transports and runtime packages.

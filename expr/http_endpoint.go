@@ -41,6 +41,9 @@ type (
 		Cookies *MappedAttributeExpr
 		// Body describes the HTTP request body.
 		Body *AttributeExpr
+		// RequestContentType is the authored typed JSON request media, or nil when
+		// implicit. A nonnil empty string is an invalid explicit declaration.
+		RequestContentType *string
 		// OpenAPIRequestBody describes a documentation-only request body.
 		OpenAPIRequestBody *AttributeExpr
 		// OpenAPIRequestBodyContentTypes are the documented request media types.

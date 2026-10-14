@@ -5,6 +5,7 @@ import (
 	"sort"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/internal/httpcodec"
 	"github.com/CaliLuke/loom/internal/openapiref"
 )
 
@@ -84,7 +85,7 @@ func (r *renderer) multipleRequestBody(body RequestBody, path string) (*rendered
 
 func requestBodyModeFor(contentType, path string) (requestBodyMode, error) {
 	switch {
-	case isJSONMediaType(contentType):
+	case contentType != "" && httpcodec.RequestContentType(contentType).Kind == httpcodec.JSON:
 		return requestBodyJSON, nil
 	case isMultipartMediaType(contentType):
 		return requestBodyMultipart, nil

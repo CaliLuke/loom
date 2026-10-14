@@ -539,9 +539,15 @@ func Tag(name, value string) {
 	res.Tag = [2]string{name, value}
 }
 
-// ContentType sets the value of the Content-Type response header.
+// ContentType sets the exact authored Content-Type for a response or typed JSON
+// request. In a method HTTP expression it accepts application/json or a concrete
+// +json media type, optionally with MIME parameters. Generated clients publish it
+// only when supplying a body, before invoking the encoder; OpenAPI uses the same
+// media. It does not restrict the server to that media or implement its business
+// semantics. Request declarations cannot coexist with mapped Content-Type headers,
+// form, multipart, raw request bodies, JSON-RPC or WebSocket endpoints.
 //
-// ContentType must appear in a Response expression.
+// ContentType must appear in a Response or method HTTP expression.
 // ContentType accepts one argument: the mime type as defined by RFC 6838.
 //
 //	   var _ = Method("add", func() {
@@ -555,6 +561,8 @@ func ContentType(typ string) {
 	switch actual := eval.Current().(type) {
 	case *expr.HTTPResponseExpr:
 		actual.ContentType = typ
+	case *expr.HTTPEndpointExpr:
+		actual.RequestContentType = &typ
 	default:
 		eval.IncompatibleDSL()
 	}

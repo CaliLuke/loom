@@ -159,6 +159,9 @@ func buildRequestBody(endpointIR *transportir.Endpoint, bodies *EndpointBodies, 
 	}
 	body := expr.UnwrapInlineHTTPBody(endpointIR.Request.Body)
 	contentTypes := []string{"application/json"}
+	if endpointIR.Request.ContentType != "" {
+		contentTypes = []string{endpointIR.Request.ContentType}
+	}
 	required := endpointIR.Request.MustHaveBody
 	if endpointIR.Request.DocumentBody != nil {
 		body = endpointIR.Request.DocumentBody

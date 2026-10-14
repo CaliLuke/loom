@@ -167,6 +167,9 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 			return loomhttp.ErrEncodingError("{{ .ServiceName }}", "{{ .Method.Name }}", err)
 		}
 		{{- else }}
+		{{- if .Payload.Request.ContentType }}
+		req.Header.Set("Content-Type", {{ printf "%q" .Payload.Request.ContentType }})
+		{{- end }}
 		if err := encoder(req).Encode(&body); err != nil {
 			return loomhttp.ErrEncodingError("{{ .ServiceName }}", "{{ .Method.Name }}", err)
 		}

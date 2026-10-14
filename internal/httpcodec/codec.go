@@ -34,14 +34,21 @@ const (
 	Text
 )
 
-// RequestContentType selects the server request decoder. Only exact built-in
-// media types are accepted; a missing header defaults to JSON.
+// RequestContentType selects the server request decoder. Built-in media and valid
+// structured +json media are accepted; a missing header defaults to JSON.
 func RequestContentType(media string) Selection {
 	if media == "" {
 		media = "application/json"
 	}
-	media = normalized(media)
+	parsed, _, err := mime.ParseMediaType(media)
+	if err != nil {
+		return Selection{Kind: Unsupported, Media: media}
+	}
+	media = parsed
 	selection := exact(media)
+	if strings.Contains(media, "/") && !strings.Contains(media, "*") && strings.HasSuffix(media, "+json") {
+		selection.Kind = JSON
+	}
 	if selection.Kind == Invalid {
 		selection.Kind = Unsupported
 	}

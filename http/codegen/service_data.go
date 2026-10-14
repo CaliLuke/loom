@@ -325,6 +325,8 @@ type (
 
 	// RequestData describes a request.
 	RequestData struct {
+		// ContentType is the authored media published for a supplied typed body.
+		ContentType string
 		// JSONRPCID owns envelope decoding and the service constructor input.
 		JSONRPCID *JSONRPCIDData
 		cliInput  *jsonBodyInput

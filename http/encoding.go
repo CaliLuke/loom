@@ -77,7 +77,7 @@ const (
 // RequestDecoder returns a HTTP request body decoder suitable for the given
 // request. The decoder handles the following mime types:
 //
-//   - application/json using package encoding/json/v2
+//   - application/json and valid structured +json media using package encoding/json/v2
 //   - application/xml using package encoding/xml
 //   - application/gob using package encoding/gob
 //   - text/html and text/plain for strings

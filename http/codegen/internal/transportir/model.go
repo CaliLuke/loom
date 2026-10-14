@@ -110,6 +110,8 @@ type (
 	}
 
 	Request struct {
+		// ContentType is the admitted authored typed request media, empty when implicit.
+		ContentType string
 		// JSONRPCID retains the canonical envelope binding.
 		JSONRPCID *expr.JSONRPCIDBinding
 		Payload   *expr.AttributeExpr

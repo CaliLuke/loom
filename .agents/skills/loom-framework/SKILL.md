@@ -87,6 +87,14 @@ consumer validation.
   mutating shared bases or adding new schema-reference initialization edges.
   The existing protobuf namespace remains independent.
 
+- Typed request media is admitted once on the effective HTTP endpoint and carried
+  through Request IR into generated client publication and OpenAPI. Keep exact
+  authored MIME spelling while the shared httpcodec selector owns JSON/+json
+  decoding; importer request-mode admission uses that selector too. Publish only
+  inside the supplied-body branch before the custom encoder factory. Reject
+  competing static/dynamic header owners and incompatible framing at expr, not
+  in renderers; do not add endpoint codec negotiation or rewrite custom headers.
+
 - Sink active registrations own each stream's authored group-start selector and
   unfinished recovery. Read, rotation and existing keepalive paths use one locked
   reconciler: publish membership before absent-group creation, never reset a live
