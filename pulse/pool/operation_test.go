@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/pulse/streaming"
+	"github.com/CaliLuke/loom/pulse/streaming/options"
 )
 
 // Direct worker/ownership fixtures deliberately bypass the delivery queue. Give
@@ -341,7 +342,27 @@ func readTestPoolEvent(t *testing.T, node *Node, id string) *streaming.Event {
 	messages, err := node.rdb.XRange(t.Context(), node.poolStream.Key(), id, id).Result()
 	require.NoError(t, err)
 	require.Len(t, messages, 1)
-	return &streaming.Event{ID: id, EventName: messages[0].Values["n"].(string), Payload: []byte(messages[0].Values["p"].(string))}
+	// Read through the stream decoder so private stream identity and the
+	// acknowledgment client accompany the payload. The fixture owns delivery
+	// outside a live Sink, but acknowledges into the Pool's real consumer group.
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	reader, err := node.poolStream.NewReader(ctx, options.WithReaderStartAtOldest(), options.WithReaderBlockDuration(10*time.Millisecond))
+	require.NoError(t, err)
+	defer reader.Close()
+	events := reader.Subscribe()
+	for {
+		select {
+		case event, open := <-events:
+			require.True(t, open, "fixture reader closed before the requested event")
+			if event.ID == id {
+				event.SinkName = poolSinkName
+				return event
+			}
+		case <-ctx.Done():
+			t.Fatalf("fixture reader did not observe event %s: %v", id, ctx.Err())
+		}
+	}
 }
 
 func marshalTestOperation(t *testing.T, node *Node, job *Job) []byte {
@@ -353,4 +374,24 @@ func marshalTestOperation(t *testing.T, node *Node, job *Job) []byte {
 		data = append(data, marshalJobKey(field)...)
 	}
 	return data
+}
+
+func TestPoolEventFixtureSupportsAcknowledgment(t *testing.T) {
+	node := sinklessNode(t, startTestRedis(t), "fixture-ack")
+	ctx := t.Context()
+	require.NoError(t, node.rdb.XGroupCreateMkStream(ctx, node.poolStream.Key(), poolSinkName, "0").Err())
+	id, err := node.poolStream.Add(ctx, evStopJob, []byte("fixture-payload"))
+	require.NoError(t, err)
+	messages, err := node.rdb.XReadGroup(ctx, &redis.XReadGroupArgs{
+		Group: poolSinkName, Consumer: "fixture", Streams: []string{node.poolStream.Key(), ">"}, Count: 1, Block: -1,
+	}).Result()
+	require.NoError(t, err)
+	require.Len(t, messages, 1)
+	require.Len(t, messages[0].Messages, 1)
+	require.Equal(t, id, messages[0].Messages[0].ID)
+	event := readTestPoolEvent(t, node, id)
+	require.NoError(t, node.poolSink.Ack(ctx, event))
+	pending, err := node.rdb.XPending(ctx, node.poolStream.Key(), poolSinkName).Result()
+	require.NoError(t, err)
+	require.Zero(t, pending.Count, "fixture must acknowledge the real pending stream entry")
 }
