@@ -55,6 +55,12 @@ func ConstructorOwnership(mode string, rpc, reverse bool) {
 			Attribute("left")
 			Attribute("right")
 		})
+		View("left", func() {
+			Attribute("left")
+		})
+		View("right", func() {
+			Attribute("right")
+		})
 	})
 	Service("constructors", func() {
 		if rpc {
@@ -95,7 +101,9 @@ func constructorPayloadMethod(mode string, rpc bool, payload any) {
 func constructorSelectedMethods(rpc bool, pair *expr.ResultTypeExpr) {
 	for _, field := range []string{"left", "right"} {
 		Method(field, func() {
-			Result(pair)
+			Result(pair, func() {
+				View(field)
+			})
 			response := func() {
 				Response(StatusOK, func() {
 					Body(field)
@@ -161,7 +169,7 @@ import (
 
 func TestSelectedConstructorSource(t *testing.T) {
  left,right:=views.TextView("left"),views.TextView("right")
- value:=&views.Pair{Projected:&views.PairView{Left:&left,Right:&right},View:"default"}
+ value:=&views.Pair{Projected:&views.PairView{Left:&left,Right:&right}}
  for _,tc:=range []struct {
   name string
   encode func(context.Context,http.ResponseWriter,any) error
@@ -171,6 +179,7 @@ func TestSelectedConstructorSource(t *testing.T) {
   {"right",server.EncodeRightResponse(loomhttp.ResponseEncoder),"\"right\""},
  } {
   t.Run(tc.name,func(t *testing.T) {
+   value.View=tc.name
    response:=httptest.NewRecorder()
    require.NoError(t,tc.encode(context.Background(),response,value))
    require.Equal(t,http.StatusOK,response.Code)

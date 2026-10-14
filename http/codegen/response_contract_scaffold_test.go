@@ -245,6 +245,9 @@ func responseContractProviderDSL() {
 				})
 				Response(StatusOK, func() {
 					Body("body")
+					Header("outcome:X-Outcome")
+					Header("version:X-Version")
+					SessionCookie("session:widget_session")
 				})
 				Response("not_found", StatusNotFound, func() {
 					Body("body")

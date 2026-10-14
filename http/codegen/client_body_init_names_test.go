@@ -130,10 +130,11 @@ func clientBodyInitNamesPerSourceDSL() {
 	l2 := Type("L2", ArrayOf(item), func() {
 		MinLength(1)
 	})
+	// A selected body omits its sibling, so both fields must permit absence.
+	// Keep one Pair source type to exercise distinct field constructor ownership.
 	pair := Type("Pair", func() {
 		Attribute("a", ArrayOf(item))
 		Attribute("b", ArrayOf(item))
-		Required("a", "b")
 	})
 	Service("named", func() {
 		unary := func(name, path string, payload any, body string) {

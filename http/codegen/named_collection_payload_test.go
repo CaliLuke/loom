@@ -36,10 +36,11 @@ func namedCollectionPayloadDSL() {
 	l2 := Type("L2", ArrayOf(item), func() {
 		MinLength(1)
 	})
+	// A selected body omits its sibling, so both fields must permit absence.
+	// Keep one Pair source type to exercise distinct field constructor ownership.
 	pair := Type("Pair", func() {
 		Attribute("a", ArrayOf(item))
 		Attribute("b", ArrayOf(item))
-		Required("a", "b")
 	})
 	Service("named", func() {
 		unary := func(name, path string, payload any, body string) {
@@ -137,10 +138,28 @@ func (service) StreamTwo(ctx context.Context, stream named.StreamTwoServerStream
 }
 
 func (service) First(_ context.Context, p *named.Pair) (string, error) {
+	if p.B != nil {
+		return "", errors.New("unselected sibling b was decoded")
+	}
+	if p.A == nil {
+		return "first:absent", nil
+	}
+	if len(p.A) == 0 {
+		return "first:empty", nil
+	}
 	return "first:" + join(p.A), nil
 }
 
 func (service) Second(_ context.Context, p *named.Pair) (string, error) {
+	if p.A != nil {
+		return "", errors.New("unselected sibling a was decoded")
+	}
+	if p.B == nil {
+		return "second:absent", nil
+	}
+	if len(p.B) == 0 {
+		return "second:empty", nil
+	}
 	return "second:" + join(p.B), nil
 }
 
@@ -171,6 +190,10 @@ func TestUnary(t *testing.T) {
 		{"two", c.Two(), named.L2{{Name: "z"}}, "two:z"},
 		{"first", c.First(), pair, "first:a"},
 		{"second", c.Second(), pair, "second:b1,b2"},
+		{"first absent", c.First(), &named.Pair{B: pair.B}, "first:absent"},
+		{"first empty", c.First(), &named.Pair{A: []*named.Item{}, B: pair.B}, "first:empty"},
+		{"second absent", c.Second(), &named.Pair{A: pair.A}, "second:absent"},
+		{"second empty", c.Second(), &named.Pair{A: pair.A, B: []*named.Item{}}, "second:empty"},
 	}
 	for _, tc := range cases {
 		if got, err := tc.endpoint(ctx, tc.payload); err != nil || got != tc.want {

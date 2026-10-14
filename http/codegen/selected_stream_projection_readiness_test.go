@@ -17,7 +17,7 @@ func TestSelectedStreamProjectionReadiness(t *testing.T) {
 				Result(func() {
 					Attribute("value", String)
 					Attribute("internal", String)
-					Required("value", "internal")
+					Required("value")
 				})
 				HTTP(func() {
 					GET("/rpc")
@@ -63,7 +63,8 @@ func (implementation) Watch(ctx context.Context, stream events.WatchServerStream
 	if err != nil {
 		return err
 	}
-	return stream.SendAndCloseWithContext(ctx, &events.WatchResult{Value: value, Internal: "private-sentinel"})
+	private := "private-sentinel"
+	return stream.SendAndCloseWithContext(ctx, &events.WatchResult{Value: value, Internal: &private})
 }
 func TestSelectedWebSocketResponse(t *testing.T) {
 	mux := loomhttp.NewMuxer()
