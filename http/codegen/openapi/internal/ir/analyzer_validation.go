@@ -5,6 +5,7 @@ import (
 
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/openapi"
+	"github.com/CaliLuke/loom/internal/patternsyntax"
 )
 
 func applySchemaValidation(s *Schema, attr *expr.AttributeExpr, val *expr.ValidationExpr, enums [][]any) error {
@@ -40,7 +41,7 @@ func applySchemaEnums(s *Schema, enums [][]any) {
 
 func applySchemaStringClauses(s *Schema, val *expr.ValidationExpr) error {
 	for _, authored := range val.Patterns() {
-		pattern, err := projectPattern(authored)
+		pattern, err := patternsyntax.ToECMA(authored)
 		if err != nil {
 			return fmt.Errorf("OpenAPI pattern %q cannot preserve Go validation: %w", authored, err)
 		}

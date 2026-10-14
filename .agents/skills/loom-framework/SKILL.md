@@ -75,6 +75,15 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- `internal/patternsyntax` owns the portable Go/ECMAScript bridge. Export derives
+  syntax from the admitted Go tree; import admits a bounded ECMAScript grammar
+  before Go parsing and translates direction-specific escapes. Never use Go
+  compilation alone as evidence that an imported pattern preserves meaning.
+  The importer retains fatal admission errors for its rendering planner; all
+  transport validators derive their behavior from the normalized DSL pattern.
+  Keep actual Go/Node agreement, generated contracts and the bounded witness
+  proof aligned; the proof does not establish arbitrary parser correctness.
+
 - Same-path Go artifact composition owns declaration identity after sections
   render. `generator.mergedGoSection` retains all non-header sections and delegates
   named definition admission to one private AST owner. Section categories are not

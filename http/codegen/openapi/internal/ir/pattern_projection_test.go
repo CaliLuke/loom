@@ -7,13 +7,14 @@ import (
 	"testing"
 
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/patternsyntax"
 	"github.com/stretchr/testify/require"
 )
 
 func TestPatternProjectionEngineAgreement(t *testing.T) {
 	for _, pattern := range []string{`\Afoo\z`, `^foo$`, `^\s$`, `^[\s]+$`, `^\d\w$`, `\bfoo\b`, `^(foo|bar){1,2}$`, `^[a-z]+$`, `^\x41$`, `^[]a\s]+$`, `^\a$`, `^\#$`, `^\-$`, `^[\]a\s]+$`, `[\s-a]`, `[\s-\x7f]`, `[(?]`, `[:abc]`, `[[:a]`, `[[:xyz]`, `[[:]]`, `^*a`, `$?`, `\b+foo`, `\A{2}foo`, `a{01}`, `a{00}`, `a{01,02}`, `a{1,02}`, `(?:^)*a`} {
 		t.Run(pattern, func(t *testing.T) {
-			projected, err := projectPattern(pattern)
+			projected, err := patternsyntax.ToECMA(pattern)
 			require.NoError(t, err)
 			values := []string{"foo", "Afooz", "foo\n", "foo\r", "foo\u2028", "", " ", "\t", "\n", "\r", "\f", "\v", "\u00a0", "\u2028", "1a", "foox", "foobar", "xfoo", "foofoo", "A", "😀", "]", "a]", "\a", "#", "-", "@", "a", "a{01}", "a{00}", "a{01,02}", "a{1,02}", ":", "?", "(", "[", "[a", ":]"}
 			input, err := json.Marshal(struct {

@@ -351,7 +351,7 @@ type Schema struct {
 	AdditionalProperties *AdditionalProperties
 	// Enum contains admitted non-null scalar values. Nullable owns null membership.
 	Enum []any
-	// Pattern is the string validation pattern.
+	// Pattern is the string validation pattern normalized to Go regexp syntax.
 	Pattern string
 	// Minimum is the inclusive numeric lower bound.
 	Minimum *exactnum.Number
@@ -388,6 +388,7 @@ type Schema struct {
 	unsupportedComposition bool
 	valueDomainKeyword     string
 	valueDomainError       *Diagnostic
+	patternError           *Diagnostic
 }
 
 // Example is an example value retained from a schema or media type.

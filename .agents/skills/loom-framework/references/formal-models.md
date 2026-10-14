@@ -162,7 +162,7 @@ Name-allocation assumptions are not proved merely by proving declaration lookup.
   naming or schema extraction.
 
 - [Pattern projection](../../../../http/codegen/openapi/internal/ir/lean/pattern_projection/README.md):
-  finite anchor/whitespace mismatch witnesses and target acceptance table;
+  finite import/export anchor/whitespace witnesses and translated acceptance tables;
   Go/Node tests establish actual engine agreement for the admitted boundary.
 
 - [Document identities and explicit component claims](../../../../http/codegen/openapi/internal/ir/tla/document_identity/README.md):

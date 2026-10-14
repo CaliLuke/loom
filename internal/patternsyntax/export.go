@@ -1,4 +1,4 @@
-package ir
+package patternsyntax
 
 import (
 	"fmt"
@@ -6,9 +6,9 @@ import (
 	"strings"
 )
 
-// projectPattern preserves Go MatchString semantics over Unicode scalar strings
+// ToECMA preserves Go MatchString semantics over Unicode scalar strings
 // in an ECMA-262 engine without flags. Unsupported constructs fail closed.
-func projectPattern(pattern string) (string, error) {
+func ToECMA(pattern string) (string, error) {
 	parsed, err := syntax.Parse(pattern, syntax.Perl)
 	if err != nil {
 		return "", fmt.Errorf("invalid Go pattern: %w", err)

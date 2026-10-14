@@ -1,7 +1,7 @@
 # Go pattern projection boundary
 
 Run `./check.sh` with the pinned Lean 4.34.1 toolchain. The manifest audits each
-listed theorem's transitive axioms; all three pass without axioms.
+listed theorem's transitive axioms; all five pass without axioms.
 
 The finite witness model reproduces the former absolute-anchor and whitespace
 mismatches, then checks the proposed target acceptance table. Numeric witnesses
@@ -10,8 +10,9 @@ The theorem is about this modeled table, not a proof of either engine, the
 renderer or arbitrary regular expressions. `pattern_projection_test.go` compares
 actual Go and Node matching, including rejected and adjacent syntax.
 
-The production owner is `pattern_projection.go`, called before schemas are
-fingerprinted or rendered in `analyzer_validation.go`. Go Pattern semantics stay
+The shared production owner is `internal/patternsyntax`, called before schemas are
+fingerprinted or rendered in `analyzer_validation.go`, and during import schema
+normalization. Go Pattern semantics stay
 unchanged. Export translates `\A` and `\z` to unflagged `^` and `$`, and `\s` to
 Go's explicit ASCII whitespace set (including inside character classes).
 `\a` becomes Unicode-escaped BEL. Ordinary BMP literals, positive BMP classes, ASCII `\d`
@@ -32,3 +33,13 @@ recommendation makes every Go extension a specification violation.
 legacy helpers without error returns fail instead of rendering partial schemas.
 Rendered tests check both targets. The selected existing portable fixture bytes stay unchanged. Absolute anchors and ASCII whitespace are the only intended
 semantic pattern corrections; unsupported projections are newly rejected.
+
+The import witness adds the inverse whitespace mismatch: copying ECMAScript
+`\s` to Go loses NBSP and vertical tab. Translation to the explicit ECMAScript
+whitespace class preserves this finite acceptance table. Import lexical admission
+and escape translation are tested by actual Go/Node agreement, including Unicode
+metacharacter escapes, class-close differences, range endpoints, repeated assertions
+and rejected extensions. The proof does not model that parser or prove arbitrary
+regex equivalence. Generated import fixtures cover ordinary, whitespace and
+Unicode/class-backspace cases through evaluated design, compiled adapters and
+rendered OpenAPI acceptance. Unsupported patterns remain fatal under allow-lossy.

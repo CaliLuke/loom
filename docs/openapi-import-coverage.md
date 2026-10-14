@@ -188,6 +188,21 @@ Loom preserves supported forms of:
   `readOnly`, and `writeOnly`
 - JSON-compatible `x-*` extensions
 
+Imported patterns must preserve ECMAScript acceptance in Loom's Go validators.
+The portable subset supports ordinary BMP Unicode literals, positive character
+classes, groups, alternatives, quantifiers, anchors, ASCII digit/word classes and
+word boundaries. Unicode escapes and ECMAScript whitespace classes are translated
+without changing their accepted values: `\s` includes NBSP and vertical tab.
+Escaped metacharacters remain literals, including inside character classes.
+
+Lookaround, backreferences, flags, named captures, wildcard/complement classes,
+non-BMP/surrogate characters and unsupported escapes receive a fatal `schema-pattern`
+diagnostic at the source pattern. Ambiguous class ranges, empty classes and
+leading-zero repetition bounds are also outside this subset. `--allow-lossy`
+cannot remove a pattern constraint. Re-import and regenerate affected designs;
+previous imports could fail design evaluation or silently use different whitespace
+semantics. Authored Go DSL patterns retain their existing Go semantics.
+
 Numeric bounds retain the original JSON numeric tokens and YAML numeric scalar
 values, including hexadecimal, octal and binary integer spellings. Quoted
 numbers are not numeric constraints. Imported bounds are normalized exactly into

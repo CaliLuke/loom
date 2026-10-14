@@ -417,6 +417,11 @@ import without a flag. Nullable `anyOf` keeps annotations from its outer schema
 and non-null branch: outer nonempty labels and extension keys take precedence,
 while positive read/write/deprecation flags survive either layer. Re-import and
 regenerate designs imported by versions that dropped these annotations.
+Imported patterns use a portable ECMAScript-to-Go subset. Whitespace and Unicode
+escapes preserve their source meaning; unsupported constructs such as lookaround
+produce fatal diagnostics even with `--allow-lossy`. Re-import and regenerate
+affected designs. See the pattern boundary in `docs/openapi-import-coverage.md`;
+authored Go `Pattern` semantics remain unchanged.
 Unformatted integers and numbers also import without a
 flag. String schemas with `format: byte` import as `String` with
 `Format(FormatBase64)`; bounds, patterns and literals describe the encoded text.

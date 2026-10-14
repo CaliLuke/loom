@@ -548,6 +548,7 @@ func (a *analyzer) schema(proxy *base.SchemaProxy, path string) *Schema {
 		return &Schema{}
 	}
 	schema := newNormalizedSchema(source)
+	a.schemaPattern(schema, path)
 	a.schemaNumericBounds(schema, path)
 	supportedNullableComposition := a.schemaNullableAnyOf(schema, source, path)
 	supportedNullableOneOf := schemaNullableReferenceOneOf(schema, source)

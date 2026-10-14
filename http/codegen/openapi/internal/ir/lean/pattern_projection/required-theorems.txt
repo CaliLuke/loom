@@ -1,3 +1,5 @@
 legacy_anchor_counterexample
 legacy_whitespace_counterexample
 bounded_projection_preserves
+import_identity_whitespace_counterexample
+bounded_import_translation_preserves
