@@ -4,15 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json/v2"
-	"errors"
 	"net/http"
 	"path/filepath"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
-	sse "github.com/tmaxmax/go-sse"
 
 	"github.com/CaliLuke/loom/internal/testingx"
 	"github.com/CaliLuke/loom/jsonrpc/integration_tests/harness"
@@ -88,48 +85,8 @@ func verifyExternalSSEStream(
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
 
-	conn := sse.NewConnection(req)
-
-	var (
-		mu     sync.Mutex
-		events []sse.Event
-	)
-	done := make(chan struct{})
-
-	conn.SubscribeToAll(func(ev sse.Event) {
-		mu.Lock()
-		defer mu.Unlock()
-
-		events = append(events, ev)
-		if len(events) == len(expected) {
-			select {
-			case <-done:
-			default:
-				close(done)
-			}
-			cancel()
-		}
-	})
-
-	errCh := make(chan error, 1)
-	go func() {
-		errCh <- conn.Connect()
-	}()
-
-	var connectErr error
-	select {
-	case <-done:
-		connectErr = <-errCh
-	case err := <-errCh:
-		connectErr = err
-	case <-ctx.Done():
-		t.Fatalf("timed out waiting for SSE events for %s", method)
-	}
-	require.True(t, connectErr == nil || errors.Is(connectErr, context.Canceled), "unexpected connection result: %v", connectErr)
-
-	mu.Lock()
-	got := append([]sse.Event(nil), events...)
-	mu.Unlock()
+	got, err := collectExternalSSE(req, len(expected))
+	require.NoError(t, err)
 
 	require.Len(t, got, len(expected))
 	for i, exp := range expected {

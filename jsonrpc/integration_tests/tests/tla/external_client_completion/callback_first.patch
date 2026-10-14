@@ -1,0 +1,5 @@
+--- a/jsonrpc/integration_tests/tests/sse_adversarial_test.go
++++ b/jsonrpc/integration_tests/tests/sse_adversarial_test.go
+@@ -64,0 +65,2 @@
++	// Review scheduling control: resume the waiter after callback cancellation.
++	<-ctx.Done()

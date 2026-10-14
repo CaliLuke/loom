@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	sse "github.com/tmaxmax/go-sse"
 
 	loomhttp "github.com/CaliLuke/loom/http"
 	"github.com/CaliLuke/loom/internal/testingx"
@@ -47,30 +46,10 @@ func TestJSONRPCSSEExternalClientReceivesDecodeErrorsOnMessageEvent(t *testing.T
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
 
-	conn := sse.NewConnection(req)
-	eventCh := make(chan sse.Event, 1)
-	errCh := make(chan error, 1)
-	conn.SubscribeToAll(func(ev sse.Event) {
-		select {
-		case eventCh <- ev:
-		default:
-		}
-		cancel()
-	})
-
-	go func() {
-		errCh <- conn.Connect()
-	}()
-
-	var ev sse.Event
-	select {
-	case ev = <-eventCh:
-	case err := <-errCh:
-		require.NoError(t, err)
-		t.Fatal("connection closed before receiving SSE error event")
-	case <-ctx.Done():
-		t.Fatal("timed out waiting for SSE decode error event")
-	}
+	events, err := collectExternalSSE(req, 1)
+	require.NoError(t, err)
+	require.Len(t, events, 1)
+	ev := events[0]
 
 	require.Equal(t, "message", ev.Type)
 
@@ -110,30 +89,10 @@ func TestJSONRPCSSEExternalClientReceivesOversizedErrorOnMessageEvent(t *testing
 	req.Header.Set("Accept", "text/event-stream")
 	req.Header.Set("Content-Type", "application/json")
 
-	conn := sse.NewConnection(req)
-	eventCh := make(chan sse.Event, 1)
-	errCh := make(chan error, 1)
-	conn.SubscribeToAll(func(event sse.Event) {
-		select {
-		case eventCh <- event:
-		default:
-		}
-		cancel()
-	})
-
-	go func() {
-		errCh <- conn.Connect()
-	}()
-
-	var event sse.Event
-	select {
-	case event = <-eventCh:
-	case err := <-errCh:
-		require.NoError(t, err)
-		t.Fatal("connection closed before receiving oversized SSE error event")
-	case <-ctx.Done():
-		t.Fatal("timed out waiting for oversized SSE error event")
-	}
+	events, err := collectExternalSSE(req, 1)
+	require.NoError(t, err)
+	require.Len(t, events, 1)
+	event := events[0]
 
 	require.Equal(t, "message", event.Type)
 	var envelope struct {
