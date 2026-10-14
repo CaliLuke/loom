@@ -15,13 +15,14 @@ import (
 )
 
 type bytesDefaultType struct {
-	name         string
-	datatype     expr.DataType
-	meta         expr.MetaExpr
-	defaultValue any
-	bytes        bool
-	customAny    bool
-	defaultText  string
+	name          string
+	datatype      expr.DataType
+	meta          expr.MetaExpr
+	defaultValue  any
+	bytes         bool
+	customAny     bool
+	defaultText   string
+	rejectDefault bool
 }
 
 // TestBytesDefaultTransformLayouts compiles the real transformer against fields
@@ -55,9 +56,18 @@ func TestBytesDefaultTransformLayouts(t *testing.T) {
 			sourceType := scope.GoTypeDef(parent, sourcePointer, sourceDefaults)
 			targetType := scope.GoTypeDef(parent, targetPointer, targetDefaults)
 			fmt.Fprintf(&source, "type source_%s %s\ntype target_%s %s\n", name, sourceType, name, targetType)
-			fmt.Fprintf(&source, "func convert_%s(source *source_%s) any {\n%s\nreturn target\n}\n", name, name, code)
+			fmt.Fprintf(&source, "func convert_%s(source *source_%s) (any, error) {\n", name, name)
+			if codePlan.ErrorAware {
+				source.WriteString("transformErr := new(error)\n")
+			}
+			source.WriteString(code)
+			if codePlan.ErrorAware {
+				source.WriteString("\nreturn target, *transformErr\n}\n")
+			} else {
+				source.WriteString("\nreturn target, nil\n}\n")
+			}
 			applyDefault := defaulted && targetDefaults && !targetPointer && !required && !typ.customAny
-			fmt.Fprintf(&entries, "{name:%q, bytes:%t, sourceDefaults:%t, applyDefault:%t, required:%t, defaultText:%q, value:new(source_%s), convert:func(v any) any {return convert_%s(v.(*source_%s))}},\n", name, typ.bytes, sourceDefaults, applyDefault, required, typ.defaultText, name, name, name)
+			fmt.Fprintf(&entries, "{name:%q, bytes:%t, sourceDefaults:%t, applyDefault:%t, required:%t, defaultText:%q, rejectDefault:%t, value:new(source_%s), convert:func(v any) (any, error) {\nreturn convert_%s(v.(*source_%s))\n}},\n", name, typ.bytes, sourceDefaults, applyDefault, required, typ.defaultText, typ.rejectDefault, name, name, name)
 		}
 	}
 	source.WriteString("func TestDefaults(t *testing.T) {\ncases:=[]defaultCase{\n")
@@ -104,6 +114,8 @@ func bytesDefaultTypes() []bytesDefaultType {
 		{name: "string", datatype: expr.String, defaultValue: "hi", defaultText: "hi"},
 		{name: "custom_string", datatype: expr.String, defaultValue: "hi", defaultText: "hi",
 			meta: expr.MetaExpr{"struct:field:type": {"CustomString"}}},
+		{name: "rejected_custom_string", datatype: expr.String, defaultValue: "reject", defaultText: "reject", rejectDefault: true,
+			meta: expr.MetaExpr{"struct:field:type": {"CustomString"}}},
 		{name: "custom_any", datatype: expr.Any, defaultValue: "hi", customAny: true,
 			meta: expr.MetaExpr{"struct:field:type": {"string"}}},
 	}
@@ -127,13 +139,27 @@ const bytesDefaultPrelude = `package bytesdefaults
 
 import (
  "encoding/json/jsontext"
+ "errors"
  "reflect"
  "testing"
+
+ loom "github.com/CaliLuke/loom/pkg"
 )
+
+var errRejected = errors.New("authored default rejected")
 
 type Blob []byte
 type BlobAlias Blob
 type CustomString string
+
+func (v *CustomString) UnmarshalText(text []byte) error {
+ if string(text) == "reject" {
+  return errRejected
+ }
+ *v = CustomString(text)
+ return nil
+}
+
 type defaultCase struct {
  name string
  bytes bool
@@ -141,8 +167,9 @@ type defaultCase struct {
  applyDefault bool
  required bool
  defaultText string
+ rejectDefault bool
  value any
- convert func(any) any
+ convert func(any) (any, error)
 }
 
 func checkDefaults(t *testing.T, cases []defaultCase) {
@@ -164,7 +191,19 @@ func checkDefaults(t *testing.T, cases []defaultCase) {
      if tc.bytes { input=reflect.ValueOf([]byte(value)) }
      field.Set(input.Convert(field.Type()))
     }
-    result:=reflect.ValueOf(tc.convert(tc.value)).Elem().FieldByName("Data")
+    absent := state == "absent" && (tc.bytes || pointer)
+    defaulted := absent && tc.applyDefault
+    converted, err := tc.convert(tc.value)
+    if defaulted && tc.rejectDefault {
+     if !errors.Is(err, errRejected) {
+      t.Errorf("state=%s error=%v, want authored parser rejection", state, err)
+     }
+     continue
+    }
+    if err != nil {
+     t.Fatalf("state=%s unexpected conversion error: %v", state, err)
+    }
+    result := reflect.ValueOf(converted).Elem().FieldByName("Data")
     nilValue:=false
     if result.Kind()==reflect.Pointer {
      nilValue=result.IsNil()
@@ -179,8 +218,6 @@ func checkDefaults(t *testing.T, cases []defaultCase) {
     }
     want:=""
     if state=="nonempty" { want="ok" }
-    absent:=state=="absent" && (tc.bytes || pointer)
-    defaulted:=absent && tc.applyDefault
     if defaulted { want=tc.defaultText }
     if got!=want { t.Errorf("state=%s got=%q want=%q",state,got,want) }
     if tc.bytes && state=="empty" && nilValue { t.Error("supplied empty bytes became nil") }
