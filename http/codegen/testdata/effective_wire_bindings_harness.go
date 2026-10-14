@@ -12,6 +12,7 @@ const effectiveWireBindingsHarness = `package binding_test
 
 import (
  "context"
+ "encoding/json/v2"
  "fmt"
  "net/http"
  "net/http/httptest"
@@ -36,6 +37,13 @@ func (s *implementation) record(p any) error {
  s.calls++
  s.payload=p
  return nil
+}
+func (s *implementation) Response(context.Context) (*svc.ResponseResult,error) {
+ s.calls++
+ return &svc.ResponseResult{A:"first", B:"second"},nil
+}
+func (s *implementation) Header(_ context.Context,p *svc.HeaderPayload) error {
+ return s.record(p)
 }
 func (s *implementation) Either(_ context.Context,p *svc.EitherPayload) error {
  return s.record(p)
@@ -70,6 +78,57 @@ func (s *implementation) APIKeyAuth(ctx context.Context,key string,_ *security.A
 }
 func (s *implementation) OAuth2Auth(ctx context.Context,token string,_ *security.OAuth2Scheme) (context.Context,error) {
  return s.check(ctx,"oauth",token,"token")
+}
+func TestEffectiveResponseBindings(t *testing.T) {
+ impl:=&implementation{}
+ mux:=loomhttp.NewMuxer()
+ server.Mount(mux,server.New(svc.NewEndpoints(impl),mux,loomhttp.RequestDecoder,loomhttp.ResponseEncoder,nilSERVERARGS))
+ path,body:="/response","{}"
+ if IS_RPC {
+  path="/rpc"
+  body=` + "`" + `{"jsonrpc":"2.0","method":"response","id":1}` + "`" + `
+ }
+ req:=httptest.NewRequest(http.MethodPost,path,strings.NewReader(body))
+ req.Header.Set("Content-Type","application/json")
+ rec:=httptest.NewRecorder()
+ mux.ServeHTTP(rec,req)
+ require.Equal(t,1,impl.calls,rec.Body.String())
+ require.Equal(t,http.StatusOK,rec.Code,rec.Body.String())
+ if IS_RPC {
+  require.Empty(t,rec.Header().Get("X-A"))
+  require.Empty(t,rec.Header().Get("X-B"))
+  require.JSONEq(t,` + "`" + `{"jsonrpc":"2.0","id":1,"result":{"a":"first","b":"second"}}` + "`" + `,rec.Body.String())
+ } else {
+  require.Equal(t,"first",rec.Header().Get("X-A"))
+  require.Equal(t,"second",rec.Header().Get("X-B"))
+  require.Empty(t,rec.Body.String())
+ }
+}
+func TestEffectiveRequestHeaderBindings(t *testing.T) {
+ impl:=&implementation{}
+ mux:=loomhttp.NewMuxer()
+ server.Mount(mux,server.New(svc.NewEndpoints(impl),mux,loomhttp.RequestDecoder,loomhttp.ResponseEncoder,nilSERVERARGS))
+ path,body:="/header","{}"
+ if IS_RPC {
+  path="/rpc"
+  body=` + "`" + `{"jsonrpc":"2.0","method":"header","params":{},"id":1}` + "`" + `
+ }
+ req:=httptest.NewRequest(http.MethodPost,path,strings.NewReader(body))
+ req.Header.Set("Content-Type","application/json")
+ req.Header.Set("X-A","first")
+ req.Header.Set("X-B","second")
+ rec:=httptest.NewRecorder()
+ mux.ServeHTTP(rec,req)
+ require.Equal(t,1,impl.calls,rec.Body.String())
+ require.Equal(t,&svc.HeaderPayload{A:"first",B:"second"},impl.payload)
+ if IS_RPC {
+  require.Equal(t,http.StatusOK,rec.Code)
+  var envelope map[string]any
+  require.NoError(t,json.Unmarshal(rec.Body.Bytes(),&envelope))
+  require.NotContains(t,envelope,"error")
+ } else {
+  require.Equal(t,http.StatusNoContent,rec.Code)
+ }
 }
 func TestEffectiveWireAuth(t *testing.T) {
  for _,tc:=range []struct {

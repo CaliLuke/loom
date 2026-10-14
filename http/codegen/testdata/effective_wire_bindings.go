@@ -38,7 +38,7 @@ func effectiveWireBindingsDSL(transport, authorization string) func() {
 					POST("/rpc")
 				})
 			}
-			wireBindingOrdinaryMethods(endpoint)
+			wireBindingOrdinaryMethods(transport, endpoint)
 			for _, name := range []string{"either", "explicit", "and-key", "or-key", "shared-frame"} {
 				Method(name, func() {
 					switch name {
@@ -116,7 +116,7 @@ func EffectiveWireBindingScopeDSL(transport string) func() {
 	}
 }
 
-func wireBindingOrdinaryMethods(endpoint func(string, func())) {
+func wireBindingOrdinaryMethods(transport string, endpoint func(string, func())) {
 	Method("response", func() {
 		Result(func() {
 			Attribute("a", String)
@@ -125,8 +125,10 @@ func wireBindingOrdinaryMethods(endpoint func(string, func())) {
 		})
 		endpoint("/response", func() {
 			Response(StatusOK, func() {
-				Header("a:X-A")
-				Header("b:X-B")
+				if transport != "jsonrpc" {
+					Header("a:X-A")
+					Header("b:X-B")
+				}
 			})
 		})
 	})
