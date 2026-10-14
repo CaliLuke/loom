@@ -9,7 +9,7 @@ func EncodeMethodQueryCustomTextUnmarshalerOptionalRequest(encoder func(*http.Re
 		}
 		values := req.URL.Query()
 		if p.ID != nil {
-			values.Add("id", fmt.Sprintf("%v", *p.ID))
+			values.Add("id", fmt.Sprint(*p.ID))
 		}
 		req.URL.RawQuery = values.Encode()
 		return nil

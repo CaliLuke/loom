@@ -1017,7 +1017,9 @@ clients and servers after upgrading to adopt typed Tag binding.
   `Meta("struct:field:type", ...)` decode through `encoding.TextUnmarshaler`.
   CLI flags accept raw text through the same parser; omitted optional fields
   remain absent and declared defaults apply. Implement `fmt.Stringer` on the
-  custom type to supply the wire text used by generated HTTP clients.
+  custom type to supply the wire text used by generated HTTP clients and servers.
+  Response headers and cookies, including mapped errors and viewed results,
+  share this text representation; regenerate affected transports.
 - Start each path parameter at the beginning of its segment, using ASCII letters,
   digits, or underscores in its name. `/{prefix}/{number}` and `/{name}.json`
   are supported; `/{prefix}-{number}` and `/item-{name}` fail DSL validation.

@@ -7,8 +7,12 @@ import (
 )
 
 // transportScalarValue formats a dereferenced physical value using its wire
-// primitive. Named elements retain declaration identity until this conversion.
-func transportScalarValue(wire, physical expr.DataType, value string) string {
+// primitive and analyzed custom text contract. Named elements retain declaration
+// identity until this conversion.
+func transportScalarValue(wire, physical expr.DataType, value string, customText bool) string {
+	if customText {
+		return "fmt.Sprint(" + value + ")"
+	}
 	_, named := transportUnderlyingType(physical)
 	cast := func(name string, always bool) string {
 		if named || always {
@@ -46,10 +50,10 @@ func transportScalarValue(wire, physical expr.DataType, value string) string {
 
 // renderHeaderConversion lowers a physical scalar or list to the native string
 // carrier consumed by the header codec. List absence and explicit empty survive.
-func renderHeaderConversion(wire, physical expr.DataType, result, value string) string {
+func renderHeaderConversion(wire, physical expr.DataType, result, value string, customText bool) string {
 	array := expr.AsArray(wire)
 	if array == nil {
-		return result + " := " + transportScalarValue(wire, physical, value)
+		return result + " := " + transportScalarValue(wire, physical, value, customText)
 	}
 	element := expr.AsArray(physical).ElemType.Type
 	_, named := transportUnderlyingType(element)
@@ -57,5 +61,16 @@ func renderHeaderConversion(wire, physical expr.DataType, result, value string) 
 		return result + " := " + value
 	}
 	return fmt.Sprintf("var %s []string\nif %s != nil {\n%s = make([]string, len(%s))\nfor i, e := range %s {\n%s[i] = %s\n}\n}",
-		result, value, result, value, value, result, transportScalarValue(array.ElemType.Type, element, "e"))
+		result, value, result, value, value, result, transportScalarValue(array.ElemType.Type, element, "e", false))
+}
+
+// transportFieldReference selects the analyzed physical field without formatting.
+func transportFieldReference(attribute *AttributeData, source string) string {
+	if attribute.FieldName != "" {
+		source += "." + attribute.FieldName
+	}
+	if attribute.FieldPointer {
+		source = "*" + source
+	}
+	return source
 }

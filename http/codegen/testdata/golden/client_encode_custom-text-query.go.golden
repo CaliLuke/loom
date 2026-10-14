@@ -8,7 +8,7 @@ func EncodeMethodQueryCustomTextUnmarshalerRequest(encoder func(*http.Request) l
 			return loomhttp.ErrInvalidType("ServiceQueryCustomTextUnmarshaler", "MethodQueryCustomTextUnmarshaler", "*servicequerycustomtextunmarshaler.MethodQueryCustomTextUnmarshalerPayload", v)
 		}
 		values := req.URL.Query()
-		values.Add("id", fmt.Sprintf("%v", p.ID))
+		values.Add("id", fmt.Sprint(p.ID))
 		req.URL.RawQuery = values.Encode()
 		return nil
 	}

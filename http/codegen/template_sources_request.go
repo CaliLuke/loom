@@ -27,12 +27,12 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 			{{- else }}
 			{
 			{{- end }}
-			head := {{ if .IsTextUnmarshaler }}fmt.Sprint({{ end }}{{ if .FieldPointer }}*{{ end }}p{{ if .FieldName }}.{{ .FieldName }}{{ end }}{{ if .IsTextUnmarshaler }}){{ end }}
+			head := {{ if .IsTextUnmarshaler }}{{ transportScalarValue .Type .FieldType (transportFieldReference .AttributeData "p") true }}{{ else }}{{ transportFieldReference .AttributeData "p" }}{{ end }}
    {{- if .Bearer.Framed }}
    req.Header.Set({{ printf "%q" .HTTPName }}, "Bearer "+{{ if isAlias .FieldType }}string(head){{ else }}head{{ end }})
    {{- else }}
 			{{- if eq .Type.Name "array" }}
-			{{ renderHeaderConversion .Type .FieldType "values" "head" }}
+			{{ renderHeaderConversion .Type .FieldType "values" "head" false }}
 			if err := loomhttp.SetHeaderValues(req.Header, {{ printf "%q" .HTTPName }}, values); err != nil {
 				return err
 			}
@@ -53,7 +53,7 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 			{{- else }}
 			{
 			{{- end }}
-			v{{ if or (not (eq .Type.Name "string")) (and (isAlias .FieldType) (not .IsTextUnmarshaler)) }}raw{{ end }} := {{ if .IsTextUnmarshaler }}fmt.Sprint({{ end }}{{ if .FieldPointer }}*{{ end }}p{{ if .FieldName }}.{{ .FieldName }}{{ end }}{{ if .IsTextUnmarshaler }}){{ end }}
+			v{{ if or (not (eq .Type.Name "string")) (and (isAlias .FieldType) (not .IsTextUnmarshaler)) }}raw{{ end }} := {{ if .IsTextUnmarshaler }}{{ transportScalarValue .Type .FieldType (transportFieldReference .AttributeData "p") true }}{{ else }}{{ transportFieldReference .AttributeData "p" }}{{ end }}
 			{{- if or (not (eq .Type.Name "string")) (and (isAlias .FieldType) (not .IsTextUnmarshaler)) }}
 			{{ template "partial_client_type_conversion" (typeConversionData .Type .FieldType "v" "vraw") }}
 			{{- end }}
@@ -97,13 +97,15 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 		if p.{{ .FieldName }} != nil {
 			{{- end }}
 		values.Add("{{ .HTTPName }}",
+            {{- if .IsTextUnmarshaler }} {{ transportScalarValue .Type .FieldType (transportFieldReference .AttributeData "p") true }}
+            {{- else }}
 			{{- if eq .Type.Name "any" }} loom.JSONValueString(
 			{{- else if or (eq .Type.Name "bytes") (and (isAlias .FieldType) (eq (underlyingType .FieldType).Name "string")) }} string(
-			{{- else if or .IsTextUnmarshaler (not (eq .Type.Name "string")) }} fmt.Sprintf("%v",
+			{{- else if not (eq .Type.Name "string") }} fmt.Sprintf("%v",
 			{{- end }}
 			{{- if .FieldPointer }}*{{ end }}p.{{ .FieldName }}
-			{{- if or .IsTextUnmarshaler (eq .Type.Name "bytes") (not (eq .Type.Name "string")) (and (isAlias .FieldType) (eq (underlyingType .FieldType).Name "string")) }})
-			{{- end }})
+			{{- if or (eq .Type.Name "bytes") (not (eq .Type.Name "string")) (and (isAlias .FieldType) (eq (underlyingType .FieldType).Name "string")) }})
+			{{- end }}{{- end }})
 			{{- if .FieldPointer }}
 		}
 			{{- end }}
@@ -217,6 +219,6 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 	}
 }
 `,
-		templateSource{name: "client_type_conversion", source: `{{- .VarName }} := {{ transportScalarValue .Type .FieldType .Target }}`},
+		templateSource{name: "client_type_conversion", source: `{{- .VarName }} := {{ transportScalarValue .Type .FieldType .Target false }}`},
 	)
 )

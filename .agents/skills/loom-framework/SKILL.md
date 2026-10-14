@@ -227,8 +227,10 @@ consumer validation.
   Request publication does not apply response attributes or deployment policies;
   avoid separate grammar or escaping in templates.
 
-- HTTP codegen's typed transport formatter consumes both normalized wire types
-  and actual field carriers. Request and response header lists share element
+- HTTP codegen's typed transport formatter consumes normalized wire types,
+  actual field carriers and the analyzed custom String text-codec fact. Custom
+  scalar publication uses fmt.Stringer text through this owner across request and
+  response mappings; never infer physical string storage from logical String. Request and response header lists share element
   conversion before the standard list codec; JSON-RPC reuses the request path.
   Preserve nil/empty and native default literals, and never cast whole slices
   from named elements to primitive elements. Scalar query/cookie adapters reuse

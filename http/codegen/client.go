@@ -96,9 +96,10 @@ func clientRequestEncoderSection(svc *expr.HTTPServiceExpr, services *ServicesDa
 
 func clientRequestTemplateFuncs(svc *expr.HTTPServiceExpr, services *ServicesData) map[string]any {
 	return map[string]any{
-		"typeConversionData":     typeConversionData,
-		"transportScalarValue":   transportScalarValue,
-		"renderHeaderConversion": renderHeaderConversion,
+		"typeConversionData":      typeConversionData,
+		"transportScalarValue":    transportScalarValue,
+		"renderHeaderConversion":  renderHeaderConversion,
+		"transportFieldReference": transportFieldReference,
 		"goTypeRef": func(dt expr.DataType) string {
 			return services.ServicesData.Get(svc.Name()).Scope.GoTypeRef(&expr.AttributeExpr{Type: dt})
 		},

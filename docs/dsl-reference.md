@@ -2215,11 +2215,14 @@ owns the response body.
 
 Use `Meta("struct:field:type", "pkg.Type", "import/path")` when a generated
 struct field needs a custom Go type. For string-backed path, query, header, and
-cookie request fields, generated HTTP decoders and CLI payload builders call
-`UnmarshalText` on that custom type. CLI flags accept raw text, preserve omitted
-optional values, and apply declared defaults. Generated clients format these
+cookie fields, generated HTTP request and response decoders call `UnmarshalText`
+on that custom type. CLI payload builders use the same parser. CLI flags accept raw text, preserve omitted
+optional values, and apply declared defaults. Generated clients and servers format these
 values with `fmt.Sprint`; implement `fmt.Stringer` to return the wire text that
 `UnmarshalText` accepts. This includes types such as `uuid.UUID`.
+Response headers and cookies, including mapped errors and viewed results, use
+the same custom text representation. Regenerate transports after adopting this
+correction; optional nil values remain absent.
 
 If the DSL field also uses `Format(...)`, Loom skips the duplicate generated
 string format check and lets the custom type's parser own that validation.

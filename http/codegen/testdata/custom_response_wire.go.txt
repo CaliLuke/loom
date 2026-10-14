@@ -1,0 +1,170 @@
+package customresponse_test
+
+import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	svc "example.com/customresponse/gen/customresponse"
+	client "example.com/customresponse/gen/http/customresponse/client"
+	server "example.com/customresponse/gen/http/customresponse/server"
+	"example.com/customresponse/scalar"
+	loomhttp "github.com/CaliLuke/loom/http"
+	"github.com/stretchr/testify/require"
+)
+
+func TestCustomResponseWire(t *testing.T) {
+	for _, location := range []string{"header", "cookie", "projected"} {
+		for _, errorResponse := range []bool{false, true} {
+			for _, supplied := range []bool{false, true} {
+				t.Run(location+caseName(errorResponse, supplied), func(t *testing.T) {
+					token := scalar.Token{Text: "abc"}
+					defaulted := scalar.Token{Text: "def"}
+					var optional *scalar.Token
+					if supplied {
+						optional = &token
+					}
+					native := ""
+					named := svc.Label("")
+					endpoint := func(context.Context, any) (any, error) {
+						if errorResponse {
+							return nil, &svc.Failure{Optional: optional, Required: token, Defaulted: defaulted, Native: &native, Named: &named}
+						}
+						if location == "projected" {
+							return svc.NewViewedRecord(&svc.Record{Optional: optional, Required: token, Defaulted: &defaulted, Native: &native, Named: &native}, "default")
+						}
+						return &svc.Value{Optional: optional, Required: token, Defaulted: defaulted, Native: &native, Named: &named}, nil
+					}
+					mux := loomhttp.NewMuxer()
+					server.Mount(mux, server.New(&svc.Endpoints{Header: endpoint, Cookie: endpoint, Projected: endpoint}, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil))
+					w := httptest.NewRecorder()
+					mux.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/"+location, nil))
+					response := w.Result()
+					wantStatus := http.StatusOK
+					if errorResponse {
+						wantStatus = http.StatusBadRequest
+					}
+					require.Equal(t, wantStatus, response.StatusCode, w.Body.String())
+					values := wireValues(response, location)
+					require.Equal(t, "token:abc", values["required"])
+					require.Equal(t, "token:def", values["defaulted"])
+					require.Contains(t, values, "native")
+					require.Contains(t, values, "named")
+					if supplied {
+						require.Equal(t, "token:abc", values["optional"])
+					} else {
+						require.NotContains(t, values, "optional")
+					}
+					value, err := responseDecoder(location)(response)
+					if errorResponse {
+						var failure *svc.Failure
+						require.ErrorAs(t, err, &failure)
+						require.Equal(t, token, failure.Required)
+						require.Equal(t, optional, failure.Optional)
+					} else {
+						require.NoError(t, err)
+						switch result := value.(type) {
+						case *svc.Value:
+							require.Equal(t, token, result.Required)
+							require.Equal(t, optional, result.Optional)
+							require.Equal(t, &native, result.Native)
+							require.Equal(t, &named, result.Named)
+						case *svc.Record:
+							require.Equal(t, token, result.Required)
+							require.Equal(t, optional, result.Optional)
+						default:
+							t.Errorf("unexpected result type %T", value)
+						}
+					}
+					require.NoError(t, response.Body.Close())
+				})
+			}
+		}
+	}
+}
+
+func TestCustomResponseTextAdmission(t *testing.T) {
+	for _, location := range []string{"header", "cookie"} {
+		for _, tc := range []struct {
+			name    string
+			values  map[string]string
+			invalid bool
+		}{
+			{"absent optional and default", map[string]string{"required": "token:abc"}, false},
+			{"valid optional", map[string]string{"required": "token:abc", "optional": "token:xyz"}, false},
+			{"missing required", map[string]string{}, true},
+			{"empty required", map[string]string{"required": ""}, true},
+			{"empty optional", map[string]string{"required": "token:abc", "optional": ""}, true},
+			{"invalid custom text", map[string]string{"required": "token:abc", "optional": "invalid"}, true},
+			{"raw text constraint", map[string]string{"required": "token:abc", "optional": "token:"}, true},
+			{"invalid supplied default", map[string]string{"required": "token:abc", "defaulted": "invalid"}, true},
+		} {
+			t.Run(location+"/"+tc.name, func(t *testing.T) {
+				w := httptest.NewRecorder()
+				for name, value := range tc.values {
+					if location == "cookie" {
+						http.SetCookie(w, &http.Cookie{Name: name, Value: value})
+					} else {
+						w.Header().Set(name, value)
+					}
+				}
+				response := w.Result()
+				value, err := responseDecoder(location)(response)
+				if tc.invalid {
+					require.Error(t, err)
+					require.Nil(t, value)
+				} else {
+					require.NoError(t, err)
+					result := value.(*svc.Value)
+					require.Equal(t, "token:abc", result.Required.String())
+					require.Equal(t, "token:def", result.Defaulted.String())
+					if _, present := tc.values["optional"]; present {
+						require.Equal(t, "token:xyz", result.Optional.String())
+					} else {
+						require.Nil(t, result.Optional)
+					}
+				}
+				require.NoError(t, response.Body.Close())
+			})
+		}
+	}
+}
+
+func responseDecoder(location string) func(*http.Response) (any, error) {
+	switch location {
+	case "cookie":
+		return client.DecodeCookieResponse(loomhttp.ResponseDecoder, false)
+	case "projected":
+		return client.DecodeProjectedResponse(loomhttp.ResponseDecoder, false)
+	default:
+		return client.DecodeHeaderResponse(loomhttp.ResponseDecoder, false)
+	}
+}
+
+func wireValues(response *http.Response, location string) map[string]string {
+	values := map[string]string{}
+	if location == "cookie" {
+		for _, cookie := range response.Cookies() {
+			values[cookie.Name] = cookie.Value
+		}
+	} else {
+		for _, name := range []string{"optional", "required", "defaulted", "native", "named"} {
+			if len(response.Header.Values(name)) > 0 {
+				values[name] = response.Header.Get(name)
+			}
+		}
+	}
+	return values
+}
+
+func caseName(errorResponse, supplied bool) string {
+	name := "/success"
+	if errorResponse {
+		name = "/error"
+	}
+	if supplied {
+		return name + "/supplied"
+	}
+	return name + "/absent"
+}

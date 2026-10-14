@@ -261,11 +261,13 @@ func transTmplFuncs(s *expr.HTTPServiceExpr, services *ServicesData) map[string]
 			_, ok := dt.(expr.UserType)
 			return ok
 		},
-		"conversionData":         conversionData,
-		"scalarElementData":      scalarElementData,
-		"renderHeaderConversion": renderHeaderConversion,
-		"printValue":             printValue,
-		"viewedServerBody":       viewedServerBody,
+		"conversionData":          conversionData,
+		"scalarElementData":       scalarElementData,
+		"renderHeaderConversion":  renderHeaderConversion,
+		"transportFieldReference": transportFieldReference,
+		"transportScalarValue":    transportScalarValue,
+		"printValue":              printValue,
+		"viewedServerBody":        viewedServerBody,
 	}
 }
 
