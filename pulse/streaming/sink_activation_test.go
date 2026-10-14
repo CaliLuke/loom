@@ -60,7 +60,8 @@ func TestSinkActivationClaimsPending(t *testing.T) {
 	stream := newTestStream(t, rdb, "activation-pending")
 	id, err := stream.Add(t.Context(), "original", []byte("payload"))
 	require.NoError(t, err)
-	require.NoError(t, rdb.XGroupCreate(t.Context(), stream.key, "activation", "0").Err())
+	previous := newTestSink(t, stream, "activation", options.WithSinkStartAtOldest())
+	previous.Close(t.Context())
 	messages, err := rdb.XReadGroup(t.Context(), &redis.XReadGroupArgs{
 		Group: "activation", Consumer: "previous", Streams: []string{stream.key, ">"}, Count: 1, Block: -1,
 	}).Result()

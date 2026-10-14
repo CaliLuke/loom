@@ -10,9 +10,6 @@ import (
 	"time"
 
 	redis "github.com/redis/go-redis/v9"
-
-	"github.com/CaliLuke/loom/pulse/pulse"
-	"github.com/CaliLuke/loom/pulse/rmap"
 )
 
 type sinkClaimStream struct {
@@ -34,54 +31,62 @@ func consumerKeepAliveExpired(elapsed, grace time.Duration) bool {
 // and acks those whose events were deleted.
 // s.lock must be held.
 func (s *Sink) deleteStreamStaleConsumers(ctx context.Context, stream *Stream) error {
-	// Get all consumers for this group
 	consumers, err := s.rdb.XInfoConsumers(ctx, stream.key, s.Name).Result()
 	if err != nil {
 		return fmt.Errorf("failed to get consumers info: %w", err)
 	}
-
-	// Check keep-alive map
-	keepAlives := s.consumersKeepAliveMap.Map()
+	record, _, err := readSinkMembership(ctx, stream, s.Name)
+	if err != nil {
+		return err
+	}
+	candidates := make(map[string]sinkMember)
 	for _, consumer := range consumers {
-		if consumer.Pending > 0 {
-			continue
+		candidates[consumer.Name] = sinkMember{Name: consumer.Name}
+	}
+	if record != nil {
+		for _, member := range record.Members {
+			candidates[member.Name] = member
 		}
-		ts, hasKeepAlive := keepAlives[consumer.Name]
-		if !hasKeepAlive {
-			deleted, err := s.deleteIdleConsumer(ctx, stream.key, consumer.Name)
+	}
+	keepAlives, err := s.rdb.HGetAll(ctx, fmt.Sprintf("map:%s:content", sinkKeepAliveMapName(s.Name))).Result()
+	if err != nil {
+		return fmt.Errorf("failed to read consumer keep-alives: %w", err)
+	}
+	for _, member := range candidates {
+		// Registration itself protects a join before native consumer creation
+		// and its first keepalive. Persistent members outlive stream expiry.
+		lastActive := member.RegisteredAt
+		ts, hasKeepAlive := keepAlives[member.Name]
+		if hasKeepAlive {
+			observed, err := strconv.ParseInt(ts, 10, 64)
 			if err != nil {
-				s.logger.Error(fmt.Errorf("failed to delete consumer with no keep-alive: %w", err), "consumer", consumer.Name)
-			} else if deleted {
-				s.logger.Info("cleaned up consumer with no keep-alive", "consumer", consumer.Name)
+				s.logger.Error(fmt.Errorf("failed to parse keep-alive timestamp: %w", err), "consumer", member.Name, "timestamp", ts)
+				continue
 			}
+			lastActive = observed
+		}
+		if lastActive > 0 && !consumerKeepAliveExpired(time.Since(time.Unix(0, lastActive)), s.ackGracePeriod) {
 			continue
 		}
-
-		// Check if consumer is stale based on keep-alive timestamp
-		keepAliveTs, err := strconv.ParseInt(ts, 10, 64)
+		deleted, err := s.deleteIdleConsumer(ctx, stream.key, member.Name)
 		if err != nil {
-			s.logger.Error(fmt.Errorf("failed to parse keep-alive timestamp: %w", err), "consumer", consumer.Name, "timestamp", ts)
+			s.logger.Error(fmt.Errorf("failed to delete stale consumer: %w", err), "consumer", member.Name)
 			continue
 		}
-
-		if consumerKeepAliveExpired(time.Since(time.Unix(0, keepAliveTs)), s.ackGracePeriod) {
-			deleted, err := s.deleteIdleConsumer(ctx, stream.key, consumer.Name)
-			if err != nil {
-				s.logger.Error(fmt.Errorf("failed to delete stale consumer: %w", err), "consumer", consumer.Name)
+		if !deleted {
+			// The atomic Redis check retains every pending entry, including
+			// entries delivered after our native inventory snapshot.
+			continue
+		}
+		if sinks := s.consumersMap[stream.Name]; sinks != nil {
+			if _, err := changeSinkMembership(ctx, sinks, s.Name, s.filterIdentity, sinkMemberChange{remove: []string{member.Name}}); err != nil {
+				s.logger.Error(fmt.Errorf("failed to remove consumer from map: %w", err), "stream", stream.Name, "consumer", member.Name)
 				continue
 			}
-			if !deleted {
-				// The consumer received events since XINFO CONSUMERS ran.
-				continue
-			}
-			s.logger.Info("cleaned up stale consumer", "consumer", consumer.Name)
-			if _, err := s.consumersKeepAliveMap.Delete(ctx, consumer.Name); err != nil {
-				s.logger.Error(fmt.Errorf("failed to delete keep-alive for stale consumer: %w", err), "consumer", consumer.Name)
-			}
-			if sinks := s.consumersMap[stream.Name]; sinks != nil {
-				if _, _, err := sinks.RemoveValues(ctx, s.Name, consumer.Name); err != nil {
-					s.logger.Error(fmt.Errorf("failed to remove consumer from map: %w", err), "stream", stream.Name, "consumer", consumer.Name)
-				}
+		}
+		if hasKeepAlive {
+			if _, err := s.consumersKeepAliveMap.TestAndDelete(ctx, member.Name, ts); err != nil {
+				s.logger.Error(fmt.Errorf("failed to delete stale keep-alive: %w", err), "consumer", member.Name)
 			}
 		}
 	}
@@ -116,7 +121,7 @@ func (s *Sink) deleteStaleConsumers(ctx context.Context) {
 // The caller owns the map until cleanup succeeds or the sink closes.
 func (s *Sink) removeStreamConsumer(ctx context.Context, stream *Stream) (bool, error) {
 	consumers := append([]string{s.consumer}, s.retiredConsumers...)
-	remains, _, err := s.consumersMap[stream.Name].RemoveValues(ctx, s.Name, consumers...)
+	remains, err := changeSinkMembership(ctx, s.consumersMap[stream.Name], s.Name, s.filterIdentity, sinkMemberChange{remove: consumers})
 	if err != nil {
 		return false, fmt.Errorf("failed to remove consumer %s from replicated map for stream %s: %w", s.consumer, stream.Name, err)
 	}
@@ -397,8 +402,15 @@ func (s *Sink) isClosing() bool {
 // the destroy are separate steps, and another instance may add the stream
 // between them.
 func (s *Sink) deleteConsumerGroup(ctx context.Context, stream *Stream) error {
+	record, raw, err := readSinkMembership(ctx, stream, s.Name)
+	if err != nil {
+		return err
+	}
+	if record == nil || len(record.Members) != 0 {
+		return nil
+	}
 	keys := []string{consumersMapKey(stream), stream.key}
-	destroyed, err := destroyGroupScript.Run(ctx, s.rdb, keys, s.Name).Int64()
+	destroyed, err := destroyGroupScript.Run(ctx, s.rdb, keys, s.Name, raw).Int64()
 	if err != nil {
 		return fmt.Errorf("failed to destroy Redis consumer group %q for stream %q: %w", s.Name, stream.Name, err)
 	}
@@ -413,9 +425,9 @@ func (s *Sink) deleteConsumerGroup(ctx context.Context, stream *Stream) error {
 // consumer replacement, even if ctx is canceled. It returns err joined with
 // the removal error, if any. The consumer group stays: another instance of
 // the sink may use it (tla/README.md).
-func rollbackConsumer(ctx context.Context, cm *rmap.Map, stream *Stream, sink, consumer string, err error) error {
-	if _, _, rerr := cm.RemoveValues(context.WithoutCancel(ctx), sink, consumer); rerr != nil {
-		err = errors.Join(err, fmt.Errorf("failed to remove consumer %s from replicated map for stream %s: %w", consumer, stream.Name, rerr))
+func rollbackConsumer(ctx context.Context, cm *sinkConsumerMap, sink, consumer string, filter sinkFilter, err error) error {
+	if _, rerr := changeSinkMembership(context.WithoutCancel(ctx), cm, sink, filter, sinkMemberChange{remove: []string{consumer}}); rerr != nil {
+		err = errors.Join(err, fmt.Errorf("failed to remove consumer %s from replicated map for stream %s: %w", consumer, cm.stream.Name, rerr))
 	}
 	return err
 }
@@ -437,20 +449,6 @@ func consumersMapName(stream *Stream) string {
 // replicated map named consumersMapName(stream), as rmap.Join names it.
 func consumersMapKey(stream *Stream) string {
 	return fmt.Sprintf("map:%s:content", consumersMapName(stream))
-}
-
-func consumersMapOptions(stream *Stream, logger pulse.Logger) []rmap.MapOption {
-	opts := []rmap.MapOption{
-		rmap.WithLogger(logger),
-	}
-	if stream.ttl > 0 {
-		if stream.ttlSliding {
-			opts = append(opts, rmap.WithSlidingTTL(stream.ttl))
-		} else {
-			opts = append(opts, rmap.WithTTL(stream.ttl))
-		}
-	}
-	return opts
 }
 
 // sinkKeepAliveMapName is the name of the replicated map that backs a sink keep-alives.

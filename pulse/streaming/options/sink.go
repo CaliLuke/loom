@@ -38,15 +38,19 @@ func WithSinkMaxPolled(n int64) Sink {
 	}
 }
 
-// WithSinkTopic sets the sink topic.
+// WithSinkTopic selects an exact topic. A nonempty topic overrides TopicPattern.
+// All instances of a named group on a stream must use the same effective filter;
+// a conflicting join fails. An empty topic leaves TopicPattern effective.
 func WithSinkTopic(topic string) Sink {
 	return func(o *SinkOptions) {
 		o.Topic = topic
 	}
 }
 
-// WithSinkTopicPattern sets the sink topic pattern.
-// pattern must be a valid regular expression or NewSink panics.
+// WithSinkTopicPattern selects a topic regular expression when Topic is empty.
+// NewSink returns an error for an invalid effective pattern. All instances of a
+// named group on a stream must use the same pattern spelling; conflicting joins
+// fail even when differently spelled patterns match the same topics.
 func WithSinkTopicPattern(pattern string) Sink {
 	return func(o *SinkOptions) {
 		o.TopicPattern = pattern

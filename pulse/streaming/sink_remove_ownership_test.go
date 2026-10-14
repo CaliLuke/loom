@@ -123,7 +123,7 @@ func (h removeFaultHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
 			return next(ctx, cmd)
 		}
 		script := fmt.Sprint(cmd.Args()[1])
-		destroy := script == destroyGroupScript.Hash() || strings.Contains(script, "HEXISTS")
+		destroy := script == destroyGroupScript.Hash() || strings.Contains(script, `"XGROUP", "DESTROY"`)
 		if fault.destroy != destroy {
 			return next(ctx, cmd)
 		}

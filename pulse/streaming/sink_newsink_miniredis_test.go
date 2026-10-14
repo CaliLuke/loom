@@ -67,7 +67,7 @@ func TestNewSinkClosesJoinedMapsOnError(t *testing.T) {
 				t.Helper()
 				require.NoError(t, rdb.Set(t.Context(), stream.key, "not a stream", 0).Err())
 			},
-			want: "failed to create Redis consumer group sink",
+			want: "inspect group identity",
 		},
 		{
 			name: "consumer creation",
@@ -118,7 +118,11 @@ func TestNewSinkClosesJoinedMapsOnError(t *testing.T) {
 			m, err := rmap.Join(t.Context(), consumersMapName(stream), rdb)
 			require.NoError(t, err)
 			defer m.Close()
-			assert.Empty(t, m.Map(), "the consumers map holds a consumer of the failed NewSink")
+			for _, raw := range m.Map() {
+				record, err := decodeSinkMembership(raw)
+				require.NoError(t, err)
+				assert.Empty(t, record.Members, "the consumers map holds a consumer of the failed NewSink")
+			}
 			if tc.group {
 				consumers, err := rdb.XInfoConsumers(t.Context(), stream.key, tc.sink).Result()
 				require.NoError(t, err)

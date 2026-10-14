@@ -90,6 +90,30 @@ first successful `Subscribe`. Construction still creates consumer membership
 and starts keepalive. Delivery continues after all subscribers unsubscribe;
 this does not promise replay of events consumed during that later interval.
 
+Each named sink group has one persistent effective topic filter per stream:
+unfiltered, an exact nonempty topic, or the exact spelling of a regular expression.
+A nonempty `WithSinkTopic` takes precedence over `WithSinkTopicPattern`. Joining
+that group with a different filter fails before delivery, including `AddStream`.
+Use different group names for independent subscriptions. Filtered and malformed
+events are acknowledged for that group, including entries reclaimed from its
+pending list. This leaves stored entries and other groups untouched. Readers
+skip rejected events without acknowledging them. Accepted sink events remain
+application-owned; `WithSinkNoAck` applies to fresh reads, not historical pending
+entries reclaimed by that instance.
+
+Upgrading to enforced filters requires coordinated migration: stop all old
+instances, preserve or drain any data that must survive, and either move to a
+fresh stream or use `Stream.Destroy` for intentional shared teardown before
+recreating it. Do not mix old and new binaries. Legacy membership records,
+expiring membership hashes, and existing Redis groups without a recorded filter
+are rejected rather than assigned a guessed identity. Group identity no longer
+inherits the stream TTL and survives empty membership and `RemoveStream`.
+`Stream.Destroy` removes it together with the stream; ordinary shutdown does not.
+Use a new group name to change a subscription on an already migrated stream.
+Stale-member cleanup also reconciles members left behind by stream expiry. A
+new registration receives the existing grace period before its first heartbeat;
+pending entries continue to protect their consumer from deletion.
+
 A default reader captures the newest event ID once during `NewReader`. It skips
 history present at that snapshot and retains events added afterward, including
 before the first `Subscribe` or between polls. Adding a stream with a newest start

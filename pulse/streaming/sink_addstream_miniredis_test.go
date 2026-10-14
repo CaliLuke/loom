@@ -82,7 +82,11 @@ func TestSinkAddStreamRollsBackFailedGroupCreate(t *testing.T) {
 
 			ctx, restore := tc.fail(t, rdb, stream)
 			err := sink.AddStream(ctx, stream)
-			require.ErrorContains(t, err, "failed to create Redis consumer group sink")
+			if tc.want == "WRONGTYPE" {
+				require.ErrorContains(t, err, "inspect group identity")
+			} else {
+				require.ErrorContains(t, err, "failed to create Redis consumer group sink")
+			}
 			require.ErrorContains(t, err, tc.want)
 			sink.lock.Lock()
 			assert.Len(t, sink.streams, 1)
@@ -196,8 +200,13 @@ func streamConsumers(t *testing.T, rdb *redis.Client, stream *Stream) []string {
 	m, err := rmap.Join(t.Context(), consumersMapName(stream), rdb)
 	require.NoError(t, err)
 	defer m.Close()
-	consumers, _ := m.GetValues("sink")
-	return consumers
+	raw, ok := m.Get("sink")
+	if !ok {
+		return nil
+	}
+	record, err := decodeSinkMembership(raw)
+	require.NoError(t, err)
+	return record.memberNames()
 }
 
 // requireGroups asserts the number of consumer groups of stream.

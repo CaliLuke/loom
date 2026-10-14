@@ -31,13 +31,23 @@ func (s *Sink) reconcileRegistrations(ctx context.Context, missingGroup bool) er
 		registration := &s.streams[i]
 		stream := registration.stream
 		cm := s.consumersMap[stream.Name]
-		members, _ := cm.GetValues(s.Name)
+		record, _, err := readSinkMembership(ctx, stream, s.Name)
+		if err != nil {
+			return err
+		}
+		if record != nil && *record.Filter != s.filterIdentity {
+			return fmt.Errorf("sink group %q filter conflicts with its persisted identity", s.Name)
+		}
+		var members []string
+		if record != nil {
+			members = record.memberNames()
+		}
 		if !registration.recoveryPending && slices.Contains(members, s.consumer) {
 			continue
 		}
 		registration.recoveryPending = true
 		// Publish before group creation so peer removal observes our ownership.
-		if _, err := cm.AppendUniqueValues(ctx, s.Name, s.consumer); err != nil {
+		if _, err := changeSinkMembership(ctx, cm, s.Name, s.filterIdentity, sinkMemberChange{add: s.consumer, restore: true}); err != nil {
 			return fmt.Errorf("failed to restore membership on stream %s: %w", stream.Name, err)
 		}
 		if err := stream.createGroup(ctx, s.Name, registration.startID); err != nil {

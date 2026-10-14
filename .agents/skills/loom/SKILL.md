@@ -1587,6 +1587,14 @@ Reader addition and removal identify membership by stream key; equivalent handle
 are interchangeable. Removing and re-adding a Reader stream starts a new registration at the chosen
 position. Earlier reads cannot move that new cursor. Events already admitted
 before removal can still be delivered; removal does not drain subscriptions.
+A named Sink group has one persistent effective filter per stream: no filter,
+exact topic, or exact regex spelling. Nonempty Topic wins over TopicPattern;
+conflicting joins fail. Use distinct groups for independent subscriptions.
+Filtered/malformed entries are acknowledged for that group, never deleted from
+the stream. Old membership records require coordinated migration: stop old
+instances and preserve needed data before shared Destroy or moving to a fresh
+stream. Group identity survives empty membership and stream TTL; only coordinated
+Destroy resets it. Read `docs/pulse.md` before upgrading; do not mix old binaries.
 A Sink begins reading and claiming pending entries on its first successful
 `Subscribe`; construction creates membership and starts keepalive. Delivery
 continues if all subscribers later unsubscribe, without a new replay guarantee.

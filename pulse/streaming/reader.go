@@ -434,7 +434,7 @@ func (e *Event) CreatedAt() time.Time {
 }
 
 // streamEvents filters Redis messages and sends them to each subscriber.
-// Malformed entries are skipped; when read through a sink consumer group they
+// Malformed and filtered entries are skipped; in a sink consumer group they
 // are acknowledged so they do not stay pending and get reclaimed forever.
 func streamEvents(
 	ctx context.Context,
@@ -455,15 +455,12 @@ func streamEvents(
 		ev, err := eventFromMessage(streamName, streamKey, sinkName, event, rdb)
 		if err != nil {
 			logger.Error(err, "id", event.ID, "stream", streamName)
-			if sinkName != "" && rdb != nil {
-				if ackErr := rdb.XAck(ctx, streamKey, sinkName, event.ID).Err(); ackErr != nil {
-					logger.Error(fmt.Errorf("ack malformed stream %q entry %q: %w", streamName, event.ID, ackErr))
-				}
-			}
+			ackRejectedEvent(ctx, streamKey, sinkName, event.ID, rdb, logger)
 			continue
 		}
 		if eventFilter != nil && !eventFilter(ev) {
 			logger.Debug("event filtered", "event", ev.EventName, "id", ev.ID, "stream", streamName)
+			ackRejectedEvent(ctx, streamKey, sinkName, event.ID, rdb, logger)
 			continue
 		}
 		logger.Debug("event", "stream", streamName, "event", ev.EventName, "id", ev.ID, "channels", len(subscribers))
@@ -472,6 +469,18 @@ func streamEvents(
 				return
 			}
 		}
+	}
+}
+
+// ackRejectedEvent completes a group-final rejection without deleting the stored
+// entry. A failure before commit leaves the entry eligible for existing reclaim;
+// a lost reply after commit has already cleared pending ownership.
+func ackRejectedEvent(ctx context.Context, streamKey, sinkName, id string, rdb *redis.Client, logger pulse.Logger) {
+	if sinkName == "" || rdb == nil {
+		return
+	}
+	if err := rdb.XAck(ctx, streamKey, sinkName, id).Err(); err != nil {
+		logger.Error(fmt.Errorf("ack rejected stream %q entry %q: %w", streamKey, id, err))
 	}
 }
 

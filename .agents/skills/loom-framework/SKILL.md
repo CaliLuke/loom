@@ -114,6 +114,20 @@ consumer validation.
   competing static/dynamic header owners and incompatible framing at expr, not
   in renderers; do not add endpoint codec negotiation or rewrite custom headers.
 
+- Sink filter identity and members are one versioned replicated-map CAS value.
+  `changeSinkMembership` owns every mutation; admission reads authoritative Redis,
+  rejects legacy/expiring state and unknown existing groups, and only previously
+  admitted registrations may restore missing identity. Empty membership retains
+  identity; group cleanup compares the decoded empty record atomically before
+  destruction. Keep membership persistent until coordinated Stream.Destroy.
+  Require explicit filter identity and member registration ages; stale cleanup
+  reconciles persistent members with native inventory, using authoritative
+  keepalive or registration age and the atomic pending-entry deletion guard.
+  Native absence alone must not retire an in-flight join.
+  `streamEvents` owns terminal rejection XACK for fresh/claimed Sink events;
+  Reader rejection does not ACK, and accepted events remain application-owned.
+  Preserve the filter-membership/disposition models and migration controls.
+
 - Sink active registrations own each stream's authored group-start selector and
   unfinished recovery. Read, rotation and existing keepalive paths use one locked
   reconciler: publish membership before absent-group creation, never reset a live

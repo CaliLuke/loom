@@ -151,13 +151,17 @@ func (s *Stream) NewReader(ctx context.Context, opts ...options.Reader) (*Reader
 // NewSink creates a new stream sink with the given name. All sink instances
 // with the same name share the same stream cursor. Reading and claiming pending
 // events begin on the first successful Subscribe; membership and keepalive begin
-// during construction. Events read through a sink
-// are not removed from the stream until they are acked by the client unless the
-// WithNoAck option is used. Events are read starting:
+// during construction. Instances sharing a group must use the same effective
+// topic filter; conflicting joins fail. Filtered and malformed entries are
+// acknowledged for that group. Other delivered events require application Ack
+// unless WithSinkNoAck is used. Acknowledgment clears pending ownership, not
+// stored stream entries. Filter identity survives empty membership until
+// coordinated Stream.Destroy; legacy membership requires coordinated migration.
+// Events are read starting:
 //   - from the last event by default
 //   - from the oldest event stored in the stream if the WithSinkStartAtOldest
 //     option is used
-//   - after the event with the ID provided via WithSinkLastEventID if the
+//   - after the event with the ID provided via WithSinkStartAfter if the
 //     event is still in the stream, oldest event otherwise
 //   - from the event added on or after the timestamp provided via
 //     WithSinkStartAt if still in the stream, oldest event otherwise
@@ -278,7 +282,7 @@ func (s *Stream) destroyConsumersMap(ctx context.Context) error {
 	if exists == 0 {
 		return nil
 	}
-	consumers, err := rmap.Join(ctx, consumersMapName(s), s.rdb, consumersMapOptions(s, s.rootLogger)...)
+	consumers, err := rmap.Join(ctx, consumersMapName(s), s.rdb, rmap.WithLogger(s.rootLogger))
 	if err != nil {
 		return err
 	}

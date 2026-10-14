@@ -63,7 +63,7 @@ func (s *Sink) newConsumer(ctx context.Context) (consumer string, err error) {
 	for _, registration := range s.streams {
 		stream := registration.stream
 		cm := s.consumersMap[stream.Name]
-		if _, err = cm.AppendUniqueValues(ctx, s.Name, consumer); err != nil {
+		if _, err = changeSinkMembership(ctx, cm, s.Name, s.filterIdentity, sinkMemberChange{add: consumer, restore: true}); err != nil {
 			return "", fmt.Errorf("failed to register replacement consumer on stream %s: %w", stream.Name, err)
 		}
 		if err = s.createConsumer(ctx, stream, consumer); err != nil {
@@ -83,7 +83,7 @@ func (s *Sink) cleanupRetiredConsumers(ctx context.Context) error {
 	for _, consumer := range s.retiredConsumers {
 		var failed bool
 		for name, cm := range s.consumersMap {
-			if _, _, err := cm.RemoveValues(ctx, s.Name, consumer); err != nil {
+			if _, err := changeSinkMembership(ctx, cm, s.Name, s.filterIdentity, sinkMemberChange{remove: []string{consumer}}); err != nil {
 				failed = true
 				result = errors.Join(result, fmt.Errorf("failed to retire consumer %s on stream %s: %w", consumer, name, err))
 			}

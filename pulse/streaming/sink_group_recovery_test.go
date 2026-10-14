@@ -112,14 +112,16 @@ func TestMissingGroupMembershipResetReconcilesActive(t *testing.T) {
 	// Stream.Destroy clears this map after deleting the stream. Recovery can have
 	// already recreated the group when that delayed reset becomes observable.
 	cm := sink.consumersMap[stream.Name]
-	require.NoError(t, cm.Destroy(t.Context()))
+	require.NoError(t, cm.replica.Destroy(t.Context()))
 	require.Eventually(t, func() bool {
-		values, _ := cm.GetValues(sink.Name)
-		return len(values) == 0
+		_, ok := cm.replica.Get(sink.Name)
+		return !ok
 	}, time.Second, time.Millisecond)
 	require.NoError(t, sink.ensureConsumer(t.Context()))
-	values, _ := cm.GetValues(sink.Name)
-	require.Contains(t, values, sink.consumer, "active registration remains responsible after an observed reset")
+	record, _, err := readSinkMembership(t.Context(), stream, sink.Name)
+	require.NoError(t, err)
+	require.NotNil(t, record)
+	require.Contains(t, record.memberNames(), sink.consumer, "active registration remains responsible after an observed reset")
 }
 
 func (g *missingGroupGate) DialHook(next redis.DialHook) redis.DialHook {

@@ -102,7 +102,7 @@ func TestNewSinkAppliesTTL(t *testing.T) {
 }
 
 // TestNewSinkReportsGroupCreateError checks that NewSink returns the error of
-// a failed consumer group creation and applies no TTL then.
+// failed stream admission before group creation and applies no TTL then.
 func TestNewSinkReportsGroupCreateError(t *testing.T) {
 	rdb := startTestRedis(t)
 	ctx := t.Context()
@@ -111,7 +111,7 @@ func TestNewSinkReportsGroupCreateError(t *testing.T) {
 	require.NoError(t, rdb.Set(ctx, stream.key, "not a stream", 0).Err())
 
 	_, err = stream.NewSink(ctx, "sink")
-	require.ErrorContains(t, err, "failed to create Redis consumer group sink")
+	require.ErrorContains(t, err, "inspect group identity")
 	require.ErrorContains(t, err, "WRONGTYPE")
 	ttl, err := rdb.PTTL(ctx, stream.key).Result()
 	require.NoError(t, err)
@@ -169,7 +169,7 @@ func TestSinkAddStreamReportsGroupCreateError(t *testing.T) {
 	sink := newTestSink(t, main, "sink")
 
 	err = sink.AddStream(ctx, stream)
-	require.ErrorContains(t, err, "failed to create Redis consumer group sink")
+	require.ErrorContains(t, err, "inspect group identity")
 	require.ErrorContains(t, err, "WRONGTYPE")
 	ttl, err := rdb.PTTL(ctx, stream.key).Result()
 	require.NoError(t, err)

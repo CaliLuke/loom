@@ -184,10 +184,14 @@ func TestMissingGroupKeepAliveReconcilesResetWithoutReads(t *testing.T) {
 	stream := newTestStream(t, rdb, "keepalive-group")
 	sink := newTestSink(t, stream, "recovery", options.WithSinkAckGracePeriod(30*time.Millisecond))
 	cm := sink.consumersMap[stream.Name]
-	require.NoError(t, cm.Destroy(t.Context()))
+	require.NoError(t, cm.replica.Destroy(t.Context()))
 	require.Eventually(t, func() bool {
-		members, _ := cm.GetValues(sink.Name)
-		return len(members) == 1 && members[0] == sinkConsumer(sink)
+		raw, ok := cm.replica.Get(sink.Name)
+		if !ok {
+			return false
+		}
+		record, err := decodeSinkMembership(raw)
+		return err == nil && len(record.Members) == 1 && record.Members[0].Name == sinkConsumer(sink)
 	}, time.Second, time.Millisecond)
 	sink.lock.Lock()
 	started := sink.deliveryStarted

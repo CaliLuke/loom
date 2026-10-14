@@ -144,7 +144,8 @@ func newRotationSink(t *testing.T) (*Sink, []*Stream) {
 	require.NoError(t, err)
 	sink := &Sink{
 		Name: "sink", consumer: "initial", rdb: rdb, logger: pulse.NoopLogger(),
-		consumersMap: make(map[string]*rmap.Map), consumersKeepAliveMap: km,
+		filterIdentity: sinkFilter{Kind: "none"},
+		consumersMap:   make(map[string]*sinkConsumerMap), consumersKeepAliveMap: km,
 		ackGracePeriod: time.Second, blockDuration: 20 * time.Millisecond,
 		donechan: make(chan struct{}), startID: "0-0", bufferSize: 1,
 	}
@@ -175,9 +176,14 @@ func (rotationFaultHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
 		}
 		match := fault.streamKey != "" && (commandArgs{"xgroup", "createconsumer", fault.streamKey}).matches(cmd)
 		if fault.consumer != "" && (cmd.Name() == "eval" || cmd.Name() == "evalsha") {
-			match = slices.ContainsFunc(cmd.Args()[3:], func(arg any) bool {
-				return fmt.Sprint(arg) == fault.consumer
-			})
+			var before, after *sinkMembership
+			for _, arg := range cmd.Args()[3:] {
+				record, err := decodeSinkMembership(fmt.Sprint(arg))
+				if err == nil {
+					before, after = after, record
+				}
+			}
+			match = before != nil && after != nil && slices.Contains(before.memberNames(), fault.consumer) && !slices.Contains(after.memberNames(), fault.consumer)
 		}
 		if !match {
 			return next(ctx, cmd)
