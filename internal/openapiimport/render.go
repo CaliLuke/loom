@@ -651,7 +651,7 @@ func renderedExtensions(scope string, extensions map[string]any) ([]renderedMeta
 		prefix = "openapi:" + scope + ":extension:"
 	}
 	for _, name := range names {
-		value, err := json.Marshal(extensions[name])
+		value, err := json.Marshal(extensions[name], json.Deterministic(true))
 		if err != nil {
 			return nil, fmt.Errorf("render OpenAPI design: vendor extension %q: %w", name, err)
 		}
