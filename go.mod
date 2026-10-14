@@ -7,7 +7,7 @@ require (
 	github.com/CaliLuke/go-sse v0.11.1-0.20261008010800-b29b33ae1a1e
 	github.com/CaliLuke/libopenapi v0.41.7-0.20261014145029-7886f0170cc4
 	github.com/alecthomas/kong v1.16.1
-	github.com/alicebob/miniredis/v2 v2.39.0
+	github.com/alicebob/miniredis/v2 v2.40.0
 	github.com/aws/smithy-go v1.28.4
 	github.com/dave/jennifer v1.7.1
 	github.com/dimfeld/httppath v0.0.0-20170720192232-ee938bf73598

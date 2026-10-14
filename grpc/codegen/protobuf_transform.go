@@ -24,7 +24,7 @@ type transformAttrs struct {
 	// map and array types.
 	targetInit string
 	// wrapped indicates whether the source or target is in a wrapped state.
-	// See grpc/docs/FAQ.md. `wrapped` is true and `proto` is true indicates
+	// See docs/grpc-guide.md. `wrapped` is true and `proto` is true indicates
 	// the target attribute is in wrapped state. `wrapped` is true and `proto`
 	// is false indicates the source attribute is in wrapped state.
 	wrapped bool

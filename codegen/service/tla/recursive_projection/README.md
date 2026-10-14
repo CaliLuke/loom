@@ -231,5 +231,4 @@ java -XX:+UseParallelGC -cp "$TLA_TOOLS_JAR" tlc2.TLC -workers 1 -metadir /tmp/l
 `TestProjectedCarrierPackageReferences` covers canonical and projected
 references, nested arrays, recursive children, selected-secret exclusion and
 file alias reanalysis. The generator's existing custom-package matrix supplies
-rendered compilation coverage. See `roadmap/projection-carrier-packages-readiness.md`
-for source revisions, validation and final output comparison evidence.
+rendered compilation coverage.

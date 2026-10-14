@@ -29,8 +29,8 @@ The proof assumes correct concrete source tags and carrier extraction; it does
 not prove Go reflection, exactnum implementation, host-width extraction, float
 parsing, custom codecs, diagnostics or rendering. Target JSON Schema integer
 membership remains independent of native carrier width. The bounded generated
-transport and exact-parent evidence lives in the
-[acceptance record](../../../roadmap/numeric-value-admission-readiness.md).
+transport evidence is retained in the direct/generated numeric admission tests
+and the registered conformance cases described above.
 
 ## Exact extraction correction: #681
 
@@ -66,8 +66,9 @@ projection rejects the shortest-decimal example as unrepresentable. This is an
 explicit source/schema/decoder distinction, not a claim that raw-token membership
 and postdecode acceptance coincide. Exact decimal strings express decimal intent
 across languages. No decoder-preimage schema or rounded compatibility policy is
-introduced. Final generation, transport, and review evidence is recorded in the
-[implementation acceptance record](../../../roadmap/exact-numeric-bounds-readiness.md).
+introduced. The durable probes beside this model and direct tests in
+`internal/exactnum`, `expr` and `internal/openapiimport` preserve the
+source/schema/decoder distinctions.
 
 The required-annotation correction adds three bounded controls in
 `NumericExtraction.lean`: a native binary boundary whose shortest JSON fails
@@ -95,28 +96,27 @@ These bounded theorems do not prove Go graph extraction, member-name binding,
 YAML merge precedence or source grammar; direct source/import tests cover shallow
 mapping replacement, first-wins merges and leading-zero YAML floats.
 
-Two independently reproduced parent defects remain outside this ticket:
-`numeric_nested_enum_http_probe.go.txt` fails HTTP body preparation because its
-root clause has lost declaration provenance; `numeric_object_enum_generator_probe.go.txt`
-generates a value-struct comparison with nil. The readiness record gives the
-exact parent, commands, diagnostics and limits. Passing the standalone/shared
-owners does not establish those failing generated application paths.
+Two parent defects found by the retained numeric probes were subsequently
+repaired: prepared enum provenance (#799) and object-enum validation carriers
+(#798). `http/codegen/prepared_enum_provenance_test.go` and
+`codegen/validation_composite_enum_test.go` preserve their generated/direct
+regressions. Those checks establish the exercised application paths without
+expanding the numeric proof claims.
 
-Status at `15a4c467`: **M1 and #569–#572, #574, #565 and #434 are delivered.**
+Historical delivery checkpoint at `15a4c467`: **M1 and #569–#572, #574, #565 and #434 are delivered.**
 Their proof and tested-correspondence claims retain the boundaries recorded below.
 The reviewed contract is
-[value-contract-design.md](../../../roadmap/value-contract-design.md).
+[value contract](../../../internal/valuecontract/DESIGN.md).
 The source-history reference is `f5b786b39675e2b5c1466f04f3301b7b337779b6`.
 The word “proved” below applies to the Lean statement, not to handwritten Go,
 generated programs, all JSON strings, or any codec implementation.
 
 ## Current delivery and remaining work
 
-The #573 reconciliation is a documentation audit of current owners and retained
-evidence. It adds no theorem, expands no adapter domain, and does not rerun or
-extend the historical gate results. The [current consumer inventory](../../../roadmap/value-contract-inventory.md)
-records the disposition of each consumer and the [remaining work](../../../roadmap/value-contract-inventory.md#remaining-work).
-Closing that audit does not complete those follow-ups.
+The [live consumer inventory](../../../roadmap/value-contract-inventory.md)
+records the remaining source-level adoption and evidence gaps after the
+correctness backlog closed. Documentation reconciliation adds no theorem,
+expands no adapter domain and does not rerun historical proof gates.
 
 | Delivered scope | Commit / retained evidence |
 | --- | --- |
@@ -316,7 +316,7 @@ uses the existing map-key type renderer for allocations, preserving the separate
 `TestTransformMapRendersTargetKeyAndValueTypes` checks that distinction, and
 `TestGeneratedAnyMapKeyBuilds` regenerates, builds and vets the retained HTTP
 companion. This closes that compiler item in
-[R6](../../../roadmap/value-contract-inventory.md#r6--revalidate-historical-compiler-limitations-before-assigning-repairs).
+[the compiler regression record](../../../internal/valuecontract/README.md#historical-compiler-repairs).
 It does not add gRPC Any-key support or establish arbitrary map-key codec
 behavior. The map-collision model and its assumptions are unchanged; Go type
 comparability and generated compilation remain tested implementation boundaries.
@@ -681,7 +681,7 @@ representation. `TestHTTPDirectBuilderSeams` checks that agreement, while
 `TestBytesRepresentationGeneratedHTTP` builds and vets the retained
 `BytesRepresentationDSL` and exercises valid and invalid generated-client
 responses. This closes the named Bytes item in
-[R6](../../../roadmap/value-contract-inventory.md#r6--revalidate-historical-compiler-limitations-before-assigning-repairs).
+[the compiler regression record](../../../internal/valuecontract/README.md#historical-compiler-repairs).
 It does not change the Lean arithmetic or establish universal generated-Go
 correctness. The historical failure is never successful build evidence.
 
@@ -1097,7 +1097,7 @@ the expressions; `TestGeneratedNullableAnyRootPayloadRoundTrip` runs generation
 including protoc, module build and vet, and generated converter round-trips for
 absence, null and a concrete JSON value, plus malformed JSON error propagation.
 This closes the compiler obligation in
-[R6](../../../roadmap/value-contract-inventory.md#r6--revalidate-historical-compiler-limitations-before-assigning-repairs).
+[the compiler regression record](../../../internal/valuecontract/README.md#historical-compiler-repairs).
 The repair extends the existing implementation mapping to a missed occurrence;
 it does not add a Lean proof of protobuf conversion. The CLI adapter still
 diagnoses and omits the explicit-null hint; that policy is unchanged.

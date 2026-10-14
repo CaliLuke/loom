@@ -236,4 +236,6 @@ if [[ "$actual_make_fast" != "$expected_make_fast" ]]; then
   fail "integration-test-fast changed or shell-parsed SERVICE/RUN at the Make boundary"
 fi
 
+bash "$ROOT/scripts/test_race_contract.sh"
+
 echo "CI contract lint passed"

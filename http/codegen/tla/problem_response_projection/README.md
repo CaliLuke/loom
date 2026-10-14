@@ -2,7 +2,8 @@
 
 This model accompanied the #797 parent reproduction at
 `66a9dc9090a06cd4136be1e5ebdaf26883ff90fa`. The implementation is now based on
-`25179e87b8b5d4e9cf5bb233d1818600469d060d`; final independent review is pending.
+`25179e87b8b5d4e9cf5bb233d1818600469d060d` and was delivered in
+`14ab5a758c7ca94857145fa374c96be34c5df2eb`.
 
 `ProblemProjection.tla` distinguishes the physical ServiceError fields, the
 normalized public problem fields, and the selected body fields. Three public

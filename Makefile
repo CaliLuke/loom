@@ -18,6 +18,7 @@
 # - "all" is the default target, it runs "lint" and "test"
 #
 LOOM_TEST_TIMEOUT?=40m
+RACE_LANE?=all
 VERSION?=
 
 GOOS=$(shell go env GOOS)
@@ -176,9 +177,9 @@ coverage-baseline:
 # covers importer tests that compile generated temporary modules under race.
 test-race:
 ifneq ($(GOOS),windows)
-	PATH="$(GOBIN_DIR):$$PATH" go test -race -shuffle=on -count=1 -timeout $(LOOM_TEST_TIMEOUT) ./...
+	PATH="$(GOBIN_DIR):$$PATH" bash ./scripts/test_race.sh "$(RACE_LANE)" "$(LOOM_TEST_TIMEOUT)"
 else
-	go test -race -shuffle=on -count=1 -timeout $(LOOM_TEST_TIMEOUT) ./...
+	bash ./scripts/test_race.sh "$(RACE_LANE)" "$(LOOM_TEST_TIMEOUT)"
 endif
 
 # Opt-in real-Redis tier for the pulse suites (issue #383). `make test` runs

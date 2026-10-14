@@ -94,8 +94,6 @@ independent client/server membership and visited sets. Sharing allocation must
 not suppress a second package's membership; separating membership must not call
 the allocating builder twice. Branch declarations and required validators derive
 from the actual prepared roots registered by the body declaration owner.
-`roadmap/view-union-declarations-readiness.md` records the concrete seams and
-bounded acceptance plan. Final acceptance and independent review evidence are recorded there.
 
 
 `registerBodyRoot` captures the actual prepared package graph. It records server

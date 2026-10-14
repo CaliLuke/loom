@@ -210,10 +210,13 @@ func TestIntentStopFailureRetainsResponsibility(t *testing.T) {
 			issued := readTestIntent(t, sched)
 			op, err := unmarshalOperation(readTestPoolEvent(t, node, issued.EventID).Payload)
 			require.NoError(t, err)
+			faultCtx := t.Context()
 			if failure != "callback" {
-				node.rdb.AddHook(&releaseReplyHook{after: failure == "release-after"})
+				hook := &releaseReplyHook{after: failure == "release-after"}
+				node.rdb.AddHook(hook)
+				faultCtx = context.WithValue(faultCtx, releaseReplyOwnerKey{}, hook)
 			}
-			require.Error(t, worker.stopOperation(t.Context(), op))
+			require.Error(t, worker.stopOperation(faultCtx, op))
 			require.Equal(t, issued, readTestIntent(t, sched))
 			require.NoError(t, worker.stopOperation(t.Context(), op))
 			require.NoError(t, node.completeIntent(t.Context(), op, evStopJob))

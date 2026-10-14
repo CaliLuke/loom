@@ -110,8 +110,7 @@ LOOM_DIR="$PWD" go test ./http/codegen -run '^TestWebSocketLifetimeGeneratedInte
 ```
 
 Tests regenerate their own inputs; historical scratch directories are not
-reproduction dependencies. See `roadmap/websocket-lifetime-readiness.md` for the
-bounded generated-output comparison and acceptance ledger. The physical reader
+reproduction dependencies. The physical reader
 is singular by construction in this model; source/generator assertions and
 race-detector tests check the implementation. The existing JSON-RPC logical
 client demux remains the only ID-routing reader over the shared inbox. Existing

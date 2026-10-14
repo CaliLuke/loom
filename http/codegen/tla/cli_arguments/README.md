@@ -34,8 +34,7 @@ identity through alias allocation, including per-service configurer types.
 The model abstracts endpoint multiplicity, Go types, import renaming, codec
 functions, transport validation and actual generated syntax. Those are bounded
 Go-test and generated-build obligations. This is a finite ordering exploration,
-not a protocol or runtime concurrency proof. See
-[the implementation plan](../../../../roadmap/cli-argument-ownership.md).
+not a protocol or runtime concurrency proof.
 
 Readiness results: `current` and `unfiltered` exit 12 with the intended
 `MatchingIdentity` counterexamples; `owned` exits 0, 512 generated / 256 distinct

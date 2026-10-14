@@ -105,7 +105,8 @@ from three designs. Ten validator/CLI/view files differ only in pointer guards
 and removal of collection nil guards; candidate/repeat bytes agree exactly.
 All nine generated modules compile/vet. Candidate/repeat runtime controls pass;
 the parent carrier runtime retains its intended failures. Generated-source lint
-passes for all three candidate designs. Independent final review remains pending. The related #819
+passes for all three candidate designs. The repair was delivered in
+`73451e4dad96837246d90fad56e1e492198e14b4`. The related #819
 contextual eligibility repair and #824 nullable-branch JSON decoder defect are
 separate: this model establishes neither. Keep #824 wire-null admission out of
 this ticket's success claims.
@@ -131,5 +132,4 @@ The corrected case admission is `val != "" || requiresValue`. All 28 direct
 cases and the 26 constructed-value cases pass after repair, including nil and
 nonnil empty objects. Nullable and collection rules remain independently tested.
 The enlarged physical model passes 84 states; its former narrower result is not
-used as evidence for the new cases. Targeted independent re-review remains the
-final authorization gate.
+used as evidence for the new cases.

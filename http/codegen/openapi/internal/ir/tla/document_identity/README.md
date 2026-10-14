@@ -74,7 +74,7 @@ per-service-only and unconditional API-global checks are both insufficient.
 `expr.HTTPServiceExpr.MountPlan` supplies admission and emitted physical mounts.
 `expr/http_route_ownership_test.go` checks admission, phase stability and graph
 safety; `codegen/generator/route_ownership_test.go` checks actual mounted
-dispatch and preflights. `roadmap/http-route-ownership.md` records the design.
+dispatch and preflights.
 The model assumes extracted server membership, effective paths and intentional
 dispatcher identities. It does not prove concrete path normalization, synthetic
 mount extraction, router precedence or validation ordering. CORS composition is

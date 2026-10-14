@@ -63,9 +63,10 @@ output after independent review. Tests map acquisition/withdrawal transitions to
 AddNode, joinOwnershipProtocol, Sink.Close, private-key DEL and Reader.Close.
 
 The four parent subscription witnesses are
-`TestConstructionNodeFailureReleasesSubscriptions`. Acceptance in
-`roadmap/pool-construction-readiness.md` adds actual committed-write/lost-reply,
-cancellation, cleanup-error and healthy-peer controls during implementation.
+`TestConstructionNodeFailureReleasesSubscriptions`.
+`TestConstructionNodeLostWriteReply` and
+`TestConstructionNodeCleanupFailuresReleaseLocalResources` cover committed writes
+with lost replies, cancellation, cleanup errors and healthy-peer preservation.
 
 ## Readiness results
 

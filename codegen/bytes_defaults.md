@@ -17,7 +17,8 @@ Run from the repository root:
       -run '^(TestBytesDefault|TestBytesValidationGenerated|TestNamedCollectionDefaultTransform|TestNullableNamedCollectionDefaults|TestTransformAnyDefault)' -count=1
 
 The direct tests compile independently emitted source/target field declarations
-across 448 layout cases and 64 presence/context cases. They cover native Bytes,
+across 448 ordinary layout cases and 64 custom-parser rejection layouts, plus
+the Optional/Nullable presence controls. They cover native Bytes,
 named Bytes, alias chains, raw JSON, comparable String/custom metadata, required
 fields, source/target defaults, pointer contexts, Optional and Nullable values.
 Generated HTTP and JSON-RPC checks compile, vet and exercise the actual runtime;
@@ -67,15 +68,13 @@ The results directory must not already exist. The reviewed candidate snapshot
 was `3e23e095b088b053012d8038eedf5dfce280117ec48cb75e63cee6058b0684d9`;
 concurrent proof-only work does not change the frozen generator/test inputs.
 
-## Architectural follow-up
+## Related representation regressions
 
-A separate pinned-parent reduction shows named nullable fields losing their
-occurrence's nullability in response views when the same named type is also used
-by a non-null sibling. It reproduces with or without a default. That is an
-occurrence/shape propagation acceptance case for #570's shared representation
-plan, not an additional prerequisite patch. This ticket does not change view
-shape ownership. See the [live plan](../roadmap/value-contract-plan.md).
+The named nullable response-view defect found during this work was repaired by
+shared occurrence/representation ownership. The
+[value projection correspondence ledger](../expr/lean/value_projection/correspondence.md)
+records that tested boundary. Default materialization and selected-view shape
+remain separate owners; passing one does not establish the other.
 
-Keep source regressions, the final comparison manifest and concise evidence.
-After final validation/review, remove task-owned temporary outputs under the
-AGENTS.md process, preserving the inputs still needed by #570.
+Keep source regressions, the comparison manifest and concise evidence. Task-owned
+temporary outputs follow the cleanup process in [AGENTS.md](../AGENTS.md).

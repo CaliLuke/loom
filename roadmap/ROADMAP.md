@@ -28,15 +28,10 @@ Choose broader audits explicitly after major generator changes, with a named
 risk, bounded inputs, and a cost budget. The remaining testing proposals must
 justify their own scope against this rule.
 
-## Active Designs
+## Active Work
 
-- [Framework correctness recovery plan](framework-correctness-plan.md) sequences
-  the shared-contract and resource-ownership repairs from the deep review. Its
-  [issue inventory](framework-correctness-inventory.md) records each finding's
-  candidate owner and current disposition.
-- [Value meaning and transport projection](value-contract-design.md) defines the
-  root-cause repair for inconsistent examples, enums, and defaults. The
-  [execution plan](value-contract-plan.md) sequences the work against a
-  [consumer inventory](value-contract-inventory.md).
-- [Generated transport runtime boundary](codegen-runtime-boundary.md) tracks
-  the staged work from issue #267.
+- [Value-contract follow-ups](value-contract-plan.md) cover the remaining source
+  ownership, schema failure handling and reference-adapter questions. The
+  [consumer inventory](value-contract-inventory.md) records their current scope;
+  the accepted [value contract](../internal/valuecontract/DESIGN.md) lives with
+  the implementation documentation.
