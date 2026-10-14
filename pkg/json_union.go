@@ -1,12 +1,11 @@
 package loom
 
 import (
-	"encoding/base64"
 	"encoding/json/jsontext"
 	"encoding/json/v2"
-	"errors"
 	"fmt"
-	"strconv"
+
+	"github.com/CaliLuke/loom/internal/jsondecode"
 )
 
 type (
@@ -74,12 +73,8 @@ func DecodeJSONCandidate[T any](wire jsontext.Value, destination *T) (bool, erro
 	if err == nil {
 		return true, nil
 	}
-	var semantic *json.SemanticError
-	if errors.As(err, &semantic) {
-		var corrupt base64.CorruptInputError
-		if semantic.Err == nil || errors.Is(semantic.Err, strconv.ErrRange) || errors.Is(semantic.Err, strconv.ErrSyntax) || errors.As(semantic.Err, &corrupt) {
-			return false, nil
-		}
+	if jsondecode.IsMismatch(err) {
+		return false, nil
 	}
 	return false, err
 }

@@ -58,10 +58,10 @@ func TestJSONRPCErrorResponseValueReference(t *testing.T) {
 				ClientBody: &httpcodegen.TypeData{VarName: "FailureBody", ValueRef: reference},
 			}
 			source := renderGroupWriter(t, func(g *jen.Group) {
-				writeJSONRPCErrorResponseDecode(g, response, "probe", &service.MethodData{Name: "show"})
+				writeSingleResponseDecode(g, response, "probe", &service.MethodData{Name: "show"})
 			})
 			require.Equal(t, reference, responseBodyLocalType(t, source))
-			require.Contains(t, source, "jresp.Error.Data")
+			require.NotContains(t, source, "resp.Body =", "the candidate response already owns its detached data")
 		})
 	}
 }

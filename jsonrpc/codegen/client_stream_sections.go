@@ -99,7 +99,7 @@ func writeJSONRPCSSERecv(stmt *jen.Statement, ed *httpcodegen.EndpointData) {
 						writeSSEClientResponseCase(cg, ed, false)
 					})
 					sg.Case(jen.Lit("error")).BlockFunc(func(cg *jen.Group) {
-						writeSSEClientErrorCase(cg)
+						writeSSEClientErrorCase(cg, ed)
 					})
 					sg.Case(jen.Lit(""), jen.Lit("message")).BlockFunc(func(cg *jen.Group) {
 						writeSSEClientMessageCase(cg, ed)
@@ -149,7 +149,7 @@ func writeSSEClientNotificationCase(g *jen.Group, ed *httpcodegen.EndpointData) 
 }
 
 func writeSSEClientResponseCase(g *jen.Group, ed *httpcodegen.EndpointData, closeOnSuccess bool) {
-	g.Var().Id("response").Add(codegen.TypeRef("jsonrpc.Response"))
+	g.Var().Id("response").Add(codegen.TypeRef("jsonrpc.RawResponse"))
 	g.If(
 		jen.Err().Op(":=").Id("json").Dot("Unmarshal").Call(jen.Id("data"), jen.Op("&").Id("response")),
 		jen.Err().Op("!=").Nil(),
@@ -161,11 +161,11 @@ func writeSSEClientResponseCase(g *jen.Group, ed *httpcodegen.EndpointData, clos
 			if closeOnSuccess {
 				return jen.Block(
 					jen.Id("s").Dot("markClosed").Call(),
-					jen.Return(jen.Id("zero"), jen.Qual("fmt", "Errorf").Call(jen.Lit("JSON-RPC error %d: %s"), jen.Id("response").Dot("Error").Dot("Code"), jen.Id("response").Dot("Error").Dot("Message"))),
+					jen.Return(jen.Id("zero"), jen.Id(ed.ErrorDecoder).Call(jen.Id("s").Dot("decoder"), jen.Nil(), jen.Id("response").Dot("Error"))),
 				)
 			}
 			return jen.Block(
-				jen.Return(jen.Id("zero"), jen.Qual("fmt", "Errorf").Call(jen.Lit("JSON-RPC error %d: %s"), jen.Id("response").Dot("Error").Dot("Code"), jen.Id("response").Dot("Error").Dot("Message"))),
+				jen.Return(jen.Id("zero"), jen.Id(ed.ErrorDecoder).Call(jen.Id("s").Dot("decoder"), jen.Nil(), jen.Id("response").Dot("Error"))),
 			)
 		}(),
 	)
@@ -197,8 +197,8 @@ func writeSSEClientResponseCase(g *jen.Group, ed *httpcodegen.EndpointData, clos
 	g.Return(jen.Id("zero"), jen.Nil())
 }
 
-func writeSSEClientErrorCase(g *jen.Group) {
-	g.Var().Id("response").Add(codegen.TypeRef("jsonrpc.Response"))
+func writeSSEClientErrorCase(g *jen.Group, ed *httpcodegen.EndpointData) {
+	g.Var().Id("response").Add(codegen.TypeRef("jsonrpc.RawResponse"))
 	g.If(
 		jen.Err().Op(":=").Id("json").Dot("Unmarshal").Call(jen.Id("data"), jen.Op("&").Id("response")),
 		jen.Err().Op("!=").Nil(),
@@ -207,7 +207,7 @@ func writeSSEClientErrorCase(g *jen.Group) {
 	)
 	g.Id("s").Dot("markClosed").Call()
 	g.If(jen.Id("response").Dot("Error").Op("!=").Nil()).Block(
-		jen.Return(jen.Id("zero"), jen.Qual("fmt", "Errorf").Call(jen.Lit("JSON-RPC error %d: %s"), jen.Id("response").Dot("Error").Dot("Code"), jen.Id("response").Dot("Error").Dot("Message"))),
+		jen.Return(jen.Id("zero"), jen.Id(ed.ErrorDecoder).Call(jen.Id("s").Dot("decoder"), jen.Nil(), jen.Id("response").Dot("Error"))),
 	)
 	g.Return(jen.Id("zero"), jen.Qual("fmt", "Errorf").Call(jen.Lit("unexpected error response")))
 }

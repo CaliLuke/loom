@@ -198,6 +198,8 @@ type (
 		BinaryBody              bool
 		Meta                    expr.MetaExpr
 		Links                   []*ResponseLink
+		// ErrorSelector records the effective JSON-RPC ErrorName path.
+		ErrorSelector []string
 	}
 
 	Route struct {

@@ -1222,6 +1222,13 @@ JSON-RPC is a first-class transport, not an HTTP behavior alias.
   `error.data` contract. HTTP mappings never apply to JSON-RPC.
 - Explicit mappings project the concrete service error into the designed body.
   Use a required `ErrorName` field when multiple names share one custom type.
+- Regenerated unary, SSE and WebSocket clients select exactly one mapped error
+  using its effective `ErrorName` JSON key (or selected root), decoder and
+  validation. Missing identity cannot be filled by a default or an unrelated
+  `name` field. Same-code alternatives with identical valid wire bodies are
+  ambiguous; expose identity or assign distinct codes. Unexpected eligible
+  custom-decoder failures retain their cause and take precedence over success;
+  callback side effects remain application-owned.
 - Unmapped service errors use generic `jsonrpc.ErrorData`. Generated clients
   return the raw `*jsonrpc.RawErrorResponse`, including its code, message, and
   data.

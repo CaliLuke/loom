@@ -75,6 +75,16 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- JSON-RPC typed-error selection derives the effective `ErrorName` selector in
+  expr and carries it through transport IR into each alternative. One generated
+  method decoder serves unary, SSE and WebSocket adapters. Runtime selection
+  checks raw selectors before defaults, isolates candidate response/body state,
+  and requires exactly one valid result. Unexpected eligible decoder errors beat
+  success; `internal/jsondecode` shares the existing structured conversion
+  mismatch contract with untagged unions. Preserve raw unmapped envelopes and
+  underlying failure causes. Do not infer identity from generic `ErrorData.Name`,
+  impose new schema admission, or duplicate selection in stream adapters.
+
 - Imported string formats select their carrier and validation together through
   `stringRepresentation`. Encoded byte schemas use String plus the shared
   Base64 format; renderers, examples and admission consume that same decision.

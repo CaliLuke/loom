@@ -92,13 +92,13 @@ func (s *TickClientStream) RecvWithContext(ctx context.Context) (*clock.TickResu
 			}
 			return result, nil
 		case "response":
-			var response jsonrpc.Response
+			var response jsonrpc.RawResponse
 			if err := json.Unmarshal(data, &response); err != nil {
 				return zero, fmt.Errorf("failed to parse response: %w", err)
 			}
 			if response.Error != nil {
 				{
-					return zero, fmt.Errorf("JSON-RPC error %d: %s", response.Error.Code, response.Error.Message)
+					return zero, decodeTickError(s.decoder, nil, response.Error)
 				}
 			}
 			if response.Result == nil {
@@ -114,13 +114,13 @@ func (s *TickClientStream) RecvWithContext(ctx context.Context) (*clock.TickResu
 			}
 			return result, nil
 		case "error":
-			var response jsonrpc.Response
+			var response jsonrpc.RawResponse
 			if err := json.Unmarshal(data, &response); err != nil {
 				return zero, fmt.Errorf("failed to parse error response: %w", err)
 			}
 			s.markClosed()
 			if response.Error != nil {
-				return zero, fmt.Errorf("JSON-RPC error %d: %s", response.Error.Code, response.Error.Message)
+				return zero, decodeTickError(s.decoder, nil, response.Error)
 			}
 			return zero, fmt.Errorf("unexpected error response")
 		case "", "message":
@@ -149,14 +149,14 @@ func (s *TickClientStream) RecvWithContext(ctx context.Context) (*clock.TickResu
 				}
 				return result, nil
 			}
-			var response jsonrpc.Response
+			var response jsonrpc.RawResponse
 			if err := json.Unmarshal(data, &response); err != nil {
 				return zero, fmt.Errorf("failed to parse response: %w", err)
 			}
 			if response.Error != nil {
 				{
 					s.markClosed()
-					return zero, fmt.Errorf("JSON-RPC error %d: %s", response.Error.Code, response.Error.Message)
+					return zero, decodeTickError(s.decoder, nil, response.Error)
 				}
 			}
 			if response.Result == nil {
@@ -266,13 +266,13 @@ func (s *TockClientStream) RecvWithContext(ctx context.Context) (*clock.TockResu
 			}
 			return result, nil
 		case "response":
-			var response jsonrpc.Response
+			var response jsonrpc.RawResponse
 			if err := json.Unmarshal(data, &response); err != nil {
 				return zero, fmt.Errorf("failed to parse response: %w", err)
 			}
 			if response.Error != nil {
 				{
-					return zero, fmt.Errorf("JSON-RPC error %d: %s", response.Error.Code, response.Error.Message)
+					return zero, decodeTockError(s.decoder, nil, response.Error)
 				}
 			}
 			if response.Result == nil {
@@ -288,13 +288,13 @@ func (s *TockClientStream) RecvWithContext(ctx context.Context) (*clock.TockResu
 			}
 			return result, nil
 		case "error":
-			var response jsonrpc.Response
+			var response jsonrpc.RawResponse
 			if err := json.Unmarshal(data, &response); err != nil {
 				return zero, fmt.Errorf("failed to parse error response: %w", err)
 			}
 			s.markClosed()
 			if response.Error != nil {
-				return zero, fmt.Errorf("JSON-RPC error %d: %s", response.Error.Code, response.Error.Message)
+				return zero, decodeTockError(s.decoder, nil, response.Error)
 			}
 			return zero, fmt.Errorf("unexpected error response")
 		case "", "message":
@@ -323,14 +323,14 @@ func (s *TockClientStream) RecvWithContext(ctx context.Context) (*clock.TockResu
 				}
 				return result, nil
 			}
-			var response jsonrpc.Response
+			var response jsonrpc.RawResponse
 			if err := json.Unmarshal(data, &response); err != nil {
 				return zero, fmt.Errorf("failed to parse response: %w", err)
 			}
 			if response.Error != nil {
 				{
 					s.markClosed()
-					return zero, fmt.Errorf("JSON-RPC error %d: %s", response.Error.Code, response.Error.Message)
+					return zero, decodeTockError(s.decoder, nil, response.Error)
 				}
 			}
 			if response.Result == nil {

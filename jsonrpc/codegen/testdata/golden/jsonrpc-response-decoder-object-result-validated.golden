@@ -18,10 +18,7 @@ func DecodeDescribeResponse(decoder func(*http.Response) loomhttp.Decoder, resto
 			}
 
 			if jresp.Error != nil {
-				switch jresp.Error.Code {
-				default:
-					return nil, jresp.Error
-				}
+				return nil, decodeDescribeError(decoder, resp, jresp.Error)
 			}
 
 			resp.Body = io.NopCloser(bytes.NewBuffer(jresp.Result))
@@ -40,5 +37,11 @@ func DecodeDescribeResponse(decoder func(*http.Response) loomhttp.Decoder, resto
 			res := NewDescribeResultOK(&body)
 			return res, nil
 		})
+	}
+}
+func decodeDescribeError(decoder func(*http.Response) loomhttp.Decoder, resp *http.Response, wire *jsonrpc.RawErrorResponse) error {
+	switch wire.Code {
+	default:
+		return wire
 	}
 }

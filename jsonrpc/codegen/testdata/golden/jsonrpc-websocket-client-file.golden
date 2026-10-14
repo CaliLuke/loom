@@ -11,6 +11,7 @@ import (
 	jsonrpcwebsocketruntimeservice "/jsonrpc_web_socket_runtime_service"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	loomhttp "github.com/CaliLuke/loom/http"
 	"github.com/CaliLuke/loom/jsonrpc"
@@ -69,6 +70,10 @@ func (s *StreamClientStream) RecvWithContext(ctx context.Context) (*jsonrpcwebso
 	var zero *jsonrpcwebsocketruntimeservice.JSONRPCWebSocketRuntimeResult
 	response, err := s.stream.Recv(ctx)
 	if err != nil {
+		var raw *jsonrpc.RawErrorResponse
+		if errors.As(err, &raw) {
+			return zero, decodeStreamError(s.decoder, nil, raw)
+		}
 		return zero, err
 	}
 	return s.decodeResponse(response)

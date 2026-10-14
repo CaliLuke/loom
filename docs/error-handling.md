@@ -475,12 +475,31 @@ The effective JSON-RPC mapping selects the `error.data` schema:
 - A shared custom error type must include a required `ErrorName` field when
   two error names use that type. The field distinguishes errors that share one
   numeric JSON-RPC code.
+- Unary, SSE and WebSocket clients reconstruct mapped errors through the same
+  selection rules. They use the actual `ErrorName` JSON key (including mappings
+  and full tags), or the root string when `Body` selects that field. An ordinary
+  field called `name` does not replace the declared discriminator. Missing,
+  null or unknown discriminator values are invalid responses; defaults do not
+  supply a missing identity.
+- When several errors share a numeric code, exactly one designed body must
+  match its selector, decoding and validation contract. Distinct JSON types and
+  disjoint constraints can distinguish alternatives without a discriminator.
+  Identical valid wire representations are ambiguous: expose an identity in the
+  body or assign distinct codes. Clients report ambiguity instead of choosing
+  the first declaration.
+- Each eligible alternative receives private decoding state. A custom decoder
+  failure takes precedence over a successful alternative unless it is a
+  structured JSON conversion mismatch. This classification follows the decoder
+  error contract; arbitrary callback side effects cannot be rolled back.
+  Failed selection preserves underlying decoding and validation causes.
 - An error without an explicit JSON-RPC mapping uses `jsonrpc.ErrorData`.
   Generated clients return its raw `*jsonrpc.RawErrorResponse` envelope.
 - Protocol failures also use the protocol or generic data shape. They never
   use an application error body.
 - HTTP error mappings apply only to HTTP. Matching error names do not copy an
   HTTP status code or body schema into JSON-RPC.
+
+Regenerate clients to adopt these shared typed-error rules across transports.
 
 ---
 

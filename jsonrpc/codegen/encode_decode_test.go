@@ -86,7 +86,8 @@ func TestJSONRPCClientDecoderReturnsDecodedUnmappedError(t *testing.T) {
 	file := requireEncodeDecodeFile(t, files, "client")
 	code := renderCodegenFile(t, file)
 
-	assert.Contains(t, code, `return nil, jresp.Error`)
+	assert.Contains(t, code, `return nil, decodeSumError(decoder, resp, jresp.Error)`)
+	assert.Contains(t, code, `return wire`)
 	assert.NotContains(t, code, `default:
 				body, _ := io.ReadAll(resp.Body)`)
 }

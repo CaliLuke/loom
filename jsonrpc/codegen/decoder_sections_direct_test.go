@@ -521,9 +521,9 @@ func TestWriteJSONRPCViewedInitReturnWithTag(t *testing.T) {
 	require.Contains(t, code, "res, err := viewer.NewFixedviewresult(vres)")
 }
 
-// TestWriteResultInitReturnBranches covers the error result return writer used
+// TestWriteErrorCandidateReturnBranches covers the error result return writer used
 // by the error decode switch.
-func TestWriteResultInitReturnBranches(t *testing.T) {
+func TestWriteErrorCandidateReturnBranches(t *testing.T) {
 	cases := []struct {
 		name string
 		resp *httpcodegen.ResponseData
@@ -539,14 +539,14 @@ func TestWriteResultInitReturnBranches(t *testing.T) {
 					},
 				},
 			},
-			want: "return nil, NewDivideBadRequest(&body)",
+			want: "return NewDivideBadRequest(&body), nil",
 		},
 		{
 			name: "client-body",
 			resp: &httpcodegen.ResponseData{
 				ClientBody: &httpcodegen.TypeData{VarName: "DivideBadRequestResponseBody"},
 			},
-			want: "return nil, body",
+			want: "return body, nil",
 		},
 		{
 			name: "empty",
@@ -557,7 +557,7 @@ func TestWriteResultInitReturnBranches(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			code := renderGroupWriter(t, func(g *jen.Group) {
-				writeResultInitReturn(g, c.resp)
+				writeErrorCandidateReturn(g, c.resp)
 			})
 			require.Contains(t, code, c.want)
 		})

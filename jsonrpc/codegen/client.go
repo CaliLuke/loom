@@ -66,6 +66,7 @@ func clientEncodeDecodeSections(f *codegen.File, svcData *httpcodegen.ServiceDat
 	}
 
 	for _, endpoint := range svcData.Endpoints {
+		sections = append(sections, jsonrpcErrorDecoderSection(endpoint))
 		if endpoint.RequestEncoder == "" {
 			sections = append(sections, jsonrpcMinimalRequestEncoderSection(endpoint))
 			endpoint.RequestEncoder = fmt.Sprintf("Encode%sRequest", endpoint.Method.VarName)

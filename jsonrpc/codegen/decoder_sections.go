@@ -78,14 +78,9 @@ func writeJSONRPCResponseDecodeEnvelope(g *jen.Group, e *httpcodegen.EndpointDat
 }
 
 func writeJSONRPCResponseErrorHandling(g *jen.Group, e *httpcodegen.EndpointData) {
-	g.If(jen.Id("jresp").Dot("Error").Op("!=").Nil()).BlockFunc(func(eg *jen.Group) {
-		eg.Switch(jen.Id("jresp").Dot("Error").Dot("Code")).BlockFunc(func(sg *jen.Group) {
-			writeJSONRPCErrorDecodeSwitch(sg, e)
-			sg.Default().Block(
-				jen.Return(jen.Nil(), jen.Id("jresp").Dot("Error")),
-			)
-		})
-	})
+	g.If(jen.Id("jresp").Dot("Error").Op("!=").Nil()).Block(
+		jen.Return(jen.Nil(), jen.Id(e.ErrorDecoder).Call(jen.Id("decoder"), jen.Id("resp"), jen.Id("jresp").Dot("Error"))),
+	)
 	g.Line()
 }
 
@@ -179,59 +174,12 @@ func writeJSONRPCResponseTagAssignment(g *jen.Group, resp *httpcodegen.ResponseD
 	g.Id("res").Dot(resp.TagName).Op("=").Lit(resp.TagValue)
 }
 
-func writeJSONRPCErrorDecodeSwitch(g *jen.Group, e *httpcodegen.EndpointData) {
-	for _, group := range e.Errors {
-		if len(group.Errors) == 0 || group.Errors[0].Response == nil {
-			continue
-		}
-		g.Case(codegen.Expr(group.StatusCode)).BlockFunc(func(cg *jen.Group) {
-			if len(group.Errors) > 1 {
-				writeJSONRPCNamedErrorDecode(cg, group, e)
-				return
-			}
-			writeJSONRPCErrorResponseDecode(cg, group.Errors[0].Response, e.ServiceName, e.Method)
-			writeResultInitReturn(cg, group.Errors[0].Response)
-		})
-	}
-}
-
-func writeJSONRPCNamedErrorDecode(g *jen.Group, group *httpcodegen.ErrorGroupData, e *httpcodegen.EndpointData) {
-	g.Var().Id("jerrData").Qual("github.com/CaliLuke/loom/jsonrpc", "ErrorData")
-	g.If(jen.Len(jen.Id("jresp").Dot("Error").Dot("Data")).Op(">").Lit(0)).Block(
-		jen.If(
-			jen.Err().Op(":=").Id("json").Dot("Unmarshal").Call(jen.Id("jresp").Dot("Error").Dot("Data"), jen.Op("&").Id("jerrData")),
-			jen.Err().Op("!=").Nil(),
-		).Block(
-			jen.Return(jen.Nil(), errDecodingExpr(e.ServiceName, e.Method.Name, jen.Id("err"))),
-		),
-	)
-	g.Switch(jen.Id("jerrData").Dot("Name")).BlockFunc(func(sg *jen.Group) {
-		for _, item := range group.Errors {
-			if item.Response == nil {
-				continue
-			}
-			sg.Case(jen.Lit(item.Name)).BlockFunc(func(cg *jen.Group) {
-				writeJSONRPCErrorResponseDecode(cg, item.Response, e.ServiceName, e.Method)
-				writeResultInitReturn(cg, item.Response)
-			})
-		}
-		sg.Default().Block(
-			jen.Return(jen.Nil(), errInvalidResponseExpr(e.ServiceName, e.Method.Name, jen.Id("resp").Dot("StatusCode"), jen.String().Call(jen.Id("jresp").Dot("Error").Dot("Data")))),
-		)
-	})
-}
-
-func writeJSONRPCErrorResponseDecode(g *jen.Group, data *httpcodegen.ResponseData, serviceName string, method *service.MethodData) {
-	g.Id("resp").Dot("Body").Op("=").Qual("io", "NopCloser").Call(jen.Qual("bytes", "NewBuffer").Call(jen.Id("jresp").Dot("Error").Dot("Data")))
-	writeSingleResponseDecode(g, data, serviceName, method)
-}
-
-func writeResultInitReturn(g *jen.Group, resp *httpcodegen.ResponseData) {
+func writeErrorCandidateReturn(g *jen.Group, resp *httpcodegen.ResponseData) {
 	switch {
 	case resp.ResultInit != nil:
-		g.Return(jen.Nil(), jen.Id(resp.ResultInit.Name).Call(jsonrpcInitArgs(resp.ResultInit.ClientArgs)...))
+		g.Return(jen.Id(resp.ResultInit.Name).Call(jsonrpcInitArgs(resp.ResultInit.ClientArgs)...), jen.Nil())
 	case resp.ClientBody != nil:
-		g.Return(jen.Nil(), jen.Id("body"))
+		g.Return(jen.Id("body"), jen.Nil())
 	default:
 		g.Return(jen.Nil(), jen.Nil())
 	}

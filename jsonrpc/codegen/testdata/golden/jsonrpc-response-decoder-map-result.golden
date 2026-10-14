@@ -18,10 +18,7 @@ func DecodeIndexResponse(decoder func(*http.Response) loomhttp.Decoder, restoreB
 			}
 
 			if jresp.Error != nil {
-				switch jresp.Error.Code {
-				default:
-					return nil, jresp.Error
-				}
+				return nil, decodeIndexError(decoder, resp, jresp.Error)
 			}
 
 			resp.Body = io.NopCloser(bytes.NewBuffer(jresp.Result))
@@ -44,5 +41,11 @@ func DecodeIndexResponse(decoder func(*http.Response) loomhttp.Decoder, restoreB
 			res := NewIndexMapStringIntOK(body)
 			return res, nil
 		})
+	}
+}
+func decodeIndexError(decoder func(*http.Response) loomhttp.Decoder, resp *http.Response, wire *jsonrpc.RawErrorResponse) error {
+	switch wire.Code {
+	default:
+		return wire
 	}
 }

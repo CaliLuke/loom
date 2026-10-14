@@ -88,10 +88,7 @@ func DecodeSumResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBod
 			}
 
 			if jresp.Error != nil {
-				switch jresp.Error.Code {
-				default:
-					return nil, jresp.Error
-				}
+				return nil, decodeSumError(decoder, resp, jresp.Error)
 			}
 
 			resp.Body = io.NopCloser(bytes.NewBuffer(jresp.Result))
@@ -106,5 +103,12 @@ func DecodeSumResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBod
 			res := NewSumResultOK(&body)
 			return res, nil
 		})
+	}
+}
+
+func decodeSumError(decoder func(*http.Response) loomhttp.Decoder, resp *http.Response, wire *jsonrpc.RawErrorResponse) error {
+	switch wire.Code {
+	default:
+		return wire
 	}
 }

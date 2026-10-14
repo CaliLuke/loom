@@ -191,6 +191,7 @@ import (
 	filesclient "example.com/jsonrpcviewed/gen/jsonrpc/files/client"
 	filesserver "example.com/jsonrpcviewed/gen/jsonrpc/files/server"
 	loomhttp "github.com/CaliLuke/loom/http"
+	"github.com/CaliLuke/loom/jsonrpc"
 )
 
 const (
@@ -497,7 +498,8 @@ func TestSSEViews(t *testing.T) {
         t.Fatal(err)
     }
     failedStream := failed.(*feedclient.FollowClientStream)
-    if result, err := failedStream.RecvWithContext(ctx); err == nil || !strings.Contains(err.Error(), "JSON-RPC error") || result != nil {
+    var protocol *jsonrpc.RawErrorResponse
+    if result, err := failedStream.RecvWithContext(ctx); !errors.As(err, &protocol) || protocol.Code != int(jsonrpc.InternalError) || result != nil {
         t.Errorf("invalid view before first result: got (%#v, %v), want protocol error", result, err)
     }
     if err := failedStream.Close(); err != nil {

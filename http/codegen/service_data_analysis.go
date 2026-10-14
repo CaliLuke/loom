@@ -262,6 +262,9 @@ func (sds *ServicesData) buildEndpointDataFromIR(endpointIR *transportir.Endpoin
 		Requirements:              reqs,
 		CORS:                      sd.CORS,
 	}
+	if endpointIR.IsJSONRPC {
+		endpoint.ErrorDecoder = scope.Unique("decode" + method.VarName + "Error")
+	}
 	sds.applyStreamingEndpointData(endpoint, endpointIR, sd)
 	sds.applyMultipartEndpointData(endpoint, endpointIR, method, svc, scope)
 	endpoint.Redirect = transportRedirectData(endpointIR.Redirect)

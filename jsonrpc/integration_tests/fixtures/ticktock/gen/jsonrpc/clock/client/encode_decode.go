@@ -78,10 +78,7 @@ func DecodeTickResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBo
 			}
 
 			if jresp.Error != nil {
-				switch jresp.Error.Code {
-				default:
-					return nil, jresp.Error
-				}
+				return nil, decodeTickError(decoder, resp, jresp.Error)
 			}
 
 			resp.Body = io.NopCloser(bytes.NewBuffer(jresp.Result))
@@ -156,10 +153,7 @@ func DecodeTockResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBo
 			}
 
 			if jresp.Error != nil {
-				switch jresp.Error.Code {
-				default:
-					return nil, jresp.Error
-				}
+				return nil, decodeTockError(decoder, resp, jresp.Error)
 			}
 
 			resp.Body = io.NopCloser(bytes.NewBuffer(jresp.Result))
@@ -174,5 +168,17 @@ func DecodeTockResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBo
 			res := NewTockResultOK(&body)
 			return res, nil
 		})
+	}
+}
+func decodeTickError(decoder func(*http.Response) loomhttp.Decoder, resp *http.Response, wire *jsonrpc.RawErrorResponse) error {
+	switch wire.Code {
+	default:
+		return wire
+	}
+}
+func decodeTockError(decoder func(*http.Response) loomhttp.Decoder, resp *http.Response, wire *jsonrpc.RawErrorResponse) error {
+	switch wire.Code {
+	default:
+		return wire
 	}
 }

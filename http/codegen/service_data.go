@@ -207,6 +207,8 @@ type (
 		RequestEncoder string
 		// ResponseDecoder is the name of the response decoder function.
 		ResponseDecoder string
+		// ErrorDecoder names the shared JSON-RPC designed-error decoder.
+		ErrorDecoder string
 		// MultipartRequestEncoder indicates the request encoder for
 		// multipart content type.
 		MultipartRequestEncoder *MultipartData
@@ -313,6 +315,8 @@ type (
 	ErrorData struct {
 		// Name is the error name.
 		Name string
+		// Selector retains the effective JSON-RPC ErrorName path.
+		Selector []string
 		// Ref is a reference to the error type.
 		Ref string
 		// Response is the error response data.

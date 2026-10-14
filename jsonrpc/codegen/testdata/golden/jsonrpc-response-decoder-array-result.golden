@@ -18,10 +18,7 @@ func DecodeListResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBo
 			}
 
 			if jresp.Error != nil {
-				switch jresp.Error.Code {
-				default:
-					return nil, jresp.Error
-				}
+				return nil, decodeListError(decoder, resp, jresp.Error)
 			}
 
 			resp.Body = io.NopCloser(bytes.NewBuffer(jresp.Result))
@@ -44,5 +41,11 @@ func DecodeListResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBo
 			res := NewListStringOK(body)
 			return res, nil
 		})
+	}
+}
+func decodeListError(decoder func(*http.Response) loomhttp.Decoder, resp *http.Response, wire *jsonrpc.RawErrorResponse) error {
+	switch wire.Code {
+	default:
+		return wire
 	}
 }

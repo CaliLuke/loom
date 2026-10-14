@@ -217,6 +217,7 @@ import (
 	client "example.com/jsonrpcsseresulttypes/gen/jsonrpc/jsonrpcsse_result_types/client"
 	server "example.com/jsonrpcsseresulttypes/gen/jsonrpc/jsonrpcsse_result_types/server"
 	loomhttp "github.com/CaliLuke/loom/http"
+	"github.com/CaliLuke/loom/jsonrpc"
 	loom "github.com/CaliLuke/loom/pkg"
 )
 
@@ -447,7 +448,8 @@ func TestJSONRPCSSEResultTypesPreStreamFailure(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	s := open[string](t, "string", c.StreamString(), &svc.StreamStringPayload{ID: id()})
-	if _, err := s.RecvWithContext(ctx); err == nil || !strings.Contains(err.Error(), "JSON-RPC error") {
+	var protocol *jsonrpc.RawErrorResponse
+	if _, err := s.RecvWithContext(ctx); !errors.As(err, &protocol) || protocol.Code != int(jsonrpc.InternalError) {
 		t.Errorf("expected JSON-RPC error before any event, got %v", err)
 	}
 }
@@ -461,7 +463,8 @@ func TestJSONRPCSSEResultTypesSendErrorAfterEvent(t *testing.T) {
 	if err != nil || len(got) != 0 {
 		t.Fatalf("first event: got %#v, %v", got, err)
 	}
-	if _, err := s.RecvWithContext(ctx); err == nil || !strings.Contains(err.Error(), "JSON-RPC error") {
+	var protocol *jsonrpc.RawErrorResponse
+	if _, err := s.RecvWithContext(ctx); !errors.As(err, &protocol) || protocol.Code != int(jsonrpc.InternalError) {
 		t.Errorf("expected JSON-RPC error event, got %v", err)
 	}
 }

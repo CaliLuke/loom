@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/dsl"
+	"github.com/CaliLuke/loom/expr"
 )
 
 func TestJSONRPCGeneratedTypedAndRawErrorsRoundTrip(t *testing.T) {
@@ -37,6 +38,10 @@ func jsonRPCTypedErrorRoundTripDSL() {
 			dsl.Response("forbidden", dsl.StatusForbidden)
 		})
 	})
+	jsonRPCTypedErrorServiceDSL(toolError)
+}
+
+func jsonRPCTypedErrorServiceDSL(toolError expr.UserType) {
 	dsl.Service("tools", func() {
 		dsl.Error("forbidden", toolError, func() {
 			dsl.Remedy(func() {

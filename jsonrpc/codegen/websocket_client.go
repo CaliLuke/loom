@@ -24,6 +24,7 @@ func websocketClientFile(genpkg string, svc *expr.HTTPServiceExpr, services *htt
 	imports = append(imports,
 		&codegen.ImportSpec{Path: "bytes"},
 		&codegen.ImportSpec{Path: "context"},
+		&codegen.ImportSpec{Path: "errors"},
 		&codegen.ImportSpec{Path: "fmt"},
 		&codegen.ImportSpec{Path: "io"},
 		&codegen.ImportSpec{Path: "net/http"},

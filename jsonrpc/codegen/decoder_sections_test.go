@@ -143,7 +143,7 @@ func TestJSONRPCResponseDecoderSectionGolden(t *testing.T) {
 				})
 			},
 			contains: []string{
-				"switch jresp.Error.Code {",
+				"switch wire.Code {",
 				"case 4100:",
 			},
 		},
@@ -176,10 +176,10 @@ func TestJSONRPCResponseDecoderSectionGolden(t *testing.T) {
 				})
 			},
 			contains: []string{
-				"switch jresp.Error.Code {",
-				"switch jerrData.Name {",
-				`case "insufficient_funds":`,
-				`case "account_closed":`,
+				"switch wire.Code {",
+				"jsonrpc.DecodeErrorResponse",
+				`Name: "insufficient_funds"`,
+				`Name: "account_closed"`,
 			},
 		},
 		{
@@ -239,7 +239,7 @@ func TestJSONRPCResponseDecoderSectionGolden(t *testing.T) {
 // TestJSONRPCErrorDecodeSwitchBranches exercises the error decode switch
 // writer directly to cover the branch structure the DSL cannot reach in a
 // single design: skipped groups, single-error groups, and multi-error groups
-// that dispatch on the JSON-RPC error data name.
+// that delegate identity selection to the shared runtime owner.
 func TestJSONRPCErrorDecodeSwitchBranches(t *testing.T) {
 	makeInit := func(name string) *httpcodegen.InitData {
 		return &httpcodegen.InitData{
@@ -304,18 +304,12 @@ func TestJSONRPCErrorDecodeSwitchBranches(t *testing.T) {
 		},
 	}
 
-	code := renderGroupWriter(t, func(g *jen.Group) {
-		g.Switch(jen.Id("jresp").Dot("Error").Dot("Code")).BlockFunc(func(sg *jen.Group) {
-			writeJSONRPCErrorDecodeSwitch(sg, endpoint)
-			sg.Default().Block(
-				jen.Return(jen.Nil(), jen.Id("jresp").Dot("Error")),
-			)
-		})
-	})
+	endpoint.ErrorDecoder = "decodeDivideError"
+	code := codegen.SectionCode(t, jsonrpcErrorDecoderSection(endpoint))
+	require.Contains(t, code, "jsonrpc.DecodeErrorResponse")
+	require.NotContains(t, code, "jsonrpc.ErrorData")
+	require.NotContains(t, code, `Name: "unmapped"`)
 
-	require.Contains(t, code, `var jerrData jsonrpc.ErrorData`)
-	require.Contains(t, code, `switch jerrData.Name {`)
-	require.NotContains(t, code, `case "unmapped":`)
 	golden := filepath.Join("testdata", "golden", "jsonrpc-error-decode-switch.golden")
 	testutil.AssertGo(t, golden, code)
 }
@@ -332,7 +326,7 @@ func responseDecoderSectionCode(t *testing.T, dslFn func()) string {
 
 	var out strings.Builder
 	for _, section := range file.AllSections() {
-		if section.SectionName() != "jsonrpc-response-decoder" {
+		if section.SectionName() != "jsonrpc-response-decoder" && section.SectionName() != "jsonrpc-error-decoder" {
 			continue
 		}
 		out.WriteString(codegen.SectionCode(t, section))

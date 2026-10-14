@@ -74,7 +74,7 @@ func (b *errorBuilder) buildSingle(errorResponse *transportir.ResponseStatus) (s
 	init := b.buildResultInit(errorResponse, pkg, errctx)
 	responseData := b.buildResponseData(errorResponse, errctx, init)
 	ref := errorDesc.Type.Ref
-	return ref, &ErrorData{Name: httpError.Name, Response: responseData, Ref: ref}
+	return ref, &ErrorData{Name: httpError.Name, Response: responseData, Ref: ref, Selector: errorResponse.ErrorSelector}
 }
 
 func (b *errorBuilder) buildResultInit(errorResponse *transportir.ResponseStatus, pkg string, errctx *codegen.AttributeContext) *InitData {

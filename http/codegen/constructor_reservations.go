@@ -122,7 +122,7 @@ func (names constructorNames) addEndpoint(ep *EndpointData, client bool) {
 }
 
 func (names constructorNames) addClient(ep *EndpointData) {
-	names.add(ep.RequestEncoder, ep.ResponseDecoder, ep.BuildStreamPayload)
+	names.add(ep.RequestEncoder, ep.ResponseDecoder, ep.ErrorDecoder, ep.BuildStreamPayload)
 	if ep.Payload.Ref != "" {
 		names.add("Build" + ep.Method.VarName + "Payload")
 	}

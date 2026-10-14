@@ -118,6 +118,10 @@ func writeJSONRPCWebSocketRecv(stmt *jen.Statement, ws *httpcodegen.WebSocketDat
 			jen.Var().Id("zero").Add(codegen.TypeRef(ws.RecvTypeRef)),
 			jen.List(jen.Id("response"), jen.Err()).Op(":=").Add(receive),
 			jen.If(jen.Err().Op("!=").Nil()).Block(
+				jen.Var().Id("raw").Op("*").Qual("github.com/CaliLuke/loom/jsonrpc", "RawErrorResponse"),
+				jen.If(jen.Qual("errors", "As").Call(jen.Err(), jen.Op("&").Id("raw"))).Block(
+					jen.Return(jen.Id("zero"), jen.Id(ws.Endpoint.ErrorDecoder).Call(jen.Id("s").Dot("decoder"), jen.Nil(), jen.Id("raw"))),
+				),
 				jen.Return(jen.Id("zero"), jen.Err()),
 			),
 			jen.Return(jen.Id("s").Dot("decodeResponse").Call(jen.Id("response"))),
