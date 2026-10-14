@@ -75,6 +75,12 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- JSON-RPC runtime notification eligibility derives from `invalidRequest` through
+  one private `isNotification` predicate. HTTP/batch and streaming protocol paths
+  share it; ID absence alone cannot suppress an invalid-envelope response.
+  Generated typed adapters receive admitted envelopes and retain HasID-based
+  completion. Keep envelope eligibility and request-completion models aligned.
+
 - `pkg.ResolveErrorResponse` owns the complete wire error's named identity and
   permitted remedy. Its private single-cause step is shared with message
   resolution; independent joins never contribute branch bodies or traits.

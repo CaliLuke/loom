@@ -22,6 +22,7 @@ type (
 	webSocketReceiveOutcome struct {
 		errs       []error
 		errorCodes []Code
+		errorIDs   []any
 		dispatched []string
 	}
 
@@ -154,10 +155,11 @@ func TestReceiveWebSocketRequestClassifiesReadFailures(t *testing.T) {
 			wantMethod: []string{"echo"},
 		},
 		{
-			name:   "valid JSON that is not an object is an invalid request",
-			client: sendFrames(`[1]`),
-			recvs:  1,
-			check:  requireNoReceiveError,
+			name:      "valid JSON that is not an object is an invalid request",
+			client:    sendFrames(`[1]`),
+			recvs:     1,
+			check:     requireNoReceiveError,
+			wantCodes: []Code{InvalidRequest},
 		},
 		{
 			name:       "valid request is dispatched",
@@ -287,10 +289,11 @@ func runWebSocketReceive(t *testing.T, test webSocketReceiveCase) webSocketRecei
 			outcome.dispatched = append(outcome.dispatched, request.Method)
 			return nil
 		}
-		sendError := func(_ context.Context, _ any, code Code, _ string, _ any) error {
+		sendError := func(_ context.Context, id any, code Code, _ string, _ any) error {
 			mu.Lock()
 			defer mu.Unlock()
 			outcome.errorCodes = append(outcome.errorCodes, code)
+			outcome.errorIDs = append(outcome.errorIDs, id)
 			return nil
 		}
 		for range test.recvs {

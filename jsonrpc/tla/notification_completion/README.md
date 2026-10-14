@@ -22,7 +22,7 @@ java -XX:+UseParallelGC -cp /path/to/tla2tools-1.7.4.jar tlc2.TLC \
 | blanket | TransportFailureEscapes counterexample, exit 12 | 65 / 65 |
 | owned | All invariants pass, exit 0 | 240 / 180 |
 
-An absent ID is a notification; string and explicit null IDs both request a
+For an already admitted, valid request, an absent ID is a notification; string and explicit null IDs both request a
 response. Params and service failures are request-local unless an attempted
 error-response write fails. Read/context/write failures must remain terminal.
 The follow-up is a valid request acting as a protocol barrier. The model rejects
@@ -53,3 +53,28 @@ batch envelopes, or callback panics. The boolean terminal outcome means a failur
 escapes to the receive loop; it does not prove socket cleanup latency. Tests check
 actual generated framing, observations and transport behavior. No liveness or
 unbounded fairness claim is made. Keep raw model output outside the repository.
+
+## Envelope eligibility (#676)
+
+`EnvelopeEligibility.tla` models the preceding admission boundary: three
+transports, valid/invalid envelopes and present/absent IDs. `current` reproduces
+stream suppression before validation; `owned` applies the shared predicate.
+Run from this directory with the pinned toolchain above:
+
+```sh
+java -XX:+UseParallelGC -cp /path/to/tla2tools-1.7.4.jar tlc2.TLC \
+  -workers 1 -metadir /tmp/loom-envelope-owned \
+  -config envelope_owned.cfg EnvelopeEligibility.tla
+```
+
+`envelope_current.cfg` violates `InvalidRequestsReply` (17 generated/distinct
+states, exit12); `envelope_owned.cfg` passes (36 generated,24 distinct, exit0).
+An invalid ID-less SSE request is the counterexample. Both configs also check
+valid notification suppression, invalid dispatch exclusion and ID-bearing replies.
+The model abstracts successful replies and excludes write failures, parse failures,
+ID value/correlation and network timing; the existing completion model covers
+request-local versus terminal errors. `TestEnvelopeResponseEligibility` checks
+actual HTTP/SSE/real WebSocket entry points, correlation, parse errors and a
+following WebSocket request. Existing runtime and generated completion tests
+cover batch framing, GET listeners and transport failures. The implementation
+owner is `isNotification` beside `invalidRequest` in `jsonrpc/server.go`.

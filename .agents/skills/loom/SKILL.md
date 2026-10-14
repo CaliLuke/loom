@@ -728,6 +728,11 @@ WebSocket. Remove those mappings and include the fields in the default or select
 Body, then regenerate clients and servers together. Ordinary HTTP responses,
 JSON-RPC request metadata and framework-owned HTTP/view metadata are unchanged.
 
+JSON-RPC notification suppression applies only after envelope validation.
+Invalid ID-less envelopes receive -32600 across HTTP, SSE and WebSocket;
+valid ID-less requests still suppress method and payload errors. Malformed JSON
+receives -32700. Upgrade the runtime; no regeneration is needed for this rule.
+
 Request `ID()` fields bind only to the JSON-RPC envelope and are excluded from
 params. Regenerate clients and servers together after this change. Required IDs
 reject absence before defaults; optional defaults affect service data without

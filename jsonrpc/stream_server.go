@@ -109,7 +109,7 @@ func ServeSSE(w http.ResponseWriter, r *http.Request, spec SSEHandlerSpec) {
 		return
 	}
 
-	observer.SetJSONRPC(request.Method, IDToString(request.ID), 0, !request.HasID)
+	observer.SetJSONRPC(request.Method, IDToString(request.ID), 0, isNotification(&request))
 	if reason, message := invalidStreamRequest(&request); reason != loomtransport.ReasonOK {
 		observer.Fail(reason)
 		writeSSEProtocolError(ctx, observedWriter, r, &request, InvalidRequest, message, spec)
@@ -127,7 +127,7 @@ func ServeSSE(w http.ResponseWriter, r *http.Request, spec SSEHandlerSpec) {
 		writeSSEProtocolError(ctx, observedWriter, r, &request, MethodNotFound, "Method not found", spec)
 		return
 	}
-	if unary && !request.HasID {
+	if unary && isNotification(&request) {
 		observedWriter.WriteHeader(http.StatusNoContent)
 	}
 }
@@ -223,16 +223,13 @@ func ReceiveWebSocketRequest(
 		}
 		return nil
 	}
-	binding := loomtransport.StreamObserverFromContext(ctx, loomtransport.TransportJSONRPC).JSONRPC(request.Method, IDToString(request.ID), !request.HasID)
+	binding := loomtransport.StreamObserverFromContext(ctx, loomtransport.TransportJSONRPC).JSONRPC(request.Method, IDToString(request.ID), isNotification(&request))
 	ctx = loomtransport.WithStreamObserver(ctx, binding)
 	if _, message := invalidStreamRequest(&request); message != "" {
-		if !request.HasID {
-			return nil
-		}
 		return sendError(ctx, request.ID, InvalidRequest, message, nil)
 	}
 	if !matches(request.Method) {
-		if !request.HasID {
+		if isNotification(&request) {
 			return nil
 		}
 		return sendError(ctx, request.ID, MethodNotFound, "Method not found", nil)
@@ -309,7 +306,7 @@ func writeSSEProtocolError(
 	message string,
 	spec SSEHandlerSpec,
 ) {
-	if !request.HasID {
+	if isNotification(request) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}

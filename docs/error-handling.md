@@ -443,6 +443,16 @@ Regenerate JSON-RPC servers to apply the nil-safe reporting path to generated
 adapters. Framework runtime and generated code share `jsonrpc.ReportFailure`;
 applications normally supply their callback to the generated constructor.
 
+Only a valid JSON-RPC request without an `id` is a notification. Across HTTP,
+SSE and WebSocket, an invalid envelope still receives an Invalid Request
+(-32600) response, with a null ID when none can be recovered. For example,
+`{"jsonrpc":"1.0","method":"echo"}` receives an error; a valid
+`{"jsonrpc":"2.0","method":"echo"}` suppresses responses, including method
+and payload errors. Malformed JSON receives Parse Error (-32700). WebSocket
+request errors leave the connection available for subsequent requests unless
+sending the response fails. Upgrade the framework runtime to apply this fix;
+no design change or regeneration is required.
+
 ### JSON-RPC Error Codes
 
 JSON-RPC errors are mapped with `JSONRPC` response blocks. Loom includes

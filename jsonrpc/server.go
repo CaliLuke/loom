@@ -264,7 +264,7 @@ func processRequest(
 	observer *loomtransport.RequestObserver,
 	spec HTTPHandlerSpec,
 ) {
-	observer.SetJSONRPC(request.Method, IDToString(request.ID), batchCount, !request.HasID)
+	observer.SetJSONRPC(request.Method, IDToString(request.ID), batchCount, isNotification(request))
 	if reason, message := invalidRequest(request); reason != loomtransport.ReasonOK {
 		observer.Fail(reason)
 		writeJSONRPCError(ctx, w, request, InvalidRequest, message, observer, spec)
@@ -272,7 +272,7 @@ func processRequest(
 	}
 
 	dispatchWriter := w
-	if !request.HasID {
+	if isNotification(request) {
 		dispatchWriter = &notificationWriter{}
 	}
 	matched, err := spec.Dispatch(ctx, r, request, dispatchWriter)
@@ -296,7 +296,7 @@ func writeJSONRPCError(
 	observer *loomtransport.RequestObserver,
 	spec HTTPHandlerSpec,
 ) {
-	if !request.HasID && code != InvalidRequest {
+	if isNotification(request) {
 		return
 	}
 	id := request.ID
@@ -338,12 +338,20 @@ func invalidRequest(request *RawRequest) (loomtransport.Reason, string) {
 	return loomtransport.ReasonOK, ""
 }
 
+// isNotification derives response suppression from the validated envelope.
+// An invalid ID-less value requires a protocol error; only a valid request
+// without an ID is a notification, independently of its dispatch outcome.
+func isNotification(request *RawRequest) bool {
+	reason, _ := invalidRequest(request)
+	return !request.HasID && reason == loomtransport.ReasonOK
+}
+
 // writeItem appends the response buffered for request to the batch. A request
 // that requires a response but whose adapter produced anything other than one
 // JSON object is answered with an internal error, so the batch always holds
 // exactly one well-formed entry per non-notification request.
 func (w *batchWriter) writeItem(request *RawRequest, data []byte, observer *loomtransport.RequestObserver) {
-	if reason, _ := invalidRequest(request); !request.HasID && reason == loomtransport.ReasonOK {
+	if isNotification(request) {
 		return
 	}
 	data = bytes.Trim(data, " \t\r\n")

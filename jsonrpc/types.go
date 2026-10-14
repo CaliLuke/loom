@@ -51,8 +51,9 @@ type (
 		Params  jsontext.Value `json:"params,omitempty"`
 		ID      any            `json:"id"`
 		// HasID is true when the "id" key is present in the incoming JSON (even if null).
-		// It is consumed by generated templates (WebSocket/SSE/HTTP) to decide whether
-		// to send a response for this request. Do not remove even if unused by this package.
+		// After runtime envelope validation, generated adapters use it to decide
+		// whether to send a response. Absence alone does not make an invalid
+		// envelope a notification; the runtime must still send its protocol error.
 		HasID bool `json:"-"`
 		// Invalid is true when the JSON value is syntactically valid but not a
 		// valid JSON-RPC request envelope.
