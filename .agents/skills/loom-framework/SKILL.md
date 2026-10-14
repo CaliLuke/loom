@@ -75,6 +75,17 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- Request analysis records whether raw ownership or a mapped Content-Length needs
+  preparation completion. The shared request encoder defers
+  `http.FinalizeRequestEncoding` until all body factories/codecs have run. That
+  runtime owner reconciles framing and closes unpublished bodies on failure;
+  zero-length EOF verification shares one close decision with cancellation.
+  Explicit zero is admitted only for POST/PUT/PATCH, the methods for which pinned
+  Go HTTP/1 and HTTP/2 preserve the field; reject other methods before publication.
+  Preserve positive streaming/GetBody, absent framing, and all error causes.
+  Keep `http/tla/request_framing` aligned; do not add raw/form/JSON-RPC framing
+  policies or cleanup wrappers in client endpoint renderers.
+
 - Required reconstruction coverage belongs to one private expression query over
   logical fields, effective runtime bodies and resolved bindings. References,
   defaults and error dispatch selectors are not missing-value sources. Preserve

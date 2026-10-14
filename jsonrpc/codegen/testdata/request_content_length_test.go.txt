@@ -1,0 +1,44 @@
+package lengths_test
+
+import (
+	"context"
+	"encoding/json/v2"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	client "example.com/rpclengths/gen/jsonrpc/lengths/client"
+	svc "example.com/rpclengths/gen/lengths"
+	loomhttp "github.com/CaliLuke/loom/http"
+	"github.com/CaliLuke/loom/jsonrpc"
+)
+
+func TestRequestFraming(t *testing.T) {
+	wire, err := json.Marshal(&jsonrpc.Request{JSONRPC: "2.0", Method: "send", ID: "call", Params: map[string]string{"value": "x"}})
+	require.NoError(t, err)
+	length := int64(len(wire))
+	seen := make(chan int64, 1)
+	host := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, readErr := io.ReadAll(r.Body)
+		if readErr != nil {
+			t.Error(readErr)
+		}
+		if int64(len(body)) != length {
+			t.Errorf("body length %d want %d", len(body), length)
+		}
+		seen <- r.ContentLength
+		w.Header().Set("Content-Type", "application/json")
+		if _, writeErr := io.WriteString(w, `{"jsonrpc":"2.0","id":"call","result":null}`); writeErr != nil {
+			t.Error(writeErr)
+		}
+	}))
+	defer host.Close()
+	c := client.NewClient("http", strings.TrimPrefix(host.URL, "http://"), host.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
+	_, err = c.Send()(context.Background(), &svc.SendPayload{ID: "call", Length: &length, Value: "x"})
+	require.NoError(t, err)
+	require.Equal(t, length, <-seen)
+}

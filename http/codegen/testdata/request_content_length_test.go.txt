@@ -1,0 +1,199 @@
+package lengths_test
+
+import (
+	"context"
+	"errors"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"sync/atomic"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	client "example.com/lengths/gen/http/lengths/client"
+	server "example.com/lengths/gen/http/lengths/server"
+	svc "example.com/lengths/gen/lengths"
+	loomhttp "github.com/CaliLuke/loom/http"
+)
+
+type (
+	failingCloser struct {
+		cause error
+	}
+	service struct {
+		length chan *int64
+	}
+	countedBody struct {
+		io.Reader
+		closes atomic.Int32
+	}
+	doer struct {
+		calls atomic.Int32
+	}
+)
+
+func TestMountedRawLengths(t *testing.T) {
+	for _, tc := range []struct {
+		name, body string
+		length     *int64
+	}{
+		{"positive", "xyz", new(int64(3))},
+		{"zero", "", new(int64(0))},
+		{"absent", "xyz", nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := &service{length: make(chan *int64, 1)}
+			mux := loomhttp.NewMuxer()
+			server.Mount(mux, server.New(svc.NewEndpoints(s), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil))
+			host := httptest.NewServer(mux)
+			defer host.Close()
+			c := client.NewClient("http", strings.TrimPrefix(host.URL, "http://"), host.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
+			_, err := c.Optional()(context.Background(), &svc.OptionalRequestData{Payload: &svc.OptionalPayload{Length: tc.length}, Body: io.NopCloser(strings.NewReader(tc.body))})
+			require.NoError(t, err)
+			require.Equal(t, tc.length, <-s.length)
+		})
+	}
+}
+
+func TestNominalRequiredLengths(t *testing.T) {
+	for _, name := range []string{"required", "named"} {
+		t.Run(name, func(t *testing.T) {
+			req, err := http.NewRequest(http.MethodPost, "http://example.test", io.NopCloser(strings.NewReader("abc")))
+			require.NoError(t, err)
+			if name == "required" {
+				err = client.EncodeRequiredRequest(nil)(req, &svc.RequiredRequestData{Payload: &svc.RequiredPayload{Length: 3}, Body: req.Body})
+			} else {
+				err = client.EncodeNamedRequest(nil)(req, &svc.NamedRequestData{Payload: &svc.NamedPayload{Length: svc.LengthMarker("3")}, Body: req.Body})
+			}
+			require.NoError(t, err)
+			require.EqualValues(t, 3, req.ContentLength)
+		})
+	}
+}
+
+func TestFailuresBeforeDo(t *testing.T) {
+	for _, name := range []string{"header", "nonempty zero", "canceled"} {
+		t.Run(name, func(t *testing.T) {
+			transport := new(doer)
+			c := client.NewClient("http", "example.test", transport, loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
+			b := &countedBody{Reader: strings.NewReader("abc")}
+			payload := &svc.OptionalPayload{}
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			switch name {
+			case "header":
+				payload.Tags = []string{"bad,item"}
+			case "nonempty zero":
+				payload.Length = new(int64(0))
+			case "canceled":
+				cancel()
+				payload.Length = new(int64(0))
+			}
+			_, err := c.Optional()(ctx, &svc.OptionalRequestData{Payload: payload, Body: b})
+			require.Error(t, err)
+			require.Zero(t, transport.calls.Load())
+			require.EqualValues(t, 1, b.closes.Load())
+		})
+	}
+}
+
+func TestEncoderFinalBody(t *testing.T) {
+	for _, name := range []string{"custom", "form", "ordinary"} {
+		t.Run(name, func(t *testing.T) {
+			req, err := http.NewRequest(http.MethodPost, "http://example.test", nil)
+			require.NoError(t, err)
+			length := int64(3)
+			switch name {
+			case "custom":
+				factory := func(r *http.Request) loomhttp.Encoder {
+					r.Body = io.NopCloser(strings.NewReader("abc"))
+					r.GetBody = func() (io.ReadCloser, error) {
+						return io.NopCloser(strings.NewReader("abc")), nil
+					}
+					return loomhttp.EncodingFunc(func(any) error {
+						return nil
+					})
+				}
+				err = client.EncodeEncodedRequest(factory)(req, &svc.EncodedPayload{Length: &length, Value: "value"})
+			case "form":
+				length = int64(len("value=x"))
+				err = client.EncodeFormRequest(nil)(req, &svc.FormPayload{Length: &length, Value: "x"})
+			case "ordinary":
+				length = int64(len(`{"value":"x"}`))
+				err = client.EncodeOrdinaryRequest(loomhttp.RequestEncoder)(req, &svc.OrdinaryPayload{Length: &length, Value: "x"})
+			}
+			require.NoError(t, err)
+			require.Equal(t, length, req.ContentLength)
+			body, err := io.ReadAll(req.Body)
+			require.NoError(t, err)
+			require.Len(t, body, int(length))
+			require.NoError(t, req.Body.Close())
+			replay, err := req.GetBody()
+			require.NoError(t, err)
+			again, err := io.ReadAll(replay)
+			require.NoError(t, err)
+			require.Equal(t, body, again)
+			require.NoError(t, replay.Close())
+		})
+	}
+}
+
+func TestCustomEncodingFailure(t *testing.T) {
+	cause := errors.New("custom encoder")
+	closeCause := errors.New("custom close")
+	req, err := http.NewRequest(http.MethodPost, "http://example.test", nil)
+	require.NoError(t, err)
+	factory := func(r *http.Request) loomhttp.Encoder {
+		r.Body = &failingCloser{cause: closeCause}
+		return loomhttp.EncodingFunc(func(any) error {
+			return cause
+		})
+	}
+	err = client.EncodeEncodedRequest(factory)(req, &svc.EncodedPayload{Value: "x"})
+	require.ErrorIs(t, err, cause)
+	require.ErrorIs(t, err, closeCause)
+}
+
+func (s *service) Optional(_ context.Context, p *svc.OptionalPayload, body io.ReadCloser) error {
+	data, err := io.ReadAll(body)
+	if err != nil {
+		return err
+	}
+	if p.Length != nil && int64(len(data)) != *p.Length {
+		return errors.New("incorrect bytes")
+	}
+	s.length <- p.Length
+	return nil
+}
+func (*service) Required(context.Context, *svc.RequiredPayload, io.ReadCloser) error {
+	return nil
+}
+func (*service) Named(context.Context, *svc.NamedPayload, io.ReadCloser) error {
+	return nil
+}
+func (*service) Encoded(context.Context, *svc.EncodedPayload) error {
+	return nil
+}
+func (*service) Form(context.Context, *svc.FormPayload) error {
+	return nil
+}
+func (*service) Ordinary(context.Context, *svc.OrdinaryPayload) error {
+	return nil
+}
+func (b *countedBody) Close() error {
+	b.closes.Add(1)
+	return nil
+}
+func (d *doer) Do(*http.Request) (*http.Response, error) {
+	d.calls.Add(1)
+	return nil, errors.New("unexpected request")
+}
+
+func (*failingCloser) Read([]byte) (int, error) {
+	return 0, io.EOF
+}
+func (b *failingCloser) Close() error {
+	return b.cause
+}

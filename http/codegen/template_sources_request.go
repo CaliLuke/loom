@@ -3,7 +3,12 @@ package codegen
 var (
 	requestEncoderSource = joinHTTPTemplateSource(`{{ printf "%s returns an encoder for requests sent to the %s %s server." .RequestEncoder .ServiceName .Method.Name | comment }}
 func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
-	return func(req *http.Request, v any) error {
+	return func(req *http.Request, v any) {{ if .Payload.Request.FinalizeEncoding }}(err error){{ else }}error{{ end }} {
+		{{- if .Payload.Request.FinalizeEncoding }}
+		defer func() {
+			err = loomhttp.FinalizeRequestEncoding(req, "{{ .ServiceName }}", "{{ .Method.Name }}", err)
+		}()
+		{{- end }}
 		{{- if .Method.SkipRequestBodyEncodeDecode }}
 		data, ok := v.(*{{ .ServicePkgName }}.{{ .Method.RequestStruct }})
 		if !ok {

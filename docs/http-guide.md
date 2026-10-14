@@ -586,6 +586,25 @@ endpoints. Generated clients accept the caller-supplied `io.ReadCloser`. All
 non-body payload attributes must be mapped to path parameters, query
 parameters, or headers.
 
+Map a payload field with `Header("length:Content-Length")` to declare the outgoing
+body length. Regenerated clients apply that value after the body encoder runs,
+including raw, custom and form bodies. Positive lengths keep streaming; the HTTP
+transport detects a stream that ends at a different length. An omitted field
+keeps the encoder's normal framing. Invalid lengths, known body mismatches and
+conflicting transfer encoding fail before sending.
+
+An explicit zero requires an empty body. Loom probes an opaque reader for EOF
+without buffering the stream; a nonempty reader is rejected. Cancellation closes
+the reader to unblock the probe, following Go's `http.Request.Body` contract.
+After confirmed EOF and successful close, the request uses `http.NoBody` and an
+empty replay function. Explicit zero is supported for POST, PUT and PATCH. Other
+methods, including GET and HEAD, return an encoding error before sending because
+Go HTTP/1 and HTTP/2 omit that header. Make the length mapping optional and omit
+its value for empty bodies on those methods. Positive lengths remain supported.
+Failed request encoding closes an attached unpublished
+raw body; read, close and cancellation errors remain available through
+`errors.Is`/`errors.As`. Regenerate clients to adopt this ownership and framing.
+
 Add `OpenAPIRequestBody` when contract consumers also need to know the raw body
 shape. The schema, media type, description, and requiredness affect OpenAPI
 only; Loom still passes the original request stream directly to the service and

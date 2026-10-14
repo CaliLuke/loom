@@ -152,6 +152,12 @@ func (b *payloadBuilder) buildRequestData() (*RequestData, *ParamData) {
 		MultipartFileFields:   multipartFiles,
 		FormEncoded:           b.endpointIR.Request.FormEncoded,
 	}
+	request.FinalizeEncoding = b.ep.SkipRequestBodyEncodeDecode
+	for _, header := range request.Headers {
+		if strings.EqualFold(header.HTTPName, "Content-Length") {
+			request.FinalizeEncoding = true
+		}
+	}
 	request.ClientBodyValue = requestClientBodyValue(request)
 	request.JSONRPCID = b.buildJSONRPCID()
 	request.DecodePlan = newRequestDecodePlan(request, b.basic)

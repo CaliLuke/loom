@@ -957,6 +957,15 @@ clients and servers after upgrading to adopt typed Tag binding.
   custom JSON/text codecs keep their representation. Custom JSON integrations
   can pass `loom.JSONOptions()` to the JSON v2 encoder or decoder; deterministic
   ordering still requires `json.Deterministic(true)`.
+- Mapped `Content-Length` applies to the final encoded request body. Omission
+  preserves normal framing; positive lengths stream, and explicit zero verifies
+  EOF before using `http.NoBody`. Explicit zero is supported only on POST, PUT
+  and PATCH; other methods fail before sending because Go omits that header.
+  Use an optional, omitted length for empty bodies on those methods.
+  Raw readers must support concurrent Read/Close
+  with Close unblocking Read, as required by Go HTTP requests. Failed preparation
+  closes unpublished raw bodies and preserves cleanup errors. Regenerate clients
+  after adopting this correction.
 - Use `OpenAPIRequestBody(...)` with `SkipRequestBodyEncodeDecode()` when a raw
   request stream needs a documentation-only OpenAPI contract.
 - Use `OpenAPIRequestBodyTypes(...)` when one raw request schema accepts
