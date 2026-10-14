@@ -42,10 +42,13 @@ func TestMappedPayloadReferencesCode(t *testing.T) {
 	})
 	assert.Equal(t, plain, normalized)
 	for _, want := range []string{
-		`tok = r.Header.Get("tok")`,
+		`tokRaw := r.Header.Get("tok")`,
+		`tokPresent := len(r.Header.Values("tok")) > 0`,
+		`tok = tokRaw`,
 		`ver = &verRaw`,
 		`r.Header.Get("X-Version")`,
-		`rawValues, present := qp["q"]`,
+		`qRaw := qp.Get("q")`,
+		`qPresent := qp.Has("q")`,
 		`r.Cookie("sid")`,
 		`loomhttp.MountHandler(mux, "POST", "/items/{id}", h)`,
 		`w.Header().Set("Location", res.Loc)`,

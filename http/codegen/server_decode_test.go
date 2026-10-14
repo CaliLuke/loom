@@ -268,9 +268,10 @@ func TestTextUnmarshalerDecodeValidationPlacement(t *testing.T) {
 	t.Run("optional query validation stays presence guarded", func(t *testing.T) {
 		code := decodeSectionCode(t, testdata.PayloadQueryCustomTextUnmarshalerOptionalValidateDSL)
 
-		require.Contains(t, code, "if idRaw != \"\" {\n\t\t\tvar idVal uuid.UUID\n\t\t\tif err2 := idVal.UnmarshalText")
-		require.Contains(t, code, "utf8.RuneCountInString(idRaw)")
-		require.NotContains(t, code, "}\n\t\tif utf8.RuneCountInString(idRaw) < 1")
+		require.Contains(t, code, `idPresent := qp.Has("id")`)
+		require.Regexp(t, `if idPresent \{\s+var idVal uuid.UUID\s+if err2 := idVal.UnmarshalText`, code)
+		require.Contains(t, code, "\n\t\t\t\tif utf8.RuneCountInString(idRaw) < 1")
+		require.NotContains(t, code, "\n\t\t\tif utf8.RuneCountInString(idRaw) < 1")
 	})
 
 	t.Run("header text unmarshaler path is generated", func(t *testing.T) {

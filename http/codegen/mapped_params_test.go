@@ -31,7 +31,8 @@ func TestMappedParamsRouteElementNames(t *testing.T) {
 		`loomhttp.MountHandler(mux, "GET", "/items/{k}/{id}", h)`,
 		"\t\tkey = params[\"k\"]\n",
 		"\t\t\tidRaw := params[\"id\"]\n",
-		"\t\t\trawValues, present := qp[\"query\"]\n",
+		`qRaw := qp.Get("query")`,
+		`qPresent := qp.Has("query")`,
 		"\t\t\tflagRaw := qp.Get(\"f\")\n",
 	} {
 		assert.Contains(t, server, want)

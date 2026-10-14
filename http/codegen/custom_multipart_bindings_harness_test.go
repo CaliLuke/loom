@@ -24,7 +24,7 @@ func TestCustomMultipartWire(t *testing.T) {
  const location = "LOCATION"
  type testCase struct {
   name, value, authorization, query, callbackError string
-  malformed bool
+  malformed, omitValue bool
   wireLimit, knownLength, consumeBoundary bool
   epilogue int
   status int
@@ -57,7 +57,9 @@ func TestCustomMultipartWire(t *testing.T) {
    testCase{name:"conversion", value:"bad", authorization:authorization, status:400, code:"invalid_field_type", detail:"validation error", callbacks:1},
    testCase{name:"constraint", value:"0", authorization:authorization, status:400, code:"invalid_range", detail:"validation error", callbacks:1})
   if location != "path" {
-   cases = append(cases, testCase{name:"missing", authorization:authorization, status:400, code:"missing_field", detail:"value", callbacks:1})
+   cases = append(cases,
+    testCase{name:"missing", omitValue:true, authorization:authorization, status:400, code:"missing_field", detail:"value", callbacks:1},
+    testCase{name:"supplied empty", authorization:authorization, status:400, code:"invalid_field_type", detail:"validation error", callbacks:1})
   }
  }
  if location == "query" || location == "basic" || location == "bearer" || location == "custom_query" {
@@ -136,7 +138,7 @@ func TestCustomMultipartWire(t *testing.T) {
    if location == "path" || location == "path_string" {
     target += "/" + test.value
    }
-   if location == "query" || location == "basic" || location == "bearer" || location == "custom_query" {
+   if !test.omitValue && (location == "query" || location == "basic" || location == "bearer" || location == "custom_query") {
     target += "?value=" + test.value
     if test.query != "" {
      target = "/send?" + test.query
@@ -151,10 +153,10 @@ func TestCustomMultipartWire(t *testing.T) {
    if test.malformed {
     request.Header.Set("Content-Type","application/json")
    }
-   if location == "header" {
+   if location == "header" && !test.omitValue {
     request.Header.Set("X-Value",test.value)
    }
-   if location == "cookie" && test.value != "" {
+   if location == "cookie" && !test.omitValue {
     request.AddCookie(&http.Cookie{Name:"value",Value:test.value})
    }
    if test.authorization != "" {
