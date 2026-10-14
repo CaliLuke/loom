@@ -23,7 +23,8 @@ func TestJSONRPCServerUsesDesignedTypedErrorBody(t *testing.T) {
 		require.NotNil(t, item.Response.ServerBody[0].Init)
 		mappedCase := jsonRPCErrorCase(t, code, item.Name)
 		require.Contains(t, mappedCase, item.Response.ServerBody[0].Init.Name+"(")
-		require.Contains(t, mappedCase, "errors.As(err, &res)")
+		require.Contains(t, mappedCase, "errorResponse.Owner.(*tools.ToolError)")
+		require.NotContains(t, mappedCase, "errors.As(err, &res)")
 		require.Contains(t, mappedCase, "loom.ErrorSafeMessage(err), data")
 	}
 	require.Contains(t, code, "jsonrpc.NewErrorData(err)")

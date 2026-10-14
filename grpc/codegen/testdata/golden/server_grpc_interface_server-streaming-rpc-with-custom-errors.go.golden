@@ -22,8 +22,9 @@ func (s *Server) ServerStream(message *streaming_error_servicepb.ServerStreamReq
 func mapServerStreamError(name string, err error) (loomgrpc.ErrorMapping, bool, error) {
 	switch name {
 	case "custom_error":
-		var er *streamingerrorservice.CustomError
-		if !errors.As(err, &er) {
+		// nolint:errorlint // Extract only the already resolved response owner.
+		er, ok := loom.ResolveErrorResponse(err).Owner.(*streamingerrorservice.CustomError)
+		if !ok {
 			return loomgrpc.ErrorMapping{}, false, nil
 		}
 		return loomgrpc.ErrorMapping{
@@ -31,8 +32,9 @@ func mapServerStreamError(name string, err error) (loomgrpc.ErrorMapping, bool, 
 			Detail: NewServerStreamCustomErrorError(er),
 		}, true, nil
 	case "validation_error":
-		var er *streamingerrorservice.ValidationError
-		if !errors.As(err, &er) {
+		// nolint:errorlint // Extract only the already resolved response owner.
+		er, ok := loom.ResolveErrorResponse(err).Owner.(*streamingerrorservice.ValidationError)
+		if !ok {
 			return loomgrpc.ErrorMapping{}, false, nil
 		}
 		return loomgrpc.ErrorMapping{

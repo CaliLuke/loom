@@ -22,9 +22,10 @@ func (s *streamStream) SendEchoResponse(ctx context.Context, id any, result *str
 
 // SendError streams JSON-RPC errors.
 func (s *streamStream) SendError(ctx context.Context, id any, err error) error {
+	errorResponse := loom.ResolveErrorResponse(err)
 	code := jsonrpc.InternalError
-	var serviceError *loom.ServiceError
-	if errors.As(err, &serviceError) {
+	// nolint:errorlint // Response ownership is already resolved.
+	if serviceError, ok := errorResponse.Owner.(*loom.ServiceError); ok {
 		code = jsonrpc.CodeForServiceError(serviceError)
 	}
 	return s.sendError(ctx, id, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))

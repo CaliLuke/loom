@@ -20,8 +20,9 @@ func mapMethodUnaryRPCWithErrorsError(name string, err error) (loomgrpc.ErrorMap
 			Detail: loomgrpc.NewErrorResponse(err),
 		}, true, nil
 	case "internal":
-		var er *serviceunaryrpcwitherrors.AnotherError
-		if !errors.As(err, &er) {
+		// nolint:errorlint // Extract only the already resolved response owner.
+		er, ok := loom.ResolveErrorResponse(err).Owner.(*serviceunaryrpcwitherrors.AnotherError)
+		if !ok {
 			return loomgrpc.ErrorMapping{}, false, nil
 		}
 		return loomgrpc.ErrorMapping{
@@ -29,8 +30,9 @@ func mapMethodUnaryRPCWithErrorsError(name string, err error) (loomgrpc.ErrorMap
 			Detail: NewMethodUnaryRPCWithErrorsInternalError(er),
 		}, true, nil
 	case "bad_request":
-		var er *serviceunaryrpcwitherrors.AnotherError
-		if !errors.As(err, &er) {
+		// nolint:errorlint // Extract only the already resolved response owner.
+		er, ok := loom.ResolveErrorResponse(err).Owner.(*serviceunaryrpcwitherrors.AnotherError)
+		if !ok {
 			return loomgrpc.ErrorMapping{}, false, nil
 		}
 		return loomgrpc.ErrorMapping{
@@ -38,8 +40,9 @@ func mapMethodUnaryRPCWithErrorsError(name string, err error) (loomgrpc.ErrorMap
 			Detail: NewMethodUnaryRPCWithErrorsBadRequestError(er),
 		}, true, nil
 	case "custom_error":
-		var er *serviceunaryrpcwitherrors.ErrorType
-		if !errors.As(err, &er) {
+		// nolint:errorlint // Extract only the already resolved response owner.
+		er, ok := loom.ResolveErrorResponse(err).Owner.(*serviceunaryrpcwitherrors.ErrorType)
+		if !ok {
 			return loomgrpc.ErrorMapping{}, false, nil
 		}
 		return loomgrpc.ErrorMapping{
