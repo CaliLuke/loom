@@ -1,13 +1,11 @@
 # Bounded operation and synchronous shutdown — #800
 
-Status: the independently reviewed operation/lifecycle design is being integrated
-with the exact published hook-preserving module fork. Final integration review
-and ordinary downstream module consumption are delivery gates.
+The operation/lifecycle owner was delivered in commit `d899a0112e02b8dc258b81851573c860fb375549`
+with the exact published hook-preserving module fork.
 Historical implementation parent `ebc06ec94` included #761/#802/#683.
 Current refresh parent `7da1b00ee` also retains #765/#901/#768 and #771/#772/#773. Go 1.27.2,
 go-redis stable v9.23.0 plus the exact reviewed b77660a fix, Redis 8.10.2.
-The [plan](../../../../roadmap/streaming-shutdown-readiness.md) owns scope and
-[dependency prerequisite](dependency_fetchability.md) records reproducibility.
+The [dependency prerequisite](dependency_fetchability.md) records reproducibility.
 
 ## Owner and implementation correspondence
 

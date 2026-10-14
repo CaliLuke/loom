@@ -1,7 +1,7 @@
 # Effective design composition: #755 / #757
 
-This bounded lifecycle model informed the approved composition implementation
-in `roadmap/effective-design-readiness.md`. The original red checkpoint used
+This bounded lifecycle model informed the shared effective-design composition
+implementation. The original red checkpoint used
 `ce3f6a733f19de30b50986f86e9ce4cef06e48cb`; the corrected regressions now pass.
 The model results remain design evidence within the bounds below, separate
 from the implementation and generated-output acceptance checks.

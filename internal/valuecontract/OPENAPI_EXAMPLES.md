@@ -3,7 +3,7 @@
 This record documents the implementation and validation delivered by the atomic
 #572 commit containing it. The full-catalog audit is not a ticket acceptance gate.
 The accepted contract is in the
-[value-contract design](../../roadmap/value-contract-design.md).
+[value-contract design](DESIGN.md).
 
 ## Ownership and compatibility
 

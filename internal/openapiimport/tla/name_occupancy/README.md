@@ -21,6 +21,7 @@ generated compilation check those implementation boundaries. Source references
 and wire names remain separate from allocated Go names. No order-independent
 spelling is promised: allocation follows each caller's deterministic traversal.
 
-Readiness and final results belong in `roadmap/imported-name-occupancy.md`.
+The counter model fails `Distinct` with 11 generated / 9 distinct states; the
+occupied model passes with 18 generated / 12 distinct states.
 Remove temporary checker state and raw logs after independent final review,
 preserving reproduction inputs and concise results.

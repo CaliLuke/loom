@@ -157,9 +157,8 @@ cover the direct defects; `TestErrorConstructorIdentityCompile` covers the
 original generated duplicate declaration, suffix/type collisions, custom external
 errors, ordinary output and mounted wire routing. Parent overlays reproduce
 the duplicate declarations; the corrected generated modules compile and vet.
-The bounded final matrix and remaining implementation work are tracked in
-`roadmap/error-constructor-identity.md` at repository root. Preserve this source,
-configs and receipt; remove temporary checker states and logs after final review.
+Preserve this source, configs and summarized results; remove temporary checker
+states and logs after final review.
 
 ## Public interceptor declarations (#770)
 

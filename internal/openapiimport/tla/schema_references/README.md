@@ -23,8 +23,8 @@ This last fact is an assumption of name lookup and needs generated evaluation te
 This does not establish that rejected eager cycles lack a valid alternative DSL
 representation, prove arbitrary-size graphs, implement SCC discovery, or cover
 metadata/nullability/error cloning. Do not infer a new public rejection policy
-from this model. The bounded diagnostic contract was separately accepted in
-`roadmap/recursive-import-readiness.md` after readiness review.
+from this model. The supported recursive import contract is documented in
+[OpenAPI import coverage](../../../../docs/openapi-import-coverage.md).
 
 ## Run
 

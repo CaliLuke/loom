@@ -2,15 +2,15 @@
 
 A clean, data-driven integration test framework for testing Loom's JSON-RPC implementations.
 
-This framework is designed to be simple and extensible. All test cases are defined in a single `YAML` file, allowing you to add new tests without writing any Go code. The core principle is **client-side testing**: every test is written from the perspective of a client sending a request and expecting a specific response.
+The scenario suite is defined in a single YAML file, allowing you to add cases for supported method patterns without writing Go code. Separate Go tests cover generated-code and transport regressions. The core principle is **client-side testing**: every test is written from the perspective of a client sending a request and expecting a specific response.
 
-**📍 File Location**: All tests are defined in `integration_tests/scenarios/scenarios.yaml`
+**Scenario file:** [`scenarios/scenarios.yaml`](scenarios/scenarios.yaml). The scenario schema is defined in [`framework/types.go`](framework/types.go).
 
 ## 🚀 Quick Start
 
 ### Running Existing Tests
 
-To run all integration tests, navigate to the `integration_tests` directory and use the standard `go test` command.
+To run all integration tests, navigate to the `jsonrpc/integration_tests` directory and use the standard `go test` command.
 
 ```bash
 # Run all tests in parallel with verbose output (bypasses test cache)
@@ -73,7 +73,7 @@ go mod tidy
 
 Adding a new test requires only a small addition to the scenarios file; no Go code is needed.
 
-1. **Open `integration_tests/scenarios/scenarios.yaml`** (from the project root)
+1. **Open `jsonrpc/integration_tests/scenarios/scenarios.yaml`** (from the repository root)
 
 2. **Add your test case** at the end of the `scenarios:` list
 
@@ -209,7 +209,7 @@ The execution flow for `go test` is:
 
 ## 🔧 Writing Test Scenarios
 
-All tests live in `integration_tests/scenarios/scenarios.yaml`. Each scenario defines a single client-server interaction or a sequence of interactions.
+YAML scenarios live in `jsonrpc/integration_tests/scenarios/scenarios.yaml`. Each scenario defines a single client-server interaction or a sequence of interactions.
 
 ### Transport-Specific Patterns
 
@@ -560,10 +560,10 @@ When a test fails, you can use the following tools to diagnose the issue:
 
     ```bash
     KEEP_GENERATED=true go test -count=1 -v ./...
-    # Look for: "Generated code kept in: /tmp/jsonrpc-test-XXXXX"
+    # Look for: "KEEP_GENERATED: Test directory is /tmp/jsonrpc-test-XXXXX"
     ```
 
-    Once you have the code, inspect `design/design.go` to see how your method was translated into Loom DSL and `http/server/server.go` to see its actual Go implementation.
+    Once you have the code, inspect `design/design.go` to see how your method was translated into Loom DSL and the root `<service>.go` files for its service implementation. Generated transport adapters live under `gen/jsonrpc/<service>/server/`.
 
   * **Verbose Output**: Always use the `-v` flag. It provides detailed logs showing the exact JSON payloads being sent and received, which is invaluable for debugging discrepancies between your `expect` block and the actual server response.
 
@@ -574,160 +574,9 @@ The framework is organized into several packages, each with a clear responsibili
 ```
 integration_tests/
 ├── README.md
-├── SCHEMA.md       # Detailed reference for the scenarios.yaml file structure.
 ├── go.mod
 ├── framework/      # The core engine: discovers scenarios, orchestrates code generation, and runs tests.
 ├── harness/        # The "physical" parts: a transport-aware client and server management code.
 ├── scenarios/      # The data-driven heart of the framework. This is where you'll spend most of your time.
 └── tests/          # The Go test entrypoint (*_test.go) that kicks off the framework runner.
 ```
-
-# YAML Schema Reference
-
-This document provides a detailed reference for the structure and validation rules of the `scenarios.yaml` file used for JSON-RPC integration testing.
-
-## 📂 Top-Level Structure
-
-The `scenarios.yaml` file has two top-level keys: `scenarios` and `settings`.
-
-```yaml
-scenarios:
-  - # A list of Scenario Objects, defined below.
-  - # ...
-
-settings:
-  # A map of global settings for the test run.
-```
-
-## 📝 The `Scenario` Object
-
-Each item in the top-level `scenarios` list is a `Scenario` object. It defines a single, self-contained test case.
-
-| Key | Type | Required? | Description |
-| :--- | :--- | :--- | :--- |
-| **`name`** | `string` | **Yes** | A unique, human-readable name for the test. Used in test runner output. |
-| **`method`** | `string` | **Yes** | The name of the server method to test. Must follow the `action_type_modifier` convention. |
-| **`transport`** | `string` | **Yes** | The transport protocol. Must be one of `"http"`, `"websocket"`, or `"sse"`. |
-| `request` | `object` | Conditional | An object describing the request to send. **Required** for non-streaming (`http`) tests. |
-| `expect` | `object` | Conditional | An object describing the expected response. **Required** for non-streaming (`http`) tests. |
-| `sequence` | `list` | Conditional | A list of steps for stateful interactions. **Required** for streaming (`websocket`, `sse`) tests. |
-
-> A `Scenario` object must contain **either** a `request`/`expect` pair **or** a `sequence`, but not both.
-
-### The `request` Object
-
-Describes a single JSON-RPC request.
-
-| Key | Type | Description |
-| :--- | :--- | :--- |
-| `id` | `any` | The JSON-RPC request ID. If omitted, the request is treated as a notification. |
-| `params` | `array` or `object` | The parameters for the method call. See **Parameter Structures** below. |
-| `method` | `string` | An optional override for the JSON-RPC `method` field in the payload. Defaults to the scenario's `method` value. |
-
-### The `expect` Object
-
-Describes the expected outcome of a request.
-
-| Key | Type | Description |
-| :--- | :--- | :--- |
-| `id` | `any` | The expected ID in the response. Must match the `request.id`.
-| `result` | `any` | The expected `result` payload. Mutually exclusive with `error`. |
-| `error` | `object` | The expected `error` object. Mutually exclusive with `result`. Contains `code` (number), `message` (string), and optional `data` (any). |
-| `no_response` | `boolean` | If `true`, the framework asserts that no response is received. Used for notifications. |
-
-### The `Sequence Step` Object
-
-Each item in a `sequence` list is a step object that defines a single action in a streaming test.
-
-| Key | Type | Required? | Description |
-| :--- | :--- | :--- | :--- |
-| **`type`** | `string` | **Yes** | The type of action. Must be one of `"send"`, `"receive"`, or `"close"`. |
-| `data` | `object` | Conditional | The JSON-RPC payload to send. **Required** for `type: "send"`. |
-| `expect`| `object` | Conditional | The expected JSON-RPC payload to receive. **Required** for `type: "receive"`. |
-| `delay` | `string` | No | A duration to wait before executing this step (e.g., `"100ms"`, `"1s"`). |
-
-## 🧩 Parameter Structures (`params`)
-
-The `params` field must follow one of the two standard JSON-RPC 2.0 formats.
-
-1.  **By-Position (`array`)**: Parameters are passed as a list of values.
-
-    ```yaml
-    # The server method receives these values in the specified order.
-    params: ["first_param", "second_param", 42]
-    ```
-
-2.  **By-Name (`object`)**: Parameters are passed as a map of key-value pairs.
-
-    ```yaml
-    # The server method receives these values by their key name.
-    params:
-      name: "example"
-      value: 123
-      is_active: true
-    ```
-
-## ✅ Semantic and Validation Rules
-
-In addition to the structure, the content of the YAML file must adhere to these rules.
-
-  * **Uniqueness**: The `name` of each scenario must be unique within the file.
-  * **Exclusivity**: A scenario cannot have both `request`/`expect` and `sequence` defined.
-  * **ID Matching**: If a `request.id` is present, the corresponding `expect.id` must be identical.
-  * **Result vs. Error**: An `expect` object cannot define both a `result` and an `error`.
-  * **Method Convention**: The `method` field must follow the `[action]_[type]_[modifier]` pattern, which determines the generated server's behavior.
-
-## 🌐 Complete Examples
-
-### HTTP Request with an Error Response
-
-```yaml
-scenarios:
-  - name: "generate_object_error_http"
-    method: "generate_object_error" # This method is designed to always fail
-    transport: "http"
-    request:
-      id: "err-req-01"
-      params: {} # Params can be empty
-    expect:
-      id: "err-req-01"
-      error:
-        code: -32000
-        message: "A simulated server error occurred"
-```
-
-### WebSocket Bidirectional Streaming
-
-This example shows a client subscribing to a channel and then receiving a server-initiated broadcast.
-
-```yaml
-scenarios:
-  - name: "broadcast_websocket_interaction"
-    method: "broadcast_string"
-    transport: "websocket"
-    sequence:
-      # 1. Client sends a subscription request
-      - type: "send"
-        data:
-          jsonrpc: "2.0"
-          method: "broadcast_string" # Method to call on the server
-          params: { "channel": "news" }
-          id: "sub-1"
-
-      # 2. Client expects a confirmation response
-      - type: "receive"
-        expect:
-          jsonrpc: "2.0"
-          id: "sub-1"
-          result: { "status": "subscribed", "channel": "news" }
-
-      # 3. Client waits to receive an unsolicited broadcast from the server
-      - type: "receive"
-        expect:
-          jsonrpc: "2.0"
-          method: "broadcast" # Note: This is a server-initiated method, not a response
-          params: { "message": "Server update!" }
-```
-
-
-Review each file one by one and each function one by one and think of ways it can be streamlined, improved, simplify, made more tuitive and follow Go best practice. 

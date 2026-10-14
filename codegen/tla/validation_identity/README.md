@@ -80,6 +80,12 @@ repeat compares 91 artifacts across four existing designs. Only three calls in
 the protobuf metadata specimen's client/server `types.go` change, to the existing
 `ValidateChoiceProto` definition. All candidate/repeat bytes agree; eleven
 modules compile/vet, with the old metadata specimen's expected undefined-helper
-failure as the twelfth negative control. See the full commands and source pin in
-`roadmap/grpc-validator-identity-readiness.md` at the repository root. No model
-transition changed after the readiness check; its recorded results remain valid.
+failure as the twelfth negative control. No model transition changed after the
+readiness check; its recorded results remain valid.
+
+Run the focused implementation checks from the repository root with local source:
+
+```sh
+LOOM_DIR="$PWD" go test ./codegen ./grpc/codegen -run '^Test(NamedValidationOccurrenceIdentity|ProtoNamedValidationOccurrenceIdentity|NestedStructMetaNames|GeneratedStructMetaRoundTrip|RecursiveValidationGenerated)$' -count=1
+LOOM_DIR="$PWD" go test ./http/codegen ./jsonrpc/codegen -run '^Test(NamedNullableValidationGenerated|RecursiveValidationGeneratedReadiness|RecursiveValidationGenerated)$' -count=1
+```

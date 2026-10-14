@@ -60,4 +60,3 @@ types or concurrent registration. The selection invariant explicitly assumes the
 existing merge function remains unchanged; it does not independently prove that
 function. Runtime direct tests check the resulting declaration type and order.
 Generated artifact comparisons and compilation check the downstream consumers.
-See [the active plan](../../../roadmap/error-declaration-admission.md).

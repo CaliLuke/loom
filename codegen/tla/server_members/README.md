@@ -52,9 +52,7 @@ WebSocket endpoint-role selection; compilation alone does not prove correct
 wiring. `ServerHandler` and `ServerEndpoint` are the shared role records. HTTP
 AST checks compare fixed registrations to emitted declarations; JSON-RPC checks
 derive adversarial names from actual receivers. File-only and import-alias
-reanalysis controls cover analysis outside the finite model. See the complete
-owner/consumer table and bounded
-acceptance in [the plan](../../../roadmap/http-server-member-identity.md).
+reanalysis controls cover analysis outside the finite model.
 
 This is a finite namespace exploration, not full Go refinement or protocol
 verification. It excludes clients, gRPC, package symbols, stream wrapper type

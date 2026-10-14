@@ -1,8 +1,7 @@
 # Effective HTTP wire bindings
 
 This model explores admission of two operations that may address one physical
-HTTP slot. It informed the shared `expr` binding plan in `expr/http_wire_bindings.go`; its implementation and evidence
-are tracked in `roadmap/effective-wire-binding-readiness.md`.
+HTTP slot. It informed the shared binding plan in `expr/http_wire_bindings.go`.
 
 A binding retains its slot, ordered source tuple, codec, explicit/implicit origin
 and membership in a common AND requirement. A Basic tuple has username and

@@ -37,8 +37,8 @@ emitted fields and receiver methods across generated client files, including
 operation groups. Generated module checks pair these with Go compilation and
 include the transport CLI. Mounted checks exercise endpoint,
 Doer, builder, stream, group and CLI bindings; `TestClientMembersRetainFileImportIdentity` establishes
-that names are independent of imports. The [plan](../../../roadmap/http-client-member-identity.md)
-records the bounded acceptance and excludes server/gRPC/package namespaces.
+that names are independent of imports. Server, gRPC and package namespaces are
+outside this model.
 
 The `streams` specimen also represents #883's service Client collision:
 canonical `Watch` and authored `WatchStream` precede the synthetic stream role.

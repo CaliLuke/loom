@@ -54,7 +54,7 @@ numbering, result-view selection, and error routing remain their owners' contrac
   final JSON uniquely identifies that branch. Thus an encoded object may be
   rejected by the corresponding decoder.
 - `expr/value_projection_decode.go` already describes array decoding and
-  exact-one untagged matching. The [value-contract design](../../roadmap/value-contract-design.md)
+  exact-one untagged matching. The [value-contract design](../valuecontract/DESIGN.md)
   requires emitted wire to match the retained identity uniquely. Its generation
   plans distinguish schema acceptance from actual decoder acceptance.
 - OpenAPI IR has an object-only example matcher in

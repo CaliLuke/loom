@@ -1,9 +1,11 @@
 # Value selection, phase and cache ownership
 
-This is the bounded pipeline model for [#568](https://github.com/CaliLuke/loom/issues/568),
-part of milestone 1 in [the value contract plan](../../../roadmap/value-contract-plan.md).
-It checks the proposed ownership and ordering rules before migrating production
-consumers. It is not a proof of the Go implementation or of arbitrary values.
+This bounded pipeline model checks the ownership and ordering rules in the
+[value contract](../../../internal/valuecontract/DESIGN.md). The inspected-source
+table below is historical evidence; current production correspondence is recorded
+in the [Lean ledger](../../lean/value_projection/correspondence.md), and remaining
+consumer adoption is tracked in the [live inventory](../../../roadmap/value-contract-inventory.md).
+It is not a proof of the Go implementation or of arbitrary values.
 The separate Lean work owns the unbounded structural semantic obligations.
 
 ## Run
@@ -127,7 +129,7 @@ run explores its complete bounded graph and checks termination.
 | `always-omit.cfg` | `TerminalOutcome` fails | 697 / 361 | 6 | Select, resolve, project, validate, finish a representable value with omitted instead of emitted. |
 | `checked.cfg` | All invariants and termination pass | 92,304 / 47,712 | 11 | All ten scenarios and their permitted branch/presence choices, roles and processing orders. |
 
-## Correspondence to inspected production seams
+## Historical correspondence to inspected production seams
 
 The code mapping was inspected at `ff7873dfff1ad3803c421e1e64978906ee1139ce`.
 Model variable names are architectural concepts, not claims that equivalent

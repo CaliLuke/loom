@@ -168,3 +168,41 @@ original `f5b786b39675e2b5c1466f04f3301b7b337779b6` baseline, original failure
 expectations, final candidate outcomes and the complete difference list. The
 harness never silently switches expectations. Runtime/schema contradictions
 return to the design; a broad failure substring is not an acceptable waiver.
+
+## Historical compiler repairs
+
+The three compiler cases formerly tracked as value-pipeline R6 are complete.
+These regression anchors preserve their evidence without making them active
+roadmap work or expanding the semantic proof domain.
+
+The collision-free Any-key HTTP companion was subsequently reproduced at
+`5c4702ac`: declarations used `map[any]string`, but a conversion still allocated
+`map[loom.JSONValue]string`. The shared transformer now uses the existing map-key
+renderer for its allocation. `TestTransformMapRendersTargetKeyAndValueTypes`
+checks Any keys separately from Any values; `TestGeneratedAnyMapKeyBuilds`
+generates, builds and vets the retained HTTP design. This closes that compiler
+item without changing gRPC key restrictions or making a general codec claim.
+
+The nullable-Any gRPC root payload was reconstructed from the recorded contract:
+`Payload(Any)` with `Nullable()` and `Example(Null())`. Generation including protoc
+at `5c4702ac` still produced invalid nullable-wrapper assignments and nil checks.
+The existing object-field repair did not cover this root scalar path. The root
+transform now reuses the same Any-presence conversion as object fields.
+`TestProtoBufTransformNullableAnyRootPreservesPresence` checks the generated
+expressions, and `TestGeneratedNullableAnyRootPayloadRoundTrip` builds and vets
+the module, checks absent/null/value converter round-trips, and verifies malformed
+JSON error propagation. Ordinary Any field and union controls remain unchanged.
+The explicit-null CLI example omission policy is unchanged by this compiler fix.
+
+The named Bytes response case was subsequently reproduced at `d781f879` and
+repaired in `applyUserResponseBodyTypeData`. Validator arguments now follow the
+allocated type reference and body value reference; primitive-root validation
+uses the same representation. `TestHTTPDirectBuilderSeams` checks the analysis
+contract, and `TestBytesRepresentationGeneratedHTTP` regenerates the retained
+`BytesRepresentationDSL`, compiles and vets its module, and checks valid and
+invalid responses through the generated client. This closes the named Bytes
+response item independently of the Any cases.
+
+These checks establish the recorded generated-Go cases, not universal map-key
+codec support, protobuf conversion correctness, or completion of the remaining
+value-pipeline follow-ups.

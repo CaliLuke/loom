@@ -108,9 +108,7 @@ and admission-cleanup. Expected negative runs are invariant (exit 12) or tempora
 | `retained-callback` | 12 | 10 / 8 |
 | `admission-cleanup` | 0 | 11 / 8 |
 
-The implementation plan and finite acceptance matrix are in
-[the active roadmap](../../../roadmap/grpc-message-context.md). Rerun affected
-models if implementation changes arbitration, worker ownership or lifetime
+Rerun affected models if implementation changes arbitration, worker ownership or lifetime
 assumptions. Keep raw checker states and logs outside the repository.
 
 ## Implemented correspondence
@@ -189,5 +187,4 @@ classified admission. Live
 pre-canceled/no-I/O and custom native-result controls preserve existing admission
 behavior; send-overlap and original-parent cancellation controls test the other
 runtime boundaries. `TestRecursiveValidationGenerated` is the unchanged mounted
-regression. See
-[the half-close plan](../../../roadmap/grpc-terminal-half-close.md).
+regression.

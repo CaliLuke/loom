@@ -1,8 +1,12 @@
 # Value meaning and transport projection
 
-Status: accepted contract; implementation is in progress under the linked execution plan.
-The independently reviewed #575 clarification settles partial-union selection and
-the separately scoped #574 byte-schema correction before candidate implementation.
+This is the accepted framework contract for generation-time values and their
+transport projections. Public authoring rules live in the
+[DSL reference](../../docs/dsl-reference.md). The
+[live consumer inventory](../../roadmap/value-contract-inventory.md) records
+remaining adoption and evidence gaps; this contract does not claim they are all
+implemented. The [proof correspondence ledger](../../expr/lean/value_projection/correspondence.md)
+distinguishes established properties from tested and excluded boundaries.
 
 ## Summary
 
@@ -15,41 +19,9 @@ not invent values, select another branch, or silently repair a contract.
 This repairs the value pipeline. It does not replace Loom's DSL, service types,
 transport runtime, or supported JSON contracts.
 
-## Problem and evidence
-
-The reference revision is `f5b786b39675e2b5c1466f04f3301b7b337779b6`.
-The fork point is Goa `aa13905210321b63421d929afda6e8acdb4864b6` (March 17).
-Upstream was inspected at `e82f6c1132d09c4777a029d669866396b7d3c9b2`.
-
-- At the fork point, `expr.Union.Example` discarded the selected branch and
-  returned only its payload. Goa later preserved canonical envelopes in
-  [86484276](https://github.com/goadesign/goa/commit/86484276). Loom's
-  `expr/example_canonicalization.go` instead inferred the branch afterward;
-  `http/codegen/openapi/internal/ir/example_generation.go` now retains selections
-  through a private copied graph for OpenAPI only.
-- Loom introduced byte-to-text conversion in the OpenAPI IR in
-  [534127ef](https://github.com/CaliLuke/loom/commit/534127ef). The fork-point
-  generator encoded actual byte slices correctly. Recent repairs correct that
-  behavior but leave different paths for CLI, schema, enum, and default values.
-- HTTP CLI examples authored as text for `Bytes` fail their advertised decoder
-  at the fork point and in current Loom ([#565](https://github.com/CaliLuke/loom/issues/565)).
-  Current Goa also fails the authored-text case, with a generation panic.
-- `grpc/codegen/client_cli_example.go` can synthesize a replacement when a type
-  contains a union. [#434](https://github.com/CaliLuke/loom/issues/434) tracks
-  authored-value loss. Comparative probes also found authored-value loss without
-  a union; do not attribute all gRPC example problems to that helper alone.
-- Untagged unions were added for [#302](https://github.com/CaliLuke/loom/issues/302)
-  to retain existing bare-object response bodies. The initial flat-object scope
-  expanded to named nested objects and arrays in `7d3e0bcd`. Removing their
-  encoding would break those API contracts.
-
-These are selected reproductions and source-history findings, not an audit of
-all Goa or Loom behavior. Upstream supplies useful design precedents, not a
-blanket correctness oracle.
-
 ## Scope
 
-V1 covers generation-time example selection, scalar coercion, field and map-key
+This contract covers generation-time example selection, scalar coercion, field and map-key
 identity, union selection, enum/default value projection, and their consumers:
 inline JSON Schema in `expr`, OpenAPI 3.1/3.2, HTTP and JSON-RPC JSON bodies and
 CLI examples/defaults, shared collection-enum validation, and protobuf CLI JSON.
@@ -57,30 +29,30 @@ Payload, result, designed error, and streaming-message values use the same rules
 where the owning transport already exposes those surfaces. Headers, parameters,
 cookies, forms, and raw byte flags keep their current transport codecs.
 
-V1 does not add union shapes, change service signatures or protocol runtime,
-rewrite validation generation, change nullability, migrate to Goa, or remove
-supported custom codecs. Mixed array/object unions (#350) and general naming or
-streaming fixes remain separate work. No new DSL configuration is introduced.
+This contract does not define service signatures, protocol lifetimes or new
+authoring syntax. Runtime untagged-union admission is documented by its
+[owning matcher](../unionjson/README.md); general naming and streaming behavior
+have separate owners. Supported custom codec boundaries remain explicit.
 
-## Current ownership
+## Ownership responsibilities
 
-| Owner | Current decision | Required disposition |
-| --- | --- | --- |
-| `expr/example.go`, `expr/types.go`, `expr/random.go` | Authored precedence, synthesis, recursion/memo behavior | Resolve provenance and selections at this source |
-| `expr/example_canonicalization.go` | Field naming, map keys, branch inference | One semantic resolver; preserve public compatibility adapters |
-| `internal/enumvalue/value.go` | Coercions and another union traversal | Move semantic decisions into the resolver; remove duplicate selection |
-| `expr/json_schema_inline.go` | Inline schema examples/defaults/enums | Consume the same resolved values and JSON projection |
-| OpenAPI IR `document*.go`, `example*.go`, `analyzer.go` | Visibility, coercion, completeness, branch matching | Keep visibility and final schema validation; remove semantic reselection |
-| `http/codegen/service_data_payload.go`, `codegen/cli` | CLI body examples/defaults and serialization | Consume JSON-body projection; retain plain-flag codecs |
-| `codegen/service/service_data*`, `grpc/codegen/service_data_analysis.go` | Transport copies and example provenance | Carry selected authored origin across copies |
-| `grpc/codegen/client_cli_example.go` | Synthesis and protobuf mapping | Keep protobuf mapping only; consume shared semantic selections |
-| `codegen/validation_render.go`, `internal/jsonkey` | Enum comparison and map-key spelling | Share typed scalar rules and key spelling; preserve runtime acceptance |
+| Owner | Responsibility |
+| --- | --- |
+| `expr` source selection, resolution and projection | Retain authored provenance, effective constraints, source/member/branch identity and explicit outcomes |
+| HTTP representation analysis | Bind service occurrences to effective body/location plans |
+| OpenAPI IR | Apply visibility, representation-aware schema identity and emitted-schema validation |
+| HTTP/JSON-RPC CLI | Consume retained JSON body values; keep location codecs separate |
+| gRPC codegen | Project retained semantic values through allocated protobuf fields and wrappers |
+| Shared enum validation and key codecs | Consume declared typed values while retaining runtime admission and key spelling |
 
-## Proposed design
+The [consumer inventory](../../roadmap/value-contract-inventory.md) names verified
+remaining deviations from these responsibilities.
+
+## Semantic architecture
 
 ### Semantic values
 
-The resolver belongs in `expr`, which already owns evaluated type semantics and
+The resolver belongs in `expr`, which owns evaluated type semantics and
 example selection. Its implementation remains package-private. A minimal,
 documented semantic query API exposes an opaque resolved value and outcome to
 generators; it does not export traversal helpers merely to share implementation.
@@ -122,7 +94,7 @@ against the effective target occurrence and retain a distinct source/cache key;
 other transports continue using their selected service source. Inherited copies
 without an explicit override reuse the service resolution and projection plan.
 
-The proposed resolved graph has private storage and read-only access for:
+The resolved graph has private storage and read-only access for:
 
 - presence: absent, explicit null, or present;
 - scalar kind and value: bytes remain bytes, numbers retain declared precision;
@@ -145,8 +117,9 @@ it preserves available fields as today. On ambiguous, invalid, or unsupported
 values it returns the same raw/pass-through shape as the legacy implementation;
 its `any` signature gains neither errors nor panic behavior. Suppression is not
 owned by that API. Built-in consumers cannot use this compatibility fallback to
-avoid the new outcomes. Golden adapter tests pin these cases separately. The new semantic
-query is the only built-in entry for type-directed value resolution.
+avoid the new outcomes. Golden adapter tests pin these cases separately. The semantic
+query is the required built-in entry for type-directed value resolution; remaining
+consumer bypasses are tracked in the live inventory.
 
 ### One-way projections
 
@@ -380,9 +353,12 @@ current-to-base order. Exact kind-and-value duplicates retain the current
 declaration provenance and execute once; no regex or format subsumption is
 inferred. Thus base `^a` plus derived `b$` admits `ab` and rejects `xb` and `ax`.
 Required object fields accumulate after resolving each authored name to the
-finalized member and wire identity. An empty accepted set, including
-contradictory inherited bounds or incompatible formats, is not by itself a new
-design error.
+finalized member and wire identity. Numeric endpoint contradictions and negative
+length declarations are rejected before generation, whether local, inherited or
+combined by Extend. Equal inclusive endpoints are valid; equal endpoints with
+either side exclusive are invalid. Admission does not decide whether a
+mathematically nonempty interval contains a machine-representable value or
+whether combined patterns and formats have a solution.
 `Reference` keeps its documented object field-template copying semantics; a
 restricted named type retains its own constraints.
 
@@ -492,15 +468,11 @@ the at most three branches with anyOf (or equivalent). This keeps the grammar
 constant-size rather than expanding a repetition count proportional to U.
 Use checked integer arithmetic; a schema bound that cannot be represented safely
 must cause a path-qualified target-generation error, never wrap or silently relax.
-A negative lower bound is vacuous and projects as zero. A negative upper bound
-accepts no decoded byte string and projects as a standard unsatisfiable schema
-(e.g. `not: {}`), never a negative JSON Schema length keyword. Preserve existing
-DSL rejection of explicitly inconsistent MinLength > MaxLength declarations. If
-an effective/inherited range reaches projection with no possible nonnegative
-byte count, project an unsatisfiable constraint. Do not add new declaration
-errors for currently accepted negative bounds and do not emit an empty anyOf.
-This fixes the semantic disposition; the exact equivalent schema spelling can
-follow the existing representations.
+The arithmetic model can describe vacuous or unsatisfiable length domains, but
+public DSL admission rejects negative length declarations and inconsistent
+MinLength > MaxLength contracts before projection. Never emit a negative JSON
+Schema length keyword. For an internal projected domain with no possible byte
+count, use an unsatisfiable schema constraint rather than an empty anyOf.
 
 ECMA-262 `$` can match before a final line terminator. Require that the entire
 string contain only the base64 alphabet and padding, e.g.
@@ -536,12 +508,10 @@ JSON escaping is removed before this string constraint and decoder operate.
 #### Representation and other constraints
 
 For JSON-carried bytes, type:string plus contentEncoding:base64 is the appropriate
-3.1/3.2 metadata. `format:binary` currently appears on the generated JSON field,
-but it does not mean base64 and does not change string-length semantics.
+3.1/3.2 metadata. `format:binary` does not mean base64 and does not change string-length semantics.
 contentEncoding is an annotation; it cannot by itself enforce decoded lengths.
-The reviewed #575 decision authorizes JSON-position metadata correction together
-with constraint projection in the separate #574 fix. Enumerate the exact intended
-output differences. Do not mechanically rewrite every Bytes format in the analyzer:
+JSON-position metadata and length projection share this representation decision.
+Do not mechanically rewrite every Bytes format in the analyzer:
 raw HTTP binary bodies, multipart parts, non-JSON parameters, documentation-only
 media schemas, and custom codecs need their own actual representation context.
 Preserve those unrelated targets' dereferenced schema constraints, metadata and
@@ -568,13 +538,9 @@ built-in codec theorem unless explicit correspondence proves it compatible. A
 new metadata-conflict diagnostic would need a separately authorized disposition.
 
 
-This is the explicit schema correction for [#574](https://github.com/CaliLuke/loom/issues/574).
-The generated server accepts the two-byte `hi` value while the old schema rejects
-its four-character base64 string; the reverse mismatch occurs for a one-byte
-value under MinLength(2). Candidate arithmetic and projection may be modeled
-before production changes. Codec correspondence, emitted dialect validity and
-actual generated-server behavior remain executable verification obligations,
-not assumed consequences of a Lean theorem.
+Codec correspondence, emitted dialect validity and actual generated-server
+behavior remain executable verification obligations, not consequences of a
+Lean theorem alone.
 
 The rule follows [JSON Schema 2020-12 validation](https://json-schema.org/draft/2020-12/json-schema-validation)
 and [OpenAPI binary-data representation](https://spec.openapis.org/oas/v3.2.0.html#working-with-binary-data):
@@ -606,7 +572,7 @@ components where graph identity or recursion requires them. This is one
 representation-aware analyzer consuming the shared target plan; no renderer pass
 or second legacy normalization pipeline may repair its output afterward.
 
-This is an explicit compatibility exception for #574: non-JSON operation references
+For a representation conflict, non-JSON operation references
 and derived component paths may change in mixed-use graphs, and downstream SDK
 type names can consequently change. Their dereferenced schema constraints,
 metadata, codec behavior and Loom service/wire contracts remain equivalent.
@@ -639,24 +605,24 @@ never a reason to rewrite an authored String or broaden an enum.
 | --- | --- | --- | --- |
 | No source example | Absent source | Synthesis permitted unless suppressed | No synthesis |
 | Missing object key | Absent field | Remains absent; target-required field makes that target incomplete | Existing default application is not an example operation |
-| Authored explicit null (`ExampleExpr.ExplicitNull`) | Null, with source presence retained | Emit null only when target admits null; otherwise invalid | Preserve accepted nullable null; reject non-nullable declaration |
+| Authored explicit null (`ExampleExpr.ExplicitNull`) | Null, with source presence retained | Emit null only when target admits null; otherwise invalid | Enums follow declared nullability; defaults must be concrete and never replace explicit null |
 | Typed nil array/map used as an example | Present nil-container marker | Omit as incomplete, preserving current OpenAPI omission; CLI also omits an unusable nil-container hint | Non-null collections use existing empty `[]`/`{}` JSON coercion; nullable null semantics remain as declared |
 | Typed nil object pointer | Null-like value | Nullable target may emit null; non-nullable target is invalid | Follow declared nullability; never turn into an empty object |
-| Empty concrete array/map | Present empty collection | Emit collection unless generated field omission removes it | Preserve existing collection defaults and enums |
-| Declared Bytes, empty string/slice or nil byte slice | Present empty bytes | JSON string `""`; a field with `omitempty` may omit it | Existing byte equality treats these as equal |
+| Empty concrete array/map | Present empty collection | Framework-owned tags retain the supplied collection; authored full tags keep their omission contract | Preserve supplied collections; apply defaults only to absence |
+| Declared Bytes, empty string/slice or nil byte slice supplied as a semantic literal | Present empty bytes | JSON string `""`; runtime field absence remains a separate physical-storage decision | Existing byte equality treats these literals as equal |
 | Any containing `jsontext.Value("null")` | Present codec-owned JSON null | Preserve null when the target permits it | Preserve JSON null |
 | Any containing typed nil bytes or a custom value | Opaque codec input | Materialize using its actual JSON codec, e.g. JSON v2 nil bytes become `""` | Same codec semantics; no declared-Bytes coercion applied to Any |
 
-These rules intentionally permit advertised-example changes for typed nil
-containers/pointers when old CLI formatting disagrees with the schema. They do
-not change runtime codecs. Target round-trip equivalence is defined after the
-existing generated encoder's omission/default rules: absent and empty may be
-equivalent only for a field whose existing `omitempty` behavior collapses them;
-absent and null remain distinct for explicit presence wrappers. Required empty
-collections that cannot survive their existing wire contract are not advertised
-as valid examples. Protobuf equivalence uses service conversion and protobuf
-presence/default rules rather than JSON field-presence identity. Each such
-collapse must be represented in the proof matrix, never a global equality rule.
+Semantic literals and runtime field storage have separate presence rules.
+Framework-owned JSON tags omit absent optional fields and preserve nonnil empty
+strings, bytes, arrays and maps. Native scalar zeros are supplied values; defaults
+fill only absence. Required empty collections remain valid unless a length
+constraint rejects them. Full authored tags and custom codecs retain their
+explicit omission contracts; an authored `omitempty` may collapse an empty value
+with absence. Nullable wrappers keep absent, null and value distinct. Protobuf
+equivalence follows the actual service conversion and message presence rules.
+Each target-specific collapse must appear in the proof matrix; there is no global
+absence/null/empty equality. See the [DSL presence and tag contract](../../docs/dsl-reference.md).
 
 Opaque custom values are borrowed compatibility inputs. The framework must not
 mutate them, but cannot promise that a user marshaler is pure or deterministic.
@@ -701,21 +667,15 @@ them is deferred.
 | Inline JSON Schema and shared enum validation | JSON schema projector and typed enum comparison | Same coercion/equality as semantic resolution | Invalid contract declaration fails | Runtime validation and schema enum values agree for supported contracts |
 | Custom example projector / custom codec | Existing extension boundary | Preserve raw callback input and codec-owned representation | Existing custom failure behavior | Dedicated probes preserve callback calls, inputs and returned values |
 
-## Compatibility and alternatives
+## Representation and component reuse
 
-Unaffected generated Go, protobuf schemas, names, and protocol bytes must remain
-byte-for-byte identical. Enumerate changes to examples, help diagnostics, and
-new path-qualified rejection of invalid values. The accepted #572 decision
-permits automatic request-body, response, parameter and header components to
-become inline definitions when retained examples make their complete contents
-different. All other OpenAPI differences outside example/default/enum values
-require a separate design decision, not a golden update. The byte grammar,
-length constraints and JSON metadata above are the
-explicit #575 decision for #574; other schema differences remain outside that
-authorization. A runtime/schema disagreement discovered by the proof matrix is a
-Design Blocker: do not silently broaden acceptance or normalize it away.
+A value projection cannot silently broaden runtime admission or normalize away a
+schema disagreement. Preserve unrelated Go/protobuf identities and protocol
+bytes when changing example, enum or default handling. Automatic component reuse
+and representation variants follow the explicit rules below; authored public
+names remain protected.
 
-### Accepted #572 component reuse decision
+### Automatic component reuse
 
 Retain each occurrence's selected examples. Share a complete automatic
 request-body, response, parameter or header definition only when its complete
@@ -729,20 +689,11 @@ This migration preserves explicitly authored component names, schema and Go
 names, operation IDs, validation constraints and runtime contracts. It does not
 introduce stable per-operation component naming or change the reuse algorithm.
 
-Acceptance requires exact output comparison and classification of every changed
-reference, alongside example validation and independent-process determinism.
-Equivalent OpenAPI structures do not establish generated-client compatibility:
-compare AutoK and drum-meoh's generated clients with the parent revision using
-the same project inputs and tool versions. Any client API or runtime difference
-requires explicit assessment before delivery; it is not automatically accepted
-as an example-only change.
-
-Adopt the upstream branch-retention principle selectively. Copying current Goa
-wholesale would discard Loom-specific contracts and still retain observed
-upstream failures. Removing untagged support would break existing imported API
-shapes. Adding another transport-specific normalization helper perpetuates the
-root cause. A single universal wire format would also be wrong: JSON and
-protobuf have different representations of the same semantic value.
+Representation changes require exact output comparison and classification of
+changed references, independent-process determinism and actual consumer checks.
+Equivalent OpenAPI structures do not by themselves establish generated-client
+compatibility. JSON and protobuf remain different representations of the same
+semantic value; neither may reselect its source meaning.
 
 ## Proof obligations
 
@@ -781,7 +732,7 @@ formatting, external codecs, opaque Any/custom values, runtime libraries and the
 Go compiler are outside the core theorem. Each boundary must be recorded rather
 than hidden in a premise that assumes the conclusion.
 
-V1 keeps the production resolver in Go and provides an executable Lean reference
+The production resolver remains in Go and provides an executable Lean reference
 for differential checking. A correspondence record maps each modeled constructor,
 operation and outcome to its Go owner and executable contract tests. Tests compare
 Go and Lean on the same independently encoded inputs and target plans, then check
@@ -791,7 +742,7 @@ The input adapter must preserve duplicate map entries, source identity and
 absence/null distinctions so it cannot erase the bug before comparison.
 
 This is a **proved semantic reference with tested implementation correspondence**.
-V1 does not contain a machine-checked refinement proof of the Go implementation
+This architecture does not contain a machine-checked refinement proof of the Go implementation
 or a verified Go renderer. Neither differential testing nor a passing build is
 described as such a proof. Certifying every generated Go program for every
 accepted design would require that additional verified generation pipeline and

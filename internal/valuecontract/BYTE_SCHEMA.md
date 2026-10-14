@@ -4,7 +4,7 @@ This record belongs to #574. The repository gates, registered 72-probe compariso
 and final-source 499-case catalog comparison passed. The final production capture
 is `6d53d4d8`.
 The accepted contract is in
-[the value-contract design](../../roadmap/value-contract-design.md).
+[the value-contract design](DESIGN.md).
 
 ## Ownership
 

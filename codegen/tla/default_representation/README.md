@@ -84,11 +84,6 @@ uses these owners rather than copying model labels.
   correctness. This native-target supplement does not change those proofs or
   claim to establish their Go extraction.
 
-The implementation plan under `roadmap/object-default-representation-readiness.md`
-records the bounded base/candidate output comparison, independent-process byte
-checks, compiled/race-tested transport modules, unaffected fixture checks and
-exact acceptance commands. It also lists intended generated changes and limits.
-
 ## Independent no-default probes
 
 `anonymous_nested_probe.go.txt` preserves [#803](https://github.com/CaliLuke/loom/issues/803):

@@ -1,7 +1,6 @@
 # JSON-RPC WebSocket effective admission
 
-Admission model for #728. The shared binding/request-source owner is implemented;
-acceptance lives in `roadmap/jsonrpc-websocket-security-readiness.md`.
+Admission model for #728 and its implemented shared binding/request-source owner.
 
 Before the correction, validation read only authored transport maps at service validation;
 endpoint validation resolved implicit bearer/session bindings later. Basic
@@ -46,7 +45,10 @@ role against `jsonrpcRequestPayload`; ordinary mapping policy remains in
 when the final payload has no credential tag. `expr/jsonrpc_ws_security_test.go`
 exercises admission through complete DSL. The probe sources here preserve actual
 generated-module and mounted-WebSocket evidence, including a silently unprotected
-body credential design. The plan records model counts and bounded implementation checks. Named strings,
+body credential design. Model checks found the expected failures in the raw-mapping,
+resolved-mappings, location-only and blanket-security variants after 115, 118,
+167 and 124 states, respectively; the checked variant passed all three invariants
+in 168 states. Named strings,
 renamed/retagged or invalid-type credentials, merged roles and partial AND/OR
 loss are covered by the Go admission regressions. Selector identity is checked
 before and after repeated normalization/finalization.
