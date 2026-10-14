@@ -29,7 +29,7 @@ func TestSelectedResponseProjectionReadiness(t *testing.T) {
 				Result(func() {
 					Attribute("value", String)
 					Attribute("internal", String)
-					Required("value", "internal")
+					Required("value")
 				})
 				JSONRPC(func() {
 					Response(StatusOK, func() {
@@ -47,7 +47,7 @@ func TestSelectedResponseProjectionReadiness(t *testing.T) {
 					Result(func() {
 						Attribute("value", tc.datatype)
 						Attribute("internal", String)
-						Required("value", "internal")
+						Required("value")
 						if tc.name == "meta" {
 							Attribute("header", String)
 							Attribute("cookie", String)
@@ -124,7 +124,7 @@ func TestSelectedResponseWire(t *testing.T) {
 			endpoints := &fields.Endpoints{
 				Call: func(context.Context, any) (any, error) {
 					called = true
-					return &fields.CallResult{Value: tc.value, Internal: "private-sentinel"}, nil
+					return &fields.CallResult{Value: tc.value, Internal: new("private-sentinel")}, nil
 				},
 				Whole: func(context.Context, any) (any, error) {
 					called = true
@@ -156,7 +156,7 @@ func TestSelectedResponseWire(t *testing.T) {
 
 func TestSelectedResponseEncoderControl(t *testing.T) {
 	w := httptest.NewRecorder()
-	result := &fields.CallResult{Value: "hello", Internal: "private-sentinel"}
+	result := &fields.CallResult{Value: "hello", Internal: new("private-sentinel")}
 	if err := server.EncodeCallResponse(loomhttp.ResponseEncoder)(context.Background(), w, result); err != nil {
 		t.Fatal(err)
 	}
@@ -168,7 +168,7 @@ func TestSelectedResponseEncoderControl(t *testing.T) {
 func TestSelectedResponseClient(t *testing.T) {
 	mux := loomhttp.NewMuxer()
 	endpoints := &fields.Endpoints{Call: func(context.Context, any) (any, error) {
-		return &fields.CallResult{Value: "hello", Internal: "private-sentinel"}, nil
+		return &fields.CallResult{Value: "hello", Internal: new("private-sentinel")}, nil
 	}}
 	server.New(endpoints, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil).Mount(mux)
 	doer := doerFunc(func(r *http.Request) (*http.Response, error) {
@@ -206,19 +206,19 @@ func TestProjectionFramingAndCodecBoundary(t *testing.T) {
 			endpoints := &fields.Endpoints{
 				Call: func(context.Context, any) (any, error) {
 					invoked++
-					return &fields.CallResult{Value: "hello", Internal: "private-sentinel"}, nil
+					return &fields.CallResult{Value: "hello", Internal: new("private-sentinel")}, nil
 				},
 				Meta: func(context.Context, any) (any, error) {
 					invoked++
-					return &fields.MetaResult{Value: "hello", Internal: "private-sentinel", Header: "public-tag", Cookie: "public-cookie"}, nil
+					return &fields.MetaResult{Value: "hello", Internal: new("private-sentinel"), Header: "public-tag", Cookie: "public-cookie"}, nil
 				},
 				List: func(context.Context, any) (any, error) {
 					invoked++
-					return &fields.ListResult{Value: []string{}, Internal: "private-sentinel"}, nil
+					return &fields.ListResult{Value: []string{}, Internal: new("private-sentinel")}, nil
 				},
 				Record: func(context.Context, any) (any, error) {
 					invoked++
-					return &fields.RecordResult{Value: &fields.SelectedRecord{Text: "visible"}, Internal: "private-sentinel"}, nil
+					return &fields.RecordResult{Value: &fields.SelectedRecord{Text: "visible"}, Internal: new("private-sentinel")}, nil
 				},
 			}
 			encoder := func(ctx context.Context, w http.ResponseWriter) loomhttp.Encoder {
@@ -326,7 +326,7 @@ func TestSelectedStreamProjectionInventory(t *testing.T) {
 						Result(func() {
 							Attribute("value", String)
 							Attribute("internal", String)
-							Required("value", "internal")
+							Required("value")
 						})
 						JSONRPC(func() {
 							if transport == "sse" {
@@ -380,10 +380,10 @@ import (
 type implementation struct{}
 
 func (implementation) Watch(_ context.Context, value string) (*events.WatchResult, error) {
-	return &events.WatchResult{Value: value, Internal: "private-sentinel"}, nil
+	return &events.WatchResult{Value: value, Internal: new("private-sentinel")}, nil
 }
 func (implementation) HandleStream(ctx context.Context, stream events.Stream) error {
-	if err := stream.SendWatchNotification(ctx, &events.WatchResult{Value: "", Internal: "private-sentinel"}); err != nil {
+	if err := stream.SendWatchNotification(ctx, &events.WatchResult{Value: "", Internal: new("private-sentinel")}); err != nil {
 		return err
 	}
 	for {
