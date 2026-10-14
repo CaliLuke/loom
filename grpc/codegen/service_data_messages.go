@@ -105,6 +105,9 @@ func collectUserTypeMessages(
 	name := protoStructName(at, dt)
 	protoName := protoBufMessageName(at, sd.Scope)
 	goName := protoBufGoTypeName(at, sd.Scope)
+	if role, exists := sd.protoServiceSymbols[goName]; exists {
+		panic(fmt.Errorf("protocol buffer message %q generates Go type %q, which conflicts with %s of service %q", protoName, goName, role, sd.Service.Name))
+	}
 	shape := protoAttributeShape(att)
 	if previous, ok := seen[goName]; ok {
 		if previous.protoName != protoName {

@@ -1051,6 +1051,14 @@ field to metadata, headers, or trailers, conflicts with an unmodified use under
 the same message name and fails generation. Give different contracts distinct named types and explicit names. Distinct protobuf names must also produce distinct Go type names:
 `node_tree` and `NodeTree` cannot coexist in one service.
 
+Inferred message names also avoid declarations emitted for the protobuf service.
+For example, a `BillingClient` domain type beside service `billing` receives a
+distinct protobuf message name, while the service and RPC names stay unchanged.
+An explicit `struct:name:proto` that collides with a generated service interface,
+constructor, registration function, descriptor or stream alias fails generation
+with the conflicting identity. Regenerate clients and servers and update handwritten
+protobuf references or stored type URLs when an inferred message name changes.
+
 For example, a `Menu` named `MenuProto` used both as a payload and as a nested
 field produces one `MenuProto` declaration. If a method removes `Menu.name` from
 that message by mapping it to metadata, the reduced shape cannot also be called

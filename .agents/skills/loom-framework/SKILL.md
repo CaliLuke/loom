@@ -75,6 +75,14 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- `grpc/codegen.reserveProtoServiceSymbols` records the pinned protoc service
+  generator's actual package declarations before message allocation. The existing
+  protobuf NameScope allocates inferred names; message collection checks explicit
+  names against the same inventory. Keep conditional stream aliases and method
+  constants aligned with actual generated declaration tests. Preserve canonical
+  service/RPC identities and import-independent message references; do not fix
+  collisions separately in converters, templates or transport import aliases.
+
 - JSON-RPC typed-error selection derives the effective `ErrorName` selector in
   expr and carries it through transport IR into each alternative. One generated
   method decoder serves unary, SSE and WebSocket adapters. Runtime selection

@@ -52,6 +52,14 @@ collisions, Go-name collisions, generated compilation and payload round trips.
 The model does not claim every rejected explicit-name design can be allocated
 without changing the author's requested protobuf name.
 
+For #736, `reserveProtoServiceSymbols` adds the fixed service declarations to
+the existing protobuf scope before message naming. This uses the same reserved
+occupancy obligation; the model is unchanged and does not prove the completeness
+of the protoc symbol inventory. `TestProtoServiceSymbolsGenerated` compares that
+inventory with actual pinned protoc Go declarations for unary and streaming
+services. Direct tests check inferred allocation and contextual explicit-name
+rejection, while generated compilation and conversion check reference agreement.
+
 From the repository root:
 
 ```sh

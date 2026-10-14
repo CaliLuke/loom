@@ -75,6 +75,9 @@ type (
 		ClientInterfaceInit string
 		// Scope is the name scope for protocol buffers
 		Scope *codegen.NameScope
+		// protoServiceSymbols records fixed Go declarations emitted by protoc's
+		// service generator, before protobuf message identities are allocated.
+		protoServiceSymbols map[string]string
 
 		// transformHelpers is the list of transform functions required by the
 		// constructors.

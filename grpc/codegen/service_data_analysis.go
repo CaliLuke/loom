@@ -49,6 +49,7 @@ func (d *ServicesData) analyze(gs *expr.GRPCServiceExpr) (sd *ServiceData) {
 		ClientInterfaceInit: fmt.Sprintf("%s.New%sClient", pkg, goName),
 		Scope:               scope,
 	}
+	reserveProtoServiceSymbols(sd, irService)
 	sd.designMessages = designMessageShapes(irService.Endpoints)
 	collector := newMessageCollector(sd)
 	for _, endpointIR := range irService.Endpoints {

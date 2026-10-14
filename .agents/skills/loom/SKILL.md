@@ -217,6 +217,11 @@ and `errors.As`, including when the message contains an example.
 - Native gRPC handler fields avoid RPC method and embedding names. Regenerate
   after upgrading and update any handwritten handler-field references from the
   generated declarations. Service methods and protobuf wire names stay unchanged.
+- Inferred protobuf message names avoid generated service declarations such as
+  `BillingClient`. Explicit `struct:name:proto` collisions fail generation rather
+  than changing the requested name. Regenerate clients and servers and update
+  direct protobuf references or stored type URLs for renamed messages; service
+  and RPC identities remain unchanged.
 - HTTP/JSON-RPC conversion constructors use distinct names when source types or
   selected fields differ, even if the target body type is shared. Regenerate
   clients and servers and update handwritten constructor calls; read generated
