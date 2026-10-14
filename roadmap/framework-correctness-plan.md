@@ -4,14 +4,21 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 
 ## Current state
 
-- **221 of 227 tracked reports are delivered, pushed and confirmed closed.**
+- **223 of 228 tracked reports are delivered, pushed and confirmed closed.**
   The [inventory](framework-correctness-inventory.md) records each report;
-  `/tmp/loom-tracker-221-issues.json` is the frozen GitHub reconciliation input.
+  `/tmp/loom-tracker-223-issues.json` is the frozen GitHub reconciliation input.
 - **User-delegated technical decisions:** choose the best coherent framework
   contract, document tradeoffs and migration effects, and continue work. The user
   explicitly superseded the repository rule requiring questions for unresolved
   public semantics within this backlog. Ask only for genuinely missing user
   information or authorization, explaining concrete consequences plainly.
+- Request framing #766 (`d5919ce6e`) is reviewed, pushed and closed. One
+  post-encoding owner reconciles Content-Length and unpublished body cleanup
+  across HTTP/JSON-RPC. Cancellation and zero-length probes share close ownership;
+  mounted HTTP/1–HTTP/2 and exact artifact comparisons pass. Cleanup is complete.
+- Projection fixture adoption #907 (`f130b0e6b`) is reviewed, pushed and closed.
+  Excluded fields are optional with nonnil private sentinels; all leak assertions
+  and the required whole-body control remain unchanged. Generated checks pass.
 - Automatic collection examples #884 (`ba0609ed2`) are reviewed, pushed and
   closed. One logical representation boundary prevents invalid reflection and
   hashing; one map candidate owner covers ordinary and constrained examples.
@@ -242,21 +249,18 @@ reconciliation with the inventory before they can establish remaining work.
 
 ## Current execution queue
 
-1. **Filtered sink disposition (#768):** omission's implementation is frozen in
-   `numeric-comparison`; root owns independent exact-final review. The user accepted one enforced
-   effective filter per named group, conflicting joins rejected, separate groups
-   for independent subscriptions and terminal acknowledgment of filtered events.
-   Existing groups require coordinated migration. One typed membership record
-   must retain filter identity through empty membership and metadata lifetime;
-   no independent registry. Models, full affected races and bounded native Redis
-   checks pass. Packet: `/tmp/loom-768-final-manifest.json`; not delivered yet.
-2. **Request framing (#766):** projection owns implementation in
-   `interceptor-accessor-union`. A shared finalizer publishes
-   mapped Content-Length after body encoding, across typed/raw/form consumers.
-   Zero EOF verification and close-once cancellation follow the bounded model.
-   Actual HTTP/1 and HTTP/2 checks expose zero-header omission outside
-   POST/PUT/PATCH; explicit unsupported zero fails before publication, while
-   absent and positive values remain supported. Final review is pending.
+1. **Filtered sink disposition (#768):** omission corrects two medium findings
+   from independent exact review in `numeric-comparison`: stale persistent members
+   survive stream expiry, and missing/null filter identity is accepted. Reconcile
+   membership with native consumers without retiring workers still joining; reject
+   unknown identity. Align the model before implementation and obtain focused
+   re-review. The accepted contract remains one effective filter per named group,
+   conflicting joins rejected and filtered events acknowledged. Existing groups
+   require coordinated migration; retain one shared membership owner.
+2. **Bounded shutdown (#800):** projection independently reviews the conditional
+   packet in `bounded-streaming-shutdown` and identifies integration drift while
+   the original-module dependency remains unavailable. This is review progress,
+   not delivery authorization. Prioritize #768 re-review when corrections arrive.
 3. **JSON-RPC response representation (#905):** diagnostic implements the
    user-accepted uniform result/error.data contract in `grpc-message-context`.
    Shared admission rejects authored response Header/Cookie mappings across
@@ -264,9 +268,9 @@ reconciliation with the inventory before they can establish remaining work.
    HTTP response mappings, JSON-RPC request metadata and framework-owned transport
    metadata retain their owners. Migrate affected fixtures and document usage.
 4. **CI reconciliation:** the retained ticktock and pool guard witnesses are
-   delivered as #904/#906. Latest required CI at `6f82fb52f` remained queued
-   (`38496558589`); no overall green-CI claim. Reconcile actual new failures by
-   owner without timeout increases or an automatic corpus sweep.
+   delivered as #904/#906; #907 adopts required-field admission in projection
+   fixtures. Required CI at `6ba2dbf86` remains queued (`38498585620`);
+   no overall green-CI claim. Reconcile actual new failures by owner without timeout increases or an automatic corpus sweep.
 5. **Dependency gates:** #820 libopenapi
    [PR #658](https://github.com/pb33f/libopenapi/pull/658) and #800 go-redis
    [PR #4095](https://github.com/redis/go-redis/pull/4095) remain open at fresh read,
@@ -275,12 +279,25 @@ reconciliation with the inventory before they can establish remaining work.
    original-module fetchability gates delivery. No fork/cache workaround.
    Pool subordinate shutdown #687 follows #800; no closure by inference.
 
-The latest required CI snapshot is `/tmp/loom-ci-218-runs.json`; queued runs do
+The latest required CI snapshot is `/tmp/loom-ci-222-runs.json`; queued runs do
 not establish a green suite. Delivered #902/#903 address earlier expectation
 failures; #904/#906 address the retained fixture witnesses. The dependency race
 remains open.
 
 Latest independent delivery records:
+
+- #766: `/tmp/loom-766-independent-final-verdict.json` and
+  `/tmp/loom-766-independent-integration-verdict.json`; cleanup receipt
+  `/tmp/loom-766-cleanup-receipt.json`. Current-main focused runtime/HTTP/RPC
+  races pass (1.604/10.492/6.322s).
+- #907: `/tmp/loom-907-independent-final-verdict.json`; generated build/vet/race
+  evidence passes (10.291s). The final serialization hash check initially used
+  abbreviated rather than full Git blob IDs, and the shell incorrectly continued
+  to commit after that check failed. Immediate full-index comparison confirms the
+  committed content equals the exact diff root reviewed. Keep authorization
+  verification and commit in separate tool calls to prevent recurrence.
+- #904/#906 cleanup is complete: `/tmp/loom-904-cleanup-receipt.json` and
+  `/tmp/loom-906-cleanup-receipt.json` preserve verified archive receipts.
 
 - #769/#764: exact root approvals in their `independent-final-verdict.json` files;
   #769 preservation/cleanup: `/tmp/loom-769-cleanup-receipt.json`.
