@@ -1010,7 +1010,7 @@ scenarios:
             code: -32600
             message: "Invalid request"
 
-  - name: "websocket_invalid_version_notification"
+  - name: "websocket_invalid_version_without_id"
     method: "echo_string_ws"
     transport: "websocket"
     sequence:
@@ -1019,8 +1019,14 @@ scenarios:
           jsonrpc: "-"  # Omit version field
           method: "echo_string_ws"
           params:
-            value: "notification without version"
-      # No receive expected for notifications with invalid request
+            value: "invalid request without version"
+      - type: "receive"
+        expect:
+          jsonrpc: "2.0"
+          id: null
+          error:
+            code: -32600
+            message: "Invalid request"
 
   - name: "websocket_missing_method_with_id"
     transport: "websocket"
@@ -1040,7 +1046,7 @@ scenarios:
             code: -32600
             message: "Invalid request"
 
-  - name: "websocket_missing_method_notification"
+  - name: "websocket_missing_method_without_id"
     transport: "websocket"
     sequence:
       - type: "send"
@@ -1048,8 +1054,14 @@ scenarios:
           jsonrpc: "2.0"
           method: "-"  # Omit method field
           params:
-            value: "notification with missing method"
-      # No receive expected
+            value: "invalid request with missing method"
+      - type: "receive"
+        expect:
+          jsonrpc: "2.0"
+          id: null
+          error:
+            code: -32600
+            message: "Invalid request"
 
   - name: "websocket_method_not_found"
     transport: "websocket"
@@ -1451,11 +1463,42 @@ scenarios:
             code: -32600
             message: "Invalid request"
 
-  - name: "sse_missing_method_notification"
+  - name: "sse_missing_method_without_id"
     transport: "sse"
     request:
       jsonrpc: "2.0"
-      # Missing method and no id (notification) -> no events
+      # Missing method makes this invalid even without an ID.
+      params: "ignored"
+    sequence:
+      - type: "receive"
+        expect:
+          jsonrpc: "2.0"
+          id: null
+          error:
+            code: -32600
+            message: "Invalid request"
+
+  - name: "sse_invalid_version_without_id"
+    method: "echo_string_sse"
+    transport: "sse"
+    request:
+      jsonrpc: "-"
+      params: "ignored"
+    sequence:
+      - type: "receive"
+        expect:
+          jsonrpc: "2.0"
+          id: null
+          error:
+            code: -32600
+            message: "Invalid request"
+
+  # Valid notification envelopes suppress protocol errors for unknown methods.
+  - name: "sse_unknown_method_notification"
+    method: "non_existent_method_sse"
+    transport: "sse"
+    request:
+      jsonrpc: "2.0"
       params: "ignored"
     expect:
       no_response: true
