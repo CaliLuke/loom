@@ -296,6 +296,14 @@ and destination-side deduplication when that is required.
 
 ## Worker Pool Shutdown
 
+A failed `AddNode` releases local map, sink and reader resources and attempts to
+withdraw only its private stream and node registration. Cleanup continues after
+individual failures and preserves them alongside the construction error. It uses
+a context detached from caller cancellation, bounded by a positive worker shutdown
+TTL (or the default when configured nonpositive). Shared pool data and healthy
+nodes remain owned by the pool. Uncertain Redis results can leave private state;
+a failed node never starts a runtime that renews its registration.
+
 `AddWorker` prepares its private resources before publishing membership. Only a
 successful admission starts handlers and lease renewal; handlers may start before
 the successful call returns. `Close` excludes later admissions and waits for

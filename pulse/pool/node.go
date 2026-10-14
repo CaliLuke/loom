@@ -14,6 +14,7 @@ import (
 
 	"github.com/CaliLuke/loom/clue/log"
 
+	"github.com/CaliLuke/loom/pulse/internal/redisop"
 	"github.com/CaliLuke/loom/pulse/pulse"
 	"github.com/CaliLuke/loom/pulse/rmap"
 	"github.com/CaliLuke/loom/pulse/streaming"
@@ -140,11 +141,22 @@ var ErrJobExists = errors.New("job already exists")
 //
 // The options WithClientOnly can be used to create a node that can only be used
 // to dispatch jobs. Such a node does not route or process jobs in the
-// background.
+// background. Failed construction releases its local resources and attempts to
+// withdraw only its private stream and node registration. The returned error
+// retains cleanup failures; uncertain Redis writes cannot guarantee atomic
+// rollback. A failed node never starts a runtime that renews its registration.
 //
 //nolint:maintidx // Copied runtime constructor remains cohesive around node setup.
-func AddNode(ctx context.Context, poolName string, rdb *redis.Client, opts ...NodeOption) (*Node, error) {
+func AddNode(
+	ctx context.Context, poolName string, rdb *redis.Client, opts ...NodeOption,
+) (_ *Node, err error) {
 	o := parseOptions(opts...)
+	construction := &nodeConstruction{shutdownTTL: o.workerShutdownTTL}
+	defer func() {
+		if err != nil {
+			err = errors.Join(err, construction.abort(ctx))
+		}
+	}()
 	logger := o.logger
 	nodeID := ulid.Make().String()
 	if logger == nil {
@@ -159,7 +171,7 @@ func AddNode(ctx context.Context, poolName string, rdb *redis.Client, opts ...No
 		"worker_shutdown_ttl", o.workerShutdownTTL,
 		"ack_grace_period", o.ackGracePeriod)
 
-	nsm, err := rmap.Join(ctx, nodeShutdownMapName(poolName), rdb, rmap.WithLogger(logger))
+	nsm, err := construction.joinMap(ctx, nodeShutdownMapName(poolName), rdb, rmap.WithLogger(logger))
 	if err != nil {
 		return nil, fmt.Errorf("AddNode: failed to join shutdown replicated map %q: %w", nodeShutdownMapName(poolName), err)
 	}
@@ -167,14 +179,19 @@ func AddNode(ctx context.Context, poolName string, rdb *redis.Client, opts ...No
 		return nil, fmt.Errorf("AddNode: pool %q is shutting down", poolName)
 	}
 
-	nkm, err := rmap.Join(ctx, nodeKeepAliveMapName(poolName), rdb, rmap.WithLogger(logger))
+	nkm, err := construction.joinMap(ctx, nodeKeepAliveMapName(poolName), rdb, rmap.WithLogger(logger))
 	if err != nil {
 		return nil, fmt.Errorf("AddNode: failed to join node keep-alive map %q: %w", nodeKeepAliveMapName(poolName), err)
 	}
 	registration := &Node{ID: nodeID, PoolName: poolName, rdb: rdb, workerTTL: o.workerTTL}
+	construction.own("withdraw node heartbeat", func(ctx context.Context) error {
+		_, err := nkm.Delete(ctx, nodeID)
+		return err
+	})
+	construction.own("withdraw node protocol", func(ctx context.Context) error {
+		return redisop.Client(rdb).HDel(ctx, poolName+":protocol", nodeID).Err()
+	})
 	if err := joinOwnershipProtocol(ctx, registration); err != nil {
-		nkm.Close()
-		nsm.Close()
 		return nil, fmt.Errorf("AddNode: ownership protocol: %w", err)
 	}
 
@@ -201,40 +218,40 @@ func AddNode(ctx context.Context, poolName string, rdb *redis.Client, opts ...No
 	)
 
 	if !o.clientOnly {
-		wm, err = rmap.Join(ctx, workerMapName(poolName), rdb, rmap.WithLogger(logger))
+		wm, err = construction.joinMap(ctx, workerMapName(poolName), rdb, rmap.WithLogger(logger))
 		if err != nil {
 			return nil, fmt.Errorf("AddNode: failed to join pool workers replicated map %q: %w", workerMapName(poolName), err)
 		}
 		workerIDs := wm.Keys()
 		logger.Info("joined", "workers", workerIDs)
 
-		jm, err = rmap.Join(ctx, jobMapName(poolName), rdb, rmap.WithLogger(logger))
+		jm, err = construction.joinMap(ctx, jobMapName(poolName), rdb, rmap.WithLogger(logger))
 		if err != nil {
 			return nil, fmt.Errorf("AddNode: failed to join pool jobs replicated map %q: %w", jobMapName(poolName), err)
 		}
 
-		jpm, err = rmap.Join(ctx, jobPayloadMapName(poolName), rdb, rmap.WithLogger(logger))
+		jpm, err = construction.joinMap(ctx, jobPayloadMapName(poolName), rdb, rmap.WithLogger(logger))
 		if err != nil {
 			return nil, fmt.Errorf("AddNode: failed to join pool job payloads replicated map %q: %w", jobPayloadMapName(poolName), err)
 		}
 
-		wkm, err = rmap.Join(ctx, workerKeepAliveMapName(poolName), rdb, rmap.WithLogger(logger))
+		wkm, err = construction.joinMap(ctx, workerKeepAliveMapName(poolName), rdb, rmap.WithLogger(logger))
 		if err != nil {
 			return nil, fmt.Errorf("AddNode: failed to join worker keep-alive replicated map %q: %w", workerKeepAliveMapName(poolName), err)
 		}
 
-		tm, err = rmap.Join(ctx, tickerMapName(poolName), rdb, rmap.WithLogger(logger))
+		tm, err = construction.joinMap(ctx, tickerMapName(poolName), rdb, rmap.WithLogger(logger))
 		if err != nil {
 			return nil, fmt.Errorf("AddNode: failed to join pool ticker replicated map %q: %w", tickerMapName(poolName), err)
 		}
 
-		wcm, err = rmap.Join(ctx, workerCleanupMapName(poolName), rdb, rmap.WithLogger(logger))
+		wcm, err = construction.joinMap(ctx, workerCleanupMapName(poolName), rdb, rmap.WithLogger(logger))
 		if err != nil {
 			return nil, fmt.Errorf("AddNode: failed to join pool cleanup replicated map %q: %w", workerCleanupMapName(poolName), err)
 		}
 
 		// Initialize and join pending jobs map
-		jpem, err = rmap.Join(ctx, jobPendingMapName(poolName), rdb, rmap.WithLogger(logger))
+		jpem, err = construction.joinMap(ctx, jobPendingMapName(poolName), rdb, rmap.WithLogger(logger))
 		if err != nil {
 			return nil, fmt.Errorf("AddNode: failed to join pending jobs replicated map %q: %w", jobPendingMapName(poolName), err)
 		}
@@ -245,12 +262,21 @@ func AddNode(ctx context.Context, poolName string, rdb *redis.Client, opts ...No
 		if err != nil {
 			return nil, fmt.Errorf("AddNode: failed to create events sink for stream %q: %w", poolStreamName(poolName), err)
 		}
+		construction.own("close pool sink", func(ctx context.Context) error {
+			poolSink.Close(ctx)
+			return nil
+		})
 	}
 
 	nodeStream, err = streaming.NewStream(nodeStreamName(poolName, nodeID), rdb, options.WithStreamLogger(logger))
 	if err != nil {
 		return nil, fmt.Errorf("AddNode: failed to create node event stream %q: %w", nodeStreamName(poolName, nodeID), err)
 	}
+	construction.own("withdraw node stream", func(ctx context.Context) error {
+		// Only initialization of this private stream was attempted. No sink
+		// membership map or group is owned by the node-stream constructor.
+		return redisop.Client(rdb).Del(ctx, nodeStream.Key()).Err()
+	})
 	if _, err = nodeStream.Add(ctx, evInit, []byte(nodeID)); err != nil {
 		return nil, fmt.Errorf("AddNode: failed to add init event to node event stream %q: %w", nodeStreamName(poolName, nodeID), err)
 	}
@@ -260,8 +286,17 @@ func AddNode(ctx context.Context, poolName string, rdb *redis.Client, opts ...No
 		return nil, fmt.Errorf("AddNode: failed to create node event reader for stream %q: %w", nodeStreamName(poolName, nodeID), err)
 	}
 
+	construction.own("close node reader", func(context.Context) error {
+		nodeReader.Close()
+		return nil
+	})
+
 	runtimeBase := log.WithContext(context.WithoutCancel(ctx), ctx)
 	runtimeCtx, runtimeCancel := context.WithCancel(runtimeBase)
+	construction.own("cancel node runtime", func(context.Context) error {
+		runtimeCancel()
+		return nil
+	})
 	p := &Node{
 		ID:                 nodeID,
 		PoolName:           poolName,
@@ -295,6 +330,7 @@ func AddNode(ctx context.Context, poolName string, rdb *redis.Client, opts ...No
 		logger:             logger,
 	}
 
+	construction.transfer()
 	nch := nodeReader.Subscribe()
 
 	if o.clientOnly {

@@ -2403,6 +2403,14 @@ SSE changes require coverage for:
 - compile-after-generation
 - branch-specific connection timing
 
+Node construction uses one `nodeConstruction` release stack. Enroll successful
+local acquisitions immediately and private withdrawal before writes; unwind in
+reverse without stopping on errors. Transfer before Subscribe/runtime starts.
+Never call full-node cleanup for partial construction or delete shared pool keys.
+Keep node-only NodeConstruction and worker WorkerPublication models separate;
+finite subordinate Close and borrowed command budgets belong to streaming/rmap
+and redisop. Report uncertain rollback instead of inventing atomicity.
+
 Worker construction is owned by `Node.AddWorker`: register an in-flight attempt
 under the node lifecycle lock, prepare an unsubscribed Reader before publication,
 then transfer and start under the same lock. Close joins attempts outside the

@@ -1599,6 +1599,9 @@ a failed Redis requeue reply does not restart it on the old worker because
 the write may already have succeeded. If it did not, orphan recovery waits
 for `max(2 * workerTTL, ackGracePeriod)` without a worker and a subsequent
 sweep. Account for that recovery delay when choosing these settings.
+Failed `AddNode` releases local resources and attempts private registration/stream
+withdrawal even if the caller canceled. Inspect joined cleanup errors; shared pool
+data is retained, and an uncertain Redis outcome is not atomic rollback.
 Failed `AddWorker` calls do not start handlers. Private cleanup can outlive caller
 cancellation within the worker shutdown TTL; inspect the returned error for cleanup
 failures. Node Close joins in-flight admissions. Existing event expiry still bounds

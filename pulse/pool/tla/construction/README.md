@@ -84,3 +84,9 @@ durability, arbitrary delayed commands after connection failure, cancellation of
 blocked handlers, or recovery through an indefinite outage. A failed cleanup may
 leave stale publication until the initial lease expires; no heartbeat renewal is
 allowed. Tests check implementation correspondence, including real Redis behavior.
+
+## Node construction (separate #687 owner)
+
+See [NodeConstruction.md](NodeConstruction.md) for the current node-only acquisition
+model, explicit #800 finite-close assumption, rejected rollback alternatives and
+run commands. WorkerPublication and its delivered #704 evidence above are unchanged.
