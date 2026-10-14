@@ -10,6 +10,8 @@ func EncodeDefaultFirstResponse(encoder func(context.Context, http.ResponseWrite
 			enc := encoder(ctx, w)
 			body := res.Message
 			w.Header().Set("X-Trace", res.Trace)
+			w.Header().Set("X-First", res.First)
+			w.Header().Set("X-Second", res.Second)
 			w.WriteHeader(http.StatusCreated)
 			return enc.Encode(body)
 		}
@@ -17,12 +19,16 @@ func EncodeDefaultFirstResponse(encoder func(context.Context, http.ResponseWrite
 			enc := encoder(ctx, w)
 			body := res.Message
 			w.Header().Set("X-Trace", res.Trace)
+			w.Header().Set("X-First", res.First)
+			w.Header().Set("X-Second", res.Second)
 			w.WriteHeader(http.StatusAccepted)
 			return enc.Encode(body)
 		}
 		enc := encoder(ctx, w)
 		body := res.Message
 		w.Header().Set("X-Trace", res.Trace)
+		w.Header().Set("X-First", res.First)
+		w.Header().Set("X-Second", res.Second)
 		w.WriteHeader(http.StatusOK)
 		return enc.Encode(body)
 	}
@@ -40,6 +46,8 @@ func EncodeDefaultMiddleResponse(encoder func(context.Context, http.ResponseWrit
 			enc := encoder(ctx, w)
 			body := res.Message
 			w.Header().Set("X-Trace", res.Trace)
+			w.Header().Set("X-First", res.First)
+			w.Header().Set("X-Second", res.Second)
 			w.WriteHeader(http.StatusCreated)
 			return enc.Encode(body)
 		}
@@ -47,12 +55,16 @@ func EncodeDefaultMiddleResponse(encoder func(context.Context, http.ResponseWrit
 			enc := encoder(ctx, w)
 			body := res.Message
 			w.Header().Set("X-Trace", res.Trace)
+			w.Header().Set("X-First", res.First)
+			w.Header().Set("X-Second", res.Second)
 			w.WriteHeader(http.StatusAccepted)
 			return enc.Encode(body)
 		}
 		enc := encoder(ctx, w)
 		body := res.Message
 		w.Header().Set("X-Trace", res.Trace)
+		w.Header().Set("X-First", res.First)
+		w.Header().Set("X-Second", res.Second)
 		w.WriteHeader(http.StatusOK)
 		return enc.Encode(body)
 	}
@@ -70,6 +82,8 @@ func EncodeDefaultLastResponse(encoder func(context.Context, http.ResponseWriter
 			enc := encoder(ctx, w)
 			body := res.Message
 			w.Header().Set("X-Trace", res.Trace)
+			w.Header().Set("X-First", res.First)
+			w.Header().Set("X-Second", res.Second)
 			w.WriteHeader(http.StatusCreated)
 			return enc.Encode(body)
 		}
@@ -77,12 +91,16 @@ func EncodeDefaultLastResponse(encoder func(context.Context, http.ResponseWriter
 			enc := encoder(ctx, w)
 			body := res.Message
 			w.Header().Set("X-Trace", res.Trace)
+			w.Header().Set("X-First", res.First)
+			w.Header().Set("X-Second", res.Second)
 			w.WriteHeader(http.StatusAccepted)
 			return enc.Encode(body)
 		}
 		enc := encoder(ctx, w)
 		body := res.Message
 		w.Header().Set("X-Trace", res.Trace)
+		w.Header().Set("X-First", res.First)
+		w.Header().Set("X-Second", res.Second)
 		w.WriteHeader(http.StatusOK)
 		return enc.Encode(body)
 	}

@@ -609,9 +609,7 @@ func responseContractDSL() {
 					dsl.Header("version:X-Version")
 					dsl.SessionCookie("session:widget_session")
 				})
-				dsl.Response(expr.StatusOK, func() {
-					dsl.Body("body")
-				})
+				dsl.Response(expr.StatusOK)
 				dsl.Response("not_found", expr.StatusNotFound, func() {
 					dsl.Header("reason:X-Reason")
 				})

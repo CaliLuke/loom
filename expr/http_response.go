@@ -152,6 +152,7 @@ func (r *HTTPResponseExpr) Validate(e *HTTPEndpointExpr) *eval.ValidationErrors 
 	r.validateTextContentType(e, verr)
 	r.validateHeadersAndCookies(e, resultType, verr)
 	r.validateBodyAndLinks(e, resultType, verr)
+	r.validateResultReconstruction(e, verr)
 	return verr
 }
 

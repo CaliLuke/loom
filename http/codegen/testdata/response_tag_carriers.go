@@ -61,7 +61,8 @@ var ResponseTagCarriersDSL = func() {
 							}
 							if kind == "bodyless" {
 								Body(Empty)
-							} else {
+								Header("message:X-Message")
+							} else if status == StatusAccepted || kind != "required" && kind != "required_alias" {
 								Body("message")
 							}
 						})

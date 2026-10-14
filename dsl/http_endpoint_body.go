@@ -14,6 +14,13 @@ import (
 // absent then the body is built using the HTTP endpoint request or response
 // type attributes not used to describe parameters (request only) or headers.
 //
+// Every required payload or reconstructed result/error field must have a runtime
+// source: the body, a transport mapping, or an existing protocol reconstruction
+// such as an authentication field or response Tag. Selecting a smaller body
+// does not make omitted required fields optional. A default alone cannot supply
+// a field that is absent from every decoder input. Result views constrain which
+// fields are required in that representation.
+//
 // An explicitly selected empty object response still has an object body (`{}`
 // in JSON). Use Body(Empty) to declare no response body. OpenAPIBody preserves
 // this same shape distinction without changing runtime encoding.

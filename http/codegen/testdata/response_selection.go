@@ -35,6 +35,8 @@ var ResponseSelectionOrderDSL = func() {
 							}
 							Body("message")
 							Header("trace:X-Trace")
+							Header("first:X-First")
+							Header("second:X-Second")
 						})
 					}
 				})

@@ -72,6 +72,8 @@ func (e *HTTPErrorExpr) Validate() *eval.ValidationErrors {
 		)
 	}
 	e.validateHeaders(ee, verr)
+	body, _ := responseBodySource(ee.AttributeExpr, e.Response)
+	validateReconstruction(ee.AttributeExpr, body, responseReconstructionBindings(e.Response), "error "+e.Name, e.Response, verr)
 	return verr
 }
 

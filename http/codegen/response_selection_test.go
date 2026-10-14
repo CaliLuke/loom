@@ -65,7 +65,7 @@ func TestSelection(t *testing.T) {
      t.Fatal(err)
     }
     actual := decoded.(*service.SelectionResult)
-    if actual.Message != "message" || actual.Trace != "trace" {
+    if actual.Message != "message" || actual.Trace != "trace" || actual.First != tc.first || actual.Second != tc.second {
      t.Errorf("decoded result = %#v", actual)
     }
    })

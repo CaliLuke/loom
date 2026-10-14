@@ -75,6 +75,14 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- Required reconstruction coverage belongs to one private expression query over
+  logical fields, effective runtime bodies and resolved bindings. References,
+  defaults and error dispatch selectors are not missing-value sources. Preserve
+  view projection and raw/custom-codec boundaries. `OrderedResponses` owns the
+  stable tagged-first order used by transport IR and JSON-RPC's first-response
+  coverage; do not duplicate that selection policy in validators or renderers.
+
+
 - The logr adapter normalizes alternating arguments in one private `logrFields`
   owner shared by Info, Error and WithValues. Preserve ordered duplicate fields,
   existing key conversion and independent bound/event normalization; never mutate

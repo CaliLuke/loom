@@ -13,6 +13,7 @@ const responseTagCarriersHarness = `package tagcarrier_test
 
 import (
 	"context"
+	"encoding/json/v2"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -85,16 +86,24 @@ func TestTagCarriers(t *testing.T) {
 				require.Equal(t, wantStatus, response.StatusCode)
 				if tc.name == "bodyless" {
 					require.Empty(t, raw)
+				} else if (tc.name == "required" || tc.name == "required_alias") && state != "accepted" {
+					var body map[string]string
+					require.NoError(t, json.Unmarshal(raw, &body))
+					require.Equal(t, "message", body["message"])
+					require.Equal(t, tagValue(field), body["kind"])
 				} else {
 					require.Equal(t, "\"message\"\n", string(raw))
 				}
 				decoded, err := tc.method(c)(context.Background(), nil)
 				require.NoError(t, err)
 				got := reflect.ValueOf(decoded).Elem().FieldByName(fieldName)
+				require.Equal(t, "message", reflect.ValueOf(decoded).Elem().FieldByName("Message").String())
 				if state == "accepted" {
 					require.Equal(t, "accepted", tagValue(got))
+				} else if tc.name == "required" || tc.name == "required_alias" {
+					require.Equal(t, tagValue(field), tagValue(got), "required fallback value is carried in its body")
 				} else {
-					require.Equal(t, "", tagValue(got), "body omitted the tag; fallback must not invent it")
+					require.Equal(t, "", tagValue(got), "body omitted the optional tag; fallback must not invent it")
 				}
 			})
 		}

@@ -978,6 +978,17 @@ declaration has different complete schemas for actual transport encodings,
 Loom allocates representation-specific references; an actual JSON representation
 keeps the canonical public name. This does not permit different authored shapes
 to claim one explicit name.
+
+Required payload, result and error fields need a runtime reconstruction source.
+When selecting a field or listing a subset with `Body`, map the other required
+fields to appropriate transport bindings. Existing authentication, envelope ID
+and response-tag reconstruction count; a default or documentation-only body
+does not supply an otherwise unmapped field. Views retain their own projected
+requiredness. A custom required `ErrorName` must appear in its body or an
+explicit header/cookie mapping: the `Loom-Error` dispatch header does not assign
+that field. Previously accepted designs that silently lost required values now
+fail generation; add the missing mapping before regenerating.
+
 A response `Body(func() { ... })` that lists attributes of the result or error
 type declares a shape of its own. It inherits the type's name only as a
 fallback, like the implicit body: an identical schema reuses the type's

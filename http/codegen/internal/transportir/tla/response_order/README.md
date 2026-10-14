@@ -22,8 +22,9 @@ Go or of extraction from an application design.
 
 ## Implementation correspondence
 
-- `request_response.go` / `buildResponse` owns the selection order in the shared
-  transport IR without mutating the authored expression.
+- `expr.HTTPEndpointExpr.OrderedResponses` owns the stable partition without
+  mutating the authored expression. `request_response.go` / `buildResponse`
+  consumes that same order, as does required-field reconstruction admission.
 - `http/codegen/service_data_response.go` consumes that order without swapping.
 - `TestResponseSelectionOrder` checks IR order, attached body/header mappings and
   expression non-mutation for default-first, middle and last declarations.

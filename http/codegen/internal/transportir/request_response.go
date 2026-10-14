@@ -71,19 +71,13 @@ func buildResponse(endpoint *expr.HTTPEndpointExpr) *Response {
 		IDAttribute:         endpoint.ResultIDAttribute,
 		IDAttributeRequired: result != nil && endpoint.ResultIDAttribute != "" && result.IsRequired(endpoint.ResultIDAttribute),
 	}
-	var defaults []*ResponseStatus
-	for _, status := range endpoint.Responses {
+	for _, status := range endpoint.OrderedResponses() {
 		responseStatus := buildResponseStatus(status, nil)
 		if endpoint.FileResponse && status.ContentType == "" && len(responseContentTypeHeaderEnums(status)) == 0 {
 			responseStatus.ContentTypes = []string{"*/*"}
 		}
-		if responseStatus.Tag == nil {
-			defaults = append(defaults, responseStatus)
-		} else {
-			response.Responses = append(response.Responses, responseStatus)
-		}
+		response.Responses = append(response.Responses, responseStatus)
 	}
-	response.Responses = append(response.Responses, defaults...)
 	for _, httpError := range endpoint.HTTPErrors {
 		response.ErrorResponses = append(response.ErrorResponses, buildResponseStatus(httpError.Response, httpError))
 	}

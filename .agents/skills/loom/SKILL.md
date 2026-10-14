@@ -26,6 +26,13 @@ invalid names fail design evaluation, including inherited/security mappings.
 Regenerate clients and servers if a query/body mapping previously lost text
 after a second colon.
 
+A selected or listed `Body` must leave every required payload and reconstructed
+result/error field supplied by the body or another transport mapping. Existing
+authentication, envelope IDs and response Tags can reconstruct their fields;
+a default alone cannot supply an unmapped field. Keep custom required ErrorName
+fields in the body or map them explicitly. Views retain their projected contract.
+Generation rejects incomplete mappings; add the missing source and regenerate.
+
 ## Core Workflow
 
 1. Treat `design/*.go` as the source of truth.

@@ -41,6 +41,7 @@ func TestExplicitInlineRequestBodyIsNamedUserType(t *testing.T) {
 			name: "inline object attribute",
 			body: func() {
 				Body("inline")
+				Header("name:X-Name")
 			},
 			wantName: "DoRequestBody",
 			wantUser: true,
@@ -50,6 +51,7 @@ func TestExplicitInlineRequestBodyIsNamedUserType(t *testing.T) {
 			name: "user type attribute",
 			body: func() {
 				Body("item")
+				Header("name:X-Name")
 			},
 			wantName: "DoRequestBody",
 			wantUser: true,

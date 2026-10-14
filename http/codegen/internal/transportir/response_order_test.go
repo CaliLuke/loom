@@ -23,7 +23,7 @@ func TestResponseSelectionOrder(t *testing.T) {
 			for _, response := range plan.Responses {
 				codes = append(codes, response.StatusCode)
 				require.Equal(t, "message", response.BodyOrigin)
-				require.Len(t, response.Headers, 1)
+				require.Len(t, response.Headers, 3)
 			}
 			require.Equal(t, []int{201, 202, 200}, codes)
 			require.Equal(t, "first", plan.Responses[0].Tag.Key)

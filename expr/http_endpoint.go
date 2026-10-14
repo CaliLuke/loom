@@ -162,6 +162,24 @@ func (e *HTTPEndpointExpr) HasAbsoluteRoutes() bool {
 	return true
 }
 
+// OrderedResponses returns a detached stable ordering of success responses:
+// tagged alternatives first, followed by the untagged fallback. HTTP evaluates
+// this order and JSON-RPC reconstructs its first representation.
+func (e *HTTPEndpointExpr) OrderedResponses() []*HTTPResponseExpr {
+	responses := make([]*HTTPResponseExpr, 0, len(e.Responses))
+	for _, response := range e.Responses {
+		if response.Tag[0] != "" {
+			responses = append(responses, response)
+		}
+	}
+	for _, response := range e.Responses {
+		if response.Tag[0] == "" {
+			responses = append(responses, response)
+		}
+	}
+	return responses
+}
+
 // Prepare computes the request path and query string parameters as well as the
 // headers and body taking into account the inherited values from the service.
 func (e *HTTPEndpointExpr) Prepare() {

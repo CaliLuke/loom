@@ -24,6 +24,7 @@ func (e *HTTPEndpointExpr) Validate() error {
 	e.validateResponses(verr)
 	e.validateBodyAndPayload(verr)
 	e.validateRequestContentType(verr)
+	e.validateRequestReconstruction(verr)
 	e.validateNullableTransportLocations(verr)
 	e.validateBodyElementNames(verr)
 	e.validateAPIKeyLocations(verr)
