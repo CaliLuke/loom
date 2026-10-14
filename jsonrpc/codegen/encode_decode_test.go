@@ -103,6 +103,7 @@ func TestJSONRPCClientDecoderPropagatesViewedResultConstructorError(t *testing.T
 	assert.Contains(t, code, `return loomhttp.ErrEncodingError("ServiceBodyMultipleView", "MethodBodyMultipleView", err)`)
 	assert.Contains(t, code, `return nil, loomhttp.ErrValidationError("ServiceBodyMultipleView", "MethodBodyMultipleView", err)`)
 	assert.NotContains(t, code, `res := servicebodymultipleview.NewResulttypemultipleviews(vres)`)
+	assert.Contains(t, code, `return nil, decodeMethodBodyMultipleViewError(decoder, resp, jresp.Error)`)
 	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-client-encode-decode-viewed.golden"), code)
 }
 

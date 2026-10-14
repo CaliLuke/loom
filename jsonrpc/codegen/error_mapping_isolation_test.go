@@ -15,7 +15,13 @@ func TestJSONRPCClientDoesNotUseHTTPErrorMappings(t *testing.T) {
 	require.Empty(t, endpoint.Errors)
 
 	code := jsonrpcGeneratedCode(t, ClientFiles("", services))
-	require.Contains(t, code, "return nil, jresp.Error")
+	require.Contains(t, code, "return nil, decodeCallError(decoder, resp, jresp.Error)")
+	require.Contains(t, code, `func decodeCallError(decoder func(*http.Response) loomhttp.Decoder, resp *http.Response, wire *jsonrpc.RawErrorResponse) error {
+	switch wire.Code {
+	default:
+		return wire
+	}
+}`)
 	require.NotContains(t, code, "case 403:")
 }
 
