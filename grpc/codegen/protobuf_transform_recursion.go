@@ -32,7 +32,7 @@ func transformElementHelpers(source, target *expr.AttributeExpr, ta *transformAt
 	if !isInlineRecursive(source) {
 		return transformAttributeHelpers(source, target, ta, seen)
 	}
-	source, target, err := compatibleTransformAttributes(source, target, ta)
+	source, target, err := normalizedTransformAttrs(source, target, ta)
 	if err != nil {
 		return nil, err
 	}

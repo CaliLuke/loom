@@ -9,7 +9,7 @@ import (
 )
 
 func transformAttributeHelpers(source, target *expr.AttributeExpr, ta *transformAttrs, seen map[string]*codegen.TransformFunctionData) ([]*codegen.TransformFunctionData, error) {
-	source, target, err := compatibleTransformAttributes(source, target, ta)
+	source, target, err := normalizedTransformAttrs(source, target, ta)
 	if err != nil {
 		return nil, err
 	}
@@ -25,21 +25,6 @@ func transformAttributeHelpers(source, target *expr.AttributeExpr, ta *transform
 	default:
 		return nil, nil
 	}
-}
-
-func compatibleTransformAttributes(source, target *expr.AttributeExpr, ta *transformAttrs) (*expr.AttributeExpr, *expr.AttributeExpr, error) {
-	if err := protoMessageCompatible(source.Type, target.Type, "", ""); err == nil {
-		return source, target, nil
-	}
-	if ta.proto {
-		target = unwrapAttr(expr.DupAtt(target))
-	} else {
-		source = unwrapAttr(expr.DupAtt(source))
-	}
-	if err := codegen.IsCompatible(source.Type, target.Type, "", ""); err != nil {
-		return nil, nil, err
-	}
-	return source, target, nil
 }
 
 func transformArrayAttributeHelpers(source, target *expr.AttributeExpr, ta *transformAttrs, seen map[string]*codegen.TransformFunctionData) ([]*codegen.TransformFunctionData, error) {
@@ -67,7 +52,7 @@ func transformObjectAttributeHelpers(source, target *expr.AttributeExpr, ta *tra
 		if walkErr != nil {
 			return
 		}
-		srcc, tgtc, walkErr = compatibleTransformAttributes(srcc, tgtc, ta)
+		srcc, tgtc, walkErr = normalizedTransformAttrs(srcc, tgtc, ta)
 		if walkErr != nil {
 			return
 		}
@@ -135,7 +120,7 @@ func collectUnionHelpers(source, target *expr.AttributeExpr, ta *transformAttrs,
 		if tfd != nil {
 			data = append(data, tfd)
 		}
-		src, tgt, err = compatibleTransformAttributes(src, tgt, ta)
+		src, tgt, err = normalizedTransformAttrs(src, tgt, ta)
 		if err != nil {
 			return nil, err
 		}
@@ -257,8 +242,13 @@ func collectObjectFieldHelpers(source, target *expr.AttributeExpr, ta *transform
 	return data, nil
 }
 
+// normalizedTransformAttrs pairs the semantic values converted by protobuf
+// emission. Generic compatibility allows object/union conversion, but protobuf
+// represents a union inside a message that must first be unwrapped. Return the
+// original children so recursive analysis and helper discovery retain canonical
+// identities; neither this operation nor unwrapAttr mutates its inputs.
 func normalizedTransformAttrs(srcc, tgtc *expr.AttributeExpr, ta *transformAttrs) (*expr.AttributeExpr, *expr.AttributeExpr, error) {
-	if err := codegen.IsCompatible(srcc.Type, tgtc.Type, "", ""); err == nil {
+	if err := protoMessageCompatible(srcc.Type, tgtc.Type, "", ""); err == nil {
 		return srcc, tgtc, nil
 	}
 	if ta.proto {
@@ -266,7 +256,7 @@ func normalizedTransformAttrs(srcc, tgtc *expr.AttributeExpr, ta *transformAttrs
 	} else {
 		srcc = unwrapAttr(srcc)
 	}
-	if err := codegen.IsCompatible(srcc.Type, tgtc.Type, "", ""); err != nil {
+	if err := protoMessageCompatible(srcc.Type, tgtc.Type, "", ""); err != nil {
 		return nil, nil, err
 	}
 	return srcc, tgtc, nil

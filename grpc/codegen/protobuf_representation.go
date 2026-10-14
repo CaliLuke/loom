@@ -43,8 +43,7 @@ func protobufRepresentationCanFail(source, target *expr.AttributeExpr, sourceCtx
 	_, proto := targetCtx.Scope.(*protoBufScope)
 	ta := &transformAttrs{TransformAttrs: &codegen.TransformAttrs{SourceCtx: sourceCtx, TargetCtx: targetCtx}, proto: proto}
 	type pair struct {
-		source, target       expr.DataType
-		sourceRef, targetRef string
+		source, target *expr.AttributeExpr
 	}
 	seen := make(map[pair]bool)
 	var visit func(*expr.AttributeExpr, *expr.AttributeExpr) bool
@@ -54,7 +53,9 @@ func protobufRepresentationCanFail(source, target *expr.AttributeExpr, sourceCtx
 		if err != nil {
 			return false
 		}
-		key := pair{src.Type, tgt.Type, sourceCtx.Scope.Ref(src, sourceCtx.Pkg(src)), targetCtx.Scope.Ref(tgt, targetCtx.Pkg(tgt))}
+		// Canonical occurrences preserve metadata and selected defaults without
+		// reserving names for unwrapped values that are not protobuf messages.
+		key := pair{src, tgt}
 		if seen[key] {
 			return false
 		}

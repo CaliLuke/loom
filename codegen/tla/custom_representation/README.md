@@ -73,3 +73,21 @@ fixed point. Required implementation tests must include both traversal orders,
 recursive helper declarations/calls, excluded views and default-disabled targets.
 This finite graph model assumes the extracted dependency graph is correct; it
 does not prove graph extraction from arbitrary expression or physical type graphs.
+
+## Protobuf graph extraction
+
+The #937 regression exposed a violated extraction precondition: generic
+object/union compatibility left a wrapper message paired with a service union.
+`grpc/codegen.normalizedTransformAttrs` now shares the emitter's protobuf
+compatibility rule and retains canonical child nodes when unwrapping. Helper
+discovery and representation fallibility both consume it. The query keys
+canonical attribute occurrences under fixed contexts; name resolution cannot
+form a visited key because it reserves names for unwrapped unions that have no
+message declaration. `TestProtobufPairAnalysisDoesNotAllocateMessageNames`
+checks this purity requirement. The direct
+`TestProtobufPairNormalizationPreservesCanonicalShapes` and
+`TestProtobufUnionPairFallibility` cover both directions, collection and scalar
+wrappers, mapped fields, recursive identity, native/custom leaves and rejection.
+Existing exported union/collection fixtures check generated compilation. This is
+a concrete extraction repair; the graph algorithm and modeled transitions are
+unchanged, and the model still does not prove expression normalization.

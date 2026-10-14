@@ -1788,6 +1788,13 @@ filter, and serialization rules belong here.
   wrapper that kept the identifier of the type would replace the type
   wherever else it appears, such as a recursive branch of a union or a field
   of the same named primitive.
+- Protobuf conversion helper discovery and representation fallibility consume
+  `normalizedTransformAttrs`, which uses the emitter's `protoMessageCompatible`
+  rule to unwrap message/union pairs. Generic object/union compatibility does
+  not establish matching protobuf shapes. Keep normalization nonmutating and
+  retain canonical child identities so recursive analysis terminates. Key the
+  query by those occurrences, not allocating type-name lookups; mapped
+  field selection still resolves through `FindAttribute` on those originals.
 - The message that wraps a named array or map, and the message that wraps an
   array or map nested in an array or map, such as `ArrayOfHolder`, are
   collection messages (`isCollectionMessage`) that the gRPC transforms convert
