@@ -497,6 +497,21 @@ func mergeFileByPath(byPath map[string]*codegen.File, namesByPath map[string]map
 	}
 	existingSections := append([]codegen.Section{}, existing.AllSections()...)
 	incomingSections := f.AllSections()
+	if filepath.Ext(f.Path) == ".go" {
+		if len(existingSections) == 1 {
+			if merged, ok := existingSections[0].(*mergedGoSection); ok {
+				existingSections = merged.sections
+			}
+		}
+		existing.SetSections([]codegen.Section{&mergedGoSection{
+			path: f.Path, sections: append(existingSections, incomingSections...),
+		}})
+		existing.Warnings = append(existing.Warnings, f.Warnings...)
+		if existing.FinalizeFunc == nil {
+			existing.FinalizeFunc = f.FinalizeFunc
+		}
+		return true
+	}
 	mergeHeaderSections(existingSections, incomingSections)
 	initSectionNames(namesByPath, f.Path, existingSections)
 	existing.SetSections(appendUniqueSections(existingSections, incomingSections, namesByPath[f.Path]))

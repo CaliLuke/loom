@@ -265,6 +265,10 @@ and `errors.As`, including when the message contains an example.
   independently of service methods. A `Moved` type remains `types.Moved` even
   when a consuming service declares a `moved` method, including empty objects
   and aliases of primitives, arrays, maps or unions.
+- Distinct shared-package types such as `FooBAR` and `FooBar` can use the same
+  generated filename. Loom keeps both declarations and emits repeated uses of
+  one declaration once. Conflicting definitions of a Go symbol fail generation;
+  regenerate affected designs instead of renaming types to avoid filename clashes.
 - Repeated `HTTP`, `GRPC`, or `JSONRPC` blocks in the same API, service, or
   method scope compose in declaration order. Use this to keep transport
   mappings near the errors or methods they describe; ordinary duplicate and

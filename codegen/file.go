@@ -34,7 +34,7 @@ type (
 	// A Section renders one file fragment.
 	Section interface {
 		// SectionName returns the stable section identifier used by tests and
-		// merge logic.
+		// non-Go merge logic. Shared Go artifacts merge by declaration identity.
 		SectionName() string
 		// Write writes the rendered section content to the given writer.
 		Write(io.Writer) error

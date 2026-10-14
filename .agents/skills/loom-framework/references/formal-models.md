@@ -11,6 +11,13 @@ stated predicates under its hypotheses; it does not establish handwritten Go
 refinement, correct plan extraction, arbitrary codec behavior or generated-code
 correctness. Keep proved, tested, bounded-checked and assumed claims distinct.
 
+## Shared generated declarations
+
+The [declaration merge model](../../../../codegen/generator/tla/declaration_merge/README.md)
+checks declaration coverage, duplicate admission and effect occurrence retention
+across contribution orders. Direct AST/admission tests and compiled shared-package
+specimens establish the concrete Go identities and const/init behavior.
+
 ## CLI dependency ordering
 
 The [CLI argument model](../../../../http/codegen/tla/cli_arguments/README.md)

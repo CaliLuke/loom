@@ -75,6 +75,14 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- Same-path Go artifact composition owns declaration identity after sections
+  render. `generator.mergedGoSection` retains all non-header sections and delegates
+  named definition admission to one private AST owner. Section categories are not
+  declaration keys. Preserve init/blank occurrences, atomic const groups and tuple
+  bindings, compiler directives, import/package agreement and stable conflicts.
+  The ordinary File finalizer still owns formatting and pattern lowering; do not
+  add per-renderer name suffixes or public section identity metadata for this.
+
 - Mapped scalar decoding shares one `scalar_element` partial across HTTP request
   query/header/cookie and response header/cookie consumers, including JSON-RPC
   request metadata. Carrier lookup supplies raw contents and independent presence;

@@ -1073,6 +1073,13 @@ gen/
     └── common_type.go
 ```
 
+Distinct Go types can share a generated filename. For example, `FooBAR` and
+`FooBar` both use `foo_bar.go`; Loom retains both declarations. Repeated uses of
+the same shared declaration emit it once. Conflicting definitions of one Go
+symbol fail generation with the file and symbol names. Regenerate affected
+shared-package designs after upgrading; do not rename types merely to avoid a
+filename collision.
+
 The path must not be the package of a service that uses the type: with
 `Meta("struct:pkg:path", "common")` on a type of a service named `common`, the
 service package would import itself, so `loom gen` fails and asks for another
