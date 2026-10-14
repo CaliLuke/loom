@@ -14,18 +14,23 @@ func DecodeMethodAResponse(decoder func(*http.Response) loomhttp.Decoder, restor
 				)
 				{
 					requiredRaw := resp.Header.Get("X-Request-Id")
-					if requiredRaw == "" {
-						return nil, loomhttp.ErrValidationError("ServiceWithHeadersBlockViewedResult", "MethodA", loom.MissingFieldError("required", "header"))
+					requiredPresent := len(resp.Header.Values("X-Request-Id")) > 0
+
+					if requiredPresent {
+						v, err2 := strconv.ParseInt(requiredRaw, 10, strconv.IntSize)
+						if err2 != nil {
+							err = loom.MergeErrors(err, loom.InvalidFieldTypeError("required", requiredRaw, "integer"))
+						}
+						required = int(v)
+					} else {
+						err = loom.MergeErrors(err, loom.MissingFieldError("required", "header"))
 					}
-					v, err2 := strconv.ParseInt(requiredRaw, 10, strconv.IntSize)
-					if err2 != nil {
-						err = loom.MergeErrors(err, loom.InvalidFieldTypeError("required", requiredRaw, "integer"))
-					}
-					required = int(v)
 				}
 				{
 					optionalRaw := resp.Header.Get("Authorization")
-					if optionalRaw != "" {
+					optionalPresent := len(resp.Header.Values("Authorization")) > 0
+
+					if optionalPresent {
 						v, err2 := strconv.ParseFloat(optionalRaw, 32)
 						if err2 != nil {
 							err = loom.MergeErrors(err, loom.InvalidFieldTypeError("optional", optionalRaw, "float"))
@@ -36,14 +41,17 @@ func DecodeMethodAResponse(decoder func(*http.Response) loomhttp.Decoder, restor
 				}
 				{
 					optionalButRequiredRaw := resp.Header.Get("Location")
-					if optionalButRequiredRaw == "" {
-						return nil, loomhttp.ErrValidationError("ServiceWithHeadersBlockViewedResult", "MethodA", loom.MissingFieldError("optional_but_required", "header"))
+					optionalButRequiredPresent := len(resp.Header.Values("Location")) > 0
+
+					if optionalButRequiredPresent {
+						v, err2 := strconv.ParseUint(optionalButRequiredRaw, 10, strconv.IntSize)
+						if err2 != nil {
+							err = loom.MergeErrors(err, loom.InvalidFieldTypeError("optional_but_required", optionalButRequiredRaw, "unsigned integer"))
+						}
+						optionalButRequired = uint(v)
+					} else {
+						err = loom.MergeErrors(err, loom.MissingFieldError("optional_but_required", "header"))
 					}
-					v, err2 := strconv.ParseUint(optionalButRequiredRaw, 10, strconv.IntSize)
-					if err2 != nil {
-						err = loom.MergeErrors(err, loom.InvalidFieldTypeError("optional_but_required", optionalButRequiredRaw, "unsigned integer"))
-					}
-					optionalButRequired = uint(v)
 				}
 				if err != nil {
 					return nil, loomhttp.ErrValidationError("ServiceWithHeadersBlockViewedResult", "MethodA", err)

@@ -10,19 +10,21 @@ func DecodeMethodCookieCustomTextUnmarshalerRequest(mux loomhttp.Muxer, _ func(*
 		)
 		{
 			c, cookieErr := r.Cookie("id")
-			if cookieErr != nil {
-				if errors.Is(cookieErr, http.ErrNoCookie) {
-					err = loom.MergeErrors(err, loom.MissingFieldError("id", "cookie"))
-				} else {
-					return payload, cookieErr
-				}
+			if cookieErr != nil && !errors.Is(cookieErr, http.ErrNoCookie) {
+				return payload, cookieErr
 			}
 			var idRaw string
-			if c != nil {
+			idPresent := c != nil
+			if idPresent {
 				idRaw = c.Value
 			}
-			if err2 := id.UnmarshalText([]byte(idRaw)); err2 != nil {
-				err = loom.MergeErrors(err, loom.InvalidFieldTypeError("id", idRaw, "uuid.UUID"))
+
+			if idPresent {
+				if err2 := id.UnmarshalText([]byte(idRaw)); err2 != nil {
+					err = loom.MergeErrors(err, loom.InvalidFieldTypeError("id", idRaw, "uuid.UUID"))
+				}
+			} else {
+				err = loom.MergeErrors(err, loom.MissingFieldError("id", "cookie"))
 			}
 		}
 		if err != nil {

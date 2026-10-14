@@ -6,9 +6,13 @@ func DecodeMethodHeaderCustomNameRequest(mux loomhttp.Muxer, _ func(*http.Reques
 		var (
 			h *string
 		)
-		hRaw := r.Header.Get("h")
-		if hRaw != "" {
-			h = &hRaw
+		{
+			hRaw := r.Header.Get("h")
+			hPresent := len(r.Header.Values("h")) > 0
+
+			if hPresent {
+				h = &hRaw
+			}
 		}
 		payload = NewMethodHeaderCustomNamePayload(h)
 

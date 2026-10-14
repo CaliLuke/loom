@@ -18,9 +18,13 @@ func DecodeMethodBodyMultipleViewResponse(decoder func(*http.Response) loomhttp.
 				var (
 					c *string
 				)
-				cRaw := resp.Header.Get("Location")
-				if cRaw != "" {
-					c = &cRaw
+				{
+					cRaw := resp.Header.Get("Location")
+					cPresent := len(resp.Header.Values("Location")) > 0
+
+					if cPresent {
+						c = &cRaw
+					}
 				}
 				p := NewMethodBodyMultipleViewResulttypemultipleviewsOK(&body, c)
 				view := resp.Header.Get("loom-view")

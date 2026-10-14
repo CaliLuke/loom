@@ -153,23 +153,13 @@ func {{ .ResponseDecoder }}(decoder func(*http.Response) loomhttp.Decoder, resto
 			)
 		{{- range .Headers }}
 
-		{{- if (or (eq .Type.Name "string") (eq .Type.Name "any")) }}
-			{{ .Locals.Raw }} := resp.Header.Get("{{ .CanonicalName }}")
-			{{- if .Required }}
-				if {{ .Locals.Raw }} == "" {
-					err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "header"))
-				}
-				{{ .VarName }} = {{ if eq .Type.Name "any" }}loom.JSONValueFromString({{ .Locals.Raw }}){{ else }}{{ if .Pointer }}&{{ end }}{{ .Locals.Raw }}{{ end }}
-			{{- else }}
-				if {{ .Locals.Raw }} != "" {
-					{{ .VarName }} = {{ if eq .Type.Name "any" }}loom.JSONValueFromString({{ .Locals.Raw }}){{ else }}{{ if .Pointer }}&{{ end }}{{ .Locals.Raw }}{{ end }}
-				}
-				{{- if .DefaultValue }} else {
-					{{ .VarName }} = {{ if eq .Type.Name "any" }}loom.MustJSONValueFrom({{ printf "%#v" .DefaultValue }}){{ else }}{{ printf "%q" .DefaultValue }}{{ end }}
-				}
-				{{- end }}
-			{{- end }}
-
+ {{- $scalar := or .IsTextUnmarshaler (not .Slice) }}
+ {{- if $scalar }}
+ {
+  {{ .Locals.Raw }} := resp.Header.Get("{{ .CanonicalName }}")
+  {{ .Locals.Present }} := len(resp.Header.Values("{{ .CanonicalName }}")) > 0
+  {{- template "partial_scalar_element" (scalarElementData .Element "header") }}
+ }
 		{{- else if .StringSlice }}
 			{{ .VarName }} = loomhttp.HeaderValues(resp.Header, "{{ .CanonicalName }}")
 			{{ if .Required }}
@@ -204,30 +194,9 @@ func {{ .ResponseDecoder }}(decoder func(*http.Response) loomhttp.Decoder, resto
 			{{- end }}
 		}
 
-		{{- else }}{{/* not string, not any and not slice */}}
-		{
-			{{ .Locals.Raw }} := resp.Header.Get("{{ .CanonicalName }}")
-			{{- if .Required }}
-			if {{ .Locals.Raw }} == "" {
-				return nil, loomhttp.ErrValidationError("{{ $.ServiceName }}", "{{ $.Method.Name }}", loom.MissingFieldError("{{ .Name }}", "header"))
-			}
-			{{- else if .DefaultValue }}
-			if {{ .Locals.Raw }} == "" {
-				{{ .VarName }} = {{ printf "%#v" .DefaultValue }}
-			}
-			{{- end }}
 
-			{{- if .DefaultValue }}else {
-				{{- else if not .Required }}
-			if {{ .Locals.Raw }} != "" {
-			{{- end }}
-				{{- template "partial_query_type_conversion" . }}
-			{{- if or .DefaultValue (not .Required) }}
-			}
-			{{- end }}
-		}
 		{{- end }}
-		{{- if .Validate }}
+		{{- if and .Validate (not $scalar) }}
 			{{ .Validate }}
 		{{- end }}
 		{{- end }}{{/* range .Headers */}}
@@ -238,6 +207,7 @@ func {{ .ResponseDecoder }}(decoder func(*http.Response) loomhttp.Decoder, resto
 		{{- range .Cookies }}
 				{{ .VarName }}    {{ .TypeRef }}
 				{{ .Locals.Raw }} string
+            {{ .Locals.Present }} bool
 		{{- end }}
 
 				cookies = resp.Cookies()
@@ -254,52 +224,13 @@ func {{ .ResponseDecoder }}(decoder func(*http.Response) loomhttp.Decoder, resto
 		{{- range .Cookies }}
 			case {{ printf "%q" .HTTPName }}:
 				{{ .Locals.Raw }} = c.Value
+                {{ .Locals.Present }} = true
 		{{- end }}
 			}
 		}
 		{{- range .Cookies }}
 
-		{{- if (or (eq .Type.Name "string") (eq .Type.Name "any")) }}
-			{{- if .Required }}
-				if {{ .Locals.Raw }} == "" {
-					err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "cookie"))
-				}
-				{{ .VarName }} = {{ if eq .Type.Name "any" }}loom.JSONValueFromString({{ .Locals.Raw }}){{ else }}{{ if .Pointer }}&{{ end }}{{ .Locals.Raw }}{{ end }}
-			{{- else }}
-				if {{ .Locals.Raw }} != "" {
-					{{ .VarName }} = {{ if eq .Type.Name "any" }}loom.JSONValueFromString({{ .Locals.Raw }}){{ else }}{{ if .Pointer }}&{{ end }}{{ .Locals.Raw }}{{ end }}
-				}
-				{{- if .DefaultValue }} else {
-					{{ .VarName }} = {{ if eq .Type.Name "any" }}loom.MustJSONValueFrom({{ printf "%#v" .DefaultValue }}){{ else }}{{ printf "%q" .DefaultValue }}{{ end }}
-				}
-				{{- end }}
-			{{- end }}
-
-		{{- else }}{{/* not string and not any */}}
-		{
-			{{- if .Required }}
-			if {{ .Locals.Raw }} == "" {
-				return nil, loomhttp.ErrValidationError("{{ $.ServiceName }}", "{{ $.Method.Name }}", loom.MissingFieldError("{{ .Name }}", "cookie"))
-			}
-			{{- else if .DefaultValue }}
-			if {{ .Locals.Raw }} == "" {
-				{{ .VarName }} = {{ printf "%#v" .DefaultValue }}
-			}
-			{{- end }}
-
-			{{- if .DefaultValue }}else {
-				{{- else if not .Required }}
-			if {{ .Locals.Raw }} != "" {
-			{{- end }}
-				{{- template "partial_query_type_conversion" . }}
-			{{- if or .DefaultValue (not .Required) }}
-			}
-			{{- end }}
-		}
-		{{- end }}
-		{{- if .Validate }}
-			{{ .Validate }}
-		{{- end }}
+  {{- template "partial_scalar_element" (scalarElementData .Element "cookie") }}
 		{{- end }}{{/* range .Cookies */}}
 	{{- end }}
 

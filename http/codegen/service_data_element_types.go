@@ -26,6 +26,9 @@ type (
 		// Raw holds the raw string or string slice read from the request or
 		// response before conversion.
 		Raw string
+		// Present records whether the transport supplied the scalar, independently
+		// of its contents.
+		Present string
 		// RawSlice holds the comma separated elements of a raw path param.
 		RawSlice string
 		// HasValues records whether the query string holds any key of a map

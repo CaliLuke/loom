@@ -26,6 +26,11 @@ invalid names fail design evaluation, including inherited/security mappings.
 Regenerate clients and servers if a query/body mapping previously lost text
 after a second colon.
 
+Scalar query/header/cookie mappings distinguish omission from supplied empty
+values. Defaults fill optional absence only; required mappings still need a value,
+and supplied empty text reaches its codec and DSL validation. Regenerate clients
+and servers to adopt this rule; omit a mapping to request its default.
+
 A selected or listed `Body` must leave every required payload and reconstructed
 result/error field supplied by the body or another transport mapping. Existing
 authentication, envelope IDs and response Tags can reconstruct their fields;

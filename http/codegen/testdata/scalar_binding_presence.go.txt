@@ -1,0 +1,253 @@
+package scalarpresence_test
+
+import (
+	"context"
+	"encoding/json/v2"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	client "example.com/scalarpresence/gen/http/presence/client"
+	server "example.com/scalarpresence/gen/http/presence/server"
+	svc "example.com/scalarpresence/gen/presence"
+	loomhttp "github.com/CaliLuke/loom/http"
+	"github.com/stretchr/testify/require"
+)
+
+func TestScalarRequestPresence(t *testing.T) {
+	for _, location := range []string{"header", "cookie", "query"} {
+		for _, name := range []string{"omitted", "empty", "value", "required-empty", "required-default-empty", "missing-required", "missing-required-default", "empty-number", "empty-flag", "empty-limited", "first-header"} {
+			t.Run(location+"/"+name, func(t *testing.T) {
+				values := scalarValues(name)
+				seen := make(chan *svc.Values, 1)
+				endpoint := func(_ context.Context, p any) (any, error) {
+					seen <- p.(*svc.Values)
+					return p, nil
+				}
+				mux := loomhttp.NewMuxer()
+				server.Mount(mux, server.New(&svc.Endpoints{Header: endpoint, Cookie: endpoint, Query: endpoint}, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil))
+				r := httptest.NewRequest("GET", "/"+location, nil)
+				for key, value := range values {
+					switch location {
+					case "header":
+						r.Header.Set(key, value)
+					case "cookie":
+						r.AddCookie(&http.Cookie{Name: key, Value: value})
+					case "query":
+						q := r.URL.Query()
+						q.Set(key, value)
+						r.URL.RawQuery = q.Encode()
+					}
+				}
+				if name == "first-header" && location == "header" {
+					r.Header.Add("optional", "second")
+				}
+				w := httptest.NewRecorder()
+				mux.ServeHTTP(w, r)
+				invalid := strings.HasPrefix(name, "missing-") || strings.HasPrefix(name, "empty-")
+				if invalid {
+					require.Equal(t, http.StatusBadRequest, w.Code, w.Body.String())
+					var problem map[string]any
+					require.NoError(t, json.Unmarshal(w.Body.Bytes(), &problem))
+					wantCode, wantDetail := "invalid_field_type", "validation error"
+					switch name {
+					case "missing-required":
+						wantCode, wantDetail = "missing_field", "Missing required field: required"
+					case "missing-required-default":
+						wantCode, wantDetail = "missing_field", "Missing required field: required_default"
+					case "empty-limited":
+						wantCode = "invalid_length"
+					}
+					require.Equal(t, wantCode, problem["code"])
+					require.Equal(t, wantDetail, problem["detail"])
+
+					select {
+					case <-seen:
+						t.Error("service invoked for invalid binding")
+					default:
+					}
+					if strings.HasPrefix(name, "empty-") {
+						require.NotContains(t, w.Body.String(), "missing_field")
+					}
+					return
+				}
+				require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+				select {
+				case p := <-seen:
+					assertValues(t, p, name)
+				default:
+					t.Error("service not invoked")
+				}
+			})
+		}
+	}
+}
+
+func TestScalarResponsePresence(t *testing.T) {
+	for _, location := range []string{"header", "cookie"} {
+		for _, name := range []string{"omitted", "empty", "value", "required-empty", "required-default-empty", "missing-required", "missing-required-default", "empty-number", "empty-flag", "empty-limited", "first-header"} {
+			t.Run(location+"/"+name, func(t *testing.T) {
+				w := httptest.NewRecorder()
+				for key, value := range scalarValues(name) {
+					if location == "header" {
+						w.Header().Set(key, value)
+					} else {
+						http.SetCookie(w, &http.Cookie{Name: key, Value: value})
+					}
+				}
+				if name == "first-header" && location == "header" {
+					w.Header().Add("optional", "second")
+				}
+				w.WriteHeader(http.StatusOK)
+				response := w.Result()
+				defer func() {
+					require.NoError(t, response.Body.Close())
+				}()
+				var result any
+				var err error
+				if location == "header" {
+					result, err = client.DecodeHeaderResponse(loomhttp.ResponseDecoder, false)(response)
+				} else {
+					result, err = client.DecodeCookieResponse(loomhttp.ResponseDecoder, false)(response)
+				}
+				invalid := strings.HasPrefix(name, "missing-") || strings.HasPrefix(name, "empty-")
+				if invalid {
+					require.Error(t, err)
+					if strings.HasPrefix(name, "empty-") {
+						require.NotContains(t, err.Error(), "is missing")
+					}
+					return
+				}
+				require.NoError(t, err)
+				assertValues(t, result.(*svc.Values), name)
+			})
+		}
+	}
+}
+
+func scalarValues(name string) map[string]string {
+	values := map[string]string{"required": "required", "required_default": "required-default"}
+	switch name {
+	case "required-empty":
+		values["required"] = ""
+	case "required-default-empty":
+		values["required_default"] = ""
+	case "empty":
+		values["optional"] = ""
+		values["defaulted"] = ""
+		values["bytes"] = ""
+	case "value":
+		values["optional"] = "value"
+		values["defaulted"] = "given"
+		values["number"] = "0"
+		values["flag"] = "false"
+	case "first-header":
+		values["optional"] = "first"
+	case "missing-required":
+		delete(values, "required")
+	case "missing-required-default":
+		delete(values, "required_default")
+	case "empty-number":
+		values["number"] = ""
+	case "empty-flag":
+		values["flag"] = ""
+	case "empty-limited":
+		values["limited"] = ""
+	}
+	return values
+}
+
+func assertValues(t *testing.T, p *svc.Values, name string) {
+	t.Helper()
+	wantRequired, wantRequiredDefault := "required", "required-default"
+	if name == "required-empty" {
+		wantRequired = ""
+	}
+	if name == "required-default-empty" {
+		wantRequiredDefault = ""
+	}
+	require.Zero(t, p.Zero)
+	require.False(t, p.False)
+	require.Equal(t, wantRequired, p.Required)
+	require.Equal(t, wantRequiredDefault, p.RequiredDefault)
+	switch name {
+	case "omitted":
+		require.Nil(t, p.Optional)
+		require.Equal(t, "fallback", p.Defaulted)
+		require.True(t, p.Flag)
+	case "empty":
+		require.NotNil(t, p.Optional)
+		require.Equal(t, "", string(*p.Optional))
+		require.Equal(t, "", p.Defaulted)
+		require.NotNil(t, p.Bytes)
+		require.Empty(t, p.Bytes)
+	case "value":
+		require.NotNil(t, p.Optional)
+		require.Equal(t, "value", string(*p.Optional))
+		require.Equal(t, "given", p.Defaulted)
+		require.NotNil(t, p.Number)
+		require.Zero(t, *p.Number)
+		require.False(t, p.Flag)
+	case "first-header":
+		require.NotNil(t, p.Optional)
+		require.Equal(t, "first", string(*p.Optional))
+	}
+}
+
+func TestCustomScalarRequestPresence(t *testing.T) {
+	for _, location := range []string{"header", "cookie", "query"} {
+		for _, name := range []string{"absent", "empty", "value", "empty-default"} {
+			t.Run(location+"/"+name, func(t *testing.T) {
+				seen := make(chan *svc.CustomValues, 1)
+				endpoint := func(_ context.Context, p any) (any, error) {
+					seen <- p.(*svc.CustomValues)
+					return nil, nil
+				}
+				mux := loomhttp.NewMuxer()
+				server.Mount(mux, server.New(&svc.Endpoints{HeaderCustom: endpoint, CookieCustom: endpoint, QueryCustom: endpoint}, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil))
+				r := httptest.NewRequest("GET", "/"+location+"_custom", nil)
+				key, value := "id", ""
+				if name == "empty-default" {
+					key = "fallback"
+				}
+				if name == "value" {
+					value = "10290aeb-ea52-40ab-acb7-538dd06d9d1e"
+				}
+				if name != "absent" {
+					switch location {
+					case "header":
+						r.Header.Set(key, value)
+					case "cookie":
+						r.AddCookie(&http.Cookie{Name: key, Value: value})
+					case "query":
+						q := r.URL.Query()
+						q.Set(key, value)
+						r.URL.RawQuery = q.Encode()
+					}
+				}
+				w := httptest.NewRecorder()
+				mux.ServeHTTP(w, r)
+				if strings.HasPrefix(name, "empty") {
+					require.Equal(t, http.StatusBadRequest, w.Code, w.Body.String())
+					require.Contains(t, w.Body.String(), "invalid_field_type")
+					select {
+					case <-seen:
+						t.Error("custom codec rejection invoked service")
+					default:
+					}
+					return
+				}
+				require.Equal(t, http.StatusNoContent, w.Code, w.Body.String())
+				p := <-seen
+				require.Equal(t, "550e8400-e29b-41d4-a716-446655440000", p.Fallback.String())
+				if name == "absent" {
+					require.Nil(t, p.ID)
+				} else {
+					require.NotNil(t, p.ID)
+					require.Equal(t, value, p.ID.String())
+				}
+			})
+		}
+	}
+}

@@ -13,17 +13,20 @@ func DecodeMethodQueryFloat32ValidateRequest(mux loomhttp.Muxer, _ func(*http.Re
 		}
 		{
 			qRaw := qp.Get("q")
-			if qRaw == "" {
+			qPresent := qp.Has("q")
+
+			if qPresent {
+				v, err2 := strconv.ParseFloat(qRaw, 32)
+				if err2 != nil {
+					err = loom.MergeErrors(err, loom.InvalidFieldTypeError("q", qRaw, "float"))
+				}
+				q = float32(v)
+				if q < 1 {
+					err = loom.MergeErrors(err, loom.InvalidRangeError("q", q, "1", true))
+				}
+			} else {
 				err = loom.MergeErrors(err, loom.MissingFieldError("q", "query string"))
 			}
-			v, err2 := strconv.ParseFloat(qRaw, 32)
-			if err2 != nil {
-				err = loom.MergeErrors(err, loom.InvalidFieldTypeError("q", qRaw, "float"))
-			}
-			q = float32(v)
-		}
-		if q < 1 {
-			err = loom.MergeErrors(err, loom.InvalidRangeError("q", q, "1", true))
 		}
 		if err != nil {
 			return payload, err

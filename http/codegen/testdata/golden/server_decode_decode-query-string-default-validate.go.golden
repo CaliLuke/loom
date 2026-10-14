@@ -13,19 +13,20 @@ func DecodeMethodQueryStringDefaultValidateRequest(mux loomhttp.Muxer, _ func(*h
 			return payload, loom.DecodePayloadError("invalid query string")
 		}
 		{
-			rawValues, present := qp["q"]
-			if present {
-				raw := ""
-				if len(rawValues) > 0 {
-					raw = rawValues[0]
+			qRaw := qp.Get("q")
+			qPresent := qp.Has("q")
+
+			if qPresent {
+				q = qRaw
+				if !(q == "def") {
+					err = loom.MergeErrors(err, loom.InvalidEnumValueError("q", q, []any{"def"}))
 				}
-				q = raw
 			} else {
 				q = "def"
+				if !(q == "def") {
+					err = loom.MergeErrors(err, loom.InvalidEnumValueError("q", q, []any{"def"}))
+				}
 			}
-		}
-		if !(q == "def") {
-			err = loom.MergeErrors(err, loom.InvalidEnumValueError("q", q, []any{"def"}))
 		}
 		if err != nil {
 			return payload, err

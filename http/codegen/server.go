@@ -262,6 +262,7 @@ func transTmplFuncs(s *expr.HTTPServiceExpr, services *ServicesData) map[string]
 			return ok
 		},
 		"conversionData":         conversionData,
+		"scalarElementData":      scalarElementData,
 		"renderHeaderConversion": renderHeaderConversion,
 		"printValue":             printValue,
 		"viewedServerBody":       viewedServerBody,

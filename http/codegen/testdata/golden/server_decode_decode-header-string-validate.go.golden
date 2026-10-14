@@ -9,12 +9,16 @@ func DecodeMethodHeaderStringValidateRequest(mux loomhttp.Muxer, _ func(*http.Re
 		var (
 			h *string
 		)
-		hRaw := r.Header.Get("h")
-		if hRaw != "" {
-			h = &hRaw
-		}
-		if h != nil {
-			err = loom.MergeErrors(err, loom.ValidatePatternCompiled("h", *h, loomPatternTest0))
+		{
+			hRaw := r.Header.Get("h")
+			hPresent := len(r.Header.Values("h")) > 0
+
+			if hPresent {
+				h = &hRaw
+				if h != nil {
+					err = loom.MergeErrors(err, loom.ValidatePatternCompiled("h", *h, loomPatternTest0))
+				}
+			}
 		}
 		if err != nil {
 			return payload, err

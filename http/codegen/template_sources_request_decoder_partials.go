@@ -3,6 +3,38 @@ package codegen
 // httpDecoderConversionPartials holds conversion helpers shared by request and
 // response decoder templates.
 var httpDecoderConversionPartials = []templateSource{
+	{name: "scalar_element", source: `
+ if {{ .Locals.Present }} {
+  {{- if .IsTextUnmarshaler }}
+   {{- template "partial_query_type_conversion" . }}
+  {{- else if eq .Type.Name "string" }}
+   {{ .VarName }} = {{ if .Pointer }}&{{ end }}{{ .Locals.Raw }}
+  {{- else if eq .Type.Name "any" }}
+   {{ .VarName }} = loom.JSONValueFromString({{ .Locals.Raw }})
+  {{- else }}
+   {{- template "partial_query_type_conversion" . }}
+  {{- end }}
+  {{- if .Validate }}
+   {{ .Validate }}
+  {{- end }}
+ }
+ {{- if .Required }} else {
+  err = loom.MergeErrors(err, loom.MissingFieldError({{ printf "%q" .Name }}, {{ printf "%q" .Location }}))
+ }
+ {{- else if ne .DefaultValue nil }} else {
+  {{- if .IsTextUnmarshaler }}
+   {{ .Locals.Raw }} = {{ printf "%q" .DefaultValue }}
+   {{- template "partial_query_type_conversion" . }}
+  {{- else if eq .Type.Name "any" }}
+   {{ .VarName }} = loom.MustJSONValueFrom({{ printf "%#v" .DefaultValue }})
+  {{- else }}
+   {{ .VarName }} = {{ printf "%#v" .DefaultValue }}
+  {{- end }}
+  {{- if .Validate }}
+   {{ .Validate }}
+  {{- end }}
+ }
+ {{- end }}`},
 	{name: "slice_item_conversion", source: `		{{- if eq .Type.ElemType.Type.Name "string" }}
 			{{ .VarName }}[i] = rv
 		{{- else if eq .Type.ElemType.Type.Name "bytes" }}

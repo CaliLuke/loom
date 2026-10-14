@@ -31,13 +31,11 @@ func DecodeMethodBodyQueryPathObjectRequest(mux loomhttp.Muxer, decoder func(*ht
 			return payload, loom.DecodePayloadError("invalid query string")
 		}
 		{
-			rawValues, present := qp["b"]
-			if present {
-				raw := ""
-				if len(rawValues) > 0 {
-					raw = rawValues[0]
-				}
-				b = &raw
+			bRaw := qp.Get("b")
+			bPresent := qp.Has("b")
+
+			if bPresent {
+				b = &bRaw
 			}
 		}
 		if err != nil {

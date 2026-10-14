@@ -33,12 +33,17 @@ func DecodeMethodBodyQueryObjectValidateRequest(mux loomhttp.Muxer, decoder func
 		if queryErr != nil {
 			return payload, loom.DecodePayloadError("invalid query string")
 		}
-		b = qp.Get("b")
-		if b == "" {
-			err = loom.MergeErrors(err, loom.MissingFieldError("b", "query string"))
-		}
+		{
+			bRaw := qp.Get("b")
+			bPresent := qp.Has("b")
 
-		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("b", b, loomPatternTest0))
+			if bPresent {
+				b = bRaw
+				err = loom.MergeErrors(err, loom.ValidatePatternCompiled("b", b, loomPatternTest0))
+			} else {
+				err = loom.MergeErrors(err, loom.MissingFieldError("b", "query string"))
+			}
+		}
 		if err != nil {
 			return payload, err
 		}

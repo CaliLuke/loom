@@ -10,28 +10,27 @@ func DecodeMethodCookiePrimitiveBoolValidateRequest(mux loomhttp.Muxer, _ func(*
 		)
 		{
 			c, cookieErr := r.Cookie("c")
-			if cookieErr != nil {
-				if errors.Is(cookieErr, http.ErrNoCookie) {
-					err = loom.MergeErrors(err, loom.MissingFieldError("c", "cookie"))
-				} else {
-					return payload, cookieErr
-				}
+			if cookieErr != nil && !errors.Is(cookieErr, http.ErrNoCookie) {
+				return payload, cookieErr
 			}
 			var c2Raw string
-			if c != nil {
+			c2Present := c != nil
+			if c2Present {
 				c2Raw = c.Value
 			}
-			if c2Raw == "" {
+
+			if c2Present {
+				v, err2 := strconv.ParseBool(c2Raw)
+				if err2 != nil {
+					err = loom.MergeErrors(err, loom.InvalidFieldTypeError("c", c2Raw, "boolean"))
+				}
+				c2 = v
+				if !(c2 == true) {
+					err = loom.MergeErrors(err, loom.InvalidEnumValueError("c", c2, []any{true}))
+				}
+			} else {
 				err = loom.MergeErrors(err, loom.MissingFieldError("c", "cookie"))
 			}
-			v, err2 := strconv.ParseBool(c2Raw)
-			if err2 != nil {
-				err = loom.MergeErrors(err, loom.InvalidFieldTypeError("c", c2Raw, "boolean"))
-			}
-			c2 = v
-		}
-		if !(c2 == true) {
-			err = loom.MergeErrors(err, loom.InvalidEnumValueError("c", c2, []any{true}))
 		}
 		if err != nil {
 			return payload, err

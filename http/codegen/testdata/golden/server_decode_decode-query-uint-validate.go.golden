@@ -13,17 +13,20 @@ func DecodeMethodQueryUIntValidateRequest(mux loomhttp.Muxer, _ func(*http.Reque
 		}
 		{
 			qRaw := qp.Get("q")
-			if qRaw == "" {
+			qPresent := qp.Has("q")
+
+			if qPresent {
+				v, err2 := strconv.ParseUint(qRaw, 10, strconv.IntSize)
+				if err2 != nil {
+					err = loom.MergeErrors(err, loom.InvalidFieldTypeError("q", qRaw, "unsigned integer"))
+				}
+				q = uint(v)
+				if q < 0x1 {
+					err = loom.MergeErrors(err, loom.InvalidRangeError("q", q, "1", true))
+				}
+			} else {
 				err = loom.MergeErrors(err, loom.MissingFieldError("q", "query string"))
 			}
-			v, err2 := strconv.ParseUint(qRaw, 10, strconv.IntSize)
-			if err2 != nil {
-				err = loom.MergeErrors(err, loom.InvalidFieldTypeError("q", qRaw, "unsigned integer"))
-			}
-			q = uint(v)
-		}
-		if q < 0x1 {
-			err = loom.MergeErrors(err, loom.InvalidRangeError("q", q, "1", true))
 		}
 		if err != nil {
 			return payload, err

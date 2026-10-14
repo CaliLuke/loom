@@ -12,13 +12,17 @@ func DecodeMethodQueryCustomTextUnmarshalerOptionalRequest(mux loomhttp.Muxer, _
 		if queryErr != nil {
 			return payload, loom.DecodePayloadError("invalid query string")
 		}
-		idRaw := qp.Get("id")
-		if idRaw != "" {
-			var idVal uuid.UUID
-			if err2 := idVal.UnmarshalText([]byte(idRaw)); err2 != nil {
-				err = loom.MergeErrors(err, loom.InvalidFieldTypeError("id", idRaw, "uuid.UUID"))
-			} else {
-				id = &idVal
+		{
+			idRaw := qp.Get("id")
+			idPresent := qp.Has("id")
+
+			if idPresent {
+				var idVal uuid.UUID
+				if err2 := idVal.UnmarshalText([]byte(idRaw)); err2 != nil {
+					err = loom.MergeErrors(err, loom.InvalidFieldTypeError("id", idRaw, "uuid.UUID"))
+				} else {
+					id = &idVal
+				}
 			}
 		}
 		if err != nil {

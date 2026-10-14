@@ -75,6 +75,14 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- Mapped scalar decoding shares one `scalar_element` partial across HTTP request
+  query/header/cookie and response header/cookie consumers, including JSON-RPC
+  request metadata. Carrier lookup supplies raw contents and independent presence;
+  that owner applies requiredness, defaults, conversion and validation. Never
+  infer scalar absence from empty text. Preserve collection codecs, first-value
+  headers, custom text conversion and framed Authorization as separate protocols.
+  Keep `http/codegen/tla/scalar_binding_presence` and mounted regressions aligned.
+
 - OpenAPI import applies schema annotations after structural normalization in
   `schemaAnnotations`. Nullable branch selection cannot erase authored outer
   labels or positive read/write/deprecation flags. Extension composition clones

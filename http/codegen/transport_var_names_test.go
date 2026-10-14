@@ -246,7 +246,7 @@ func TestTransportVarNamesAreUniquePerFunction(t *testing.T) {
 			Func: "DecodeCollidingRequest",
 			Contains: []string{
 				`fooBar = params["fooBar"]`,
-				`qp2["foo_bar"]`,
+				`qp2.Get("foo_bar")`,
 				`r.Header.Get("X-Foo-Bar")`,
 				`r.Cookie("foo_bar_cookie")`,
 				`fooRaw := r.Header.Get("X-Foo")`,
@@ -314,7 +314,7 @@ func TestTransportVarNamesAreUniquePerFunction(t *testing.T) {
 		{
 			Name:     "request avoids service and views aliases",
 			Func:     "DecodeComputeRequest",
-			Contains: []string{`calc2 = &raw`, `calcviews2Raw := r.Header.Get("X-Views")`},
+			Contains: []string{`calc2 = &calc2Raw`, `calcviews2Raw := r.Header.Get("X-Views")`},
 		},
 		{
 			Name:     "isolated endpoint keeps base names",

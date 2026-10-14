@@ -11,13 +11,11 @@ func DecodeMethodQueryStringMappedRequest(mux loomhttp.Muxer, _ func(*http.Reque
 			return payload, loom.DecodePayloadError("invalid query string")
 		}
 		{
-			rawValues, present := qp["q"]
-			if present {
-				raw := ""
-				if len(rawValues) > 0 {
-					raw = rawValues[0]
-				}
-				query = &raw
+			queryRaw := qp.Get("q")
+			queryPresent := qp.Has("q")
+
+			if queryPresent {
+				query = &queryRaw
 			}
 		}
 		payload = NewMethodQueryStringMappedPayload(query)

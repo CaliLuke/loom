@@ -13,17 +13,20 @@ func DecodeMethodQueryBoolValidateRequest(mux loomhttp.Muxer, _ func(*http.Reque
 		}
 		{
 			qRaw := qp.Get("q")
-			if qRaw == "" {
+			qPresent := qp.Has("q")
+
+			if qPresent {
+				v, err2 := strconv.ParseBool(qRaw)
+				if err2 != nil {
+					err = loom.MergeErrors(err, loom.InvalidFieldTypeError("q", qRaw, "boolean"))
+				}
+				q = v
+				if !(q == true) {
+					err = loom.MergeErrors(err, loom.InvalidEnumValueError("q", q, []any{true}))
+				}
+			} else {
 				err = loom.MergeErrors(err, loom.MissingFieldError("q", "query string"))
 			}
-			v, err2 := strconv.ParseBool(qRaw)
-			if err2 != nil {
-				err = loom.MergeErrors(err, loom.InvalidFieldTypeError("q", qRaw, "boolean"))
-			}
-			q = v
-		}
-		if !(q == true) {
-			err = loom.MergeErrors(err, loom.InvalidEnumValueError("q", q, []any{true}))
 		}
 		if err != nil {
 			return payload, err

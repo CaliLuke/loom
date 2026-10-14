@@ -10,17 +10,20 @@ func DecodeMethodHeaderPrimitiveBoolValidateRequest(mux loomhttp.Muxer, _ func(*
 		)
 		{
 			hRaw := r.Header.Get("h")
-			if hRaw == "" {
+			hPresent := len(r.Header.Values("h")) > 0
+
+			if hPresent {
+				v, err2 := strconv.ParseBool(hRaw)
+				if err2 != nil {
+					err = loom.MergeErrors(err, loom.InvalidFieldTypeError("h", hRaw, "boolean"))
+				}
+				h = v
+				if !(h == true) {
+					err = loom.MergeErrors(err, loom.InvalidEnumValueError("h", h, []any{true}))
+				}
+			} else {
 				err = loom.MergeErrors(err, loom.MissingFieldError("h", "header"))
 			}
-			v, err2 := strconv.ParseBool(hRaw)
-			if err2 != nil {
-				err = loom.MergeErrors(err, loom.InvalidFieldTypeError("h", hRaw, "boolean"))
-			}
-			h = v
-		}
-		if !(h == true) {
-			err = loom.MergeErrors(err, loom.InvalidEnumValueError("h", h, []any{true}))
 		}
 		if err != nil {
 			return payload, err

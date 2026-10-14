@@ -11,11 +11,16 @@ func DecodeMethodEmptyServerResponseResponse(decoder func(*http.Response) loomht
 					h   string
 					err error
 				)
-				hRaw := resp.Header.Get("X-Result-H")
-				if hRaw == "" {
-					err = loom.MergeErrors(err, loom.MissingFieldError("h", "header"))
+				{
+					hRaw := resp.Header.Get("X-Result-H")
+					hPresent := len(resp.Header.Values("X-Result-H")) > 0
+
+					if hPresent {
+						h = hRaw
+					} else {
+						err = loom.MergeErrors(err, loom.MissingFieldError("h", "header"))
+					}
 				}
-				h = hRaw
 				if err != nil {
 					return nil, loomhttp.ErrValidationError("ServiceEmptyServerResponse", "MethodEmptyServerResponse", err)
 				}

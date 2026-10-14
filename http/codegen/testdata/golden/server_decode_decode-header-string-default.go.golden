@@ -6,11 +6,15 @@ func DecodeMethodHeaderStringDefaultRequest(mux loomhttp.Muxer, _ func(*http.Req
 		var (
 			h string
 		)
-		hRaw := r.Header.Get("h")
-		if hRaw != "" {
-			h = hRaw
-		} else {
-			h = "def"
+		{
+			hRaw := r.Header.Get("h")
+			hPresent := len(r.Header.Values("h")) > 0
+
+			if hPresent {
+				h = hRaw
+			} else {
+				h = "def"
+			}
 		}
 		payload = NewMethodHeaderStringDefaultPayload(h)
 

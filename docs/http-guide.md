@@ -552,6 +552,22 @@ design evaluation. This also applies to inherited, security and response binding
 Regenerate clients and servers after correcting a rejected mapping, or when
 a query/body mapping previously lost text after a second colon.
 
+### Scalar Mapping Presence
+
+Query parameters, request headers/cookies, and response headers/cookies distinguish
+an omitted value from a supplied empty string. A supplied empty String or Bytes
+value is retained, including optional fields. Required mappings reject omission,
+even when they declare a default. Defaults fill optional absence only; they never
+replace supplied empty strings, zero numbers, or false booleans.
+
+Supplied values always reach their codec and DSL validation. For example, an empty
+integer fails conversion, and an empty string with `MinLength(1)` fails validation.
+A custom text codec receives supplied empty input and decides whether it is valid.
+Scalar headers continue to use the first field value, without comma-list splitting.
+These request rules also apply to JSON-RPC. Regenerate clients and servers after
+upgrading; peers that previously sent empty values to request omission/defaults
+must omit the mapping instead. Authored body tags and codecs retain their contracts.
+
 ### Collection Headers
 
 Map an array of primitives with `Header("tags:X-Tags")` to use OpenAPI's

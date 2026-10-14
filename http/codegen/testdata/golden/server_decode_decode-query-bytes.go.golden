@@ -12,7 +12,9 @@ func DecodeMethodQueryBytesRequest(mux loomhttp.Muxer, _ func(*http.Request) loo
 		}
 		{
 			qRaw := qp.Get("q")
-			if qRaw != "" {
+			qPresent := qp.Has("q")
+
+			if qPresent {
 				q = []byte(qRaw)
 			}
 		}

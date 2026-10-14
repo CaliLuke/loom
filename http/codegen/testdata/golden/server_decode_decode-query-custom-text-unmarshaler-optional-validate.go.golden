@@ -13,16 +13,20 @@ func DecodeMethodQueryCustomTextUnmarshalerOptionalValidateRequest(mux loomhttp.
 		if queryErr != nil {
 			return payload, loom.DecodePayloadError("invalid query string")
 		}
-		idRaw := qp.Get("id")
-		if idRaw != "" {
-			var idVal uuid.UUID
-			if err2 := idVal.UnmarshalText([]byte(idRaw)); err2 != nil {
-				err = loom.MergeErrors(err, loom.InvalidFieldTypeError("id", idRaw, "uuid.UUID"))
-			} else {
-				id = &idVal
-			}
-			if utf8.RuneCountInString(idRaw) < 1 {
-				err = loom.MergeErrors(err, loom.InvalidLengthError("id", utf8.RuneCountInString(idRaw), 1, true))
+		{
+			idRaw := qp.Get("id")
+			idPresent := qp.Has("id")
+
+			if idPresent {
+				var idVal uuid.UUID
+				if err2 := idVal.UnmarshalText([]byte(idRaw)); err2 != nil {
+					err = loom.MergeErrors(err, loom.InvalidFieldTypeError("id", idRaw, "uuid.UUID"))
+				} else {
+					id = &idVal
+				}
+				if utf8.RuneCountInString(idRaw) < 1 {
+					err = loom.MergeErrors(err, loom.InvalidLengthError("id", utf8.RuneCountInString(idRaw), 1, true))
+				}
 			}
 		}
 		if err != nil {

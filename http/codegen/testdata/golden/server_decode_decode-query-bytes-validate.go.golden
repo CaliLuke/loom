@@ -13,13 +13,16 @@ func DecodeMethodQueryBytesValidateRequest(mux loomhttp.Muxer, _ func(*http.Requ
 		}
 		{
 			qRaw := qp.Get("q")
-			if qRaw == "" {
+			qPresent := qp.Has("q")
+
+			if qPresent {
+				q = []byte(qRaw)
+				if len(q) < 1 {
+					err = loom.MergeErrors(err, loom.InvalidLengthError("q", len(q), 1, true))
+				}
+			} else {
 				err = loom.MergeErrors(err, loom.MissingFieldError("q", "query string"))
 			}
-			q = []byte(qRaw)
-		}
-		if len(q) < 1 {
-			err = loom.MergeErrors(err, loom.InvalidLengthError("q", len(q), 1, true))
 		}
 		if err != nil {
 			return payload, err

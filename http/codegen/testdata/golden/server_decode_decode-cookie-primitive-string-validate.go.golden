@@ -10,19 +10,23 @@ func DecodeMethodCookiePrimitiveStringValidateRequest(mux loomhttp.Muxer, _ func
 		)
 		{
 			c, cookieErr := r.Cookie("c")
-			if cookieErr != nil {
-				if errors.Is(cookieErr, http.ErrNoCookie) {
-					err = loom.MergeErrors(err, loom.MissingFieldError("c", "cookie"))
-				} else {
-					return payload, cookieErr
+			if cookieErr != nil && !errors.Is(cookieErr, http.ErrNoCookie) {
+				return payload, cookieErr
+			}
+			var c2Raw string
+			c2Present := c != nil
+			if c2Present {
+				c2Raw = c.Value
+			}
+
+			if c2Present {
+				c2 = c2Raw
+				if !(c2 == "val") {
+					err = loom.MergeErrors(err, loom.InvalidEnumValueError("c", c2, []any{"val"}))
 				}
+			} else {
+				err = loom.MergeErrors(err, loom.MissingFieldError("c", "cookie"))
 			}
-			if c != nil {
-				c2 = c.Value
-			}
-		}
-		if !(c2 == "val") {
-			err = loom.MergeErrors(err, loom.InvalidEnumValueError("c", c2, []any{"val"}))
 		}
 		if err != nil {
 			return payload, err

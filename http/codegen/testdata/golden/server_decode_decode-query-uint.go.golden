@@ -13,7 +13,9 @@ func DecodeMethodQueryUIntRequest(mux loomhttp.Muxer, _ func(*http.Request) loom
 		}
 		{
 			qRaw := qp.Get("q")
-			if qRaw != "" {
+			qPresent := qp.Has("q")
+
+			if qPresent {
 				v, err2 := strconv.ParseUint(qRaw, 10, strconv.IntSize)
 				if err2 != nil {
 					err = loom.MergeErrors(err, loom.InvalidFieldTypeError("q", qRaw, "unsigned integer"))

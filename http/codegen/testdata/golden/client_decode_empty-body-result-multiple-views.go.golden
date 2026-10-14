@@ -10,9 +10,13 @@ func DecodeMethodEmptyBodyResultMultipleViewResponse(decoder func(*http.Response
 				var (
 					c *string
 				)
-				cRaw := resp.Header.Get("Location")
-				if cRaw != "" {
-					c = &cRaw
+				{
+					cRaw := resp.Header.Get("Location")
+					cPresent := len(resp.Header.Values("Location")) > 0
+
+					if cPresent {
+						c = &cRaw
+					}
 				}
 				p := NewMethodEmptyBodyResultMultipleViewResulttypemultipleviewsOK(c)
 				view := resp.Header.Get("loom-view")
