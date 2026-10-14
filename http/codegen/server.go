@@ -51,9 +51,6 @@ func serverFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData
 	if section := serverResponseContractsSection(data); section != nil {
 		sections = append(sections, section)
 	}
-	if section := mappedFilesSection(data); section != nil {
-		sections = append(sections, section)
-	}
 	for _, s := range data.FileServers {
 		sections = append(sections, fileServerSection(s))
 	}
@@ -175,26 +172,6 @@ func isPlainUnaryEndpoint(endpoint *EndpointData) bool {
 	return endpoint.Redirect == nil && !IsWebSocketEndpoint(endpoint) && !IsSSEEndpoint(endpoint) &&
 		!endpoint.HasMixedResults && !endpoint.Method.FileResponse &&
 		!endpoint.Method.SkipRequestBodyEncodeDecode && !endpoint.Method.SkipResponseBodyEncodeDecode
-}
-
-func mappedFilesSection(data *ServiceData) codegen.Section {
-	if len(data.FileServers) == 0 {
-		return nil
-	}
-	mappedFiles := map[string]string{}
-	for _, fs := range data.FileServers {
-		if fs.IsDir {
-			continue
-		}
-		for _, p := range fs.RequestPaths {
-			baseFilePath := "/" + filepath.Base(fs.FilePath)
-			baseRequestPath := "/" + filepath.Base(p)
-			if baseFilePath != baseRequestPath {
-				mappedFiles[baseRequestPath] = baseFilePath
-			}
-		}
-	}
-	return appendFSSection(mappedFiles)
 }
 
 func serverEncodeDecodeImports(genpkg, svcName string, data *ServiceData) []*codegen.ImportSpec {

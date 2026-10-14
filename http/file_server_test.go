@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 	"testing/fstest"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -77,6 +78,49 @@ func TestNewStaticFileServer(t *testing.T) {
 
 			require.Equal(t, test.wantStatus, response.Code)
 			require.Equal(t, test.wantBody, response.Body.String())
+		})
+	}
+}
+
+func TestStaticFileTargetPreservesHTTPContract(t *testing.T) {
+	modified := time.Date(2026, time.January, 2, 3, 4, 5, 0, time.UTC)
+	fileSystem := http.FS(fstest.MapFS{
+		"dist/index.html": &fstest.MapFile{Data: []byte("spa-index"), ModTime: modified},
+	})
+	tests := []struct {
+		name       string
+		method     string
+		header     string
+		value      string
+		wantStatus int
+		wantBody   string
+	}{
+		{"get", http.MethodGet, "", "", http.StatusOK, "spa-index"},
+		{"head", http.MethodHead, "", "", http.StatusOK, ""},
+		{"range", http.MethodGet, "Range", "bytes=0-2", http.StatusPartialContent, "spa"},
+		{"invalid range", http.MethodGet, "Range", "bytes=99-100", http.StatusRequestedRangeNotSatisfiable, "invalid range: failed to overlap\n"},
+		{"not modified", http.MethodGet, "If-Modified-Since", modified.Format(http.TimeFormat), http.StatusNotModified, ""},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			request := httptest.NewRequest(test.method, "/nested/%69ndex.html?keep=1", nil)
+			if test.header != "" {
+				request.Header.Set(test.header, test.value)
+			}
+			originalURL := *request.URL
+			response := httptest.NewRecorder()
+			loomhttp.NewStaticFileServer(fileSystem, "./dist/index.html").ServeHTTP(response, request)
+			require.Equal(t, test.wantStatus, response.Code)
+			require.Equal(t, test.wantBody, response.Body.String())
+			require.Equal(t, originalURL, *request.URL)
+			require.Empty(t, response.Header().Get("Location"))
+			if response.Code == http.StatusOK || response.Code == http.StatusPartialContent {
+				require.Equal(t, "text/html; charset=utf-8", response.Header().Get("Content-Type"))
+				require.Equal(t, modified.Format(http.TimeFormat), response.Header().Get("Last-Modified"))
+			}
+			if response.Code == http.StatusPartialContent {
+				require.Equal(t, "bytes 0-2/9", response.Header().Get("Content-Range"))
+			}
 		})
 	}
 }

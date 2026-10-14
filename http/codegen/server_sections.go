@@ -2,8 +2,6 @@ package codegen
 
 import (
 	"fmt"
-	"path"
-	"sort"
 	"strings"
 
 	"github.com/dave/jennifer/jen"
@@ -100,15 +98,6 @@ func renderServerInitBody(data *ServiceData) string {
 	if HasWebSocket(data) {
 		b.WriteString("\tif configurer == nil {\n\t\tconfigurer = &ConnConfigurer{}\n\t}\n")
 	}
-	for _, fs := range data.FileServers {
-		fmt.Fprintf(&b, "\tif %s == nil {\n\t\t%s = http.Dir(\".\")\n\t}\n", fs.ArgName, fs.ArgName)
-		if fs.IsDir {
-			continue
-		}
-		prefix := addLeadingSlash(fs.FilePath)
-		prefix = path.Dir(prefix)
-		fmt.Fprintf(&b, "\t%s = appendPrefix(%s, %q)\n", fs.ArgName, fs.ArgName, prefix)
-	}
 	fmt.Fprintf(&b, "\treturn &%s{\n", data.ServerStruct)
 	if data.CORS != nil && data.CORS.Runtime {
 		b.WriteString("\t\tcorsPolicy: corsPolicy,\n")
@@ -131,16 +120,8 @@ func renderServerInitBody(data *ServiceData) string {
 		b.WriteString("),\n")
 	}
 	for _, fs := range data.FileServers {
-		if fs.IsDir {
-			fmt.Fprintf(&b,
-				"\t\t%s: loomhttp.NewStaticFileServer(%s, %q),\n",
-				fs.VarName,
-				fs.ArgName,
-				addLeadingSlash(fs.FilePath),
-			)
-			continue
-		}
-		fmt.Fprintf(&b, "\t\t%s: http.FileServer(%s),\n", fs.VarName, fs.ArgName)
+		fmt.Fprintf(&b, "\t\t%s: loomhttp.NewStaticFileServer(%s, %q),\n",
+			fs.VarName, fs.ArgName, addLeadingSlash(fs.FilePath))
 	}
 	b.WriteString("\t}\n")
 	return b.String()
@@ -423,53 +404,6 @@ func quotedStringList(values []string) string {
 		quoted[i] = fmt.Sprintf("%q", value)
 	}
 	return strings.Join(quoted, ", ")
-}
-
-func appendFSSection(mappedFiles map[string]string) codegen.Section {
-	return codegen.NewJenniferSection("append-fs", func(stmt *jen.Statement) {
-		codegen.Doc(stmt, "appendFS is a custom implementation of fs.FS that appends a specified prefix to the file paths before delegating the Open call to the underlying fs.FS.")
-		stmt.Type().Id("appendFS").Struct(
-			jen.Id("prefix").String(),
-			jen.Id("fs").Qual("net/http", "FileSystem"),
-		)
-		stmt.Line()
-		codegen.Doc(stmt, "Open opens the named file, appending the prefix to the file path before passing it to the underlying fs.FS.")
-		stmt.Func().
-			Params(jen.Id("s").Id("appendFS")).
-			Id("Open").
-			Params(jen.Id("name").String()).
-			Params(jen.Qual("net/http", "File"), jen.Error()).
-			BlockFunc(func(group *jen.Group) {
-				appendHTTPRawBlock(group, renderAppendFSOpenBody(mappedFiles))
-			})
-		stmt.Line()
-		codegen.Doc(stmt, "appendPrefix returns a new fs.FS that appends the specified prefix to file paths before delegating to the provided embed.FS.")
-		stmt.Func().
-			Id("appendPrefix").
-			Params(jen.Id("fsys").Qual("net/http", "FileSystem"), jen.Id("prefix").String()).
-			Qual("net/http", "FileSystem").
-			Block(
-				jen.Return(jen.Id("appendFS").Values(jen.Id("prefix").Op(":").Id("prefix"), jen.Id("fs").Op(":").Id("fsys"))),
-			)
-		stmt.Line()
-	})
-}
-
-func renderAppendFSOpenBody(mappedFiles map[string]string) string {
-	var b strings.Builder
-	b.WriteString("\tswitch name {\n")
-	requestedPaths := make([]string, 0, len(mappedFiles))
-	for requested := range mappedFiles {
-		requestedPaths = append(requestedPaths, requested)
-	}
-	sort.Strings(requestedPaths)
-	for _, requested := range requestedPaths {
-		embedded := mappedFiles[requested]
-		fmt.Fprintf(&b, "\tcase %q:\n\t\tname = %q\n", requested, embedded)
-	}
-	b.WriteString("\t}\n")
-	b.WriteString("\treturn s.fs.Open(path.Join(s.prefix, name))\n")
-	return b.String()
 }
 
 func fileServerSection(data *FileServerData) codegen.Section {

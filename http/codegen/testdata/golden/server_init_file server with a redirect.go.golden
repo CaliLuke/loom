@@ -6,26 +6,14 @@
 // returned by the service methods prior to encoding. Both errhandler and
 // formatter are optional and can be nil.
 func New(e *servicefileserver.Endpoints, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(ctx context.Context, w http.ResponseWriter) loomhttp.Encoder, errhandler func(ctx context.Context, w http.ResponseWriter, err error), formatter func(ctx context.Context, err error) loomhttp.StatusCoder, fileSystemPathToFile1JSON http.FileSystem, fileSystemPathToFile2JSON http.FileSystem, fileSystemPathToFile3JSON http.FileSystem) *Server {
-	if fileSystemPathToFile1JSON == nil {
-		fileSystemPathToFile1JSON = http.Dir(".")
-	}
-	fileSystemPathToFile1JSON = appendPrefix(fileSystemPathToFile1JSON, "/path/to")
-	if fileSystemPathToFile2JSON == nil {
-		fileSystemPathToFile2JSON = http.Dir(".")
-	}
-	fileSystemPathToFile2JSON = appendPrefix(fileSystemPathToFile2JSON, "/path/to")
-	if fileSystemPathToFile3JSON == nil {
-		fileSystemPathToFile3JSON = http.Dir(".")
-	}
-	fileSystemPathToFile3JSON = appendPrefix(fileSystemPathToFile3JSON, "/path/to")
 	return &Server{
 		Mounts: []*MountPoint{
 			{"Serve /path/to/file1.json", "GET", "/server_file_server/file1.json"},
 			{"Serve /path/to/file2.json", "GET", "/server_file_server/file2.json"},
 			{"Serve /path/to/file3.json", "GET", "/server_file_server/file3.json"},
 		},
-		PathToFile1JSON: http.FileServer(fileSystemPathToFile1JSON),
-		PathToFile2JSON: http.FileServer(fileSystemPathToFile2JSON),
-		PathToFile3JSON: http.FileServer(fileSystemPathToFile3JSON),
+		PathToFile1JSON: loomhttp.NewStaticFileServer(fileSystemPathToFile1JSON, "/path/to/file1.json"),
+		PathToFile2JSON: loomhttp.NewStaticFileServer(fileSystemPathToFile2JSON, "/path/to/file2.json"),
+		PathToFile3JSON: loomhttp.NewStaticFileServer(fileSystemPathToFile3JSON, "/path/to/file3.json"),
 	}
 }

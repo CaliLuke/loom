@@ -6,14 +6,6 @@
 // the service methods prior to encoding. Both errhandler and formatter are
 // optional and can be nil.
 func New(e *servermixed.Endpoints, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(ctx context.Context, w http.ResponseWriter) loomhttp.Encoder, errhandler func(ctx context.Context, w http.ResponseWriter, err error), formatter func(ctx context.Context, err error) loomhttp.StatusCoder, fileSystemPathToFile1JSON http.FileSystem, fileSystemPathToFile2JSON http.FileSystem) *Server {
-	if fileSystemPathToFile1JSON == nil {
-		fileSystemPathToFile1JSON = http.Dir(".")
-	}
-	fileSystemPathToFile1JSON = appendPrefix(fileSystemPathToFile1JSON, "/path/to")
-	if fileSystemPathToFile2JSON == nil {
-		fileSystemPathToFile2JSON = http.Dir(".")
-	}
-	fileSystemPathToFile2JSON = appendPrefix(fileSystemPathToFile2JSON, "/path/to")
 	return &Server{
 		Mounts: []*MountPoint{
 			{"MethodMixed1", "GET", "/resources1/{id}"},
@@ -23,7 +15,7 @@ func New(e *servermixed.Endpoints, mux loomhttp.Muxer, decoder func(*http.Reques
 		},
 		MethodMixed1:    NewMethodMixed1Handler(e.MethodMixed1, mux, decoder, encoder, errhandler, formatter),
 		MethodMixed2:    NewMethodMixed2Handler(e.MethodMixed2, mux, decoder, encoder, errhandler, formatter),
-		PathToFile1JSON: http.FileServer(fileSystemPathToFile1JSON),
-		PathToFile2JSON: http.FileServer(fileSystemPathToFile2JSON),
+		PathToFile1JSON: loomhttp.NewStaticFileServer(fileSystemPathToFile1JSON, "/path/to/file1.json"),
+		PathToFile2JSON: loomhttp.NewStaticFileServer(fileSystemPathToFile2JSON, "/path/to/file2.json"),
 	}
 }

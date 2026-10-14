@@ -1452,10 +1452,13 @@ filter, and serialization rules belong here.
   Never reconstruct raw captures from decoded values or silently fall back to
   decoded splitting for custom muxes. See the
   [path decoding model](../../../http/tla/path_decoding/README.md).
-- Generated wildcard static-file routes delegate target resolution to
+- All generated static-file routes delegate target resolution and nil filesystem
+  defaults to
   `http.NewStaticFileServer`. Directory targets map the captured request suffix
   below the target, while file targets serve the same file for every matching
-  route. Generators must not infer target kind from a path extension.
+  route, including exact `/index.html` and renamed aliases. Do not emit a second
+  prefix filesystem or shared basename remapping table. Generators must not infer
+  target kind from a path extension.
 - HTTP SSE `id`, `event`, and `retry` mappings follow the service type pointer
   semantics recorded in `SSEData` (`IDPointer`, `EventPointer`,
   `RetryPointer`, `IDDefault`, `EventDefault`). Servers nil-check and

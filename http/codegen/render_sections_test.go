@@ -48,8 +48,7 @@ func TestConvertedServerRenderSections(t *testing.T) {
 	mountPoint := codegen.SectionCode(t, serverFile.Section("server-mountpoint")[0])
 	renderGolden(t, mountPoint, "render_server-mountpoint.golden")
 
-	appendFS := codegen.SectionCode(t, serverFile.Section("append-fs")[0])
-	renderGolden(t, appendFS, "render_append-fs.golden")
+	require.Empty(t, serverFile.Section("append-fs"))
 }
 
 func TestServerFileRendersSeparatedDeclarationsAndAttachedFieldDocs(t *testing.T) {
@@ -67,31 +66,6 @@ func TestServerFileRendersSeparatedDeclarationsAndAttachedFieldDocs(t *testing.T
 	require.NotContains(t, code, "} //")
 	require.Contains(t, code, "// Method is the name of the service method served by the mounted HTTP handler.\n\tMethod string")
 	renderGolden(t, code, "render_server-file.go.golden")
-}
-
-func TestRenderAppendFSOpenBodySortsMappedFiles(t *testing.T) {
-	code := renderAppendFSOpenBody(map[string]string{
-		"/z": "/z.json",
-		"/y": "/y.json",
-		"/x": "/x.json",
-		"/w": "/w.json",
-		"/v": "/v.json",
-		"/u": "/u.json",
-		"/t": "/t.json",
-		"/s": "/s.json",
-	})
-
-	require.Equal(t, "\tswitch name {\n"+
-		"\tcase \"/s\":\n\t\tname = \"/s.json\"\n"+
-		"\tcase \"/t\":\n\t\tname = \"/t.json\"\n"+
-		"\tcase \"/u\":\n\t\tname = \"/u.json\"\n"+
-		"\tcase \"/v\":\n\t\tname = \"/v.json\"\n"+
-		"\tcase \"/w\":\n\t\tname = \"/w.json\"\n"+
-		"\tcase \"/x\":\n\t\tname = \"/x.json\"\n"+
-		"\tcase \"/y\":\n\t\tname = \"/y.json\"\n"+
-		"\tcase \"/z\":\n\t\tname = \"/z.json\"\n"+
-		"\t}\n"+
-		"\treturn s.fs.Open(path.Join(s.prefix, name))\n", code)
 }
 
 func TestConvertedTypeRenderSections(t *testing.T) {

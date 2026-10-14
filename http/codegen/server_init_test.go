@@ -56,7 +56,7 @@ func TestServerInitCommentRequiresExplicitMount(t *testing.T) {
 	require.NotContains(t, comment, "handlers are mounted")
 }
 
-func TestServerInitUsesRuntimeStaticFileServerForWildcardTargets(t *testing.T) {
+func TestServerInitUsesRuntimeStaticFileServerForAllTargets(t *testing.T) {
 	root := RunHTTPDSL(t, fileServerIntegrationDSL)
 	services := CreateHTTPServices(root)
 	files := ServerFiles("gen", services)
@@ -65,6 +65,8 @@ func TestServerInitUsesRuntimeStaticFileServerForWildcardTargets(t *testing.T) {
 	code := codegen.SectionCode(t, files[0].Section("server-init")[0])
 	require.Contains(t, code, `loomhttp.NewStaticFileServer(fileSystemDistAssets, "/./dist/assets")`)
 	require.Contains(t, code, `loomhttp.NewStaticFileServer(fileSystemDistIndexHTML, "/./dist/index.html")`)
-	require.NotContains(t, code, `appendPrefix(fileSystemDistAssets`)
-	require.NotContains(t, code, `appendPrefix(fileSystemDistIndexHTML`)
+	require.Equal(t, 5, strings.Count(code, "loomhttp.NewStaticFileServer("))
+	require.NotContains(t, code, "appendPrefix")
+	require.NotContains(t, code, "http.FileServer(")
+	require.NotContains(t, code, "http.Dir(")
 }

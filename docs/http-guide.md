@@ -1695,6 +1695,11 @@ var _ = Service("web", func() {
 })
 ```
 
+A file target is served directly, including an exact `/index.html` route or an
+alias with a different name. Each mapping retains its own target, even when
+request paths share a basename. File responses preserve MIME types, byte ranges
+and conditional requests. Regenerate existing servers to adopt this behavior.
+
 For Single Page Applications, serve the index.html for all routes:
 
 ```go
