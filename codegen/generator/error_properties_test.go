@@ -189,6 +189,9 @@ func TestErrorProperties(t *testing.T) {
 							if mutation == "string" {
 								kind = "decoding_error"
 							}
+							if transport == "rpc" {
+								kind = "invalid_response"
+							}
 							require.Equal(t, kind, failure.Name)
 						})
 					}
