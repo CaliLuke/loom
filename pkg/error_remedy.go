@@ -65,24 +65,7 @@ func ResolveErrorMessage(err error) (message string, safeOverride bool) {
 		if _, ok := node.(LoomErrorNamer); ok {
 			return node.Error(), false
 		}
-		switch wrapped := node.(type) {
-		case interface{ Unwrap() []error }:
-			var child error
-			for _, candidate := range wrapped.Unwrap() {
-				if candidate == nil {
-					continue
-				}
-				if child != nil {
-					return "internal server error", false
-				}
-				child = candidate
-			}
-			node = child
-		case interface{ Unwrap() error }:
-			node = wrapped.Unwrap()
-		default:
-			return "internal server error", false
-		}
+		node = singleErrorCause(node)
 	}
 	return "internal server error", false
 }

@@ -318,19 +318,18 @@ func jsonrpcWebSocketServerCloseSection(data *httpcodegen.ServiceData) codegen.S
 }
 
 func streamErrorSwitch(prefix string, groups []*httpcodegen.ErrorGroupData) string {
-	parts := make([]string, 0, len(groups)+8)
+	parts := []string{"\terrorResponse := loom.ResolveErrorResponse(err)\n"}
 	if len(groups) > 0 {
 		parts = append(parts,
-			"\tvar en loom.LoomErrorNamer\n",
-			"\tif !errors.As(err, &en) {\n",
+			"\tif errorResponse.Owner == nil {\n",
 			"\t\tcode := jsonrpc.InternalError\n",
-			"\t\tvar serviceError *loom.ServiceError\n",
-			"\t\tif errors.As(err, &serviceError) {\n",
+			"\t\t//nolint:errorlint // Response ownership is already resolved.\n",
+			"\t\tif serviceError, ok := errorResponse.Owner.(*loom.ServiceError); ok {\n",
 			"\t\t\tcode = jsonrpc.CodeForServiceError(serviceError)\n",
 			"\t\t}\n",
 			"\t\t"+prefix+"code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))\n",
 			"\t}\n",
-			"\tswitch en.LoomErrorName() {\n",
+			"\tswitch errorResponse.Name {\n",
 		)
 		for _, gerr := range groups {
 			for _, e := range gerr.Errors {
@@ -343,8 +342,8 @@ func streamErrorSwitch(prefix string, groups []*httpcodegen.ErrorGroupData) stri
 		parts = append(parts,
 			"\tdefault:\n",
 			"\t\tcode := jsonrpc.InternalError\n",
-			"\t\tvar serviceError *loom.ServiceError\n",
-			"\t\tif errors.As(err, &serviceError) {\n",
+			"\t\t//nolint:errorlint // Response ownership is already resolved.\n",
+			"\t\tif serviceError, ok := errorResponse.Owner.(*loom.ServiceError); ok {\n",
 			"\t\t\tcode = jsonrpc.CodeForServiceError(serviceError)\n",
 			"\t\t}\n",
 			"\t\t"+prefix+"code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))\n",
@@ -354,8 +353,8 @@ func streamErrorSwitch(prefix string, groups []*httpcodegen.ErrorGroupData) stri
 	}
 	parts = append(parts,
 		"\tcode := jsonrpc.InternalError\n",
-		"\tvar serviceError *loom.ServiceError\n",
-		"\tif errors.As(err, &serviceError) {\n",
+		"\t//nolint:errorlint // Response ownership is already resolved.\n",
+		"\tif serviceError, ok := errorResponse.Owner.(*loom.ServiceError); ok {\n",
 		"\t\tcode = jsonrpc.CodeForServiceError(serviceError)\n",
 		"\t}\n",
 		"\t"+prefix+"code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))\n",
@@ -372,13 +371,14 @@ func streamMappedErrorCase(prefix string, item *httpcodegen.ErrorData) string {
 		), "")
 	}
 
+	initialization, data, source := mappedErrorBody(response)
 	parts = append(parts,
-		fmt.Sprintf("\t\tvar res %s\n", item.Ref),
-		"\t\tif !errors.As(err, &res) {\n",
+		"\t\t//nolint:errorlint // Response ownership is already resolved.\n",
+		fmt.Sprintf("\t\t%s, ok := errorResponse.Owner.(%s)\n", source, item.Ref),
+		"\t\tif !ok {\n",
 		fmt.Sprintf("\t\t\t%s%d, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))\n", prefix, response.Code),
 		"\t\t}\n",
 	)
-	initialization, data := mappedErrorBody(response)
 	if initialization != "" {
 		parts = append(parts, codegen.Indent(initialization+"\n", "\t\t"))
 	}
@@ -389,10 +389,11 @@ func streamMappedErrorCase(prefix string, item *httpcodegen.ErrorData) string {
 }
 
 func writeStreamErrorDataSwitch(g *jen.Group, errs []*httpcodegen.ErrorData, targetID jen.Code) {
+	g.Id("errorResponse").Op(":=").Id("loom").Dot("ResolveErrorResponse").Call(jen.Id("err"))
 	writeDefault := func(group *jen.Group) {
 		group.Id("code").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "InternalError")
-		group.Var().Id("serviceError").Op("*").Id("loom").Dot("ServiceError")
-		group.If(jen.Qual("errors", "As").Call(jen.Id("err"), jen.Op("&").Id("serviceError"))).Block(
+		group.Comment("nolint:errorlint // Response ownership is already resolved.")
+		group.If(jen.List(jen.Id("serviceError"), jen.Id("ok")).Op(":=").Id("errorResponse").Dot("Owner").Assert(codegen.TypeRef("*loom.ServiceError")), jen.Id("ok")).Block(
 			jen.Id("code").Op("=").Qual("github.com/CaliLuke/loom/jsonrpc", "CodeForServiceError").Call(jen.Id("serviceError")),
 		)
 		group.Return(
@@ -409,9 +410,8 @@ func writeStreamErrorDataSwitch(g *jen.Group, errs []*httpcodegen.ErrorData, tar
 		writeDefault(g)
 		return
 	}
-	g.Var().Id("en").Add(codegen.TypeRef("loom.LoomErrorNamer"))
-	g.If(jen.Op("!").Qual("errors", "As").Call(jen.Id("err"), jen.Op("&").Id("en"))).BlockFunc(writeDefault)
-	g.Switch(jen.Id("en").Dot("LoomErrorName").Call()).BlockFunc(func(sg *jen.Group) {
+	g.If(jen.Id("errorResponse").Dot("Owner").Op("==").Nil()).BlockFunc(writeDefault)
+	g.Switch(jen.Id("errorResponse").Dot("Name")).BlockFunc(func(sg *jen.Group) {
 		for _, e := range errs {
 			if e.Response == nil {
 				continue
@@ -442,9 +442,10 @@ func writeStreamMappedError(g *jen.Group, item *httpcodegen.ErrorData, targetID 
 		return
 	}
 
-	g.Var().Id("res").Add(codegen.TypeRef(item.Ref))
-	g.If(jen.Op("!").Qual("errors", "As").Call(jen.Id("err"), jen.Op("&").Id("res"))).BlockFunc(writeGeneric)
-	initialization, value := mappedErrorBody(response)
+	initialization, value, source := mappedErrorBody(response)
+	g.Comment("nolint:errorlint // Response ownership is already resolved.")
+	g.List(jen.Id(source), jen.Id("ok")).Op(":=").Id("errorResponse").Dot("Owner").Assert(codegen.TypeRef(item.Ref))
+	g.If(jen.Op("!").Id("ok")).BlockFunc(writeGeneric)
 	g.Add(codegen.Expr(initialization))
 	data := codegen.Expr(value)
 	g.Return(

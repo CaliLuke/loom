@@ -4,14 +4,15 @@
 func EncodeMethodEmptyCustomErrorResponseBodyError(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, formatter func(ctx context.Context, err error) loomhttp.StatusCoder) func(context.Context, http.ResponseWriter, error) error {
 	encodeError := loomhttp.ErrorEncoder(encoder, formatter)
 	return func(ctx context.Context, w http.ResponseWriter, v error) error {
-		var en loom.LoomErrorNamer
-		if !errors.As(v, &en) {
+		errorResponse := loom.ResolveErrorResponse(v)
+		if errorResponse.Owner == nil {
 			return encodeError(ctx, w, v)
 		}
-		switch en.LoomErrorName() {
+		switch errorResponse.Name {
 		case "internal_error":
-			var res *serviceemptycustomerrorresponsebody.Error
-			if !errors.As(v, &res) {
+			//nolint:errorlint // Response ownership is already resolved.
+			res, ok := errorResponse.Owner.(*serviceemptycustomerrorresponsebody.Error)
+			if !ok {
 				return encodeError(ctx, w, v)
 			}
 			w.Header().Set("loom-error", res.LoomErrorName())

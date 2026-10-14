@@ -9,7 +9,6 @@ package server
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"net/url"
 
@@ -96,22 +95,23 @@ func DecodeGuardedRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Dec
 func EncodeGuardedError(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, formatter func(ctx context.Context, err error) loomhttp.StatusCoder) func(context.Context, http.ResponseWriter, error) error {
 	encodeError := loomhttp.ErrorEncoder(encoder, formatter)
 	return func(ctx context.Context, w http.ResponseWriter, v error) error {
-		var en loom.LoomErrorNamer
-		if !errors.As(v, &en) {
+		errorResponse := loom.ResolveErrorResponse(v)
+		if errorResponse.Owner == nil {
 			return encodeError(ctx, w, v)
 		}
-		switch en.LoomErrorName() {
+		switch errorResponse.Name {
 		case "unauthorized":
-			var res *loom.ServiceError
-			if !errors.As(v, &res) {
+			//nolint:errorlint // Response ownership is already resolved.
+			res, ok := errorResponse.Owner.(*loom.ServiceError)
+			if !ok {
 				return encodeError(ctx, w, v)
 			}
 			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "application/problem+json")
-			problem := loomhttp.NewProblemResponse(ctx, res, 401, "", "")
+			problem := loomhttp.NewProblemResponse(ctx, v, 401, "", "")
 			enc := encoder(ctx, w)
 			var body any
 			if formatter != nil {
-				body = formatter(ctx, res)
+				body = formatter(ctx, v)
 			} else {
 				body = NewGuardedUnauthorizedResponseBody(problem)
 			}

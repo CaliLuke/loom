@@ -617,6 +617,23 @@ have a generic public message unless an explicit outer error owns the failure.
 Encoding leaves the original error and its cause unchanged for server-side
 diagnosis.
 
+HTTP and JSON-RPC also resolve one owner for the response code, designed body
+and metadata. An independent join cannot publish one branch's typed body, name,
+ID, retry flags, mapped headers or cookies. An explicit outer named error owns
+the complete response; an inner concrete error cannot supply its body, even
+when both errors have the same name. Ordinary wrappers and joins containing
+only one nonnil error preserve the underlying contract. A wrapper supplying
+only a safe message or remedy does not replace that typed owner. A nil remedy
+on an outer remedier shadows inner remediation metadata.
+
+Regenerate server adapters after upgrading to adopt complete response ownership
+in mapped HTTP, JSON-RPC unary/SSE/WebSocket and generated gRPC error conversion.
+Default runtime encoders adopt the correction on upgrade. Diagnostic helpers
+such as `ExtractErrorRemedy` still inspect error trees for their standalone uses;
+wire encoding bounds metadata lookup to the resolved response. Custom HTTP
+formatters receive the original error, including wrappers, and remain responsible
+for the public data they choose to expose.
+
 gRPC applies this policy to both the default status message and error detail,
 including safe messages in validation history. Its status codes and designed
 typed details retain their protocol contracts. Native cancellation and deadline

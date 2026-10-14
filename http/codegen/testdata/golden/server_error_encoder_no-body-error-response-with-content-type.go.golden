@@ -3,14 +3,15 @@
 func EncodeMethodServiceErrorResponseError(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, formatter func(ctx context.Context, err error) loomhttp.StatusCoder) func(context.Context, http.ResponseWriter, error) error {
 	encodeError := loomhttp.ErrorEncoder(encoder, formatter)
 	return func(ctx context.Context, w http.ResponseWriter, v error) error {
-		var en loom.LoomErrorNamer
-		if !errors.As(v, &en) {
+		errorResponse := loom.ResolveErrorResponse(v)
+		if errorResponse.Owner == nil {
 			return encodeError(ctx, w, v)
 		}
-		switch en.LoomErrorName() {
+		switch errorResponse.Name {
 		case "bad_request":
-			var res *servicenobodyerrorresponse.StringError
-			if !errors.As(v, &res) {
+			//nolint:errorlint // Response ownership is already resolved.
+			res, ok := errorResponse.Owner.(*servicenobodyerrorresponse.StringError)
+			if !ok {
 				return encodeError(ctx, w, v)
 			}
 			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "application/xml")

@@ -95,7 +95,9 @@ func TestJSONRPCUnmappedServiceErrorsUseInternalError(t *testing.T) {
 	streamCode := jsonrpcGeneratedCode(t, SSEServerFiles("", CreateJSONRPCServices(root)))
 	code := serverCode + "\n" + streamCode
 
-	assert.Contains(t, code, "errors.As(err, &serviceError)")
+	assert.Contains(t, code, "loom.ResolveErrorResponse(err)")
+	assert.Contains(t, code, "errorResponse.Owner.(*loom.ServiceError)")
+	assert.NotContains(t, code, "errors.As(err, &serviceError)")
 	assert.Contains(t, code, "code = jsonrpc.CodeForServiceError(serviceError)")
 	assert.NotContains(t, code, `err.(*loom.ServiceError)`)
 	assert.NotContains(t, code, `code = jsonrpc.InvalidParams`)

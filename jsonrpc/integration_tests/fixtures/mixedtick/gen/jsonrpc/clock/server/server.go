@@ -9,7 +9,6 @@ package server
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 
@@ -177,8 +176,9 @@ func NewInitializeHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder fu
 			loomtransport.RequestObserverFromContext(ctx).Fail(loomtransport.ReasonInvalidJSONRPCParams)
 			if req.HasID {
 				code := jsonrpc.InternalError
-				var serviceError *loom.ServiceError
-				if errors.As(err, &serviceError) {
+				errorResponse := loom.ResolveErrorResponse(err)
+				// nolint:errorlint // Response ownership is already resolved.
+				if serviceError, ok := errorResponse.Owner.(*loom.ServiceError); ok {
 					code = jsonrpc.CodeForServiceError(serviceError)
 				}
 				encodeJSONRPCError(ctx, w, req, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err), encoder, errhandler)
@@ -191,25 +191,25 @@ func NewInitializeHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder fu
 		if err != nil {
 			loomtransport.RequestObserverFromContext(ctx).Fail(loomtransport.ReasonHandlerError)
 			if req.HasID {
-				var en loom.LoomErrorNamer
-				if !errors.As(err, &en) {
+				errorResponse := loom.ResolveErrorResponse(err)
+				if errorResponse.Owner == nil {
 					code := jsonrpc.InternalError
-					var serviceError *loom.ServiceError
-					if errors.As(err, &serviceError) {
+					// nolint:errorlint // Response ownership is already resolved.
+					if serviceError, ok := errorResponse.Owner.(*loom.ServiceError); ok {
 						code = jsonrpc.CodeForServiceError(serviceError)
 					}
 					encodeJSONRPCError(ctx, w, req, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err), encoder, errhandler)
 					return nil
 				}
-				switch en.LoomErrorName() {
+				switch errorResponse.Name {
 				case "invalid_params":
 					encodeJSONRPCError(ctx, w, req, jsonrpc.InvalidParams, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err), encoder, errhandler)
 				case "method_not_found":
 					encodeJSONRPCError(ctx, w, req, jsonrpc.MethodNotFound, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err), encoder, errhandler)
 				default:
 					code := jsonrpc.InternalError
-					var serviceError *loom.ServiceError
-					if errors.As(err, &serviceError) {
+					// nolint:errorlint // Response ownership is already resolved.
+					if serviceError, ok := errorResponse.Owner.(*loom.ServiceError); ok {
 						code = jsonrpc.CodeForServiceError(serviceError)
 					}
 					encodeJSONRPCError(ctx, w, req, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err), encoder, errhandler)
@@ -260,8 +260,9 @@ func NewTickHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*ht
 		if err != nil {
 			if req.HasID {
 				code := jsonrpc.InternalError
-				var serviceError *loom.ServiceError
-				if errors.As(err, &serviceError) {
+				errorResponse := loom.ResolveErrorResponse(err)
+				// nolint:errorlint // Response ownership is already resolved.
+				if serviceError, ok := errorResponse.Owner.(*loom.ServiceError); ok {
 					code = jsonrpc.CodeForServiceError(serviceError)
 				}
 				return strm.sendError(ctx, req.ID, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
@@ -274,9 +275,9 @@ func NewTickHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*ht
 		}
 		if _, err := endpoint(ctx, v); err != nil {
 			if req.HasID {
-				var en loom.LoomErrorNamer
-				if errors.As(err, &en) {
-					switch en.LoomErrorName() {
+				errorResponse := loom.ResolveErrorResponse(err)
+				if errorResponse.Owner != nil {
+					switch errorResponse.Name {
 					case "invalid_params":
 						if sendErr := strm.sendError(ctx, req.ID, jsonrpc.InvalidParams, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err)); sendErr != nil {
 							return fmt.Errorf("%w: %w", sendErr, err)

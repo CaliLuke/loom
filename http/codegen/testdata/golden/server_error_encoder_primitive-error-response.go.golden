@@ -4,20 +4,21 @@
 func EncodeMethodPrimitiveErrorResponseError(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, formatter func(ctx context.Context, err error) loomhttp.StatusCoder) func(context.Context, http.ResponseWriter, error) error {
 	encodeError := loomhttp.ErrorEncoder(encoder, formatter)
 	return func(ctx context.Context, w http.ResponseWriter, v error) error {
-		var en loom.LoomErrorNamer
-		if !errors.As(v, &en) {
+		errorResponse := loom.ResolveErrorResponse(v)
+		if errorResponse.Owner == nil {
 			return encodeError(ctx, w, v)
 		}
-		switch en.LoomErrorName() {
+		switch errorResponse.Name {
 		case "bad_request":
-			var res serviceprimitiveerrorresponse.BadRequest
-			if !errors.As(v, &res) {
+			//nolint:errorlint // Response ownership is already resolved.
+			res, ok := errorResponse.Owner.(serviceprimitiveerrorresponse.BadRequest)
+			if !ok {
 				return encodeError(ctx, w, v)
 			}
 			enc := encoder(ctx, w)
 			var body any
 			if formatter != nil {
-				body = formatter(ctx, res)
+				body = formatter(ctx, v)
 			} else {
 				body = res
 			}
@@ -25,14 +26,15 @@ func EncodeMethodPrimitiveErrorResponseError(encoder func(context.Context, http.
 			w.WriteHeader(http.StatusBadRequest)
 			return enc.Encode(body)
 		case "internal_error":
-			var res serviceprimitiveerrorresponse.InternalError
-			if !errors.As(v, &res) {
+			//nolint:errorlint // Response ownership is already resolved.
+			res, ok := errorResponse.Owner.(serviceprimitiveerrorresponse.InternalError)
+			if !ok {
 				return encodeError(ctx, w, v)
 			}
 			enc := encoder(ctx, w)
 			var body any
 			if formatter != nil {
-				body = formatter(ctx, res)
+				body = formatter(ctx, v)
 			} else {
 				body = res
 			}

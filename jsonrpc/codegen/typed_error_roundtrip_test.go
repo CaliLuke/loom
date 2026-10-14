@@ -98,26 +98,6 @@ import (
 
 type toolsService struct{}
 
-func (*toolsService) Typed(_ context.Context, payload *tools.TypedPayload) (string, error) {
-	return "", &tools.ToolError{
-		Name:       payload.Kind,
-		Code:       "TOOLS_" + strings.ToUpper(payload.Kind),
-		Message:    "instance message for " + payload.Kind,
-		RemedyCode: "tools." + payload.Kind + ".change",
-		RetryHint:  "retry " + payload.Kind + " after changing the request",
-	}
-}
-
-func (*toolsService) Raw(context.Context, *tools.RawPayload) (string, error) {
-	return "", &tools.ToolError{
-		Name:       "forbidden",
-		Code:       "TOOLS_FORBIDDEN",
-		Message:    "private implementation detail",
-		RemedyCode: "tools.request.change",
-		RetryHint:  "Change the request and retry.",
-	}
-}
-
 func TestGeneratedErrorsRoundTrip(t *testing.T) {
 	mux := loomhttp.NewMuxer()
 	server := toolsserver.New(
@@ -181,4 +161,47 @@ func TestGeneratedErrorsRoundTrip(t *testing.T) {
 		t.Errorf("raw data remedy: %#v", data.Remedy)
 	}
 }
+
+func TestJoinedErrorHasSinglePublicOwner(t *testing.T) {
+	mux := loomhttp.NewMuxer()
+	toolsserver.Mount(mux, toolsserver.New(tools.NewEndpoints(&toolsService{}), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil))
+	r := httptest.NewRequest(http.MethodPost, "/tools", strings.NewReader("{\"jsonrpc\":\"2.0\",\"id\":\"joined\",\"method\":\"typed\",\"params\":{\"kind\":\"joined\"}}"))
+	r.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, r)
+	var envelope struct {
+		Error struct {
+			Code int "json:\"code\""
+		} "json:\"error\""
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &envelope); err != nil {
+		t.Fatal(err)
+	}
+	if envelope.Error.Code != int(jsonrpc.InternalError) || strings.Contains(w.Body.String(), "private-joined-sentinel") {
+		t.Fatalf("joined response selected one independent branch: %s", w.Body.String())
+	}
+}
+func (*toolsService) Typed(_ context.Context, payload *tools.TypedPayload) (string, error) {
+	if payload.Kind == "joined" {
+		return "", errors.Join(&tools.ToolError{Name: "forbidden", Code: "TOOLS_FORBIDDEN", Message: "private-joined-sentinel", RemedyCode: "tools.change", RetryHint: "retry"}, errors.New("independent cleanup failure"))
+	}
+	return "", &tools.ToolError{
+		Name:       payload.Kind,
+		Code:       "TOOLS_" + strings.ToUpper(payload.Kind),
+		Message:    "instance message for " + payload.Kind,
+		RemedyCode: "tools." + payload.Kind + ".change",
+		RetryHint:  "retry " + payload.Kind + " after changing the request",
+	}
+}
+
+func (*toolsService) Raw(context.Context, *tools.RawPayload) (string, error) {
+	return "", &tools.ToolError{
+		Name:       "forbidden",
+		Code:       "TOOLS_FORBIDDEN",
+		Message:    "private implementation detail",
+		RemedyCode: "tools.request.change",
+		RetryHint:  "Change the request and retry.",
+	}
+}
+
 `

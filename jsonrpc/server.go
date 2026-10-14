@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/json/jsontext"
 	"encoding/json/v2"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -320,9 +319,10 @@ func encodeJSONRPCResponse(
 	}
 }
 
+//nolint:errorlint // The response owner is resolved before inspecting its concrete contract.
 func envelopeDecodeError(err error) (Code, string, any) {
-	var serviceError *loom.ServiceError
-	if errors.As(err, &serviceError) && serviceError.Name == loom.RequestBodyTooLarge {
+	response := loom.ResolveErrorResponse(err)
+	if serviceError, ok := response.Owner.(*loom.ServiceError); ok && serviceError.Name == loom.RequestBodyTooLarge {
 		return CodeForServiceError(serviceError), loom.ErrorSafeMessage(err), NewErrorData(err)
 	}
 	return ParseError, "Parse error", nil

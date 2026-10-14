@@ -122,7 +122,9 @@ func TestPublicMessages(t *testing.T) {
 		{"public wrapper", fmt.Errorf("private query: %w", public), "public detail", true},
 		{"safe", safe, "safe detail", true},
 		{"outer safe", outerSafe, "outer safe detail", true},
-		{"join", errors.Join(public, secret), "internal server error", true},
+		{"join", errors.Join(public, secret), "internal server error", false},
+		{"reverse join", errors.Join(secret, public), "internal server error", false},
+		{"single join", errors.Join(nil, public), "public detail", true},
 	} {
 		for _, transport := range []string{"unary", "events", "socket"} {
 			for _, send := range []bool{false, true} {

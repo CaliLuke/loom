@@ -9,7 +9,6 @@ package server
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 
@@ -154,8 +153,9 @@ func NewTickHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*ht
 		if err != nil {
 			if req.HasID {
 				code := jsonrpc.InternalError
-				var serviceError *loom.ServiceError
-				if errors.As(err, &serviceError) {
+				errorResponse := loom.ResolveErrorResponse(err)
+				// nolint:errorlint // Response ownership is already resolved.
+				if serviceError, ok := errorResponse.Owner.(*loom.ServiceError); ok {
 					code = jsonrpc.CodeForServiceError(serviceError)
 				}
 				return strm.sendError(ctx, req.ID, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
@@ -168,9 +168,9 @@ func NewTickHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*ht
 		}
 		if _, err := endpoint(ctx, v); err != nil {
 			if req.HasID {
-				var en loom.LoomErrorNamer
-				if errors.As(err, &en) {
-					switch en.LoomErrorName() {
+				errorResponse := loom.ResolveErrorResponse(err)
+				if errorResponse.Owner != nil {
+					switch errorResponse.Name {
 					case "invalid_params":
 						if sendErr := strm.sendError(ctx, req.ID, jsonrpc.InvalidParams, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err)); sendErr != nil {
 							return fmt.Errorf("%w: %w", sendErr, err)
@@ -215,8 +215,9 @@ func NewTockHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*ht
 		if err != nil {
 			if req.HasID {
 				code := jsonrpc.InternalError
-				var serviceError *loom.ServiceError
-				if errors.As(err, &serviceError) {
+				errorResponse := loom.ResolveErrorResponse(err)
+				// nolint:errorlint // Response ownership is already resolved.
+				if serviceError, ok := errorResponse.Owner.(*loom.ServiceError); ok {
 					code = jsonrpc.CodeForServiceError(serviceError)
 				}
 				return strm.sendError(ctx, req.ID, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
@@ -229,9 +230,9 @@ func NewTockHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*ht
 		}
 		if _, err := endpoint(ctx, v); err != nil {
 			if req.HasID {
-				var en loom.LoomErrorNamer
-				if errors.As(err, &en) {
-					switch en.LoomErrorName() {
+				errorResponse := loom.ResolveErrorResponse(err)
+				if errorResponse.Owner != nil {
+					switch errorResponse.Name {
 					case "invalid_params":
 						if sendErr := strm.sendError(ctx, req.ID, jsonrpc.InvalidParams, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err)); sendErr != nil {
 							return fmt.Errorf("%w: %w", sendErr, err)

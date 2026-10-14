@@ -4,17 +4,18 @@
 func EncodeMethodEmptyErrorResponseBodyError(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, formatter func(ctx context.Context, err error) loomhttp.StatusCoder) func(context.Context, http.ResponseWriter, error) error {
 	encodeError := loomhttp.ErrorEncoder(encoder, formatter)
 	return func(ctx context.Context, w http.ResponseWriter, v error) error {
-		var en loom.LoomErrorNamer
-		if !errors.As(v, &en) {
+		errorResponse := loom.ResolveErrorResponse(v)
+		if errorResponse.Owner == nil {
 			return encodeError(ctx, w, v)
 		}
-		switch en.LoomErrorName() {
+		switch errorResponse.Name {
 		case "internal_error":
-			var res *loom.ServiceError
-			if !errors.As(v, &res) {
+			//nolint:errorlint // Response ownership is already resolved.
+			res, ok := errorResponse.Owner.(*loom.ServiceError)
+			if !ok {
 				return encodeError(ctx, w, v)
 			}
-			problem := loomhttp.NewProblemResponse(ctx, res, 500, "", "")
+			problem := loomhttp.NewProblemResponse(ctx, v, 500, "", "")
 			w.Header().Set("Error-Code", problem.Code)
 			w.Header().Set("Loom-Attribute-Type", problem.Type)
 			w.Header().Set("Loom-Attribute-Title", problem.Title)
@@ -47,8 +48,9 @@ func EncodeMethodEmptyErrorResponseBodyError(encoder func(context.Context, http.
 			w.WriteHeader(http.StatusInternalServerError)
 			return nil
 		case "not_found":
-			var res serviceemptyerrorresponsebody.NotFound
-			if !errors.As(v, &res) {
+			//nolint:errorlint // Response ownership is already resolved.
+			res, ok := errorResponse.Owner.(serviceemptyerrorresponsebody.NotFound)
+			if !ok {
 				return encodeError(ctx, w, v)
 			}
 			{

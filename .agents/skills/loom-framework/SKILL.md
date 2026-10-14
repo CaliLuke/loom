@@ -75,6 +75,16 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- `pkg.ResolveErrorResponse` owns the complete wire error's named identity and
+  permitted remedy. Its private single-cause step is shared with message
+  resolution; independent joins never contribute branch bodies or traits.
+  HTTP/JSON-RPC runtime and mapped encoders, plus the generated gRPC mapper,
+  directly assert that resolved owner. Keep original errors for logging and
+  custom formatters, preserve message-only wrapper overrides, and leave general
+  diagnostic extraction and gRPC native/aggregate classification unchanged.
+  Do not restore tree-wide `errors.As` inside wire body selection. Keep the
+  existing error-disclosure model and actual mapped transport checks aligned.
+
 - Request analysis records whether raw ownership or a mapped Content-Length needs
   preparation completion. The shared request encoder defers
   `http.FinalizeRequestEncoding` until all body factories/codecs have run. That

@@ -63,9 +63,12 @@ func NewErrorResponse(ctx context.Context, err error) StatusCoder {
 
 // NewProblemResponse creates a problem document from err using the supplied
 // status and optional explicit type/title overrides.
+//
+//nolint:errorlint // The response owner is resolved; do not select an inner contract.
 func NewProblemResponse(_ context.Context, err error, status int, problemType, problemTitle string) *ProblemResponse {
-	var gerr *loom.ServiceError
-	if !errors.As(err, &gerr) {
+	response := loom.ResolveErrorResponse(err)
+	gerr, ok := response.Owner.(*loom.ServiceError)
+	if !ok {
 		gerr = loom.Fault("internal server error")
 	}
 	if status == 0 {
@@ -83,7 +86,8 @@ func NewProblemResponse(_ context.Context, err error, status int, problemType, p
 		Temporary: gerr.Temporary,
 		Fault:     gerr.Fault,
 	}
-	if retryHint := loom.ErrorRetryHint(err); retryHint != "" {
+	if response.Remedy != nil && response.Remedy.RetryHint != "" {
+		retryHint := response.Remedy.RetryHint
 		resp.RetryHint = &retryHint
 	}
 	return resp

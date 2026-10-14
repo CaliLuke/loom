@@ -35,8 +35,14 @@ import (
 )
 
 type (
-	eventService  struct{ send bool }
-	socketService struct{ send bool }
+	eventService struct {
+		send bool
+		join bool
+	}
+	socketService struct {
+		send bool
+		join bool
+	}
 )
 
 func TestTypedStreamErrors(t *testing.T) {
@@ -129,11 +135,15 @@ func TestTypedStreamErrors(t *testing.T) {
 	}
 }
 func TestMountedTypedStreamErrors(t *testing.T) {
-	for _, send := range []bool{false, true} {
-		t.Run(fmt.Sprintf("send=%t", send), func(t *testing.T) {
+	for _, tc := range []struct {
+		send bool
+		join bool
+	}{{false, false}, {true, false}, {false, true}, {true, true}} {
+		send, join := tc.send, tc.join
+		t.Run(fmt.Sprintf("send=%t/join=%t", send, join), func(t *testing.T) {
 			mux := loomhttp.NewMuxer()
-			eventsserver.Mount(mux, eventsserver.New(events.NewEndpoints(eventService{send: send}), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil))
-			ws := socketService{send: send}
+			eventsserver.Mount(mux, eventsserver.New(events.NewEndpoints(eventService{send: send, join: join}), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil))
+			ws := socketService{send: send, join: join}
 			socketserver.Mount(mux, socketserver.New(ws.HandleStream, socket.NewEndpoints(ws), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, &websocket.Upgrader{}, loomhttp.WebSocketConfig{}))
 			host := httptest.NewServer(mux)
 			defer host.Close()
@@ -167,6 +177,13 @@ func TestMountedTypedStreamErrors(t *testing.T) {
 						}
 					}
 					_, err = stream.Recv()
+					if join {
+						var raw *jsonrpc.RawErrorResponse
+						if !errors.As(err, &raw) || raw.Code != int(jsonrpc.InternalError) || len(raw.Data) != 0 || raw.Message != "internal server error" {
+							t.Errorf("independent join must not select typed branch: %T %v", err, err)
+						}
+						return
+					}
 					var identity interface{ LoomErrorName() string }
 					if !errors.As(err, &identity) || identity.LoomErrorName() != "forbidden" {
 						t.Errorf("expected mapped forbidden, got %T %v", err, err)
@@ -178,7 +195,10 @@ func TestMountedTypedStreamErrors(t *testing.T) {
 }
 
 func (s eventService) Watch(ctx context.Context, stream events.WatchServerStream) error {
-	failure := &events.Failure{Kind: "forbidden", Name: "unrelated resource"}
+	var failure error = &events.Failure{Kind: "forbidden", Name: "unrelated resource"}
+	if s.join {
+		failure = errors.Join(failure, errors.New("independent cleanup"))
+	}
 	if s.send {
 		return stream.SendError(ctx, "id", failure)
 	}
@@ -194,7 +214,10 @@ func (s socketService) HandleStream(ctx context.Context, stream socket.Stream) e
 }
 
 func (s socketService) Watch(ctx context.Context, stream socket.WatchServerStream) error {
-	failure := &socket.Failure{Kind: "forbidden", Name: "unrelated resource"}
+	var failure error = &socket.Failure{Kind: "forbidden", Name: "unrelated resource"}
+	if s.join {
+		failure = errors.Join(failure, errors.New("independent cleanup"))
+	}
 	if s.send {
 		return stream.SendError(ctx, failure)
 	}
@@ -202,7 +225,11 @@ func (s socketService) Watch(ctx context.Context, stream socket.WatchServerStrea
 }
 
 func (s socketService) Chat(_ context.Context, _ string, _ socket.ChatServerStream) error {
-	return &socket.Failure{Kind: "forbidden", Name: "unrelated resource"}
+	var failure error = &socket.Failure{Kind: "forbidden", Name: "unrelated resource"}
+	if s.join {
+		return errors.Join(failure, errors.New("independent cleanup"))
+	}
+	return failure
 }
 `
 

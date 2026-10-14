@@ -310,10 +310,9 @@ func grpcServerErrorMappingCase(errData *ErrorData) []jen.Code {
 	body := []jen.Code{}
 	if errData.Response.ServerConvert != nil {
 		body = append(body,
-			jen.Var().Id("er").Add(codegenpkg.TypeRef(errData.Response.ServerConvert.SrcRef)),
-			jen.If(
-				jen.Op("!").Qual("errors", "As").Call(jen.Err(), jen.Op("&").Id("er")),
-			).Block(
+			jen.Comment("nolint:errorlint // Extract only the already resolved response owner."),
+			jen.List(jen.Id("er"), jen.Id("ok")).Op(":=").Add(codegenpkg.Expr("loom.ResolveErrorResponse(err).Owner")).Assert(codegenpkg.TypeRef(errData.Response.ServerConvert.SrcRef)),
+			jen.If(jen.Op("!").Id("ok")).Block(
 				jen.Return(emptyGRPCServerErrorMapping()...),
 			),
 		)

@@ -1,10 +1,6 @@
 package jsonrpc
 
-import (
-	"errors"
-
-	loom "github.com/CaliLuke/loom/pkg"
-)
+import loom "github.com/CaliLuke/loom/pkg"
 
 type (
 	// ErrorData is the default structured JSON-RPC error data emitted for Loom
@@ -29,26 +25,20 @@ type (
 // NewErrorData returns structured JSON-RPC error data for err when Loom error
 // metadata is available. It returns nil when err carries no machine-usable
 // Loom error information.
+//
+//nolint:errorlint // The response owner is resolved; do not select an inner contract.
 func NewErrorData(err error) any {
 	if err == nil {
 		return nil
 	}
 
-	data := &ErrorData{
-		Remedy: loom.ExtractErrorRemedy(err),
-	}
-	var (
-		serviceError *loom.ServiceError
-		namer        loom.LoomErrorNamer
-	)
-	if errors.As(err, &serviceError) {
-		data.Name = serviceError.Name
+	response := loom.ResolveErrorResponse(err)
+	data := &ErrorData{Name: response.Name, Remedy: response.Remedy}
+	if serviceError, ok := response.Owner.(*loom.ServiceError); ok {
 		data.ID = serviceError.ID
 		data.Temporary = serviceError.Temporary
 		data.Timeout = serviceError.Timeout
 		data.Fault = serviceError.Fault
-	} else if errors.As(err, &namer) {
-		data.Name = namer.LoomErrorName()
 	}
 
 	if data.Name == "" && data.ID == "" && !data.Temporary && !data.Timeout && !data.Fault && data.Remedy == nil {

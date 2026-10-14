@@ -61,16 +61,17 @@ func {{ .ResponseEncoder }}(encoder func(context.Context, http.ResponseWriter) l
 func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, formatter func(ctx context.Context, err error) loomhttp.StatusCoder) func(context.Context, http.ResponseWriter, error) error {
 	encodeError := loomhttp.ErrorEncoder(encoder, formatter)
 	return func(ctx context.Context, w http.ResponseWriter, v error) error {
-		var en loom.LoomErrorNamer
-		if !errors.As(v, &en) {
+		errorResponse := loom.ResolveErrorResponse(v)
+		if errorResponse.Owner == nil {
 			return encodeError(ctx, w, v)
 		}
-		switch en.LoomErrorName() {
+		switch errorResponse.Name {
 	{{- range $gerr := .Errors }}
 	{{- range $err := .Errors }}
 		case {{ printf "%q" .Name }}:
-			var res {{ $err.Ref }}
-			if !errors.As(v, &res) {
+			//nolint:errorlint // Response ownership is already resolved.
+			res, ok := errorResponse.Owner.({{ $err.Ref }})
+			if !ok {
 				return encodeError(ctx, w, v)
 			}
 			{{- with .Response}}
@@ -96,14 +97,14 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
 	)
 	responseEncoderPartials = []templateSource{
 		{name: "response", source: `	{{- if .EncodePlan.NeedsProblemSource }}
-	problem := loomhttp.NewProblemResponse(ctx, res, {{ .Code }}, {{ .ProblemTypeOverride }}, {{ .ProblemTitleOverride }})
+	problem := loomhttp.NewProblemResponse(ctx, {{ if .ErrorHeader }}v{{ else }}res{{ end }}, {{ .Code }}, {{ .ProblemTypeOverride }}, {{ .ProblemTitleOverride }})
 	{{- end }}
 	{{- if .EncodePlan.HasBody }}
 	enc := encoder(ctx, w)
 		{{- if .ErrorHeader }}
 	var body any
 	if formatter != nil {
-		body = formatter(ctx, res)
+		body = formatter(ctx, v)
 	} else {
 		{{- end }}
 		{{- if .EncodePlan.UseViewedBodySwitch }}

@@ -9,7 +9,6 @@ package server
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -114,9 +113,10 @@ func (s *TickServerStream) SendError(ctx context.Context, id any, err error) err
 // mappedErrorResponse maps err to the designed JSON-RPC error response.
 func (s *TickServerStream) mappedErrorResponse(ctx context.Context, id any, err error) *jsonrpc.Response {
 	// No custom errors defined - check if it's a validation error, otherwise use internal error
+	errorResponse := loom.ResolveErrorResponse(err)
 	code := jsonrpc.InternalError
-	var serviceError *loom.ServiceError
-	if errors.As(err, &serviceError) {
+	//nolint:errorlint // Response ownership is already resolved.
+	if serviceError, ok := errorResponse.Owner.(*loom.ServiceError); ok {
 		code = jsonrpc.CodeForServiceError(serviceError)
 	}
 	return jsonrpc.MakeErrorResponse(id, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
@@ -241,9 +241,10 @@ func (s *TockServerStream) SendError(ctx context.Context, id any, err error) err
 // mappedErrorResponse maps err to the designed JSON-RPC error response.
 func (s *TockServerStream) mappedErrorResponse(ctx context.Context, id any, err error) *jsonrpc.Response {
 	// No custom errors defined - check if it's a validation error, otherwise use internal error
+	errorResponse := loom.ResolveErrorResponse(err)
 	code := jsonrpc.InternalError
-	var serviceError *loom.ServiceError
-	if errors.As(err, &serviceError) {
+	//nolint:errorlint // Response ownership is already resolved.
+	if serviceError, ok := errorResponse.Owner.(*loom.ServiceError); ok {
 		code = jsonrpc.CodeForServiceError(serviceError)
 	}
 	return jsonrpc.MakeErrorResponse(id, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))

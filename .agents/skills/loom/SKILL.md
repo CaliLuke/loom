@@ -637,6 +637,15 @@ Designed error bodies remain public authored data. Native gRPC cancellation
 and deadline errors use canonical context messages. This message policy takes
 effect on runtime upgrade without regenerating adapters.
 
+Regenerate server adapters to adopt complete error-response ownership. HTTP and
+JSON-RPC do not promote an independent joined branch's code, typed body or
+metadata. Explicit outer named errors own their body; same-named inner errors
+cannot fill in a different concrete owner. Single-cause wrappers retain the
+underlying typed contract, including safe-message-only wrappers. Custom HTTP
+formatters receive the original wrapped error and choose their own public data.
+The generated gRPC mapper uses that same concrete owner while retaining gRPC's
+native status and aggregate-code rules.
+
 Regenerate after upgrading the length-error API. `loom.InvalidLengthError`
 accepts `(name, actualLength, bound, minimum)` and never the rejected value.
 Length diagnostics retain field and bound information without echoing contents.

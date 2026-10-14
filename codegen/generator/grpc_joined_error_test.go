@@ -45,6 +45,7 @@ func TestGeneratedServerAggregation(t *testing.T) {
 		{"deadline", fmt.Errorf("operation: %w", context.DeadlineExceeded), codes.DeadlineExceeded, false},
 		{"context plus cleanup", errors.Join(context.Canceled, errors.New("cleanup")), codes.Unknown, false},
 		{"single custom", &svc.Problem{Reason: "bad input"}, codes.InvalidArgument, true},
+		{"outer same name different type", loom.NewServiceError(&svc.Problem{Reason: "branch detail"}, "problem", false, false, true), codes.Internal, false},
 		{"wrapped custom", fmt.Errorf("context: %w", &svc.Problem{Reason: "bad input"}), codes.InvalidArgument, true},
 		{"same custom", errors.Join(&svc.Problem{Reason: "one"}, &svc.Problem{Reason: "two"}), codes.InvalidArgument, false},
 		{"mixed", errors.Join(&svc.Problem{Reason: "bad input"}, errors.New("cleanup failed")), codes.Unknown, false},

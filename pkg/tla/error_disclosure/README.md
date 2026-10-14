@@ -170,3 +170,34 @@ Task evidence is retained temporarily under
 diffs, command and wire logs, and `residual` live witness) and
 `/tmp/loom-error-disclosure-*` model output directories. Root coordinates cleanup
 after independent review; none of those generated files or raw logs is committed.
+
+
+## Complete wire response ownership (#908)
+
+`ResponseOwnership.tla` extends the disclosure owner reasoning to typed body and
+metadata selection. It follows ordinary/single-join wrappers, stops at independent
+joins, and preserves explicit outer owners. Both branch orders are enumerated.
+A safe-message wrapper changes the message without taking over the singular
+underlying typed body. An outer named error of a different concrete type cannot
+borrow a nested ServiceError's metadata.
+
+Run `tlc2.TLC -config response-legacy.cfg ResponseOwnership.tla` to reproduce
+first-branch wire selection (43 distinct states), `response-reject_wrappers.cfg` for the overly broad
+wrapper rejection alternative (39 distinct states), and `response-checked.cfg`
+for the shared owner (64 distinct states).
+Use the same pinned TLC 1.7.4 invocation as the existing model above.
+
+Correspondence: `pkg` resolves the permitted owner; HTTP ProblemResponse and
+JSON-RPC ErrorData project its metadata; generated mapped encoders extract only
+the selected concrete owner. Existing `grpc/tla/error_contract` remains the
+status-consensus model: no new HTTP/RPC aggregate-status inference is introduced.
+This model assumes finite acyclic causes and abstracts opaque application methods,
+concrete type assertions, callbacks, codecs and IO. Direct and generated tests
+must check those implementation boundaries. It does not establish that an app's
+custom formatter is safe.
+
+The modeled metadata represents named-owner identity and ServiceError traits.
+An explicit remedy-only wrapper may separately describe the complete failure;
+that wrapper metadata and nil-shadowing are checked by runtime tests, not modeled
+as metadata borrowed from a joined branch. The generated gRPC mapper also uses
+the resolved concrete owner; its native/aggregate classifier remains unchanged.

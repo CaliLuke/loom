@@ -173,8 +173,9 @@ func writeSSEHandlerInitBody(g *jen.Group, e *httpcodegen.EndpointData) {
 		g.If(jen.Id("err").Op("!=").Nil()).Block(
 			jen.If(jen.Id("req").Dot("HasID")).BlockFunc(func(eg *jen.Group) {
 				eg.Id("code").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "InternalError")
-				eg.Var().Id("serviceError").Op("*").Add(codegen.TypeRef("loom.ServiceError"))
-				eg.If(jen.Qual("errors", "As").Call(jen.Id("err"), jen.Op("&").Id("serviceError"))).Block(
+				eg.Id("errorResponse").Op(":=").Id("loom").Dot("ResolveErrorResponse").Call(jen.Id("err"))
+				eg.Comment("nolint:errorlint // Response ownership is already resolved.")
+				eg.If(jen.List(jen.Id("serviceError"), jen.Id("ok")).Op(":=").Id("errorResponse").Dot("Owner").Assert(codegen.TypeRef("*loom.ServiceError")), jen.Id("ok")).Block(
 					jen.Id("code").Op("=").Qual("github.com/CaliLuke/loom/jsonrpc", "CodeForServiceError").Call(jen.Id("serviceError")),
 				)
 				eg.Return(jen.Id("strm").Dot("sendError").Call(
@@ -215,9 +216,9 @@ func writeSSEHandlerInitBody(g *jen.Group, e *httpcodegen.EndpointData) {
 		jen.Id("err").Op("!=").Nil(),
 	).BlockFunc(func(eg *jen.Group) {
 		eg.If(jen.Id("req").Dot("HasID")).BlockFunc(func(idg *jen.Group) {
-			idg.Var().Id("en").Add(codegen.TypeRef("loom.LoomErrorNamer"))
-			idg.If(jen.Qual("errors", "As").Call(jen.Id("err"), jen.Op("&").Id("en"))).BlockFunc(func(named *jen.Group) {
-				named.Switch(jen.Id("en").Dot("LoomErrorName").Call()).BlockFunc(func(cases *jen.Group) {
+			idg.Id("errorResponse").Op(":=").Id("loom").Dot("ResolveErrorResponse").Call(jen.Id("err"))
+			idg.If(jen.Id("errorResponse").Dot("Owner").Op("!=").Nil()).BlockFunc(func(named *jen.Group) {
+				named.Switch(jen.Id("errorResponse").Dot("Name")).BlockFunc(func(cases *jen.Group) {
 					for _, protocol := range []struct {
 						name, code string
 					}{
@@ -318,8 +319,9 @@ func writeJSONRPCParamsDecode(g *jen.Group, e *httpcodegen.EndpointData) {
 		}
 		eg.If(jen.Id("req").Dot("HasID")).Block(
 			jen.Id("code").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "InternalError"),
-			jen.Var().Id("serviceError").Op("*").Add(codegen.TypeRef("loom.ServiceError")),
-			jen.If(jen.Qual("errors", "As").Call(jen.Id("err"), jen.Op("&").Id("serviceError"))).Block(
+			jen.Id("errorResponse").Op(":=").Id("loom").Dot("ResolveErrorResponse").Call(jen.Id("err")),
+			jen.Comment("nolint:errorlint // Response ownership is already resolved."),
+			jen.If(jen.List(jen.Id("serviceError"), jen.Id("ok")).Op(":=").Id("errorResponse").Dot("Owner").Assert(codegen.TypeRef("*loom.ServiceError")), jen.Id("ok")).Block(
 				jen.Id("code").Op("=").Qual("github.com/CaliLuke/loom/jsonrpc", "CodeForServiceError").Call(jen.Id("serviceError")),
 			),
 			jen.Id("encodeJSONRPCError").Call(
@@ -360,17 +362,17 @@ func writeJSONRPCEndpointErrorHandling(g *jen.Group, e *httpcodegen.EndpointData
 	g.If(jen.Id("err").Op("!=").Nil()).BlockFunc(func(eg *jen.Group) {
 		eg.Add(loomtransportRef("RequestObserverFromContext")).Call(jen.Id("ctx")).Dot("Fail").Call(loomtransportRef("ReasonHandlerError"))
 		eg.If(jen.Id("req").Dot("HasID")).BlockFunc(func(idg *jen.Group) {
-			idg.Var().Id("en").Add(codegen.TypeRef("loom.LoomErrorNamer"))
-			idg.If(jen.Op("!").Qual("errors", "As").Call(jen.Id("err"), jen.Op("&").Id("en"))).Block(
+			idg.Id("errorResponse").Op(":=").Id("loom").Dot("ResolveErrorResponse").Call(jen.Id("err"))
+			idg.If(jen.Id("errorResponse").Dot("Owner").Op("==").Nil()).Block(
 				jen.Id("code").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "InternalError"),
-				jen.Var().Id("serviceError").Op("*").Add(codegen.TypeRef("loom.ServiceError")),
-				jen.If(jen.Qual("errors", "As").Call(jen.Id("err"), jen.Op("&").Id("serviceError"))).Block(
+				jen.Comment("nolint:errorlint // Response ownership is already resolved."),
+				jen.If(jen.List(jen.Id("serviceError"), jen.Id("ok")).Op(":=").Id("errorResponse").Dot("Owner").Assert(codegen.TypeRef("*loom.ServiceError")), jen.Id("ok")).Block(
 					jen.Id("code").Op("=").Qual("github.com/CaliLuke/loom/jsonrpc", "CodeForServiceError").Call(jen.Id("serviceError")),
 				),
 				writeJSONRPCEncodeErrorCall(jen.Id("code")),
 				jen.Return(jen.Nil()),
 			)
-			idg.Switch(jen.Id("en").Dot("LoomErrorName").Call()).BlockFunc(func(sg *jen.Group) {
+			idg.Switch(jen.Id("errorResponse").Dot("Name")).BlockFunc(func(sg *jen.Group) {
 				writeJSONRPCKnownErrorCases(sg, e)
 				sg.Case(jen.Lit("invalid_params")).Block(
 					writeJSONRPCEncodeErrorCall(jen.Qual("github.com/CaliLuke/loom/jsonrpc", "InvalidParams")),
@@ -430,9 +432,9 @@ func writeJSONRPCMappedError(g *jen.Group, item *httpcodegen.ErrorData) {
 		return
 	}
 
-	g.Var().Id("res").Add(codegen.TypeRef(item.Ref))
-	g.If(jen.Qual("errors", "As").Call(jen.Id("err"), jen.Op("&").Id("res"))).BlockFunc(func(cg *jen.Group) {
-		initialization, value := mappedErrorBody(response)
+	initialization, value, source := mappedErrorBody(response)
+	g.Comment("nolint:errorlint // Response ownership is already resolved.")
+	g.If(jen.List(jen.Id(source), jen.Id("ok")).Op(":=").Id("errorResponse").Dot("Owner").Assert(codegen.TypeRef(item.Ref)), jen.Id("ok")).BlockFunc(func(cg *jen.Group) {
 		cg.Add(codegen.Expr(initialization))
 		data := codegen.Expr(value)
 		cg.Add(writeJSONRPCEncodeErrorCallWithData(jen.Lit(response.Code), data))
@@ -443,8 +445,8 @@ func writeJSONRPCMappedError(g *jen.Group, item *httpcodegen.ErrorData) {
 
 func writeJSONRPCDefaultEndpointError(g *jen.Group) {
 	g.Id("code").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "InternalError")
-	g.Var().Id("serviceError").Op("*").Add(codegen.TypeRef("loom.ServiceError"))
-	g.If(jen.Qual("errors", "As").Call(jen.Id("err"), jen.Op("&").Id("serviceError"))).Block(
+	g.Comment("nolint:errorlint // Response ownership is already resolved.")
+	g.If(jen.List(jen.Id("serviceError"), jen.Id("ok")).Op(":=").Id("errorResponse").Dot("Owner").Assert(codegen.TypeRef("*loom.ServiceError")), jen.Id("ok")).Block(
 		jen.Id("code").Op("=").Qual("github.com/CaliLuke/loom/jsonrpc", "CodeForServiceError").Call(jen.Id("serviceError")),
 	)
 	g.Add(writeJSONRPCEncodeErrorCall(jen.Id("code")))

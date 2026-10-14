@@ -3,21 +3,22 @@
 func EncodeHTMLError(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, formatter func(ctx context.Context, err error) loomhttp.StatusCoder) func(context.Context, http.ResponseWriter, error) error {
 	encodeError := loomhttp.ErrorEncoder(encoder, formatter)
 	return func(ctx context.Context, w http.ResponseWriter, v error) error {
-		var en loom.LoomErrorNamer
-		if !errors.As(v, &en) {
+		errorResponse := loom.ResolveErrorResponse(v)
+		if errorResponse.Owner == nil {
 			return encodeError(ctx, w, v)
 		}
-		switch en.LoomErrorName() {
+		switch errorResponse.Name {
 		case "html":
-			var res *projection.HTMLError
-			if !errors.As(v, &res) {
+			//nolint:errorlint // Response ownership is already resolved.
+			res, ok := errorResponse.Owner.(*projection.HTMLError)
+			if !ok {
 				return encodeError(ctx, w, v)
 			}
 			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "text/html; charset=utf-8")
 			enc := encoder(ctx, w)
 			var body any
 			if formatter != nil {
-				body = formatter(ctx, res)
+				body = formatter(ctx, v)
 			} else {
 				body = res.Body
 			}
@@ -36,21 +37,22 @@ func EncodeHTMLError(encoder func(context.Context, http.ResponseWriter) loomhttp
 func EncodePlainError(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, formatter func(ctx context.Context, err error) loomhttp.StatusCoder) func(context.Context, http.ResponseWriter, error) error {
 	encodeError := loomhttp.ErrorEncoder(encoder, formatter)
 	return func(ctx context.Context, w http.ResponseWriter, v error) error {
-		var en loom.LoomErrorNamer
-		if !errors.As(v, &en) {
+		errorResponse := loom.ResolveErrorResponse(v)
+		if errorResponse.Owner == nil {
 			return encodeError(ctx, w, v)
 		}
-		switch en.LoomErrorName() {
+		switch errorResponse.Name {
 		case "plain":
-			var res *projection.PlainError
-			if !errors.As(v, &res) {
+			//nolint:errorlint // Response ownership is already resolved.
+			res, ok := errorResponse.Owner.(*projection.PlainError)
+			if !ok {
 				return encodeError(ctx, w, v)
 			}
 			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "text/plain")
 			enc := encoder(ctx, w)
 			var body any
 			if formatter != nil {
-				body = formatter(ctx, res)
+				body = formatter(ctx, v)
 			} else {
 				body = res.Body
 			}
@@ -69,21 +71,22 @@ func EncodePlainError(encoder func(context.Context, http.ResponseWriter) loomhtt
 func EncodeAnyError(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, formatter func(ctx context.Context, err error) loomhttp.StatusCoder) func(context.Context, http.ResponseWriter, error) error {
 	encodeError := loomhttp.ErrorEncoder(encoder, formatter)
 	return func(ctx context.Context, w http.ResponseWriter, v error) error {
-		var en loom.LoomErrorNamer
-		if !errors.As(v, &en) {
+		errorResponse := loom.ResolveErrorResponse(v)
+		if errorResponse.Owner == nil {
 			return encodeError(ctx, w, v)
 		}
-		switch en.LoomErrorName() {
+		switch errorResponse.Name {
 		case "any":
-			var res *projection.AnyError
-			if !errors.As(v, &res) {
+			//nolint:errorlint // Response ownership is already resolved.
+			res, ok := errorResponse.Owner.(*projection.AnyError)
+			if !ok {
 				return encodeError(ctx, w, v)
 			}
 			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "application/json")
 			enc := encoder(ctx, w)
 			var body any
 			if formatter != nil {
-				body = formatter(ctx, res)
+				body = formatter(ctx, v)
 			} else {
 				body = res.Body
 			}
@@ -102,21 +105,22 @@ func EncodeAnyError(encoder func(context.Context, http.ResponseWriter) loomhttp.
 func EncodeMapError(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, formatter func(ctx context.Context, err error) loomhttp.StatusCoder) func(context.Context, http.ResponseWriter, error) error {
 	encodeError := loomhttp.ErrorEncoder(encoder, formatter)
 	return func(ctx context.Context, w http.ResponseWriter, v error) error {
-		var en loom.LoomErrorNamer
-		if !errors.As(v, &en) {
+		errorResponse := loom.ResolveErrorResponse(v)
+		if errorResponse.Owner == nil {
 			return encodeError(ctx, w, v)
 		}
-		switch en.LoomErrorName() {
+		switch errorResponse.Name {
 		case "map":
-			var res *projection.MapError
-			if !errors.As(v, &res) {
+			//nolint:errorlint // Response ownership is already resolved.
+			res, ok := errorResponse.Owner.(*projection.MapError)
+			if !ok {
 				return encodeError(ctx, w, v)
 			}
 			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "application/json")
 			enc := encoder(ctx, w)
 			var body any
 			if formatter != nil {
-				body = formatter(ctx, res)
+				body = formatter(ctx, v)
 			} else {
 				body = res.Body
 			}
@@ -135,21 +139,22 @@ func EncodeMapError(encoder func(context.Context, http.ResponseWriter) loomhttp.
 func EncodeObjectError(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, formatter func(ctx context.Context, err error) loomhttp.StatusCoder) func(context.Context, http.ResponseWriter, error) error {
 	encodeError := loomhttp.ErrorEncoder(encoder, formatter)
 	return func(ctx context.Context, w http.ResponseWriter, v error) error {
-		var en loom.LoomErrorNamer
-		if !errors.As(v, &en) {
+		errorResponse := loom.ResolveErrorResponse(v)
+		if errorResponse.Owner == nil {
 			return encodeError(ctx, w, v)
 		}
-		switch en.LoomErrorName() {
+		switch errorResponse.Name {
 		case "object":
-			var res *projection.ObjectError
-			if !errors.As(v, &res) {
+			//nolint:errorlint // Response ownership is already resolved.
+			res, ok := errorResponse.Owner.(*projection.ObjectError)
+			if !ok {
 				return encodeError(ctx, w, v)
 			}
 			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "application/json")
 			enc := encoder(ctx, w)
 			var body any
 			if formatter != nil {
-				body = formatter(ctx, res)
+				body = formatter(ctx, v)
 			} else {
 				body = NewProjectionobjectResponseBody(res)
 			}
@@ -168,21 +173,22 @@ func EncodeObjectError(encoder func(context.Context, http.ResponseWriter) loomht
 func EncodeExplicitError(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, formatter func(ctx context.Context, err error) loomhttp.StatusCoder) func(context.Context, http.ResponseWriter, error) error {
 	encodeError := loomhttp.ErrorEncoder(encoder, formatter)
 	return func(ctx context.Context, w http.ResponseWriter, v error) error {
-		var en loom.LoomErrorNamer
-		if !errors.As(v, &en) {
+		errorResponse := loom.ResolveErrorResponse(v)
+		if errorResponse.Owner == nil {
 			return encodeError(ctx, w, v)
 		}
-		switch en.LoomErrorName() {
+		switch errorResponse.Name {
 		case "explicit":
-			var res *projection.ExplicitError
-			if !errors.As(v, &res) {
+			//nolint:errorlint // Response ownership is already resolved.
+			res, ok := errorResponse.Owner.(*projection.ExplicitError)
+			if !ok {
 				return encodeError(ctx, w, v)
 			}
 			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "application/json")
 			enc := encoder(ctx, w)
 			var body any
 			if formatter != nil {
-				body = formatter(ctx, res)
+				body = formatter(ctx, v)
 			} else {
 				body = NewProjectionexplicitResponseBody(res)
 			}
@@ -201,21 +207,22 @@ func EncodeExplicitError(encoder func(context.Context, http.ResponseWriter) loom
 func EncodeRenamedError(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, formatter func(ctx context.Context, err error) loomhttp.StatusCoder) func(context.Context, http.ResponseWriter, error) error {
 	encodeError := loomhttp.ErrorEncoder(encoder, formatter)
 	return func(ctx context.Context, w http.ResponseWriter, v error) error {
-		var en loom.LoomErrorNamer
-		if !errors.As(v, &en) {
+		errorResponse := loom.ResolveErrorResponse(v)
+		if errorResponse.Owner == nil {
 			return encodeError(ctx, w, v)
 		}
-		switch en.LoomErrorName() {
+		switch errorResponse.Name {
 		case "renamed":
-			var res *projection.RenamedError
-			if !errors.As(v, &res) {
+			//nolint:errorlint // Response ownership is already resolved.
+			res, ok := errorResponse.Owner.(*projection.RenamedError)
+			if !ok {
 				return encodeError(ctx, w, v)
 			}
 			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "text/plain")
 			enc := encoder(ctx, w)
 			var body any
 			if formatter != nil {
-				body = formatter(ctx, res)
+				body = formatter(ctx, v)
 			} else {
 				body = res.Content
 			}
@@ -234,21 +241,22 @@ func EncodeRenamedError(encoder func(context.Context, http.ResponseWriter) loomh
 func EncodeOptionalError(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, formatter func(ctx context.Context, err error) loomhttp.StatusCoder) func(context.Context, http.ResponseWriter, error) error {
 	encodeError := loomhttp.ErrorEncoder(encoder, formatter)
 	return func(ctx context.Context, w http.ResponseWriter, v error) error {
-		var en loom.LoomErrorNamer
-		if !errors.As(v, &en) {
+		errorResponse := loom.ResolveErrorResponse(v)
+		if errorResponse.Owner == nil {
 			return encodeError(ctx, w, v)
 		}
-		switch en.LoomErrorName() {
+		switch errorResponse.Name {
 		case "optional":
-			var res *projection.OptionalError
-			if !errors.As(v, &res) {
+			//nolint:errorlint // Response ownership is already resolved.
+			res, ok := errorResponse.Owner.(*projection.OptionalError)
+			if !ok {
 				return encodeError(ctx, w, v)
 			}
 			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "text/plain")
 			enc := encoder(ctx, w)
 			var body any
 			if formatter != nil {
-				body = formatter(ctx, res)
+				body = formatter(ctx, v)
 			} else {
 				body = res.Body
 			}
