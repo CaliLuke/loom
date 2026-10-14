@@ -36,19 +36,24 @@ The reviewed report is [libopenapi #657](https://github.com/pb33f/libopenapi/iss
 and the ownership repair is [PR #658](https://github.com/pb33f/libopenapi/pull/658).
 The framework adopts that repair through the ordinary module
 `github.com/CaliLuke/libopenapi`, pinned in the root `go.mod`. Its source is
-libopenapi v0.41.6 plus the reviewed immutable merge-view change and mechanical
-module/self-import renaming. Consumers need no `replace` directive.
+libopenapi v0.41.6 plus the reviewed immutable merge-view change, effective
+index/collection traversal correction, and mechanical module/self-import renaming.
+Consumers need no `replace` directive. Component indexing and model construction
+read the same effective mappings; repeated aliases retain each semantic occurrence,
+while active-path mapping and sequence cycles terminate. The corresponding model
+and focused acceptance are in `../../tla/yaml_index_owner/README.md`.
 
 To verify the corrected public API, change the reproduction import and module
 requirement to `github.com/CaliLuke/libopenapi` at the version in the root
 `go.mod`, then repeat the two commands above. Framework regression owners are
 `TestAnalyzeYAMLNumericSourceNormalization`, `TestAnalyzeYAMLAliasedMergeSequence`
-and the invalid-merge tests in `numeric_source_test.go`. They preserve exact
+and the invalid-merge tests in `numeric_source_test.go`, plus
+`TestImportedYAMLComponentIndex` in `yaml_index_test.go`. They preserve exact
 bounds, local overrides and merge precedence while race detection checks the
 library's internally concurrent builders.
 
 Return to the original module path when a stable upstream release includes the
-immutable merge-view fix and passes these regressions plus upstream metadata,
+immutable merge-view and effective-index fixes and passes these regressions plus upstream metadata,
 render/reload and alias/merge controls. Rename all importer and test imports
 together, update `go.mod`/`go.sum`, and verify a separate consuming module can
 fetch and compile without replacement directives. The importer is internal;

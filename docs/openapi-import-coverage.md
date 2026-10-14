@@ -42,6 +42,13 @@ The test ledger records the union of fixed fields from the published
 Loom also checks version boundaries. A 3.0 or 3.1 document cannot use fields
 that the OpenAPI specification first defines in 3.2.
 
+YAML aliases and merge keys on the `components` and `components.schemas`
+collections preserve local `$ref` lookup and the effective component names.
+Local fields override inherited fields, and the first merge source wins when
+sources overlap. Import keeps the original source locations while reading those
+effective values. Re-import documents previously rejected because an inherited
+component could not be found, then regenerate the design.
+
 ## Object coverage
 
 Imported schema and operation declarations, security credentials, and HTTP

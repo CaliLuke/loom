@@ -5,7 +5,7 @@ go 1.27.2
 require (
 	github.com/CaliLuke/go-redis/v9 v9.23.1-0.20261014134601-1073297e76ea
 	github.com/CaliLuke/go-sse v0.11.1-0.20261008010800-b29b33ae1a1e
-	github.com/CaliLuke/libopenapi v0.41.7-0.20261014134838-856f6f2d80e0
+	github.com/CaliLuke/libopenapi v0.41.7-0.20261014145029-7886f0170cc4
 	github.com/alecthomas/kong v1.16.1
 	github.com/alicebob/miniredis/v2 v2.39.0
 	github.com/aws/smithy-go v1.28.4
