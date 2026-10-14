@@ -4,6 +4,25 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 
 ## Current state
 
+- **Delivery resumed:** the user directed us to remove the dependency gate rather
+  than wait for upstream merges. The sequence below supersedes earlier notes
+  requiring original-module fetchability. Preserve the upstream PRs unchanged.
+  1. [ ] Publish independently reviewed, exact fork revisions containing the
+     required fixes on current stable dependency bases. Use real fork module
+     identities; dependency-local `replace` directives do not reach consumers.
+  2. [ ] Deliver #820 with the immutable YAML merge fix, focused race checks,
+     importer/output controls and a clean consuming-module fetch/build.
+  3. [ ] Integrate #800's reviewed lifetime/finite-operation owner and public
+     guidance, pin the hook-preserving Redis fork, document the Redis import
+     migration and verify shutdown against native Redis and a consumer module.
+  4. [ ] Integrate #687's reviewed construction acquisition/rollback owner on
+     delivered #800; repeat affected failure, cleanup and healthy-peer checks.
+  5. [ ] Independently review each exact atomic delivery, push, reconcile the
+     three tickets, run affected integration gates and record CI status.
+  Forks are temporary correctness dependencies with explicit upstream PR links
+  and a return-to-release condition. No cache injection or local source override
+  counts as delivery. Redis client types carry their module identity, so Pulse
+  applications must migrate their Redis import while this fork is required.
 - **234 of 237 tracked reports are delivered, pushed and confirmed closed.**
   The [inventory](framework-correctness-inventory.md) records each report;
   `/tmp/loom-tracker-234-issues.json` is the frozen GitHub reconciliation input.
