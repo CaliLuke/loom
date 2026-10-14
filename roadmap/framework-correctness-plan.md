@@ -23,13 +23,18 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
   and a return-to-release condition. No cache injection or local source override
   counts as delivery. Redis client types carry their module identity, so Pulse
   applications must migrate their Redis import while this fork is required.
-- **257 of 259 tracked reports are delivered, pushed and confirmed closed.**
-  Remaining: #926 (custom view validation/default representation) and #930
-  (projected constructor target context). Both have published-parent compiler
-  witnesses and a shared-owner design. The original 242-report scope stays
-  closed. The [inventory](framework-correctness-inventory.md) records each report.
-  Continue autonomously through these repairs and actual CI failures.
-- **Latest structural deliveries:** #672/#673 `1e7dfcaca` centralizes replica
+- **260 of 261 tracked reports are delivered, pushed and confirmed closed.**
+  Remaining: #926 (custom view validation/default representation). Its shared
+  capability/default/conversion-plan design has independent readiness approval;
+  implementation is active in `/tmp/loom-926-source` with openapi_delivery.
+  The bounded recursive dependency model covers reachable failures, pure cycles,
+  excluded views and default-disabled contexts. The original 242-report scope
+  stays closed. The [inventory](framework-correctness-inventory.md) records each
+  report. Continue autonomously through this repair and actual CI failures.
+- **Latest structural deliveries:** #930 `d52c727c5` retains the selected
+  response constructor context through package and nominal casts; eight mapped
+  constructor shapes, actual naming collisions and import aliases compile, with
+  only five intended changes among 166 compared artifacts. #672/#673 `1e7dfcaca` centralizes replica
   authority and Pool/rmap publication; #923 `2b440e053` shares custom scalar
   publication; #924 `3d418bab9` centralizes effective schema inspection;
   #675 `82c6c1cfe` merges shared files by declaration identity; #678 `8d12252cc`
@@ -47,6 +52,10 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
   immediate remote PubSub-count assertion: deterministic disconnect evidence
   distinguishes synchronous local cleanup from Redis processing the close.
   All exact changes passed independent review and affected race gates.
+  #931 `e81208089` adopts shared replica metadata in a strict destruction test;
+  #932 `5870a8e90` separates omitted and supplied-empty multipart bindings and
+  adopts current extraction/validation guards. Exact CI failures were reproduced
+  before correction; affected generated wire tests pass with race checking.
 - **Integrated validation at `4ac58a013`:** `make lint` passes, including root,
   testdata and nested modules. Every top-level test that failed in the previous
   `c304` CI run passes with race checking across generator, HTTP, gRPC, JSON-RPC
@@ -61,8 +70,9 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
   cleanup-count assertion (corrected in #672). Integrated `make lint` passes
   at `2b440e053` (root, testdata and nested modules; log
   `/tmp/loom-final-integrated-lint.log`); CodeQL is green and required CI is
-  queued. Latest-source full
-  CI is not yet confirmed green. No release was attempted.
+  queued at that snapshot. Superseded runs are canceled after saving job results
+  to prioritize current source. CI at `5870a8e90` remains pending; latest-source
+  full CI is not yet confirmed green. No release was attempted.
 - **Dependency deliveries:** #820 `7fab1bb05`, #800 `d899a0112` and #687
   `a9a597a3c` are independently reviewed, pushed and closed. Ordinary downstream
   Go modules fetch both real fork dependencies without replacements. Pulse
@@ -382,13 +392,15 @@ reconciliation with the inventory before they can establish remaining work.
     SSE fixtures and real event acknowledgement ownership. The #672 integration
     corrects remote-cleanup observation without weakening local cleanup checks.
 12. [ ] Repair #926's shared view validation/default representation. Agent:
-    openapi_delivery. Readiness review requires a bounded recursive fallibility
-    graph model before implementation; preserve native and raw-JSON contracts.
-13. [ ] Repair #930's complete projected constructor context. Agent:
-    redis_delivery. Readiness approved: carry the selected AttributeContext
-    through return references and mapped-field assignments, including nominal
-    collisions. Minimal published-source compiler witnesses are retained.
-14. [ ] Inspect required CI completion on latest source and address remaining
+    openapi_delivery. Readiness independently approved after the bounded recursive
+    fallibility model; implementation preserves native and raw-JSON contracts.
+13. [x] Deliver #930's complete projected constructor context (`d52c727c5`).
+    Carry the selected AttributeContext through return references and mapped-field
+    assignments, including nominal collisions. Independent exact review and
+    integrated constructor races pass; temporary source cleanup is complete.
+14. [x] Deliver actual CI test adoption #931 (`e81208089`) and #932 (`5870a8e90`)
+    without changing production behavior or weakening wire/cleanup assertions.
+15. [ ] Inspect required CI completion on latest source and address remaining
     concrete failures. Running CI is not a reason to repeat the full exported-
     design corpus locally or stop independent backlog work.
 
