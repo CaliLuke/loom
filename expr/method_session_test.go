@@ -40,3 +40,56 @@ func TestSessionSecurityConflictDoesNotMutateSharedPayload(t *testing.T) {
 	require.Nil(t, method.Payload.Find("browser_session"))
 	require.Equal(t, Int, method.Payload.Find("auth").Type)
 }
+
+func TestSessionPayloadCandidateIdentity(t *testing.T) {
+	for _, name := range []string{"nil", "nil type", "empty", "anonymous", "named", "unchanged named"} {
+		t.Run(name, func(t *testing.T) {
+			var payload *AttributeExpr
+			switch name {
+			case "nil type":
+				payload = &AttributeExpr{}
+			case "empty":
+				payload = &AttributeExpr{Type: Empty}
+			case "anonymous":
+				payload = &AttributeExpr{Type: &Object{}}
+			case "named", "unchanged named":
+				obj := &Object{}
+				if name == "unchanged named" {
+					obj.Set("auth", &AttributeExpr{Type: String, Meta: MetaExpr{"security:token": {}}})
+				}
+				payload = &AttributeExpr{Type: &UserTypeExpr{TypeName: "Original", AttributeExpr: &AttributeExpr{Type: obj}}}
+			}
+			var original DataType
+			if payload != nil {
+				original = payload.Type
+			}
+			method := &MethodExpr{
+				Name: "Read", Service: &ServiceExpr{Name: "Profiles"}, Payload: payload,
+				SessionAuths: []*SessionAuthExpr{{Name: "session", Transports: []*SessionTransportExpr{{
+					Kind: SessionBearerTransportKind, Scheme: &SchemeExpr{Kind: JWTKind, SchemeName: "jwt"}, FieldName: "auth",
+				}}}},
+			}
+			require.NotPanics(t, func() {
+				require.Empty(t, method.injectSessionAuthPayloadFields().Errors)
+			})
+			require.NotNil(t, method.Payload)
+			require.NotNil(t, method.Payload.Find("auth"))
+			require.Equal(t, String, method.Payload.Find("auth").Type)
+			require.Contains(t, method.Payload.Find("auth").Meta, "security:token")
+			switch name {
+			case "named":
+				require.NotSame(t, original, method.Payload.Type)
+				require.Equal(t, "Original_Read_SessionPayload", method.Payload.Type.Name())
+				require.Equal(t, "Original", original.Name())
+				require.Nil(t, AsObject(original).Attribute("auth"))
+			case "unchanged named":
+				require.Same(t, original, method.Payload.Type)
+				require.Equal(t, "Original", method.Payload.Type.Name())
+			default:
+				require.IsType(t, &Object{}, method.Payload.Type)
+			}
+			require.Equal(t, "Empty", Empty.Name())
+			require.Empty(t, *AsObject(Empty))
+		})
+	}
+}

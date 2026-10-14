@@ -51,10 +51,8 @@ func (m *MethodExpr) injectSessionAuthPayloadFields() *eval.ValidationErrors {
 	if len(verr.Errors) > 0 || len(*obj) == originalLen {
 		return verr
 	}
-	if m.Payload != nil {
-		if original, ok := m.Payload.Type.(UserType); ok {
-			candidate.(UserType).Rename(original.Name() + "_" + m.Name + "_SessionPayload")
-		}
+	if named, ok := candidate.(UserType); ok {
+		named.Rename(named.Name() + "_" + m.Name + "_SessionPayload")
 	}
 	if m.Payload == nil {
 		m.Payload = &AttributeExpr{}
