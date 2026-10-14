@@ -41,18 +41,10 @@ func (a *analyzer) schemaNullableAnyOf(schema *Schema, source *base.Schema, path
 	if value == nil || value.Type == "" && value.Ref == "" && !value.Unconstrained {
 		return false
 	}
-	outerDescription := schema.Description
-	outerExtensions := schema.Extensions
 	*schema = *value
 	// An unconstrained schema already accepts null, so its explicit null branch
 	// is semantically redundant and does not need a separate nullable wrapper.
 	schema.Nullable = !schema.Unconstrained
-	if outerDescription != "" {
-		schema.Description = outerDescription
-	}
-	if len(outerExtensions) > 0 {
-		schema.Extensions = outerExtensions
-	}
 	return true
 }
 

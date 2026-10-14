@@ -404,7 +404,11 @@ run `loom import openapi <input> -o design`. Import supports a strict subset:
 it reports every unsupported construct it finds, writes no partial design or
 TODO placeholders, and never overwrites an existing target. Schema `title`,
 `default`, `example`, `examples`, `deprecated`, `readOnly`, and `writeOnly`
-import without a flag. Unformatted integers and numbers also import without a
+import without a flag. Nullable `anyOf` keeps annotations from its outer schema
+and non-null branch: outer nonempty labels and extension keys take precedence,
+while positive read/write/deprecation flags survive either layer. Re-import and
+regenerate designs imported by versions that dropped these annotations.
+Unformatted integers and numbers also import without a
 flag. String schemas with `format: byte` import as `String` with
 `Format(FormatBase64)`; bounds, patterns and literals describe the encoded text.
 Standard padding is required, whitespace/bad padding is rejected, and decodable

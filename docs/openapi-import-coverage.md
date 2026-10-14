@@ -235,7 +235,12 @@ The following constructs are conditional:
 - A two-member `anyOf` with a bare `{type: null}` branch maps to `Nullable()`.
   Assertions or annotations on the null branch remain unsupported. When the
   value branch is `{}`, it normalizes to `Any` because the empty schema already
-  accepts null.
+  accepts null. Outer nonempty titles and descriptions take precedence over
+  branch labels. Positive `deprecated`, `readOnly` and `writeOnly` annotations
+  survive from either layer; an outer false does not cancel a positive branch
+  annotation. Vendor extensions retain branch keys, with outer keys taking
+  precedence. Re-import and regenerate affected designs to recover annotations
+  lost by earlier importer versions.
 - A two-member `oneOf` containing one bare `null` schema and one local `$ref`
   maps to a nullable named alias when the referenced schema explicitly excludes
   null. Regeneration uses the equivalent nullable `anyOf` form.

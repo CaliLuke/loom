@@ -75,6 +75,12 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- OpenAPI import applies schema annotations after structural normalization in
+  `schemaAnnotations`. Nullable branch selection cannot erase authored outer
+  labels or positive read/write/deprecation flags. Extension composition clones
+  the branch map before applying outer keys. Renderers consume this normalized
+  owner; do not restore annotations independently in composition cases.
+
 - JSON-RPC runtime notification eligibility derives from `invalidRequest` through
   one private `isNotification` predicate. HTTP/batch and streaming protocol paths
   share it; ID absence alone cannot suppress an invalid-envelope response.

@@ -570,21 +570,18 @@ func (a *analyzer) schema(proxy *base.SchemaProxy, path string) *Schema {
 		supportedNullableComposition,
 		supportedNullableOneOf || supportedUntaggedOneOf,
 	)
-	schema.Extensions = a.extensions(path, source.Extensions)
+	a.schemaAnnotations(schema, source, path)
 	schema.Unconstrained = isUnconstrainedSchema(schema)
 	return schema
 }
 
 func newNormalizedSchema(source *base.Schema) *Schema {
 	return &Schema{
-		Title: source.Title, Description: source.Description, Format: source.Format,
+		Format:    source.Format,
 		Pattern:   source.Pattern,
 		MinLength: source.MinLength, MaxLength: source.MaxLength,
 		MinItems: source.MinItems, MaxItems: source.MaxItems,
-		Required:   append([]string(nil), source.Required...),
-		Deprecated: source.Deprecated != nil && *source.Deprecated,
-		ReadOnly:   source.ReadOnly != nil && *source.ReadOnly,
-		WriteOnly:  source.WriteOnly != nil && *source.WriteOnly,
+		Required: append([]string(nil), source.Required...),
 	}
 }
 
