@@ -1,9 +1,10 @@
 # Request Content-Length publication — #766
 
-Status: readiness independently approved; implementation and bounded final
-validation complete; awaiting independent exact final review. Initial probes used
-8375ce604 plus importer-only #789. The final parent is 7685ae527, including #787
-media encoding. The runtime and generator changes stay in this owned worktree.
+Status: independently reviewed, pushed and confirmed closed as `d5919ce6e`.
+Final and integration reviews approve the exact change. Inactive output cleanup
+is complete; `/tmp/loom-766-cleanup-receipt.json` records preserved evidence.
+Initial probes used 8375ce604 plus importer-only #789; the implementation parent
+was 7685ae527, including #787 media encoding.
 
 ## Contract and evidence
 
@@ -131,7 +132,7 @@ Prior related tickets:710 header token grammar,151 raw OpenAPI annotation,
   required, form/custom/ordinary body and JSON-RPC consumers.
 - [x] Compare bounded generated outputs and checked-in transport fixtures against
   archived parent, repeat generation independently and finish affected gates.
-- [ ] Independent exact final review, atomic delivery, compact evidence cleanup.
+- [x] Independent exact final review, atomic delivery, compact evidence cleanup.
 
 ## Final bounded evidence
 

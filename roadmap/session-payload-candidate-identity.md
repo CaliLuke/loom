@@ -19,7 +19,7 @@ with their existing owners.
       based on the source payload's type.
 - [x] Compare supported controls at parent and candidate byte for byte, repeat
       generation in fresh processes, and compile the selected generated modules.
-- [ ] Obtain independent exact-final review, commit/push, close #909 and reconcile
+- [x] Obtain independent exact-final review, commit/push, close #909 and reconcile
       the master tracker. Preserve evidence and remove inactive temporary output.
 
 Acceptance covers the generated injected field, original declaration isolation,
@@ -47,4 +47,7 @@ across independent processes. Only previously rejected designs gain output.
 No new concurrency or ordering mechanism is introduced; the existing candidate
 validation-before-publication boundary is preserved. No auth-scope change or
 consumer migration is required. Parent/candidate captures and direct test inputs
-remain under `/tmp/loom-909-*` pending final review and cleanup.
+are preserved in `/tmp/loom-909-delivery-evidence.tar.gz`; the cleanup receipt
+records hashes before inactive logs and generated trees were removed.
+
+Delivered and confirmed closed as `3542c0c7b`; independent review has no findings.

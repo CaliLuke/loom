@@ -10,6 +10,9 @@ response mappings and JSON-RPC request metadata retain their existing contracts.
 Framework-owned view identity, CORS and middleware/session HTTP headers remain
 separately owned; this rule does not prohibit physical HTTP metadata itself.
 
+Delivered and confirmed closed as `4df3a5ff0`; independent final and integration
+reviews approve the exact change with no unresolved findings.
+
 ## Sequence
 
 1. [x] Preserve current mounted error failure and add direct parent-red admission
@@ -27,7 +30,7 @@ separately owned; this rule does not prohibit physical HTTP metadata itself.
    batch, SSE, WS, safe-error/notification and HTTP/request controls. Compare
    representative parent/candidate/independent-repeat output; compile outputs.
    Regenerate affected checked-in fixtures through the generator only.
-6. [ ] Obtain independent exact-final review before one atomic commit/delivery.
+6. [x] Obtain independent exact-final review before one atomic commit/delivery.
 
 The original failure is retained in `/tmp/loom-774-mapped-header-repro/` and the
 current-main reproduction/owner ledger in

@@ -4,8 +4,8 @@ User decision: one enforced effective filter per named group on each stream.
 Conflicting joins fail before delivery; independent subscriptions use distinct
 groups. Filter rejection is final for its group, while stored entries and other
 groups remain untouched. Coordinated migration is required. Root independently
-approved the revised readiness packet before this implementation. Final review
-and delivery remain pending.
+approved revised readiness and exact final/integration reviews. Delivered and
+confirmed closed as `7da1b00ee`; both medium review findings are resolved.
 
 ## Sequence
 
@@ -20,7 +20,7 @@ and delivery remain pending.
 5. [x] Implement one typed membership owner, update every mutation/read consumer,
    then let shared message disposition acknowledge terminal rejections.
 6. [x] Run focused lifecycle/filter/race/native Redis checks and scoped lint.
-7. [ ] Independent exact final review, atomic integration and delivery.
+7. [x] Independent exact final review, atomic integration and delivery.
 
 ## Representation and authority
 
@@ -216,5 +216,6 @@ assembled rotation fixture now uses the canonical explicit-none filter identity.
 Correction validation: full streaming/options race checks pass (10.369s/1.325s),
 bounded native Redis 8.10.2 retirement/rotation/recovery/removal checks pass
 (4.349s), and scoped golangci-lint reports zero issues. Original unaffected
-admission/disposition evidence remains valid. The corrected exact packet awaits
-focused re-review; no delivery or aggregate CI success is claimed.
+admission/disposition evidence remains valid. The corrected exact packet passed
+focused re-review and integration review, and was delivered as `7da1b00ee`.
+No aggregate CI success is claimed.

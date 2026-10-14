@@ -4,14 +4,29 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 
 ## Current state
 
-- **223 of 228 tracked reports are delivered, pushed and confirmed closed.**
+- **226 of 230 tracked reports are delivered, pushed and confirmed closed.**
   The [inventory](framework-correctness-inventory.md) records each report;
-  `/tmp/loom-tracker-223-issues.json` is the frozen GitHub reconciliation input.
+  `/tmp/loom-tracker-226-issues.json` is the frozen GitHub reconciliation input.
 - **User-delegated technical decisions:** choose the best coherent framework
   contract, document tradeoffs and migration effects, and continue work. The user
   explicitly superseded the repository rule requiring questions for unresolved
   public semantics within this backlog. Ask only for genuinely missing user
   information or authorization, explaining concrete consequences plainly.
+- Sink filter ownership #768 (`7da1b00ee`) is reviewed, pushed and closed.
+  One persistent membership/filter record feeds admission, cleanup and terminal
+  disposition. Both review findings are fixed; native Redis, races and aligned
+  models pass. Existing groups require coordinated migration.
+- JSON-RPC response carriers #905 (`4df3a5ff0`) is reviewed, pushed and closed.
+  One prepared-endpoint admission rule rejects authored response metadata;
+  obsolete capture/decoder paths are deleted. Supported output remains exact.
+  Move response values into result/error.data and regenerate both ends.
+- Session candidate identity #909 (`3542c0c7b`) is reviewed, pushed and closed.
+  Naming follows the detached candidate, fixing absent/Empty payload injection
+  without changing auth scope. Direct isolation and generated controls pass;
+  cleanup is complete. This resolves the historical session-injection note.
+- Historical joined-response residual is now reproduced and tracked as #908.
+  An independent join still borrows one branch's typed code/data despite a generic
+  safe message. Shared response ownership readiness is active; no repair claimed.
 - Request framing #766 (`d5919ce6e`) is reviewed, pushed and closed. One
   post-encoding owner reconciles Content-Length and unpublished body cleanup
   across HTTP/JSON-RPC. Cancellation and zero-length probes share close ownership;
@@ -249,42 +264,48 @@ reconciliation with the inventory before they can establish remaining work.
 
 ## Current execution queue
 
-1. **Filtered sink disposition (#768):** omission corrects two medium findings
-   from independent exact review in `numeric-comparison`: stale persistent members
-   survive stream expiry, and missing/null filter identity is accepted. Reconcile
-   membership with native consumers without retiring workers still joining; reject
-   unknown identity. Align the model before implementation and obtain focused
-   re-review. The accepted contract remains one effective filter per named group,
-   conflicting joins rejected and filtered events acknowledged. Existing groups
-   require coordinated migration; retain one shared membership owner.
-2. **Bounded shutdown (#800):** projection independently reviews the conditional
-   packet in `bounded-streaming-shutdown` and identifies integration drift while
-   the original-module dependency remains unavailable. This is review progress,
-   not delivery authorization. Prioritize #768 re-review when corrections arrive.
-3. **JSON-RPC response representation (#905):** diagnostic implements the
-   user-accepted uniform result/error.data contract in `grpc-message-context`.
-   Shared admission rejects authored response Header/Cookie mappings across
-   unary, batch, SSE and WebSocket; delete unreachable metadata paths. Ordinary
-   HTTP response mappings, JSON-RPC request metadata and framework-owned transport
-   metadata retain their owners. Migrate affected fixtures and document usage.
-4. **CI reconciliation:** the retained ticktock and pool guard witnesses are
-   delivered as #904/#906; #907 adopts required-field admission in projection
-   fixtures. Required CI at `6ba2dbf86` remains queued (`38498585620`);
-   no overall green-CI claim. Reconcile actual new failures by owner without timeout increases or an automatic corpus sweep.
-5. **Dependency gates:** #820 libopenapi
+1. **Joined error ownership (#908):** projection prepares a shared response
+   ownership contract in `interceptor-accessor-union`. Current generated unary
+   reproduction fails; investigate HTTP/RPC code, body and metadata together.
+   Preserve explicit outer owners, transparent single causes and existing gRPC
+   aggregate/native status semantics. Reuse owning models; no renderer-local
+   join checks or unrelated changes to diagnostic extraction utilities.
+2. **Bounded shutdown (#800):** diagnostic refreshes the conditional packet in
+   `bounded-streaming-shutdown` against delivered #765/#768/#771/#772/#773/#901.
+   Projection's assessment identifies new recovery/membership operations that
+   must consume the same lifetime/budget owner. Preserve native activation and
+   typed membership cleanup. Exact old source/input evidence is archived; fresh
+   final review is required. Original-module fetchability still gates delivery.
+3. **CI reconciliation:** delivered #904/#906/#907 adopt the retained fixture
+   failures. Latest required CI at `4df3a5ff0` is queued (`38501196178`); CodeQL
+   is in progress. Earlier jobs are running. No overall green-CI claim or queue
+   workaround. Reconcile actual new failures by owner, without timeout increases
+   or an automatic corpus sweep.
+4. **Dependency gates:** #820 libopenapi
    [PR #658](https://github.com/pb33f/libopenapi/pull/658) and #800 go-redis
-   [PR #4095](https://github.com/redis/go-redis/pull/4095) remain open at fresh read,
-   heads `3180fde1` and `8df7cf3`; their checks pass and releases remain v0.41.6
-   and v9.23.0. The #800 packet stays in `bounded-streaming-shutdown`;
-   original-module fetchability gates delivery. No fork/cache workaround.
-   Pool subordinate shutdown #687 follows #800; no closure by inference.
+   [PR #4095](https://github.com/redis/go-redis/pull/4095) remain open at the latest
+   read, heads `3180fde1` and `8df7cf3`; executable checks pass. Production pins
+   remain unchanged. Do not bypass original-module fetchability with forks or
+   cache injection. Pool subordinate shutdown #687 follows #800; no inferred
+   closure. The refreshed #800 implementation remains conditional.
 
-The latest required CI snapshot is `/tmp/loom-ci-222-runs.json`; queued runs do
-not establish a green suite. Delivered #902/#903 address earlier expectation
-failures; #904/#906 address the retained fixture witnesses. The dependency race
-remains open.
+Current evidence: `/tmp/loom-ci-226-runs.json`,
+`/tmp/loom-go-redis-4095-status-222.json`,
+`/tmp/loom-libopenapi-658-status-222.json`, and
+`/tmp/loom-800-current-integration-assessment.json`.
 
 Latest independent delivery records:
+
+- #768: `/tmp/loom-768-independent-final-rereview-verdict.json` and
+  `/tmp/loom-768-independent-integration-verdict.json`; root integration races
+  pass (2.885s). Cleanup is complete; the verified preservation receipt is
+  `/tmp/loom-768-cleanup-receipt.json`.
+- #905: `/tmp/loom-905-independent-final-rereview-verdict.json` and
+  `/tmp/loom-905-independent-integration-verdict.json`; integrated expr/JSON-RPC
+  races pass (1.629/16.573s). Cleanup follows delivery.
+- #909: `/tmp/loom-909-independent-final-verdict.json`; independent direct and
+  generated checks pass (1.193/4.813s). `/tmp/loom-909-cleanup-receipt.json`
+  verifies preserved evidence and removed inactive generated/raw outputs.
 
 - #766: `/tmp/loom-766-independent-final-verdict.json` and
   `/tmp/loom-766-independent-integration-verdict.json`; cleanup receipt
