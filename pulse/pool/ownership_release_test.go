@@ -12,6 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type releaseReplyOwnerKey struct{}
+
 type releaseReplyHook struct {
 	after   bool
 	fired   atomic.Bool
@@ -30,7 +32,7 @@ func (h *releaseReplyHook) ProcessPipelineHook(next redis.ProcessPipelineHook) r
 func (h *releaseReplyHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
 	return func(ctx context.Context, cmd redis.Cmder) error {
 		args := cmd.Args()
-		if len(args) < 2 || h.fired.Load() {
+		if ctx.Value(releaseReplyOwnerKey{}) != h || len(args) < 2 || h.fired.Load() {
 			return next(ctx, cmd)
 		}
 		script, ok := args[1].(string)
@@ -38,16 +40,22 @@ func (h *releaseReplyHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook
 			(cmd.Name() == "eval" && strings.Contains(script, `local remaining = {}`))) {
 			return next(ctx, cmd)
 		}
-		if h.entered != nil {
-			close(h.entered)
-			<-h.release
-		}
+		// A failed EVALSHA must leave the fault available for EVAL fallback.
 		if h.after {
 			if err := next(ctx, cmd); err != nil {
 				return err
 			}
 		}
-		h.fired.Store(true)
+		if !h.fired.CompareAndSwap(false, true) {
+			if h.after {
+				return nil // This call already completed next successfully.
+			}
+			return next(ctx, cmd)
+		}
+		if h.entered != nil {
+			close(h.entered)
+			<-h.release
+		}
 		return errors.New("injected release connection loss")
 	}
 }
@@ -62,7 +70,8 @@ func TestOwnershipReleaseReply(t *testing.T) {
 			require.NoError(t, startIdentifiedJob(t.Context(), w1, first))
 			hook := &releaseReplyHook{after: after}
 			rdb.AddHook(hook)
-			require.ErrorContains(t, w1.stopJob(t.Context(), "k"), "connection loss")
+			faultCtx := context.WithValue(t.Context(), releaseReplyOwnerKey{}, hook)
+			require.ErrorContains(t, w1.stopJob(faultCtx, "k"), "connection loss")
 			require.True(t, hook.fired.Load())
 			require.Empty(t, w1.Jobs())
 			require.Len(t, w1.pendingReleases, 1)
@@ -167,14 +176,18 @@ func TestStaleRebalanceDoesNotReviveCompletedJob(t *testing.T) {
 
 func TestSlowReleaseKeepsLease(t *testing.T) {
 	rdb := startTestRedis(t)
-	n := addTestNode(t, rdb, "slow-release-lease", WithWorkerTTL(400*time.Millisecond))
+	// The direct stop owns delivery; the real worker still renews its lease.
+	n := sinklessNode(t, rdb, "slow-release-lease", WithWorkerTTL(400*time.Millisecond))
 	w, err := n.AddWorker(t.Context(), newRecordingHandler())
 	require.NoError(t, err)
 	require.NoError(t, startIdentifiedJob(t.Context(), w, &Job{Key: "k", NodeID: n.ID, CreatedAt: time.Now()}))
 	hook := &releaseReplyHook{entered: make(chan struct{}), release: make(chan struct{})}
 	rdb.AddHook(hook)
 	done := make(chan error, 1)
-	go func() { done <- w.stopJob(t.Context(), "k") }()
+	faultCtx := context.WithValue(t.Context(), releaseReplyOwnerKey{}, hook)
+	go func() {
+		done <- w.stopJob(faultCtx, "k")
+	}()
 	<-hook.entered
 	defer func() {
 		close(hook.release)
