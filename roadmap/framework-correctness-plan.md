@@ -4,9 +4,9 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 
 ## Current state
 
-- **227 of 231 tracked reports are delivered, pushed and confirmed closed.**
+- **234 of 237 tracked reports are delivered, pushed and confirmed closed.**
   The [inventory](framework-correctness-inventory.md) records each report;
-  `/tmp/loom-tracker-227-issues.json` is the frozen GitHub reconciliation input.
+  `/tmp/loom-tracker-234-issues.json` is the frozen GitHub reconciliation input.
 - **User-delegated technical decisions:** choose the best coherent framework
   contract, document tradeoffs and migration effects, and continue work. The user
   explicitly superseded the repository rule requiring questions for unresolved
@@ -27,10 +27,20 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
   Naming follows the detached candidate, fixing absent/Empty payload injection
   without changing auth scope. Direct isolation and generated controls pass;
   cleanup is complete. This resolves the historical session-injection note.
-- Historical joined-response residual is now reproduced and tracked as #908.
-  An independent join still borrows one branch's typed code/data despite a generic
-  safe message. Shared response ownership readiness is independently approved; implementation is active, with
-  a generated gRPC concrete-owner handoff regression now reproduced as well.
+- Shared error-response ownership #908 (`d6fa86b9b`) is independently reviewed,
+  pushed and closed. One public owner supplies identity, concrete body and
+  permitted metadata across HTTP/JSON-RPC and generated gRPC conversion.
+  Independent joins cannot promote branch data; explicit outer ownership and
+  single-cause wrappers retain their contracts. Regenerate server adapters.
+- Built-in problem reconstruction #911 (`2d23cfeee`) and API response preparation
+  #912 (`16749ea5b`) are reviewed, pushed and closed. Both restore shared
+  expression invariants; ordinary generated output remains byte-identical.
+- Empty-response fixtures #913 (`02cf38265`), structured JSON byte fixture #914
+  (`8ae6b5623`) and importer cycle diagnostics #915 (`d1e8c68ef`) are reviewed,
+  pushed and closed. They adopt delivered contracts while retaining required
+  fields, codec rejection controls and fatal cycle diagnostics. JSON-RPC client
+  decoder expectations #916 (`1d822fc10`) are also reviewed, pushed and closed;
+  typed/raw mounted round trips and focused races pass.
 - Request framing #766 (`d5919ce6e`) is reviewed, pushed and closed. One
   post-encoding owner reconciles Content-Length and unpublished body cleanup
   across HTTP/JSON-RPC. Cancellation and zero-length probes share close ownership;
@@ -268,40 +278,53 @@ reconciliation with the inventory before they can establish remaining work.
 
 ## Current execution queue
 
-1. **Joined error ownership (#908):** independently approved shared response
-   ownership design is being implemented in `interceptor-accessor-union` after
-   refreshing the #905 parent. Preserve explicit outer owners, transparent single
-   causes and existing gRPC aggregate/native status semantics. The generated gRPC
-   mapper also reproduces incorrect inner-owner selection; it will consume the
-   same concrete owner. No renderer-local join checks or diagnostic API rewrites.
-2. **Bounded shutdown (#800):** diagnostic has composed the conditional packet
-   with delivered #765/#768/#771/#772/#773/#901. Native finite/empty-read shutdown,
-   socket/constructor bounds and current consumer controls pass. The membership
-   CAS loop now has one operation deadline across retries, with a failing old
-   alternative and passing model/test. Final conditional review remains pending;
-   original-module fetchability still gates delivery.
-3. **Pool construction (#687):** omission refreshes node-only readiness and the
-   acquisition-owner model against current main. Four original subscription-leak
-   failures reproduce. Separate attempted remote state from local cleanup and
-   never roll back shared protocol/pool state. #800 remains the finite subordinate
-   shutdown prerequisite; #704 worker admission is already delivered.
-4. **CI reconciliation:** #910 repairs the actual missing-checksum failure from
-   job `115639900588` at `6ba2dbf86`. That run passes Redis, generated-code quality,
-   OpenAPI and several compile partitions; remaining jobs are still active.
-   Current-main required runs are queued and CodeQL at `c80c5b359` passed. No
-   overall green-CI claim, queue workaround or automatic corpus sweep.
+1. **Completed client expectations (#916):** independently reviewed, pushed and
+   closed as `1d822fc10`. The shared decoder expectation retains HTTP mapping
+   isolation and viewed-constructor error checks. This completes the currently
+   reproduced non-dependency CI repairs.
+2. **Bounded shutdown (#800):** conditional implementation is independently
+   approved against delivered membership/recovery owners. One operation budget
+   covers retries, and one lifecycle owner cancels before joining reads. Native
+   Redis, race and model checks pass. Frozen packet:
+   `/tmp/loom-800-refreshed-final-manifest.json`; review:
+   `/tmp/loom-800-independent-refreshed-verdict.json`. Original-module dependency
+   fetchability, final pin/provenance and integration review still gate delivery.
+3. **Pool construction (#687):** conditional implementation and narrow re-review
+   are approved. One acquisition owner rolls back in reverse order, enrolls
+   attempted private writes before publication, joins cleanup errors and
+   transfers ownership once. Shared pool state is retained. Frozen packet:
+   `/tmp/loom-687-final-manifest.json`; review:
+   `/tmp/loom-687-independent-final-rereview-verdict.json`. Its exact base is
+   reviewed #800 applied to `ce26ecbe9`; deliver #800 before refreshing and
+   delivering #687. Neither conditional candidate is committed.
+4. **CI reconciliation:** run `38498585620` at `6ba2dbf86` passed Redis,
+   generated-code quality, OpenAPI, value contracts and all compile partitions
+   except HTTP. Its checksum, response/projection admission and stale expectation
+   failures are tracked through #910–#916; #820 remains the known importer race.
+   Current required runs remain queued. Do not claim overall green CI or repeat
+   the full exported corpus as a local gate.
 5. **Dependency gates:** #820 libopenapi
    [PR #658](https://github.com/pb33f/libopenapi/pull/658) and #800 go-redis
    [PR #4095](https://github.com/redis/go-redis/pull/4095) remain open/unmerged at
-   heads `3180fde1` and `8df7cf3`. Production pins remain unchanged. Do not bypass
-   original-module fetchability with forks or cache injection. The exact reviewed
-   libopenapi candidate passes current importer merge/normalization races using
-   a disposable modfile; this is conditional evidence, not delivery.
+   heads `3180fde1` and `8df7cf3` (rechecked 2026-10-14). Production pins remain
+   unchanged. Do not bypass original-module fetchability with forks or cache
+   injection. The reviewed libopenapi candidate passes focused importer merge
+   races using a disposable modfile. Its 537.842 s affected-package run failed
+   only the separately reproduced diagnostic expectation now corrected by #915;
+   no package-wide green result is claimed.
+
+Delivery acceptance remains sequential: dependency availability → exact pin and
+provenance → affected integration checks and independent final review → atomic
+commit/push → issue closure and inventory reconciliation. Conditional approval
+does not waive any delivery gate.
 
 PR #826 is closed with the user's authorization as superseded by delivered
 `73451e4da` (#823). Its exact regression and actual HTTP/JSON-RPC/gRPC nested-union
 roundtrips pass on main. #905 inactive validation scratch cleanup is complete;
 receipt `/tmp/loom-905-cleanup-receipt.json` preserves the verified archive.
+Cleanup for #908/#911/#912/#913 is also complete, with verified archives and
+receipts at `/tmp/loom-<issue>-cleanup-receipt.json`. Active #800/#687 sources
+and dependency reproductions remain preserved.
 
 Current evidence: `/tmp/loom-ci-227-runs.json`,
 `/tmp/loom-ci-226-active.json`, `/tmp/loom-910-final-manifest.json`,
