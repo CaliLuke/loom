@@ -23,34 +23,40 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
   and a return-to-release condition. No cache injection or local source override
   counts as delivery. Redis client types carry their module identity, so Pulse
   applications must migrate their Redis import while this fork is required.
-- **267 of 268 tracked reports are delivered, pushed and confirmed closed.**
-  GitHub reconciliation of every inventory ID finds no missing or duplicate
-  reports; only #939 (HTTP raw-text validation retaining custom storage metadata)
-  remains open with dependency_strategy_review. #936 is delivered as `524322558`:
-  authored union branch physical identity retains its codecs. #938 `9e0b16e12` regenerates the HTTP SSE fixture
+- **All 269 tracked reports are delivered, pushed and confirmed closed.**
+  GitHub reconciliation of every inventory ID finds no missing, duplicate or
+  open reports. Final required CI completion remains pending. #936 is delivered
+  as `524322558`: authored union branch physical identity retains its codecs.
+  #938 `9e0b16e12` regenerates the HTTP SSE fixture
   after shared scalar decoding. Both exact diffs were reviewed, pushed and closed.
   #937 `d5c2f5f9f` shares canonical protobuf pair normalization and uses occurrence
   identity for fallibility traversal, preserving generated names. Ten actual CI
   witnesses compile; 24 ordinary artifacts remain unchanged and all 60 selected
   artifacts repeat exactly. Integrated #936/#937 custom union races pass (4.733s).
   #926 is delivered as `194ab48c6`: one semantic String capability and selected
-  conversion fallibility owner now serves service views, public conversions, HTTP, JSON-RPC
-  and gRPC bodies/metadata. Independent final review, six-package focused races,
+  conversion fallibility owner now serves service views, public conversions,
+  HTTP, JSON-RPC and gRPC bodies/metadata. Independent final review, six-package focused races,
   bounded exact generated comparisons and lint pass. Regenerate affected service
   and transport code together; selected fallible constructors return errors.
   The [inventory](framework-correctness-inventory.md) records each report.
-- **Latest CI snapshot, source `d5c2f5f9f`:**
-  [CodeQL run 38610067262](https://github.com/CaliLuke/loom/actions/runs/38610067262)
-  passed; [required CI run 38610067584](https://github.com/CaliLuke/loom/actions/runs/38610067584)
-  is in progress. Required CI completion remains a separate exit condition; closed
+- **Latest CI snapshot, source `1af9eaffa`:**
+  [required CI run 38611345499](https://github.com/CaliLuke/loom/actions/runs/38611345499)
+  and [CodeQL run 38611345355](https://github.com/CaliLuke/loom/actions/runs/38611345355)
+  are in progress. Required CI completion remains a separate exit condition; closed
   bug reports and focused acceptance do not establish overall CI success.
-  Earlier source `194ab48c6` exposed #937's protobuf analysis panic (delivered)
-  and #939's raw-carrier validation mismatch (active). Its OpenAPI, native Redis,
-  generated-code quality, value-contract, HTTP/JSON-RPC/service compilation jobs
-  pass; the run concluded failure. An additional race-job failure in
-  `TestBytesDefaultTransformLayouts` is being reproduced; it has no disposition
-  or new report yet. No release was attempted. Refresh this snapshot after
-  #939 delivery and final required-job completion.
+  Earlier source `194ab48c6` exposed protobuf pair normalization (#937), raw-text
+  validation carrier metadata (#939) and the Bytes-default harness dropping the
+  transform error channel (#940); all three repairs are now delivered. No release
+  was attempted. Refresh this snapshot after final required-job completion.
+- **Final CI repairs delivered:** #939 `3d04eefcd` projects raw-text validation
+  onto native String storage while preserving effective non-format constraints,
+  authored parser responsibility and source immutability. Existing six custom
+  server/CLI goldens remain unchanged; 66 artifacts repeat exactly, and selected
+  CLI/wire/presence races pass. #940 `1af9eaffa` makes the Bytes-default generated
+  harness consume the complete TransformPlan error channel, with all 512 layout
+  cases passing and a dropped-error mutation rejected. No production default
+  behavior changes in #940. Both exact repairs were independently reviewed,
+  pushed and confirmed closed.
 - **Latest structural deliveries:** #934 `9f16cc3dc` moves both custom-type
   import collectors onto one cycle-safe attribute traversal, preserving union
   branches, occurrence metadata and plugin types. Independent race/generation
@@ -454,18 +460,23 @@ reconciliation with the inventory before they can establish remaining work.
     recursion and generated names. Ten previously failing exported designs now
     generate/build/vet; focused races and exact output comparisons pass.
     See [owning plan](protobuf-pair-normalization.md).
-19. [ ] Repair #939 at HTTP raw-text validation's carrier projection owner.
-    Agent: dependency_strategy_review. Preserve effective inherited non-format
-    constraints, native raw String storage, authored parser format responsibility
-    and guarded presence. Keep the six existing server/CLI goldens unchanged;
-    check actual valid, absent and invalid text paths before exact review,
-    atomic delivery and closure.
-20. [ ] Inspect required CI completion on the final delivered source with
+19. [x] Deliver #939 (`3d04eefcd`) at HTTP raw-text validation's shared
+    immutable carrier projection owner. Effective inherited non-format constraints,
+    native raw String storage, parser format responsibility and presence survive.
+    The six existing server/CLI goldens stay unchanged; generated valid, absent,
+    invalid text and response checks pass. See
+    [owning plan](raw-text-validation-carrier.md).
+20. [x] Deliver #940 (`1af9eaffa`): the Bytes-default generated harness consumes
+    complete TransformPlan code/helpers/error metadata, preserving its original
+    448 layouts and adding 64 rejected-parser layouts. Generated compilation,
+    vet, focused races, error-loss mutation and lint checks pass. See
+    [owning plan](bytes-default-plan-adoption.md).
+21. [ ] Inspect required CI completion on the final delivered source with
     `gh run list --repo CaliLuke/loom --commit <full-sha>` and `gh run view <id>`;
     record the exact run and conclusion here. Reproduce and repair any actual
     failing gate in its owning ticket. Do not infer success from canceled or
     superseded runs, and do not repeat the full exported-design corpus locally.
-21. [x] Preserve #926 exact inputs, review verdicts and concise evidence, then
+22. [x] Preserve #926 exact inputs, review verdicts and concise evidence, then
     remove inactive temporary source and checker/generated output. Verified
     archive: `/tmp/loom-delivered-926-evidence.tar.gz`, SHA-256
     `2241f06f584436beef95b88db29928c4249800dfc8d156b98d1e963ef47d46a9`;
@@ -473,18 +484,30 @@ reconciliation with the inventory before they can establish remaining work.
     preserved; the archive includes `evidence/loom-926-independent-final-verdict.json`.
     Committed source, regression tests and owning model READMEs remain the durable
     recovery record. Separate #936 inputs were retained for its own delivery.
-22. [x] Preserve #937's seven exact source files, reproduction driver, model
+23. [x] Preserve #937's seven exact source files, reproduction driver, model
     inputs, patch, manifest, review verdict and concise evidence in
     `/tmp/loom-delivered-937-evidence.tar.gz`, SHA-256
     `f9a96a774b14f2a663a5afaf6f139179416a293be232669fb7083dd801dff22b`.
     Activity-checked cleanup removed 29 temporary paths (59.9 MB); receipt:
     `/tmp/loom-delivered-937-cleanup.json`. Shared CI logs remain available.
-23. [x] Preserve #936's seven exact source inputs, final packet/review,
+24. [x] Preserve #936's seven exact source inputs, final packet/review,
     reproduction drivers and concise evidence in
     `/tmp/loom-936-durable-inputs.tar.gz`, SHA-256
     `cd4555234c9806c05798f9bdadf94505c143da2bc7012609aa63865ab8ebf47b`.
     Activity-checked cleanup removed 37 temporary paths; receipt:
     `/tmp/loom-936-cleanup-receipt.json`.
+25. [x] Preserve #939's exact three-file input, reproduction/capture drivers,
+    independent review and 66-artifact comparison evidence in
+    `/tmp/loom-939-delivery-evidence.tar.gz`, SHA-256
+    `cd46fccafabc427dc70ed0c52cb8fe90e8d49d9c7a63439915c55bb078b96b76`.
+    Inactive source, captures and raw logs are removed; receipt:
+    `/tmp/loom-939-cleanup-receipt.json`. Shared CI logs remain available.
+26. [x] Preserve #940's two exact source inputs, patch/review, reproduction and
+    mutation witnesses, and concise 512-layout evidence in
+    `/tmp/loom-940-durable-inputs.tar.gz`, SHA-256
+    `6efa609ae2fb52b0af33f066edee19f0f48809a89d1b5e2c2c5563ef511b8e3f`.
+    Inactive source and test/lint/mutation logs are removed; receipt:
+    `/tmp/loom-940-cleanup-receipt.json`.
 
 Delivery acceptance remains sequential: dependency availability → exact pin and
 provenance → affected integration checks and independent final review → atomic
@@ -2044,5 +2067,5 @@ manifest, patch, review and concise validation evidence are preserved in
 `/tmp/loom-938-delivery-evidence.tar.gz`, SHA-256
 `b4e165281529c50ad1dcf0d94d970e1ebe12103de771c38efbf4d38b8f0a0ced`.
 Receipt: `/tmp/loom-938-cleanup-receipt.json`. Shared CI snapshots remain available
-for #939 and final CI reconciliation; committed owning plans and tests retain
+for final CI reconciliation; committed owning plans and tests retain
 the reproducible instructions.

@@ -2,7 +2,7 @@
 
 Source: live GitHub open `code-review` issues #679–#793, plus referenced #670, read on 2026-10-12, with subsequently reproduced follow-ups recorded below. Baseline `4535a403048510f055fc59ec3dfed41e3769ad58`. See [execution plan](framework-correctness-plan.md).
 
-Candidate-owner labels preserve the original ownership triage; matching labels alone do not establish a common cause or authorize closure. Each disposition below records its own delivery or remaining work. Live GitHub reconciliation at `d5c2f5f9f` confirms 267 closed reports and only #939 open, with no missing or duplicate IDs. #775 is an already-closed duplicate of #774 and is excluded from this inventory.
+Candidate-owner labels preserve the original ownership triage; matching labels alone do not establish a common cause or authorize closure. Each disposition below records its own delivery or remaining work. Live GitHub reconciliation at `1af9eaffa` confirms all 269 reports closed, with no missing or duplicate IDs. #775 is an already-closed duplicate of #774 and is excluded from this inventory.
 
 | Finding | Candidate owner | Disposition |
 | --- | --- | --- |
@@ -273,9 +273,10 @@ Candidate-owner labels preserve the original ownership triage; matching labels a
 | [#936: Promoted union branches lose custom Go representation methods](https://github.com/CaliLuke/loom/issues/936) | Shared union declaration representation | Delivered/pushed `524322558`, independently reviewed and closed; shared DSL promotion preserves authored physical identity and codec method sets, with native and generated transport controls |
 | [#937: Normalize protobuf message pairs consistently before conversion fallibility analysis](https://github.com/CaliLuke/loom/issues/937) | Protobuf conversion pair normalization | Delivered/pushed `d5c2f5f9f`, independently reviewed and closed; canonical protobuf pair normalization and occurrence identity preserve recursion and generated names, ten CI witnesses compile and bounded artifact comparisons pass |
 | [#938: HTTP SSE fixture retains superseded scalar query decoding](https://github.com/CaliLuke/loom/issues/938) | Generated fixture adoption | Delivered/pushed `9e0b16e12`, independently reviewed and closed; shared scalar query decoder and design digest regenerated, all 20 artifacts repeat exactly and guarded pre-stream checks pass |
-| [#939: HTTP raw-text validation retains custom Go storage metadata](https://github.com/CaliLuke/loom/issues/939) | HTTP raw-text validation carrier ownership | Open; reproduced server/CLI custom-text validation failures assigned to the shared immutable carrier projection owner |
+| [#939: HTTP raw-text validation retains custom Go storage metadata](https://github.com/CaliLuke/loom/issues/939) | HTTP raw-text validation carrier ownership | Delivered/pushed `3d04eefcd`, independently reviewed and closed; shared immutable raw String carrier retains effective non-format constraints, authored parser responsibility and presence, preserving existing goldens and generated wire controls |
+| [#940: Bytes-default generated harness ignores TransformPlan error channel](https://github.com/CaliLuke/loom/issues/940) | Generated harness contract adoption | Delivered/pushed `1af9eaffa`, independently reviewed and closed; fixture consumes complete transform plan, 512 layouts compile and pass, dropped parser errors fail mutation control; no production change |
 
-Inventory count: 268 reports (114 in the requested open range, #670, older reports #671–#678, and follow-ups #794–#825 and #827–#939; #826 is a PR); 267 delivered and confirmed closed, one open (#939).
+Inventory count: 269 reports (114 in the requested open range, #670, older reports #671–#678, and follow-ups #794–#825 and #827–#940; #826 is a PR); all 269 delivered and confirmed closed. Final required CI remains pending.
 
 
 ## Historical structural triage
