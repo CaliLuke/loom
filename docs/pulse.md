@@ -91,6 +91,9 @@ at `0-0`. The lookup can return a Redis connectivity, permission or type error;
 a failed addition leaves the reader's existing streams unchanged. Explicit oldest,
 timestamp and event-ID positions require no new lookup. `AddStream` inherits the
 reader's authored start mode unless its options override it.
+Reader membership uses the stream key: a second `Stream` handle for the same
+name is a duplicate on addition and removes the existing membership on removal.
+Removal permits events from an already-admitted read to finish delivery.
 
 `Reader.RemoveStream` stops future reads for that registration. An already-admitted
 batch may still reach subscribers. Re-adding the stream installs its selected start

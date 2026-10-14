@@ -521,7 +521,9 @@ consumer validation.
   remain eager. Keep the sink_activation model and native pending-entry controls
   aligned; activation is not reset when all subscribers unsubscribe. Keep this
   admission rule separate from bounded I/O and concurrent Close joining.
-- Reader registrations own stream identity and cursor together. Snapshot ordered
+- Reader registrations own stream identity and cursor together. Public add/remove
+  membership shares one locked key lookup; completion retains instance identity.
+  Snapshot ordered
   registration references and detached Redis arguments at read admission, retain
   those references through reply/fanout, and advance only the identical installed
   registration under the Reader lock. Remove/re-add cannot receive an old read's

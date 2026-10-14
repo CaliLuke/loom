@@ -128,7 +128,11 @@ func TestReaderRegistrationMultistreamReplacements(t *testing.T) {
 			}
 			want := ""
 			for generation := 1; generation <= 2; generation++ {
-				require.NoError(t, reader.RemoveStream(t.Context(), a))
+				handle := a
+				if generation == 1 {
+					handle = newTestStream(t, rdb, a.Name)
+				}
+				require.NoError(t, reader.RemoveStream(t.Context(), handle))
 				want = fmt.Sprintf("%d-0", time.Now().Add(time.Duration(generation)*time.Hour).UnixMilli())
 				require.NoError(t, reader.AddStream(t.Context(), a, options.WithAddStreamStartAfter(want)))
 			}

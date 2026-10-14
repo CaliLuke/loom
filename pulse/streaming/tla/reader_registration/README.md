@@ -74,28 +74,24 @@ the model does not prove that a Go select cannot send an already-admitted event
 while a close signal becomes ready. Tests cover concrete behavior outside the
 model's abstraction. #800 owns stronger shutdown/operation guarantees.
 
-`equivalent_handle_probe.go.txt` independently reproduces #773 without any read
-or replacement. It is intentionally outside the active #802 tests. Retain the
-existing pointer-based RemoveStream selection during #802; key-based duplicate
-admission remains unchanged. #773 is a separate semantic correction.
+`equivalent_handle_probe.go.txt` retains the original #773 reproduction without
+any active read. The repaired key-based public membership lookup is covered by
+`../../reader_membership_test.go`. The model already abstracts successful removal
+of a selected registration and remains unchanged: public stream-key identity
+must not replace registration-instance identity at completion.
 
 Checked results: key-only fails after 92 distinct states; reply identity fails
 after 141; admission identity passes 192 distinct / 384 generated; unchecked
 Close fails after 35. Raw results are `/tmp/loom-reader-registration-802-*.log`.
 
-To reproduce #773 separately, copy `equivalent_handle_probe.go.txt` into
-`pulse/streaming/equivalent_handle_probe_test.go`, run
-`go test -race ./pulse/streaming -run '^TestReaderEquivalentHandleReadiness$' -count=1`
-from the repository root, then remove only that copied test. Its expected failure
-is unrelated to #802 acceptance. A Go overlay can run the same input without
-copying it into the package.
-
 The multistream regression removes the earlier registration, shifts the ordered
 slice and twice re-adds that same Stream before releasing the admitted batch.
-It checks original event names/IDs/order, the replacement cursor and unaffected
+Its first removal now uses an equivalent Stream handle; the second uses the
+original handle. It checks original event names/IDs/order, the replacement cursor and unaffected
 stream advancement for both reply and fanout interleavings. All nine original
 and extended failure cases now pass; six lifetime controls and #761's cursor
 suite remain green. Full streaming/options race tests, selected pool callers and
 focused Redis 8.10.2 pass. The four model configurations were rerun unchanged
 (`/tmp/loom-reader-registration-802-final-*.log`); the roadmap records commands,
-results and remaining scope. #773 remains reproducibly unfixed.
+results and remaining scope. #773 now shares one public key lookup between add and remove; current focused
+races and the unchanged admission-identity model verify this correction.

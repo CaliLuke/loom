@@ -1542,7 +1542,8 @@ added after that snapshot remain eligible even before `Subscribe`. `AddStream`
 snapshots each new stream independently. These operations can return Redis
 lookup errors. Explicit oldest, timestamp and event-ID options retain their
 positions without a new lookup.
-Removing and re-adding a Reader stream starts a new registration at the chosen
+Reader addition and removal identify membership by stream key; equivalent handles
+are interchangeable. Removing and re-adding a Reader stream starts a new registration at the chosen
 position. Earlier reads cannot move that new cursor. Events already admitted
 before removal can still be delivered; removal does not drain subscriptions.
 A Sink begins reading and claiming pending entries on its first successful

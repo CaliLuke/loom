@@ -181,8 +181,9 @@ func (r *Reader) Unsubscribe(c <-chan *Event) {
 
 // AddStream adds a stream using the reader's authored start position unless opts
 // overrides it. Newest is resolved once when the stream is added. Explicit IDs
-// are reused unchanged. Adding an already registered stream is a no-op. A failed
-// newest lookup leaves existing registrations and active reads unchanged.
+// are reused unchanged. Adding a handle with an already registered stream key
+// is a no-op. A failed newest lookup leaves existing registrations and active
+// reads unchanged.
 func (r *Reader) AddStream(ctx context.Context, stream *Stream, opts ...options.AddStream) error {
 	r.lock.Lock()
 	allowed, err := r.canAddStream(stream.key)
@@ -212,8 +213,9 @@ func (r *Reader) AddStream(ctx context.Context, stream *Stream, opts ...options.
 	return nil
 }
 
-// RemoveStream removes the stream from the reader; it is idempotent. Events
-// from an already-admitted read may still reach subscribers. If the stream is
+// RemoveStream removes the stream by its key; equivalent handles are interchangeable.
+// Removal is idempotent. Events from an already-admitted read may still reach
+// subscribers. If the stream is
 // added again, those earlier reads cannot advance the new registration's cursor.
 func (r *Reader) RemoveStream(ctx context.Context, stream *Stream) error {
 	r.lock.Lock()
@@ -221,12 +223,9 @@ func (r *Reader) RemoveStream(ctx context.Context, stream *Stream) error {
 	if r.closing {
 		return fmt.Errorf("reader is closing")
 	}
-	for i, registration := range r.registrations {
-		if registration.stream == stream {
-			r.registrations = slices.Delete(r.registrations, i, i+1)
-			r.cancelActiveRead()
-			break
-		}
+	if i := r.registrationIndex(stream.key); i >= 0 {
+		r.registrations = slices.Delete(r.registrations, i, i+1)
+		r.cancelActiveRead()
 	}
 	r.logger.Info("removed", "stream", stream.Name)
 	return nil

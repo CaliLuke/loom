@@ -36,7 +36,13 @@ func (r *Reader) canAddStream(key string) (bool, error) {
 	if r.closing {
 		return false, fmt.Errorf("reader is closing")
 	}
-	return !slices.ContainsFunc(r.registrations, func(registration *readerRegistration) bool {
+	return r.registrationIndex(key) < 0, nil
+}
+
+// registrationIndex resolves public stream membership while r.lock is held.
+// Read completion instead compares registration instances to preserve lifetimes.
+func (r *Reader) registrationIndex(key string) int {
+	return slices.IndexFunc(r.registrations, func(registration *readerRegistration) bool {
 		return registration.stream.key == key
-	}), nil
+	})
 }
