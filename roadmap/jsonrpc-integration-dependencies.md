@@ -16,7 +16,7 @@ No dependency version or public behavior changes.
    existing pinned x/net requirement and its two root-identical checksums.
 3. [x] Apply that exact two-manifest delta. Compile all integration packages with
    readonly modules, run the existing module lint and confirm tidy has no drift.
-4. [ ] Independent review of the exact final diff, then one #910 commit and push;
+4. [x] Independent review of the exact final diff, then one #910 commit and push;
    close the report and reconcile the master inventory.
 
 ## Evidence
@@ -38,3 +38,6 @@ Candidate validation: all three integration packages compile in readonly mode
 (`/tmp/loom-910-lint.log`); `go mod tidy -diff` exits zero with no output
 (`/tmp/loom-910-tidy.log`). The complete delta adds three manifest lines. No
 runtime/generator code, generated output, dependency version or tests change.
+
+Delivered as `877d4135f`, pushed and report confirmed closed. Independent exact
+review: `/tmp/loom-910-independent-final-verdict.json`; no unresolved findings.
