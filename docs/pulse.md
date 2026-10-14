@@ -107,6 +107,14 @@ channels. `Stream.Destroy` is different: it deletes the shared stream and sink
 membership state. Reserve it for intentional teardown, tests, or coordinated
 retirement—not ordinary process shutdown.
 
+An active sink repairs a missing consumer group and its membership using that
+stream registration's original start selector. An existing group's shared cursor
+is never reset. Oldest can replay retained entries after group deletion; newest
+skips entries present when the group is recreated; explicit ID and timestamp
+selectors remain unchanged. Redis cannot restore deleted events or a deleted
+pending list. Recovery retries with backoff and stops creating groups after local
+removal or shutdown. Stop participating sinks before intentional shared teardown.
+
 `Sink.RemoveStream` releases its local map subscription even when another
 instance still consumes that stream. On a membership-removal error, the local
 stream is retained; retry removal because Redis may have applied a write whose

@@ -96,7 +96,8 @@ func (s *Sink) deleteIdleConsumer(ctx context.Context, key, consumer string) (bo
 // deleteStaleConsumers deletes stale consumers.
 // s.lock must be held.
 func (s *Sink) deleteStaleConsumers(ctx context.Context) {
-	for _, stream := range s.streams {
+	for _, registration := range s.streams {
+		stream := registration.stream
 		if err := s.deleteStreamStaleConsumers(ctx, stream); err != nil {
 			s.logger.Error(fmt.Errorf("failed to delete stale consumers for stream %s: %w", stream.Name, err))
 		}
@@ -125,8 +126,7 @@ func (s *Sink) createConsumer(ctx context.Context, stream *Stream, consumer stri
 	if err := stream.rdb.XGroupCreateConsumer(ctx, stream.key, s.Name, consumer).Err(); err != nil {
 		return fmt.Errorf("failed to create Redis consumer %s for consumer group %s: %w", consumer, s.Name, err)
 	}
-	s.lastKeepAlive = time.Now().UnixNano()
-	if _, err := s.consumersKeepAliveMap.Set(ctx, consumer, strconv.FormatInt(s.lastKeepAlive, 10)); err != nil {
+	if err := s.updateConsumerKeepAlive(ctx, consumer); err != nil {
 		err = fmt.Errorf("failed to set sink keep-alive for new consumer %s: %w", consumer, err)
 		if derr := stream.rdb.XGroupDelConsumer(context.WithoutCancel(ctx), stream.key, s.Name, consumer).Err(); derr != nil {
 			err = errors.Join(err, fmt.Errorf("failed to delete consumer %s after failed keep-alive set: %w", consumer, derr))
@@ -172,6 +172,18 @@ func (s *Sink) read(ctx context.Context) {
 			return
 		}
 		if err != nil {
+			if redis.HasErrorPrefix(err, "NOGROUP") {
+				s.lock.Lock()
+				recoveryErr := s.reconcileRegistrations(ctx, true)
+				s.lock.Unlock()
+				if recoveryErr != nil {
+					s.logger.Error(recoveryErr)
+				}
+				if !s.waitBeforeEnsureConsumerRetry() {
+					return
+				}
+				continue
+			}
 			if err := handleReadError(err, s.logger, s.donechan); err != nil {
 				s.logger.Error(fmt.Errorf("error reading events: %w", err))
 			}
@@ -193,18 +205,21 @@ func (s *Sink) armRead(ctx context.Context) (context.Context, []string, string, 
 		cancel()
 		return readCtx, nil, "", false
 	}
-	readStreams := make([]string, len(s.streamCursors))
-	copy(readStreams, s.streamCursors)
+	readStreams := make([]string, 2*len(s.streams))
+	for i, registration := range s.streams {
+		readStreams[i] = registration.stream.key
+		readStreams[len(s.streams)+i] = ">"
+	}
 	s.readCancel = cancel
 	return readCtx, readStreams, s.consumer, true
 }
 
 func (s *Sink) waitBeforeEnsureConsumerRetry() bool {
-	delay := s.blockDuration
-	if s.blockDuration <= 0 {
+	delay := min(s.blockDuration, time.Duration(maxJitterMs)*time.Millisecond)
+	if delay <= 0 {
 		delay = ensureConsumerRetryDelay
 	}
-	delay = time.Duration(rand.Int63n(int64(delay)))
+	delay = ensureConsumerRetryDelay + time.Duration(rand.Int63n(int64(delay)))
 	select {
 	case <-time.After(delay):
 		return true
@@ -244,13 +259,18 @@ func (s *Sink) periodicKeepAlive(ctx context.Context) {
 		select {
 		case <-ticker.C:
 			s.lock.Lock()
-			now := time.Now().UnixNano()
-			if _, err := s.consumersKeepAliveMap.Set(ctx, s.consumer, strconv.FormatInt(now, 10)); err != nil {
+			if s.closing {
+				s.lock.Unlock()
+				return
+			}
+			if err := s.reconcileRegistrations(ctx, false); err != nil {
+				s.logger.Error(err)
+			}
+			if err := s.updateConsumerKeepAlive(ctx, s.consumer); err != nil {
 				s.logger.Error(fmt.Errorf("failed to update sink keep-alive: %w", err))
 				s.lock.Unlock()
 				continue
 			}
-			s.lastKeepAlive = now
 			s.lock.Unlock()
 
 		case <-s.donechan:
@@ -304,7 +324,8 @@ func (s *Sink) periodicIdleMessageCheck(ctx context.Context) {
 
 func (s *Sink) snapshotClaimStreams() []sinkClaimStream {
 	claimStreams := make([]sinkClaimStream, len(s.streams))
-	for i, stream := range s.streams {
+	for i, registration := range s.streams {
+		stream := registration.stream
 		claimStreams[i] = sinkClaimStream{
 			name:     stream.Name,
 			key:      stream.key,

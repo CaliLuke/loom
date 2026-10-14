@@ -1558,6 +1558,11 @@ before removal can still be delivered; removal does not drain subscriptions.
 A Sink begins reading and claiming pending entries on its first successful
 `Subscribe`; construction creates membership and starts keepalive. Delivery
 continues if all subscribers later unsubscribe, without a new replay guarantee.
+Active sinks repair missing groups with each registration's original start
+selector. Oldest can replay retained entries; newest skips existing entries at
+recreation. Existing group cursors are preserved, but deleted messages and pending
+lists cannot be restored. Stop participating sinks before shared stream teardown.
+
 Retry failed `Sink.RemoveStream` calls: membership errors retain the local
 stream, while group-cleanup errors stop polling and retain cleanup ownership.
 `AddStream` can resume a stream with pending group cleanup; `Close` releases all

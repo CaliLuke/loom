@@ -75,6 +75,13 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- Sink active registrations own each stream's authored group-start selector and
+  unfinished recovery. Read, rotation and existing keepalive paths use one locked
+  reconciler: publish membership before absent-group creation, never reset a live
+  group, and exclude cleanup-only map handles. Keep positive retry backoff and
+  removal/close ordering; the group-recovery model does not promise deleted PEL
+  recovery or network-bounded shutdown.
+
 - Response Tag admission binds a logical String-kind result field once in expr.
   The shared transport IR retains that identity; HTTP response analysis lowers
   actual service/projected field names, nominal types and presence into one

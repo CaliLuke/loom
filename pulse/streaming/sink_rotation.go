@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/oklog/ulid/v2"
+	"github.com/redis/go-redis/v9"
 )
 
 // ensureConsumer replaces a stale consumer only after its replacement is
@@ -19,10 +20,19 @@ func (s *Sink) ensureConsumer(ctx context.Context) error {
 	if s.closing || len(s.streams) == 0 {
 		return nil
 	}
+	if err := s.reconcileRegistrations(ctx, false); err != nil {
+		return err
+	}
 	if time.Since(time.Unix(0, s.lastKeepAlive)) > 2*s.ackGracePeriod {
 		s.logger.Debug("consumer stale, creating new one")
 		consumer, err := s.newConsumer(ctx)
 		if err != nil {
+			if redis.HasErrorPrefix(err, "NOGROUP") {
+				if recoveryErr := s.reconcileRegistrations(ctx, true); recoveryErr != nil {
+					return errors.Join(err, recoveryErr)
+				}
+				return err
+			}
 			s.logger.Error(fmt.Errorf("failed to create new consumer: %w", err))
 			return err
 		}
@@ -50,7 +60,8 @@ func (s *Sink) newConsumer(ctx context.Context) (consumer string, err error) {
 			err = errors.Join(err, s.cleanupRetiredConsumers(context.WithoutCancel(ctx)))
 		}
 	}()
-	for _, stream := range s.streams {
+	for _, registration := range s.streams {
+		stream := registration.stream
 		cm := s.consumersMap[stream.Name]
 		if _, err = cm.AppendUniqueValues(ctx, s.Name, consumer); err != nil {
 			return "", fmt.Errorf("failed to register replacement consumer on stream %s: %w", stream.Name, err)

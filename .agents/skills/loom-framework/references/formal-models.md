@@ -210,6 +210,7 @@ Rendered schema validation and actual decoder behavior are separate obligations.
 | Sink first-subscription delivery activation | [Sink activation](../../../../pulse/streaming/tla/sink_activation/README.md); eager read and partial claim counterexamples, one-time read/claim activation with keepalive retained; excludes all-unsubscribed replay and I/O termination |
 | Reader registration identity across admission, reply, fanout and replacement | [Reader registration model](../../../../pulse/streaming/tla/reader_registration/README.md); stale-cursor counterexamples and synchronized replacement/close tests, preserving admitted delivery |
 | Reader newest snapshots and duplicate/close publication rechecks | [Reader cursor model](../../../../pulse/streaming/tla/reader_cursor/README.md); one-time boundaries and atomic publication, excluding stale-registration replies and shutdown termination |
+| Sink missing-group recovery and retained start selectors | [Group recovery](../../../../pulse/streaming/tla/group_recovery/README.md); read/rotation hot-loop and stale-registration counterexamples, serialized repair and finite-failure recovery; excludes deleted events and PEL |
 | Stream group creation/removal, per-stream map ownership and consumer rotation | [Pulse streaming models](../../../../pulse/streaming/tla/README.md) |
 | Integration child-process ownership, parent death and launch races | [Process lease model](../../../../internal/testprocess/tla/README.md) |
 

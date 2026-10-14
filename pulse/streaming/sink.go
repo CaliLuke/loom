@@ -19,7 +19,7 @@ import (
 const defaultIdleCheckPeriod = 500 * time.Millisecond
 
 var (
-	// ensureConsumerRetryDelay is used when blockDuration means "block indefinitely".
+	// ensureConsumerRetryDelay is the minimum delay before retrying sink recovery.
 	ensureConsumerRetryDelay = 100 * time.Millisecond
 	// maxJitterMs is the maximum retry backoff jitter in milliseconds.
 	maxJitterMs = 5000
@@ -90,11 +90,8 @@ type (
 		noAck bool
 		// lock is the sink mutex.
 		lock sync.Mutex
-		// streams are the streams the sink consumes events from.
-		streams []*Stream
-		// streamCursors is the stream cursors used to read events in
-		// the form [stream1, ">", stream2, ">", ...]
-		streamCursors []string
+		// streams own active stream identities, group starts and unfinished recovery.
+		streams []sinkRegistration
 		// blockDuration is the XREADGROUP timeout.
 		blockDuration time.Duration
 		// maxPolled is the maximum number of events to read in one
@@ -212,8 +209,7 @@ func newSink(ctx context.Context, name string, stream *Stream, runtime sinkRunti
 		leaseKeyName:          []string{staleLockName(name)},
 		startID:               o.LastEventID,
 		noAck:                 o.NoAck,
-		streams:               []*Stream{stream},
-		streamCursors:         []string{stream.key, ">"},
+		streams:               []sinkRegistration{{stream: stream, startID: o.LastEventID}},
 		blockDuration:         o.BlockDuration,
 		maxPolled:             o.MaxPolled,
 		bufferSize:            o.BufferSize,
@@ -316,8 +312,8 @@ func (s *Sink) Ack(ctx context.Context, e *Event) error {
 func (s *Sink) AddStream(ctx context.Context, stream *Stream, opts ...options.AddStream) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	for _, s := range s.streams {
-		if s.Name == stream.Name {
+	for _, registration := range s.streams {
+		if registration.stream.Name == stream.Name {
 			return nil
 		}
 	}
@@ -353,12 +349,7 @@ func (s *Sink) AddStream(ctx context.Context, stream *Stream, opts ...options.Ad
 		}
 		return err
 	}
-	s.streams = append(s.streams, stream)
-	s.streamCursors = make([]string, len(s.streams)*2)
-	for i, stream := range s.streams {
-		s.streamCursors[i] = stream.key
-		s.streamCursors[len(s.streams)+i] = ">"
-	}
+	s.streams = append(s.streams, sinkRegistration{stream: stream, startID: startID})
 	s.consumersMap[stream.Name] = cm
 	s.cancelActiveRead()
 	s.logger.Info("added", "stream", stream.Name)
@@ -384,15 +375,10 @@ func (s *Sink) RemoveStream(ctx context.Context, stream *Stream) error {
 		return err
 	}
 	for i, st := range s.streams {
-		if st.Name == stream.Name {
+		if st.stream.Name == stream.Name {
 			s.streams = append(s.streams[:i], s.streams[i+1:]...)
 			break
 		}
-	}
-	s.streamCursors = make([]string, len(s.streams)*2)
-	for i, stream := range s.streams {
-		s.streamCursors[i] = stream.key
-		s.streamCursors[len(s.streams)+i] = ">"
 	}
 	s.cancelActiveRead()
 	if err != nil {
