@@ -33,6 +33,13 @@ Go or of extraction from an application design.
   and client decoding. These tests cover two tags; the model additionally checks
   three-tag cases where a middle default could reorder later matching tags.
 
+For #760, `HTTPResponseTag` resolves the semantic field before this ordering
+step. `responseTagData` lowers its actual service/projected field storage once;
+HTTP and JSON-RPC renderers consume the resulting assignment. The selection
+state is unchanged. `TestResponseTagBindings` and
+`TestResponseTagCarriersGenerated` check names, nominal types, nullable absence
+and null, and mounted status/client reconstruction outside this model.
+
 ## Reproduce
 
 Use the TLA+ 1.7.4 release's `tla2tools.jar` (SHA-256

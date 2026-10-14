@@ -27,12 +27,8 @@ func {{ .ResponseEncoder }}(encoder func(context.Context, http.ResponseWriter) l
 					ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "{{ .ContentType }}")
 				{{- end }}
 			{{- end }}
-			{{- if .TagName }}
-				{{- if .TagPointer }}
-					if res.{{ if .ViewedResult }}Projected.{{ end }}{{ .TagName }} != nil && *res.{{ if .ViewedResult }}Projected.{{ end }}{{ .TagName }} == {{ printf "%q" .TagValue }} {
-				{{- else }}
-					if {{ if .ViewedResult }}*{{ end }}res.{{ if .ViewedResult }}Projected.{{ end }}{{ .TagName }} == {{ printf "%q" .TagValue }} {
-				{{- end }}
+			{{- if .Tag }}
+				if {{ .Tag.Match }} {
 			{{- end -}}
 			{{ template "partial_response" . }}
 			{{- if .EncodePlan.HasBody }}
@@ -40,7 +36,7 @@ func {{ .ResponseEncoder }}(encoder func(context.Context, http.ResponseWriter) l
 			{{- else }}
 				return nil
 			{{- end }}
-			{{- if .TagName }}
+			{{- if .Tag }}
 				}
 			{{- end }}
 		{{- end }}
@@ -129,8 +125,8 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
 		{{- end }}
 	{{- end }}
 	{{- range .Headers }}
-		{{- $initDef := and (or .FieldPointer .Slice) (or .DefaultValue (and .Slice (ne .DefaultValue nil))) (not $.TagName) }}
-		{{- $checkNil := and (or .FieldPointer .Slice (eq .Type.Name "bytes") (eq .Type.Name "any") $initDef) (not $.TagName) }}
+		{{- $initDef := and (or .FieldPointer .Slice) (or .DefaultValue (and .Slice (ne .DefaultValue nil))) (not $.Tag) }}
+		{{- $checkNil := and (or .FieldPointer .Slice (eq .Type.Name "bytes") (eq .Type.Name "any") $initDef) (not $.Tag) }}
 		{{- if $checkNil }}
 	if {{ if eq $.SourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}{{ if .FieldName }}.{{ .FieldName }}{{ end }} != nil {
 		{{- end }}

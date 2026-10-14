@@ -75,6 +75,13 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- Response Tag admission binds a logical String-kind result field once in expr.
+  The shared transport IR retains that identity; HTTP response analysis lowers
+  actual service/projected field names, nominal types and presence into one
+  comparison/assignment plan. HTTP and JSON-RPC renderers consume the plan, not
+  independent pointer or literal guesses. Keep first-match/fallback ordering and
+  JSON-RPC first-response decoding separate from physical field lowering.
+
 - `grpc/codegen.reserveProtoServiceSymbols` records the pinned protoc service
   generator's actual package declarations before message allocation. The existing
   protobuf NameScope allocates inferred names; message collection checks explicit

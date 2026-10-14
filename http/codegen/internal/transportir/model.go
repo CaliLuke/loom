@@ -190,14 +190,14 @@ type (
 		Body                    *expr.AttributeExpr
 		DocumentBody            *expr.AttributeExpr
 		BodyOrigin              string
-		TagName                 string
-		TagValue                string
-		IsError                 bool
-		EmitExamples            bool
-		IsWebSocket             bool
-		BinaryBody              bool
-		Meta                    expr.MetaExpr
-		Links                   []*ResponseLink
+		// Tag binds response selection to a validated semantic result field.
+		Tag          *expr.HTTPResponseTag
+		IsError      bool
+		EmitExamples bool
+		IsWebSocket  bool
+		BinaryBody   bool
+		Meta         expr.MetaExpr
+		Links        []*ResponseLink
 		// ErrorSelector records the effective JSON-RPC ErrorName path.
 		ErrorSelector []string
 	}

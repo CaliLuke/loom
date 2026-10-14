@@ -116,7 +116,9 @@ func writeJSONRPCDecodedInitReturn(g *jen.Group, e *httpcodegen.EndpointData, re
 		return
 	}
 	g.Id("res").Op(":=").Id(resp.ResultInit.Name).Call(jsonrpcInitArgs(resp.ResultInit.ClientArgs)...)
-	writeJSONRPCResponseTagAssignment(g, resp)
+	if resp.Tag != nil {
+		g.Add(codegen.Expr(resp.Tag.Assignment))
+	}
 	g.Return(jen.Id("res"), jen.Nil())
 }
 
@@ -129,10 +131,10 @@ func writeJSONRPCViewedInitReturn(g *jen.Group, e *httpcodegen.EndpointData, res
 			jen.Id("p").Dot(attr).Op("=").Op("&").Id("idCopy"),
 		)
 	}
-	if resp.TagName != "" {
-		g.Id("tmp").Op(":=").Lit(resp.TagValue)
-		g.Id("p").Dot(resp.TagName).Op("=").Op("&").Id("tmp")
+	if resp.Tag != nil {
+		g.Add(codegen.Expr(resp.Tag.Assignment))
 	}
+
 	if e.Method.ViewedResult != nil && e.Method.ViewedResult.ViewName != "" {
 		g.Id("view").Op(":=").Lit(e.Method.ViewedResult.ViewName)
 	} else {
@@ -160,18 +162,6 @@ func jsonrpcInitArgs(args []*httpcodegen.InitArgData) []jen.Code {
 		initArgs = append(initArgs, codegen.Expr(arg.Ref))
 	}
 	return initArgs
-}
-
-func writeJSONRPCResponseTagAssignment(g *jen.Group, resp *httpcodegen.ResponseData) {
-	if resp.TagName == "" || isViewedResponse(resp) {
-		return
-	}
-	if resp.TagPointer {
-		g.Id("tmp").Op(":=").Lit(resp.TagValue)
-		g.Id("res").Dot(resp.TagName).Op("=").Op("&").Id("tmp")
-		return
-	}
-	g.Id("res").Dot(resp.TagName).Op("=").Lit(resp.TagValue)
 }
 
 func writeErrorCandidateReturn(g *jen.Group, resp *httpcodegen.ResponseData) {

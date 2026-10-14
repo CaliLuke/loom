@@ -106,6 +106,8 @@ type (
 		// Tag the value a field of the result must have for this
 		// response to be used.
 		Tag [2]string
+		// TagBinding is the validated semantic result field and selector value.
+		TagBinding *HTTPResponseTag
 		// Parent expression, one of EndpointExpr, ServiceExpr or
 		// RootExpr.
 		Parent eval.Expression
@@ -143,6 +145,7 @@ func (r *HTTPResponseExpr) Prepare() {
 func (r *HTTPResponseExpr) Validate(e *HTTPEndpointExpr) *eval.ValidationErrors {
 	verr := new(eval.ValidationErrors)
 	r.validateWireBindings(verr)
+	r.validateTag(e.MethodExpr.Result, verr)
 	resultType := newHTTPResponseResultType(e)
 
 	r.validateStatusAndBody(e, verr)

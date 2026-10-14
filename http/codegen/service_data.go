@@ -473,14 +473,8 @@ type (
 		// Init contains the data required to render the result or error
 		// constructor if any.
 		ResultInit *InitData
-		// TagName is the name of the attribute used to test whether the
-		// response is the one to use.
-		TagName string
-		// TagValue is the value the result attribute named by TagName
-		// must have for this response to be used.
-		TagValue string
-		// TagPointer is true if the tag attribute is a pointer.
-		TagPointer bool
+		// Tag is the shared typed response selection and reconstruction plan.
+		Tag *ResponseTagData
 		// MustValidate is true if at least one header requires validation.
 		MustValidate bool
 		// SourceVar selects the source variable used when rendering

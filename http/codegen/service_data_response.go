@@ -73,7 +73,7 @@ func (b *resultBuilder) buildResponsesData(resultDesc service.ResultDescriptor) 
 	responses := b.sds.buildResponsesFromIR(b.endpoint, result, viewed, b.sd)
 	mustInit := false
 	for _, r := range responses {
-		if len(r.ServerBody) > 0 || len(r.Headers) > 0 || len(r.Cookies) > 0 || r.TagName != "" {
+		if len(r.ServerBody) > 0 || len(r.Headers) > 0 || len(r.Cookies) > 0 || r.Tag != nil {
 			mustInit = true
 			break
 		}
@@ -129,7 +129,7 @@ func (sds *ServicesData) buildSingleResponseData(
 	origin := field.Name
 	serverBodyData, clientBodyData := sds.buildResponseBodyData(resp, result, origin, viewed, md, endpointIR, sd)
 	init := sds.buildResponseResultInit(resp, result, field, viewed, md, pkg, httpclictx, scope, svcctx, headersData, cookiesData, endpointIR, sd)
-	tagName, tagValue, tagPointer := responseTagData(resp, result, viewed)
+	tag := responseTagData(resp.Tag, result, viewed, svcctx)
 	return newResponseData(
 		resp.Description,
 		ResponseData{
@@ -141,9 +141,7 @@ func (sds *ServicesData) buildSingleResponseData(
 			ServerBody:   serverBodyData,
 			ClientBody:   clientBodyData,
 			ResultInit:   init,
-			TagName:      tagName,
-			TagValue:     tagValue,
-			TagPointer:   tagPointer,
+			Tag:          tag,
 			MustValidate: responseFieldsNeedValidation(headersData, cookiesData),
 			ResultAttr:   field.GoName,
 			ViewedResult: md.ViewedResult,
@@ -378,13 +376,6 @@ func buildResponseResultPointer(resp *transportir.ResponseStatus, result *expr.A
 		return false
 	}
 	return targetctx.IsPrimitivePointer(origin, result)
-}
-
-func responseTagData(resp *transportir.ResponseStatus, result *expr.AttributeExpr, viewed bool) (string, string, bool) {
-	if resp.TagName == "" {
-		return "", "", false
-	}
-	return codegen.Goify(resp.TagName, true), resp.TagValue, viewed || result.IsPrimitivePointer(resp.TagName, true)
 }
 
 func validationCodeForBodyArg(body *expr.AttributeExpr, httpclictx *codegen.AttributeContext) string {

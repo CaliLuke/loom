@@ -26,9 +26,9 @@ func TestResponseSelectionOrder(t *testing.T) {
 				require.Len(t, response.Headers, 1)
 			}
 			require.Equal(t, []int{201, 202, 200}, codes)
-			require.Equal(t, "first", plan.Responses[0].TagName)
-			require.Equal(t, "second", plan.Responses[1].TagName)
-			require.Empty(t, plan.Responses[2].TagName)
+			require.Equal(t, "first", plan.Responses[0].Tag.Key)
+			require.Equal(t, "second", plan.Responses[1].Tag.Key)
+			require.Nil(t, plan.Responses[2].Tag)
 			for i, response := range endpoint.Responses {
 				require.Equal(t, authored[i], response.StatusCode, "analysis must not mutate the authored expression")
 			}

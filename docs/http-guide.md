@@ -530,6 +530,18 @@ This schema projection applies when the representation uses built-in JSON.
 Raw and text bodies, form and multipart fields, custom codecs, and explicit
 schema overrides retain their own contracts.
 
+### Tagged Success Responses
+
+Use `Tag("kind", "accepted")` inside a method success `Response` to select it
+when the result field matches. The field must exist and have String kind,
+including named String types. Pass the logical field name even if its Go field
+name or wire mapping differs. Optional absent and nullable null values do not
+match. Tags retain authored first-match priority, followed by the single untagged
+fallback. Generated clients reconstruct the selected tag with its declared
+carrier, including named, nullable and projected fields. Regenerate both clients
+and servers after upgrading; missing and non-string Tag fields now fail design
+admission instead of producing invalid Go.
+
 ### Mapped Wire Names
 
 Mappings split at the first colon: `Param("value:filter:mode")` names the query

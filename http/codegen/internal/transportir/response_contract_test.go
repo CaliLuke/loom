@@ -470,8 +470,7 @@ func TestAnalyzeResponseContractCasesEscapesStableIDSegments(t *testing.T) {
 		Request:    &transportir.Request{},
 		Response: &transportir.Response{Responses: []*transportir.ResponseStatus{{
 			StatusCode: expr.StatusAccepted,
-			TagName:    "state=kind",
-			TagValue:   "ready.now",
+			Tag:        &expr.HTTPResponseTag{Key: "state=kind", Value: "ready.now"},
 		}}},
 	}
 

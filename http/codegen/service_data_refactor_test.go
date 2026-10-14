@@ -211,9 +211,9 @@ func TestHTTPOptionalRequestBodyAssembly(t *testing.T) {
 func TestHTTPResponsesMoveTaglessCaseLast(t *testing.T) {
 	endpoint := firstEndpointData(t, responseTaglessFirstDSL)
 	require.Len(t, endpoint.Result.Responses, 2)
-	require.Equal(t, "H", endpoint.Result.Responses[0].TagName)
-	require.Equal(t, "value", endpoint.Result.Responses[0].TagValue)
-	require.Empty(t, endpoint.Result.Responses[1].TagName)
+	require.Equal(t, "H", endpoint.Result.Responses[0].Tag.Field)
+	require.Contains(t, endpoint.Result.Responses[0].Tag.Match, `== "value"`)
+	require.Nil(t, endpoint.Result.Responses[1].Tag)
 }
 
 func TestHTTPMultipartEncoderDecoderGating(t *testing.T) {

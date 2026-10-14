@@ -382,8 +382,7 @@ func TestWriteJSONRPCDecodedResponseReturnBranches(t *testing.T) {
 						{Ref: "&body"},
 					},
 				},
-				TagName:  "Status",
-				TagValue: "ok",
+				Tag: &httpcodegen.ResponseTagData{Assignment: `res.Status = "ok"`},
 			},
 		},
 		{
@@ -395,9 +394,8 @@ func TestWriteJSONRPCDecodedResponseReturnBranches(t *testing.T) {
 						{Ref: "&body"},
 					},
 				},
-				TagName:    "Status",
-				TagValue:   "ok",
-				TagPointer: true,
+				Tag: &httpcodegen.ResponseTagData{Assignment: `tmp := "ok"
+res.Status = &tmp`},
 			},
 		},
 		{
@@ -505,8 +503,8 @@ func TestWriteJSONRPCViewedInitReturnWithTag(t *testing.T) {
 				{Ref: "&body"},
 			},
 		},
-		TagName:      "Status",
-		TagValue:     "ok",
+		Tag: &httpcodegen.ResponseTagData{Assignment: `tmp := "ok"
+p.Status = &tmp`},
 		ViewedResult: endpoint.Method.ViewedResult,
 	}
 
@@ -516,6 +514,7 @@ func TestWriteJSONRPCViewedInitReturnWithTag(t *testing.T) {
 
 	require.Contains(t, code, `tmp := "ok"`)
 	require.Contains(t, code, "p.Status = &tmp")
+	require.NotContains(t, code, "res.Status")
 	require.Contains(t, code, `view := "tiny"`)
 	require.Contains(t, code, "vres := &viewerviews.Fixedviewresult{Projected: p, View: view}")
 	require.Contains(t, code, "res, err := viewer.NewFixedviewresult(vres)")
@@ -564,9 +563,8 @@ func TestWriteErrorCandidateReturnBranches(t *testing.T) {
 	}
 }
 
-// TestWriteJSONRPCResponseTagAssignmentBranches covers the tag assignment
-// writer, including the viewed-response skip.
-func TestWriteJSONRPCResponseTagAssignmentBranches(t *testing.T) {
+// TestWriteJSONRPCResponseTagPlans checks shared tag plans at the decoded return boundary.
+func TestWriteJSONRPCResponseTagPlans(t *testing.T) {
 	cases := []struct {
 		name        string
 		resp        *httpcodegen.ResponseData
@@ -581,38 +579,26 @@ func TestWriteJSONRPCResponseTagAssignmentBranches(t *testing.T) {
 			},
 		},
 		{
-			name: "viewed-skips-assignment",
-			resp: &httpcodegen.ResponseData{
-				TagName:      "Status",
-				TagValue:     "ok",
-				ViewedResult: &service.ViewedResultTypeData{},
-			},
-			wantMissing: []string{
-				`res.Status`,
-			},
-		},
-		{
 			name: "value-tag",
 			resp: &httpcodegen.ResponseData{
-				TagName:  "Status",
-				TagValue: "ok",
+				Tag: &httpcodegen.ResponseTagData{Assignment: `res.Status = "ok"`},
 			},
 			want: []string{`res.Status = "ok"`},
 		},
 		{
 			name: "pointer-tag",
 			resp: &httpcodegen.ResponseData{
-				TagName:    "Status",
-				TagValue:   "ok",
-				TagPointer: true,
+				Tag: &httpcodegen.ResponseTagData{Assignment: `tmp := "ok"
+res.Status = &tmp`},
 			},
 			want: []string{`tmp := "ok"`, `res.Status = &tmp`},
 		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			c.resp.ResultInit = &httpcodegen.InitData{Name: "NewResult"}
 			code := renderGroupWriter(t, func(g *jen.Group) {
-				writeJSONRPCResponseTagAssignment(g, c.resp)
+				writeJSONRPCDecodedInitReturn(g, &httpcodegen.EndpointData{}, c.resp)
 			})
 			for _, want := range c.want {
 				require.Contains(t, code, want)

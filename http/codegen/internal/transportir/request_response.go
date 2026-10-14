@@ -72,7 +72,7 @@ func buildResponse(endpoint *expr.HTTPEndpointExpr) *Response {
 		if endpoint.FileResponse && status.ContentType == "" && len(responseContentTypeHeaderEnums(status)) == 0 {
 			responseStatus.ContentTypes = []string{"*/*"}
 		}
-		if responseStatus.TagName == "" {
+		if responseStatus.Tag == nil {
 			defaults = append(defaults, responseStatus)
 		} else {
 			response.Responses = append(response.Responses, responseStatus)
@@ -114,8 +114,7 @@ func buildResponseStatus(status *expr.HTTPResponseExpr, httpErrorExpr *expr.HTTP
 		DocumentBody:            documentBody,
 		IndependentDocumentBody: status.OpenAPIBody != nil,
 		BodyOrigin:              attributeOrigin(status.Body),
-		TagName:                 status.Tag[0],
-		TagValue:                status.Tag[1],
+		Tag:                     status.TagBinding,
 		IsError:                 httpError != nil,
 		EmitExamples:            shouldEmitResponseExamples(status),
 		IsWebSocket:             isWebSocketResponse(status, status.StatusCode),

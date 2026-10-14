@@ -874,7 +874,11 @@ additional response; multiple untagged declarations are rejected instead of
 silently ignored. Designed errors and FileResponse protocol statuses remain
 separate. Update ambiguous designs before regenerating. Tagged responses retain
 authored first-match priority; default placement never changes it. Regenerate
-servers to adopt this ordering correction.
+servers to adopt this ordering correction. `Tag` names an existing String-kind
+result field, including named String types; use its logical name even when the Go
+field or wire name is overridden. Absent and null fields do not match. Selected
+responses reconstruct the correctly typed value in generated clients. Regenerate
+clients and servers after upgrading to adopt typed Tag binding.
 
 - A method may share its name with a type nested in its object or union body.
   Loom allocates distinct transport type names, including WebSocket bodies;

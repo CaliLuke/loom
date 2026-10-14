@@ -504,7 +504,10 @@ func CanonicalMethod(name string) {
 // one response with no Tag expression, this response is used when no other tag
 // matches.
 //
-// Tag must appear in Response.
+// Tag must appear in a method success Response. The field must exist in the
+// result and have String kind, including named String types. Nullable or optional
+// fields match only when they contain a value. Field renaming and transport name
+// mappings do not change the logical field name passed to Tag.
 //
 // Tag accepts two arguments: the name of the field and the (string) value.
 //

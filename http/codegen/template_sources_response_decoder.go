@@ -37,9 +37,8 @@ func {{ .ResponseDecoder }}(decoder func(*http.Response) loomhttp.Decoder, resto
 		{{- if .ResultInit }}
 			{{- if .ViewedResult }}
 			p := {{ .ResultInit.Name }}({{ range $i, $arg := .ResultInit.ClientArgs }}{{ if $i }}, {{ end }}{{ $arg.Ref }}{{ end }})
-				{{- if .TagName }}
-				tmp := {{ printf "%q" .TagValue }}
-				p.{{ .TagName }} = &tmp
+				{{- if .Tag }}
+				{{ .Tag.Assignment }}
 				{{- end }}
 				{{- if $.Method.ViewedResult.ViewName }}
 			view := {{ printf "%q" $.Method.ViewedResult.ViewName }}
@@ -59,13 +58,8 @@ func {{ .ResponseDecoder }}(decoder func(*http.Response) loomhttp.Decoder, resto
 			{{- else }}
 			res := {{ .ResultInit.Name }}({{ range $i, $arg := .ResultInit.ClientArgs }}{{ if $i }}, {{ end }}{{ $arg.Ref }}{{ end }})
 			{{- end }}
-			{{- if and .TagName (not .ViewedResult) }}
-				{{- if .TagPointer }}
-					tmp := {{ printf "%q" .TagValue }}
-					res.{{ .TagName }} = &tmp
-				{{- else }}
-					res.{{ .TagName }} = {{ printf "%q" .TagValue }}
-				{{- end }}
+			{{- if and .Tag (not .ViewedResult) }}
+			{{ .Tag.Assignment }}
 			{{- end }}
 			return res, nil
 		{{- else if .ClientBody }}

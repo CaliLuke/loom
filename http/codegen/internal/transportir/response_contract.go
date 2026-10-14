@@ -451,14 +451,18 @@ func newResponseContractCase(serviceName, methodName string, fileResponse bool, 
 		kind = ResponseContractError
 		errorName = response.Error.Name
 	}
+	tagName, tagValue := "", ""
+	if response.Tag != nil {
+		tagName, tagValue = expr.AttributeName(response.Tag.Key), response.Tag.Value
+	}
 	return &ResponseContractCase{
 		ID:           responseContractCaseID(serviceName, methodName, kind, response),
 		Kind:         kind,
 		Transport:    ResponseContractHTTP,
 		StatusCode:   response.StatusCode,
 		ErrorName:    errorName,
-		TagName:      response.TagName,
-		TagValue:     response.TagValue,
+		TagName:      tagName,
+		TagValue:     tagValue,
 		ContentTypes: append([]string(nil), response.ContentTypes...),
 		HasBody:      (fileResponse && !response.IsError) || responseHasBody(response),
 		Headers:      responseContractHeaders(response.Headers),
@@ -555,8 +559,8 @@ func responseContractCaseID(serviceName, methodName string, kind ResponseContrac
 		parts = append(parts, responseContractIDSegment(response.Error.Name))
 	}
 	parts = append(parts, fmt.Sprintf("%d", response.StatusCode))
-	if kind == ResponseContractSuccess && response.TagName != "" {
-		parts = append(parts, responseContractIDSegment(response.TagName)+"="+responseContractIDSegment(response.TagValue))
+	if kind == ResponseContractSuccess && response.Tag != nil {
+		parts = append(parts, responseContractIDSegment(expr.AttributeName(response.Tag.Key))+"="+responseContractIDSegment(response.Tag.Value))
 	}
 	return strings.Join(parts, ".")
 }
