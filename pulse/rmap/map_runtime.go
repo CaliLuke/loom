@@ -8,42 +8,34 @@ import (
 	"strings"
 	"time"
 
-	"github.com/redis/go-redis/v9"
+	"github.com/CaliLuke/go-redis/v9"
 
 	"github.com/CaliLuke/loom/pulse/internal/keyttl"
+	"github.com/CaliLuke/loom/pulse/internal/redisop"
 )
 
 // Close closes the connection to the map, freeing resources. It is safe to
 // call Close multiple times.
 func (sm *Map) Close() {
-	sm.lock.Lock()
-	if sm.closing {
-		sm.lock.Unlock()
-		return
-	}
-	sm.closing = true
-	sm.lock.Unlock()
-
-	if sm.closer != nil {
-		sm.closer()
-	}
-
-	// Signal run() to stop and wait for it to complete
-	close(sm.done)
-	sm.wait.Wait()
-
-	// Clean up all waiters
-	sm.wlock.Lock()
-	for rev, waiters := range sm.waiters {
-		for _, w := range waiters {
-			w.cancel()
+	sm.lifetime.Close(func() {
+		if sm.closer != nil {
+			sm.closer()
 		}
-		delete(sm.waiters, rev)
-	}
-	sm.wlock.Unlock()
-	sm.lock.Lock()
-	sm.closed = true
-	sm.lock.Unlock()
+		close(sm.done)
+	}, func() {
+		sm.wait.Wait()
+		sm.wlock.Lock()
+		for rev, waiters := range sm.waiters {
+			for _, w := range waiters {
+				w.cancel()
+			}
+			delete(sm.waiters, rev)
+		}
+		sm.wlock.Unlock()
+		sm.lock.Lock()
+		sm.closed = true
+		sm.lock.Unlock()
+	})
 }
 
 // init initializes the map.
@@ -63,20 +55,17 @@ func (sm *Map) init(ctx context.Context) error {
 		sm.testAndSetScript,
 		sm.setIfNotExistsScript,
 	} {
-		if err := script.Load(ctx, sm.rdb).Err(); err != nil {
+		if err := script.Load(ctx, redisop.Client(sm.rdb)).Err(); err != nil {
 			return fmt.Errorf("pulse map: %s failed to load Lua scripts %v: %w", sm.Name, script, err)
 		}
 	}
 
 	// Subscribe to updates.
-	sm.sub = sm.rdb.Subscribe(ctx, sm.chankey)
-	_, err := sm.sub.Receive(ctx) // Fail fast if we can't subscribe.
+	sub, err := sm.subscribe(ctx)
 	if err != nil {
-		if closeErr := sm.sub.Close(); closeErr != nil {
-			err = errors.Join(err, fmt.Errorf("failed to close subscription: %w", closeErr))
-		}
 		return fmt.Errorf("pulse map: %s failed to join: %w", sm.Name, err)
 	}
+	sm.sub = sub
 	sm.msgch = sm.sub.Channel()
 
 	// read initial content
@@ -84,11 +73,8 @@ func (sm *Map) init(ctx context.Context) error {
 	// updates for changes that are already applied by the time we call
 	// HGetAll. This is not a problem because we'll just overwrite the
 	// local copy with the same data.
-	cmd := sm.rdb.HGetAll(ctx, sm.hashkey)
+	cmd := redisop.Client(sm.rdb).HGetAll(ctx, sm.hashkey)
 	if err := cmd.Err(); err != nil {
-		if unsubscribeErr := sm.sub.Unsubscribe(ctx, sm.chankey); unsubscribeErr != nil {
-			err = errors.Join(err, fmt.Errorf("failed to unsubscribe: %w", unsubscribeErr))
-		}
 		if closeErr := sm.sub.Close(); closeErr != nil {
 			err = errors.Join(err, fmt.Errorf("failed to close subscription: %w", closeErr))
 		}
@@ -136,20 +122,14 @@ func (sm *Map) run() {
 
 		case <-sm.done:
 			sm.logger.Info("closed")
-			// no need to lock, stopping is true
+			// Join subscriber admission that began before Stop sealed the owner.
+			sm.lock.Lock()
 			for _, c := range sm.chans {
 				close(c)
 			}
-			if sm.sub != nil {
-				ctx, cancel := context.WithTimeout(context.WithoutCancel(sm.closectx), 5*time.Second)
-				if err := sm.sub.Unsubscribe(ctx, sm.chankey); err != nil {
-					sm.logger.Error(fmt.Errorf("failed to unsubscribe: %w", err))
-				}
-				cancel()
-				if err := sm.sub.Close(); err != nil {
-					sm.logger.Error(fmt.Errorf("failed to close subscription: %w", err))
-				}
-			}
+			sm.chans = nil
+			sm.lock.Unlock()
+			sm.closeSubscription(sm.sub)
 			return
 		}
 	}
@@ -160,7 +140,7 @@ func (sm *Map) run() {
 // when the local replica is already frozen.
 func (sm *Map) runLuaScript(ctx context.Context, name string, script *redis.Script, args ...any) (any, error) {
 	sm.lock.RLock()
-	if sm.closing && name != "reset" && name != "destroy" {
+	if sm.lifetime.Stopping() && name != "reset" && name != "destroy" {
 		sm.lock.RUnlock()
 		return "", fmt.Errorf("pulse map: %s is stopped", sm.Name)
 	}
@@ -174,7 +154,7 @@ func (sm *Map) runLuaScript(ctx context.Context, name string, script *redis.Scri
 	}
 	ttlSeconds, ttlSliding := keyttl.Args(sm.ttl, sm.ttlSliding)
 	args = append(args[:len(args):len(args)], ttlSeconds, ttlSliding)
-	res, err := script.Run(ctx, sm.rdb, []string{sm.hashkey, sm.chankey}, args...).Result()
+	res, err := script.Run(ctx, redisop.Client(sm.rdb), []string{sm.hashkey, sm.chankey}, args...).Result()
 	if err != nil && !errors.Is(err, redis.Nil) {
 		return nil, fmt.Errorf("pulse map: %s failed to run %q for key %s: %w", sm.Name, name, key, err)
 	}
@@ -194,16 +174,14 @@ func (sm *Map) reconnect() {
 			return
 		}
 		sm.lock.RLock()
-		closing := sm.closing
+		closing := sm.lifetime.Stopping()
 		sm.lock.RUnlock()
 		if closing {
 			return
 		}
 
-		sub := sm.rdb.Subscribe(sm.closectx, sm.chankey)
-		_, err := sub.Receive(sm.closectx)
+		sub, err := sm.subscribe(sm.closectx)
 		if err != nil {
-			_ = sub.Close()
 			if errors.Is(err, context.Canceled) {
 				return
 			}
@@ -221,9 +199,9 @@ func (sm *Map) reconnect() {
 
 		msgch := sub.Channel()
 
-		cmd := sm.rdb.HGetAll(sm.closectx, sm.hashkey)
+		cmd := redisop.Client(sm.rdb).HGetAll(sm.closectx, sm.hashkey)
 		if err := cmd.Err(); err != nil {
-			_ = sub.Close()
+			sm.closeSubscription(sub)
 			if errors.Is(err, context.Canceled) {
 				return
 			}
@@ -240,9 +218,9 @@ func (sm *Map) reconnect() {
 		}
 
 		sm.lock.Lock()
-		if sm.closing {
+		if sm.lifetime.Stopping() {
 			sm.lock.Unlock()
-			_ = sub.Close()
+			sm.closeSubscription(sub)
 			return
 		}
 
@@ -287,7 +265,7 @@ func (sm *Map) reconnect() {
 	drained:
 		if drainErr {
 			sm.lock.Unlock()
-			_ = sub.Close()
+			sm.closeSubscription(sub)
 			sleep := time.Duration(rand.Float64()*5+1) * time.Second
 			timer := time.NewTimer(sleep)
 			select {
@@ -305,12 +283,35 @@ func (sm *Map) reconnect() {
 		sm.notifySubscribers(recoveredKind)
 		sm.lock.Unlock()
 		if oldSub != nil {
-			_ = oldSub.Close()
+			sm.closeSubscription(oldSub)
 		}
 
 		sm.notifyWaitersUpTo(sm.rev)
 
 		sm.logger.Info("reconnected")
 		return
+	}
+}
+
+// subscribe bounds both connection acquisition and the first subscription reply.
+func (sm *Map) subscribe(ctx context.Context) (*redis.PubSub, error) {
+	bounded, cancel := redisop.Context(ctx, sm.rdb)
+	defer cancel()
+	borrowed := redisop.Client(sm.rdb)
+	sub := borrowed.Subscribe(bounded, sm.chankey)
+	if _, err := sub.ReceiveTimeout(bounded, borrowed.Options().ReadTimeout); err != nil {
+		if closeErr := sub.Close(); closeErr != nil {
+			err = errors.Join(err, fmt.Errorf("failed to close subscription: %w", closeErr))
+		}
+		return nil, err
+	}
+	return sub, nil
+}
+
+func (sm *Map) closeSubscription(sub *redis.PubSub) {
+	if sub != nil {
+		if err := sub.Close(); err != nil {
+			sm.logger.Error(fmt.Errorf("failed to close subscription: %w", err))
+		}
 	}
 }

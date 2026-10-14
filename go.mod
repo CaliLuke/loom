@@ -3,6 +3,7 @@ module github.com/CaliLuke/loom
 go 1.27.2
 
 require (
+	github.com/CaliLuke/go-redis/v9 v9.23.1-0.20261014134601-1073297e76ea
 	github.com/CaliLuke/go-sse v0.11.1-0.20261008010800-b29b33ae1a1e
 	github.com/CaliLuke/libopenapi v0.41.7-0.20261014134838-856f6f2d80e0
 	github.com/alecthomas/kong v1.16.1
@@ -18,7 +19,6 @@ require (
 	github.com/oklog/ulid/v2 v2.1.2
 	github.com/owenrumney/go-sarif/v3 v3.3.1
 	github.com/pb33f/go-yaml v0.1.1
-	github.com/redis/go-redis/v9 v9.23.0
 	github.com/sirupsen/logrus v1.10.2
 	github.com/stretchr/testify v1.12.1
 	github.com/xeipuuv/gojsonschema v1.2.0

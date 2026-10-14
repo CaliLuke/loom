@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	redis "github.com/redis/go-redis/v9"
+	redis "github.com/CaliLuke/go-redis/v9"
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/pulse/pulse"

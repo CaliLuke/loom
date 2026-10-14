@@ -8,8 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/redis/go-redis/v9"
+	"github.com/CaliLuke/go-redis/v9"
 
+	"github.com/CaliLuke/loom/pulse/internal/lifecycle"
 	"github.com/CaliLuke/loom/pulse/pulse"
 )
 
@@ -45,11 +46,11 @@ type (
 		resetScript          *redis.Script
 		destroyScript        *redis.Script
 
-		lock    sync.RWMutex
-		content map[string]string
-		rev     uint64
-		closing bool // true if Close was called
-		closed  bool // true if Close returned - used by tests
+		lock     sync.RWMutex
+		content  map[string]string
+		rev      uint64
+		lifetime lifecycle.Lifetime // owns stop admission and cleanup joining
+		closed   bool               // true if Close returned - used by tests
 
 		wlock   sync.Mutex
 		waiters map[uint64][]*setWaiter // keyed by committed revision
@@ -151,6 +152,7 @@ func Join(ctx context.Context, name string, rdb *redis.Client, opts ...MapOption
 		destroyScript:        luaDestroy,
 	}
 	if err := sm.init(ctx); err != nil {
+		closer()
 		return nil, err
 	}
 
@@ -197,7 +199,7 @@ func (sm *Map) Keys() []string {
 func (sm *Map) Subscribe() <-chan EventKind {
 	sm.lock.Lock()
 	defer sm.lock.Unlock()
-	if sm.closing {
+	if sm.lifetime.Stopping() {
 		return nil
 	}
 	c := make(chan EventKind, 1) // Buffer 1 notification so we don't have to block.
@@ -209,7 +211,7 @@ func (sm *Map) Subscribe() <-chan EventKind {
 func (sm *Map) Unsubscribe(c <-chan EventKind) {
 	sm.lock.Lock()
 	defer sm.lock.Unlock()
-	if sm.closing {
+	if sm.lifetime.Stopping() {
 		return
 	}
 	for i, ch := range sm.chans {

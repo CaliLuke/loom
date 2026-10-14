@@ -2431,6 +2431,25 @@ zero blocking durations valid. Rotation and stale cleanup derive from
 overflow a positive duration. Direct command-hook tests prove rejection before
 publication, and arithmetic/native-owner controls retain the strict threshold.
 
+Streaming and rmap share `pulse/internal/lifecycle.Lifetime`: Stop seals admission
+and cancels before I/O-held locks; Close performs cleanup once and joins every
+caller. Internal worker exits signal Stop without joining themselves. Preserve
+Reader's unpublished cursor lookup exception and Sink's admitted registration
+cleanup. Do not use Sink.Close's context to return before its workers stop.
+`pulse/internal/redisop` owns borrowed client facades, preserved hook snapshots,
+finite command/socket budgets and whole-operation CAS/setup deadlines. Its Read
+plan couples capped native BLOCK with response headroom; never close a facade or
+mutate caller Options. Caller deadlines and stricter positive limits still apply;
+native driver socket timing means there is no fixed five-second Close SLA.
+Keep automatic filter/malformed ACK bounded while external Ack and producers
+retain caller ownership. Never-returning caller callbacks are outside the bound.
+Keep `pulse/streaming/tla/read_shutdown` and native empty-poll, cancellation,
+concurrent-join and registration controls aligned; miniredis cannot prove socket
+shutdown. Keep the exact `github.com/CaliLuke/go-redis/v9` module pin and all active
+Pulse Redis imports coherent; a framework-only replace cannot deliver a fix to
+consumers. That model directory's `dependency_fetchability.md` owns provenance
+and the return-to-upstream condition. Preserve historical upstream repro imports.
+
 Pulse (`pulse/pool`, `pulse/streaming`, `pulse/rmap`) tests run against
 miniredis by default, so `make test` stays hermetic. miniredis does not model
 every Redis behavior: it lacks the Lua `struct` library (the test helper

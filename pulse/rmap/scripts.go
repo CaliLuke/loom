@@ -4,7 +4,7 @@
 package rmap
 
 import (
-	"github.com/redis/go-redis/v9"
+	"github.com/CaliLuke/go-redis/v9"
 
 	"github.com/CaliLuke/loom/pulse/internal/keyttl"
 )

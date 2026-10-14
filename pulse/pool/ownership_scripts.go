@@ -1,6 +1,6 @@
 package pool
 
-import redis "github.com/redis/go-redis/v9"
+import redis "github.com/CaliLuke/go-redis/v9"
 
 // luaOwnerMaps preserves rmap's revision and binary pub/sub protocol. Pool
 // maps have no TTL. Epochs are read as strings after HINCRBY so Lua's floating

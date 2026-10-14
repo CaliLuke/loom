@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/redis/go-redis/v9"
+	"github.com/CaliLuke/go-redis/v9"
+
+	"github.com/CaliLuke/loom/pulse/internal/redisop"
 )
 
 // prepareReaderCursor resolves newest once, before a stream registration is
@@ -20,7 +22,7 @@ func prepareReaderCursor(ctx context.Context, rdb *redis.Client, key, startID st
 	if rdb == nil {
 		return "", fmt.Errorf("prepare newest cursor for stream %q: Redis client is nil", key)
 	}
-	messages, err := rdb.XRevRangeN(ctx, key, "+", "-", 1).Result()
+	messages, err := redisop.Client(rdb).XRevRangeN(ctx, key, "+", "-", 1).Result()
 	if err != nil {
 		return "", fmt.Errorf("prepare newest cursor for stream %q: %w", key, err)
 	}
@@ -33,7 +35,7 @@ func prepareReaderCursor(ctx context.Context, rdb *redis.Client, key, startID st
 // canAddStream checks registration admission while r.lock is held. Both the
 // lookup's start and its publication must check the same current state.
 func (r *Reader) canAddStream(key string) (bool, error) {
-	if r.closing {
+	if r.lifetime.Stopping() {
 		return false, fmt.Errorf("reader is closing")
 	}
 	return r.registrationIndex(key) < 0, nil

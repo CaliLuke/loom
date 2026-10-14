@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
+	redis "github.com/CaliLuke/go-redis/v9"
 	"github.com/oklog/ulid/v2"
-	redis "github.com/redis/go-redis/v9"
 
 	"github.com/CaliLuke/loom/clue/log"
 

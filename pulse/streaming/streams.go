@@ -7,9 +7,10 @@ import (
 	"regexp"
 	"time"
 
-	redis "github.com/redis/go-redis/v9"
+	redis "github.com/CaliLuke/go-redis/v9"
 
 	"github.com/CaliLuke/loom/pulse/internal/keyttl"
+	"github.com/CaliLuke/loom/pulse/internal/redisop"
 	"github.com/CaliLuke/loom/pulse/pulse"
 	"github.com/CaliLuke/loom/pulse/rmap"
 	"github.com/CaliLuke/loom/pulse/streaming/options"
@@ -232,13 +233,13 @@ func (s *Stream) addEvent(ctx context.Context, values []any, onlyIfExists bool) 
 // createGroupScript, so the group and the TTL are applied atomically.
 func (s *Stream) createGroup(ctx context.Context, name, startID string) error {
 	if s.ttl <= 0 {
-		if err := s.rdb.XGroupCreateMkStream(ctx, s.key, name, startID).Err(); err != nil && !isBusyGroupErr(err) {
+		if err := redisop.Client(s.rdb).XGroupCreateMkStream(ctx, s.key, name, startID).Err(); err != nil && !isBusyGroupErr(err) {
 			return err
 		}
 		return nil
 	}
 	ttlSeconds, ttlSliding := keyttl.Args(s.ttl, s.ttlSliding)
-	return createGroupScript.Run(ctx, s.rdb, []string{s.key}, name, startID, ttlSeconds, ttlSliding).Err()
+	return createGroupScript.Run(ctx, redisop.Client(s.rdb), []string{s.key}, name, startID, ttlSeconds, ttlSliding).Err()
 }
 
 // Remove removes the events with the given IDs from the stream.

@@ -6,7 +6,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/redis/go-redis/v9"
+	"github.com/CaliLuke/go-redis/v9"
 	"github.com/stretchr/testify/require"
 )
 

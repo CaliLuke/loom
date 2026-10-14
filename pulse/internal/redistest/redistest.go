@@ -23,8 +23,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/CaliLuke/go-redis/v9"
 	"github.com/alicebob/miniredis/v2"
-	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 )
 

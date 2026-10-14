@@ -3,7 +3,7 @@
 // making singleton job admission one atomic Redis operation.
 package pool
 
-import redis "github.com/redis/go-redis/v9"
+import redis "github.com/CaliLuke/go-redis/v9"
 
 const (
 	dispatchClaimed int64 = iota + 1

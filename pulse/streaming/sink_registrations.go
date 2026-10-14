@@ -6,6 +6,8 @@ import (
 	"slices"
 	"strconv"
 	"time"
+
+	"github.com/CaliLuke/loom/pulse/internal/redisop"
 )
 
 type sinkRegistration struct {
@@ -19,7 +21,7 @@ type sinkRegistration struct {
 // late repair behind. A failed command may have committed, so recovery remains
 // owned until all steps succeed. Existing groups retain their shared cursor.
 func (s *Sink) reconcileRegistrations(ctx context.Context, missingGroup bool) error {
-	if s.closing {
+	if s.lifetime.Stopping() {
 		return nil
 	}
 	if missingGroup {
@@ -53,7 +55,7 @@ func (s *Sink) reconcileRegistrations(ctx context.Context, missingGroup bool) er
 		if err := stream.createGroup(ctx, s.Name, registration.startID); err != nil {
 			return fmt.Errorf("failed to restore group on stream %s: %w", stream.Name, err)
 		}
-		if err := stream.rdb.XGroupCreateConsumer(ctx, stream.key, s.Name, s.consumer).Err(); err != nil {
+		if err := redisop.Client(stream.rdb).XGroupCreateConsumer(ctx, stream.key, s.Name, s.consumer).Err(); err != nil {
 			return fmt.Errorf("failed to restore consumer on stream %s: %w", stream.Name, err)
 		}
 		// This may already be an existing consumer with pending messages. A

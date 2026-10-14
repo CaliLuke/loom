@@ -23,7 +23,8 @@ type (
 
 // WithSinkBlockDuration sets the maximum amount of time the sink waits for
 // MaxPolled events. The default block duration is 5 seconds. If the block
-// duration is set to 0 then the sink blocks indefinitely.
+// duration is zero, the sink listens continuously. Internal polls are capped at
+// five seconds so shutdown can finish; this is not a wall-clock Close deadline.
 func WithSinkBlockDuration(d time.Duration) Sink {
 	return func(o *SinkOptions) {
 		o.BlockDuration = d

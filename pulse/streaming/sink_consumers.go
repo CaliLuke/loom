@@ -9,7 +9,9 @@ import (
 	"strings"
 	"time"
 
-	redis "github.com/redis/go-redis/v9"
+	redis "github.com/CaliLuke/go-redis/v9"
+
+	"github.com/CaliLuke/loom/pulse/internal/redisop"
 )
 
 type sinkClaimStream struct {
@@ -31,7 +33,7 @@ func consumerKeepAliveExpired(elapsed, grace time.Duration) bool {
 // and acks those whose events were deleted.
 // s.lock must be held.
 func (s *Sink) deleteStreamStaleConsumers(ctx context.Context, stream *Stream) error {
-	consumers, err := s.rdb.XInfoConsumers(ctx, stream.key, s.Name).Result()
+	consumers, err := redisop.Client(s.rdb).XInfoConsumers(ctx, stream.key, s.Name).Result()
 	if err != nil {
 		return fmt.Errorf("failed to get consumers info: %w", err)
 	}
@@ -48,7 +50,7 @@ func (s *Sink) deleteStreamStaleConsumers(ctx context.Context, stream *Stream) e
 			candidates[member.Name] = member
 		}
 	}
-	keepAlives, err := s.rdb.HGetAll(ctx, fmt.Sprintf("map:%s:content", sinkKeepAliveMapName(s.Name))).Result()
+	keepAlives, err := redisop.Client(s.rdb).HGetAll(ctx, fmt.Sprintf("map:%s:content", sinkKeepAliveMapName(s.Name))).Result()
 	if err != nil {
 		return fmt.Errorf("failed to read consumer keep-alives: %w", err)
 	}
@@ -98,7 +100,7 @@ func (s *Sink) deleteStreamStaleConsumers(ctx context.Context, stream *Stream) e
 // deletion run atomically so entries delivered to the consumer concurrently
 // are never dropped. It returns true if the consumer was deleted.
 func (s *Sink) deleteIdleConsumer(ctx context.Context, key, consumer string) (bool, error) {
-	deleted, err := deleteIdleConsumerScript.Run(ctx, s.rdb, []string{key}, s.Name, consumer).Int64()
+	deleted, err := deleteIdleConsumerScript.Run(ctx, redisop.Client(s.rdb), []string{key}, s.Name, consumer).Int64()
 	if err != nil {
 		return false, fmt.Errorf("failed to delete idle consumer %s: %w", consumer, err)
 	}
@@ -135,12 +137,12 @@ func (s *Sink) removeStreamConsumer(ctx context.Context, stream *Stream) (bool, 
 // stream and records its keep-alive. If the keep-alive update fails, it
 // deletes the consumer again, even if ctx is canceled.
 func (s *Sink) createConsumer(ctx context.Context, stream *Stream, consumer string) error {
-	if err := stream.rdb.XGroupCreateConsumer(ctx, stream.key, s.Name, consumer).Err(); err != nil {
+	if err := redisop.Client(stream.rdb).XGroupCreateConsumer(ctx, stream.key, s.Name, consumer).Err(); err != nil {
 		return fmt.Errorf("failed to create Redis consumer %s for consumer group %s: %w", consumer, s.Name, err)
 	}
 	if err := s.updateConsumerKeepAlive(ctx, consumer); err != nil {
 		err = fmt.Errorf("failed to set sink keep-alive for new consumer %s: %w", consumer, err)
-		if derr := stream.rdb.XGroupDelConsumer(context.WithoutCancel(ctx), stream.key, s.Name, consumer).Err(); derr != nil {
+		if derr := redisop.Client(stream.rdb).XGroupDelConsumer(context.WithoutCancel(ctx), stream.key, s.Name, consumer).Err(); derr != nil {
 			err = errors.Join(err, fmt.Errorf("failed to delete consumer %s after failed keep-alive set: %w", consumer, derr))
 		}
 		return err
@@ -168,12 +170,13 @@ func (s *Sink) read(ctx context.Context) {
 		}
 
 		s.logger.Debug("reading", "streams", readStreams, "max", s.maxPolled, "block", s.blockDuration)
-		streams, err := s.rdb.XReadGroup(readCtx, &redis.XReadGroupArgs{
+		client, block := redisop.Read(s.rdb, s.blockDuration)
+		streams, err := client.XReadGroup(readCtx, &redis.XReadGroupArgs{
 			Group:    s.Name,
 			Consumer: consumer,
 			Streams:  readStreams,
 			Count:    s.maxPolled,
-			Block:    s.blockDuration,
+			Block:    block,
 			NoAck:    s.noAck,
 		}).Result()
 		s.clearActiveRead()
@@ -213,7 +216,7 @@ func (s *Sink) armRead(ctx context.Context) (context.Context, []string, string, 
 	readCtx, cancel := context.WithCancel(ctx)
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	if s.closing || len(s.streams) == 0 {
+	if s.lifetime.Stopping() || len(s.streams) == 0 {
 		cancel()
 		return readCtx, nil, "", false
 	}
@@ -271,7 +274,7 @@ func (s *Sink) periodicKeepAlive(ctx context.Context) {
 		select {
 		case <-ticker.C:
 			s.lock.Lock()
-			if s.closing {
+			if s.lifetime.Stopping() {
 				s.lock.Unlock()
 				return
 			}
@@ -311,7 +314,7 @@ func (s *Sink) periodicIdleMessageCheck(ctx context.Context) {
 		case <-checks:
 			now := time.Now().UnixNano() / int64(time.Millisecond)
 			newExpiration := now + leaseDuration
-			result, err := s.acquireLease.EvalSha(ctx, s.rdb, s.leaseKeyName, newExpiration, now, leaseDuration).Result()
+			result, err := s.acquireLease.EvalSha(ctx, redisop.Client(s.rdb), s.leaseKeyName, newExpiration, now, leaseDuration).Result()
 			if err != nil {
 				s.logger.Error(fmt.Errorf("failed to acquire idle message check lease: %w", err))
 				continue
@@ -393,7 +396,7 @@ func (s *Sink) claim(ctx context.Context, streamName string, args claimArgs) (st
 func (s *Sink) isClosing() bool {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	return s.closing
+	return s.lifetime.Stopping()
 }
 
 // deleteConsumerGroup destroys the consumer group of the sink for stream
@@ -410,7 +413,7 @@ func (s *Sink) deleteConsumerGroup(ctx context.Context, stream *Stream) error {
 		return nil
 	}
 	keys := []string{consumersMapKey(stream), stream.key}
-	destroyed, err := destroyGroupScript.Run(ctx, s.rdb, keys, s.Name, raw).Int64()
+	destroyed, err := destroyGroupScript.Run(ctx, redisop.Client(s.rdb), keys, s.Name, raw).Int64()
 	if err != nil {
 		return fmt.Errorf("failed to destroy Redis consumer group %q for stream %q: %w", s.Name, stream.Name, err)
 	}

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/redis/go-redis/v9"
+	"github.com/CaliLuke/go-redis/v9"
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/pulse/streaming/options"
@@ -62,7 +62,9 @@ func TestSubscriberAdmissionDoesNotStartClosedReader(t *testing.T) {
 	// never admitted a worker, even if an incorrectly started worker exits before
 	// this assertion and never reaches its Redis command.
 	unused := false
-	reader.startOnce.Do(func() { unused = true })
+	reader.startOnce.Do(func() {
+		unused = true
+	})
 	require.True(t, unused, "Subscribe consumed the worker startup token after Close")
 }
 
@@ -85,7 +87,11 @@ func TestSubscriberAdmissionWhileClosing(t *testing.T) {
 				close(done)
 			}()
 			var releaseOnce sync.Once
-			release := func() { releaseOnce.Do(func() { close(gate.release) }) }
+			release := func() {
+				releaseOnce.Do(func() {
+					close(gate.release)
+				})
+			}
 			t.Cleanup(func() {
 				release()
 				select {
@@ -171,11 +177,13 @@ func newSubscriberOwner(t *testing.T, rdb *redis.Client, kind string) subscriber
 			stream:      stream,
 			subscribe:   sink.Subscribe,
 			unsubscribe: sink.Unsubscribe,
-			close:       func() { sink.Close(context.Background()) },
+			close: func() {
+				sink.Close(context.Background())
+			},
 			closing: func() bool {
 				sink.lock.Lock()
 				defer sink.lock.Unlock()
-				return sink.closing
+				return sink.lifetime.Stopping()
 			},
 			count: func() int {
 				sink.lock.Lock()
@@ -219,7 +227,9 @@ func (h *subscriberReadGate) ProcessHook(next redis.ProcessHook) redis.ProcessHo
 		if cmd.Name() == "xread" || cmd.Name() == "xreadgroup" {
 			h.calls.Add(1)
 			if h.entered != nil {
-				h.once.Do(func() { close(h.entered) })
+				h.once.Do(func() {
+					close(h.entered)
+				})
 				<-h.release
 			}
 		}

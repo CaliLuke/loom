@@ -1559,10 +1559,23 @@ loom vet <module-import-path>/design
 
 ## Canonical Guides
 
-For Pulse applications, read `docs/pulse.md`. Reader/Sink buffer sizes must be
+For Pulse applications, read `docs/pulse.md`. Client creation and custom hooks
+currently use `github.com/CaliLuke/go-redis/v9`, the exact hook-preserving module
+fork required by Pulse. Upstream Redis client/hook types are not interchangeable;
+use the fork consistently at Pulse boundaries. No application `replace` is needed.
+Reader/Sink buffer sizes must be
 nonnegative and Sink acknowledgement grace periods must be positive; constructors
 return an error for invalid values before contacting Redis. Zero buffers remain
-unbuffered and zero block durations still mean indefinite blocking.
+unbuffered and zero block durations mean continuous listening through finite polls.
+Reader, Sink and Map Close cancel owned work before joining cleanup; concurrent
+callers all wait for completion. `Sink.Close(ctx)` does not abandon that join when
+ctx is canceled. Constructor cancellation does not replace explicit Close.
+There is no fixed Close latency guarantee: native socket deadlines and several
+admitted cleanup operations can outlast one operation budget. Supplied client
+options, pools and hooks are preserved; close the client after Pulse objects.
+Callbacks must return. Producer calls and application Ack remain caller-owned,
+so give them suitable contexts/client limits and finish them separately. See
+`docs/pulse.md` for lifecycle and deadline limits.
 
 Use the latest stable Redis release, currently 8.10.2; older releases are unsupported. Pool protocol 3 requires ending old schedules with `ErrScheduleStop`,
 draining/stopping work and completing old-binary pool `Shutdown` before upgrade.

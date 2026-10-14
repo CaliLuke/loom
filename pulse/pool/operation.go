@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	redis "github.com/redis/go-redis/v9"
+	redis "github.com/CaliLuke/go-redis/v9"
 )
 
 // poolOperation identifies one admitted operation independently of its delivery

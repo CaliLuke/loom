@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/redis/go-redis/v9"
+	"github.com/CaliLuke/go-redis/v9"
 	"github.com/stretchr/testify/require"
 )
 
@@ -48,7 +48,6 @@ func TestInitRetainsCleanupErrors(t *testing.T) {
 			require.ErrorContains(t, err, "failed to read initial content")
 			if closed {
 				require.ErrorIs(t, err, redis.ErrClosed)
-				require.ErrorContains(t, err, "failed to unsubscribe")
 				require.ErrorContains(t, err, "failed to close subscription")
 			} else {
 				require.NotErrorIs(t, err, redis.ErrClosed)

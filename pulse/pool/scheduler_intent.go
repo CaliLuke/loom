@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	redis "github.com/redis/go-redis/v9"
+	redis "github.com/CaliLuke/go-redis/v9"
 )
 
 type (

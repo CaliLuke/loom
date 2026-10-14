@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/CaliLuke/go-redis/v9"
 	"github.com/oklog/ulid/v2"
-	"github.com/redis/go-redis/v9"
 )
 
 // ensureConsumer replaces a stale consumer only after its replacement is
@@ -17,7 +17,7 @@ import (
 func (s *Sink) ensureConsumer(ctx context.Context) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	if s.closing || len(s.streams) == 0 {
+	if s.lifetime.Stopping() || len(s.streams) == 0 {
 		return nil
 	}
 	if err := s.reconcileRegistrations(ctx, false); err != nil {

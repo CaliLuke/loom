@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	redis "github.com/redis/go-redis/v9"
+	redis "github.com/CaliLuke/go-redis/v9"
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/pulse/pulse"
@@ -87,7 +87,9 @@ func TestReaderFatalCloseSignalDoesNotWaitForReadGoroutine(t *testing.T) {
 }
 
 func TestReaderDoesNotArmReadAfterCloseStarts(t *testing.T) {
-	reader := &Reader{closing: true}
+	reader := &Reader{}
+	reader.lifetime.Stop(func() {
+	})
 
 	readCtx, _, armed := reader.armRead(t.Context())
 
@@ -97,7 +99,9 @@ func TestReaderDoesNotArmReadAfterCloseStarts(t *testing.T) {
 }
 
 func TestSinkDoesNotArmReadAfterCloseStarts(t *testing.T) {
-	sink := &Sink{closing: true}
+	sink := &Sink{}
+	sink.lifetime.Stop(func() {
+	})
 
 	readCtx, _, _, armed := sink.armRead(t.Context())
 

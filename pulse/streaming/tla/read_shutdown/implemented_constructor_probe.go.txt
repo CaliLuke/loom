@@ -1,0 +1,105 @@
+package streaming
+
+import (
+	"context"
+	"errors"
+	"os/exec"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/CaliLuke/go-redis/v9"
+	"github.com/stretchr/testify/require"
+)
+
+type cleanupProbeHook struct {
+	once   sync.Once
+	paused chan struct{}
+	cause  error
+}
+
+// Reaches actual constructor rollback after two maps and membership are owned.
+// The hook fails group creation after freezing Redis; it never blocks rollback.
+func TestImplementedConstructorCleanup(t *testing.T) {
+	server := startTestServer(t)
+	if !server.Real() {
+		t.Skip("isolated real Redis required")
+	}
+	opts := *server.Client.Options()
+	opts.ReadTimeout = -1
+	opts.WriteTimeout = -1
+	opts.ContextTimeoutEnabled = false
+	opts.MaxRetries = -1
+	caller := redis.NewClient(&opts)
+	t.Cleanup(func() {
+		require.NoError(t, caller.Close())
+	})
+	stream := newTestStream(t, caller, "cleanup-probe")
+	hook := &cleanupProbeHook{paused: make(chan struct{}), cause: errors.New("group setup failed")}
+	caller.AddHook(hook)
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() {
+		sink, err := stream.NewSink(ctx, "cleanup-probe")
+		if sink != nil {
+			sink.Close(context.Background())
+		}
+		done <- err
+	}()
+	select {
+	case <-hook.paused:
+	case err := <-done:
+		t.Fatalf("constructor returned before cleanup probe: %v", err)
+	case <-time.After(3 * time.Second):
+		t.Fatal("constructor did not reach group setup")
+	}
+	paused := true
+	t.Cleanup(func() {
+		if paused {
+			require.NoError(t, exec.Command("docker", "unpause", "loom-read-shutdown-probe").Run())
+		}
+	})
+	cancel()
+	var result error
+	finished := false
+	select {
+	case result = <-done:
+		finished = true
+	case <-time.After(7 * time.Second):
+		t.Error("constructor rollback did not finish finite owned operation")
+	}
+	require.NoError(t, exec.Command("docker", "unpause", "loom-read-shutdown-probe").Run())
+	paused = false
+	if !finished {
+		select {
+		case result = <-done:
+		case <-time.After(3 * time.Second):
+			t.Fatal("constructor cleanup did not join after Redis resumed")
+		}
+	}
+	require.ErrorIs(t, result, hook.cause)
+	require.NoError(t, caller.Ping(t.Context()).Err())
+}
+
+func (h *cleanupProbeHook) DialHook(next redis.DialHook) redis.DialHook {
+	return next
+}
+func (h *cleanupProbeHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
+	return func(ctx context.Context, cmd redis.Cmder) error {
+		args := cmd.Args()
+		if cmd.Name() == "xgroup" && len(args) > 1 && args[1] == "create" {
+			if err := exec.Command("docker", "pause", "loom-read-shutdown-probe").Run(); err != nil {
+				return err
+			}
+			h.once.Do(func() {
+				close(h.paused)
+			})
+			return h.cause
+		}
+		return next(ctx, cmd)
+	}
+}
+func (h *cleanupProbeHook) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.ProcessPipelineHook {
+	return next
+}

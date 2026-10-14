@@ -8,7 +8,9 @@ import (
 	"strings"
 	"time"
 
-	redis "github.com/redis/go-redis/v9"
+	redis "github.com/CaliLuke/go-redis/v9"
+
+	"github.com/CaliLuke/loom/pulse/internal/redisop"
 )
 
 type (
@@ -97,7 +99,7 @@ func claimIdle(ctx context.Context, rdb *redis.Client, args claimArgs) ([]redis.
 	if count <= 0 {
 		count = defaultClaimCount
 	}
-	reply, err := claimIdleScript.Run(ctx, rdb, []string{args.stream},
+	reply, err := claimIdleScript.Run(ctx, redisop.Client(rdb), []string{args.stream},
 		args.group, args.consumer, minIdleMillis(args.minIdle), args.start, count).Slice()
 	if err != nil {
 		return nil, 0, "", fmt.Errorf("claim idle entries of %s: %w", args.stream, err)

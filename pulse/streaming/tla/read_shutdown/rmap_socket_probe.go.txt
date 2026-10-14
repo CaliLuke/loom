@@ -1,0 +1,129 @@
+package rmap
+
+import (
+	"bytes"
+	"context"
+	"net"
+	"os/exec"
+	"sync"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"github.com/CaliLuke/go-redis/v9"
+	"github.com/stretchr/testify/require"
+
+	"github.com/CaliLuke/loom/pulse/internal/redistest"
+)
+
+type pausedSubscriptionConn struct {
+	net.Conn
+	arm    *atomic.Bool
+	once   *sync.Once
+	paused chan struct{}
+}
+
+func TestImplementedPubSubSocketOwnership(t *testing.T) {
+	for _, name := range []string{"established-channel-close", "reconnect-subscription-reply", "reconnect-short-limit"} {
+		reconnect := name != "established-channel-close"
+		t.Run(name, func(t *testing.T) {
+			server := redistest.Start(t, redistest.DBRmap)
+			if !server.Real() {
+				t.Skip("disposable real Redis required")
+			}
+			var arm atomic.Bool
+			var once sync.Once
+			paused := make(chan struct{})
+			opts := *server.Client.Options()
+			opts.ReadTimeout = -1
+			if name == "reconnect-short-limit" {
+				opts.ReadTimeout = 200 * time.Millisecond
+			}
+			opts.WriteTimeout = -1
+			opts.ContextTimeoutEnabled = false
+			opts.MaxRetries = -1
+			opts.Dialer = func(ctx context.Context, network, addr string) (net.Conn, error) {
+				conn, err := (&net.Dialer{}).DialContext(ctx, network, addr)
+				if err != nil {
+					return nil, err
+				}
+				return &pausedSubscriptionConn{Conn: conn, arm: &arm, once: &once, paused: paused}, nil
+			}
+			caller := redis.NewClient(&opts)
+			t.Cleanup(func() {
+				require.NoError(t, caller.Close())
+			})
+			sm, err := Join(t.Context(), "pubsub-socket", caller)
+			require.NoError(t, err)
+			ch := sm.Subscribe()
+			frozen := false
+			t.Cleanup(func() {
+				if frozen {
+					require.NoError(t, exec.Command("docker", "unpause", "loom-read-shutdown-probe").Run())
+				}
+				sm.Close()
+			})
+			if reconnect {
+				arm.Store(true)
+				require.NoError(t, sm.sub.Close())
+				select {
+				case <-paused:
+					frozen = true
+				case <-time.After(3 * time.Second):
+					t.Fatal("reconnect did not reach established subscribe socket")
+				}
+			} else {
+				require.NoError(t, exec.Command("docker", "pause", "loom-read-shutdown-probe").Run())
+				frozen = true
+			}
+			started := time.Now()
+			done := make(chan struct{})
+			go func() {
+				sm.Close()
+				close(done)
+			}()
+			select {
+			case <-done:
+			case <-time.After(7 * time.Second):
+				t.Fatal("Close did not finish owned PubSub operation")
+			}
+			t.Logf("%s Close elapsed=%s", name, time.Since(started))
+			if name == "reconnect-subscription-reply" {
+				require.Greater(t, time.Since(started), 4*time.Second, "cancellation does not interrupt an active subscription read")
+			}
+			if name == "reconnect-short-limit" {
+				require.Less(t, time.Since(started), time.Second, "subscription reply respects the ordinary caller read limit")
+			}
+			select {
+			case _, open := <-ch:
+				require.False(t, open)
+			case <-time.After(time.Second):
+				t.Fatal("subscriber stayed open")
+			}
+			require.NoError(t, exec.Command("docker", "unpause", "loom-read-shutdown-probe").Run())
+			frozen = false
+			require.NoError(t, caller.Ping(t.Context()).Err())
+			require.Eventually(t, func() bool {
+				counts, err := caller.PubSubNumSub(t.Context(), sm.chankey).Result()
+				require.NoError(t, err)
+				return counts[sm.chankey] == 0
+			}, time.Second, time.Millisecond)
+		})
+	}
+}
+
+func (c *pausedSubscriptionConn) Write(data []byte) (int, error) {
+	if c.arm.Load() && bytes.Contains(data, []byte("\r\nsubscribe\r\n")) {
+		var pauseErr error
+		c.once.Do(func() {
+			pauseErr = exec.Command("docker", "pause", "loom-read-shutdown-probe").Run()
+			if pauseErr == nil {
+				close(c.paused)
+			}
+		})
+		if pauseErr != nil {
+			return 0, pauseErr
+		}
+	}
+	return c.Conn.Write(data)
+}

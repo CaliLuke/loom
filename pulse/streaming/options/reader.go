@@ -21,7 +21,8 @@ type (
 
 // WithReaderBlockDuration sets the maximum amount of time the reader waits for
 // MaxPolled events. The default block duration is 5 seconds. If the block
-// duration is set to 0 then the reader blocks indefinitely.
+// duration is zero, the reader listens continuously. Internal polls are capped at
+// five seconds so shutdown can finish; this is not a wall-clock Close deadline.
 func WithReaderBlockDuration(d time.Duration) Reader {
 	return func(o *ReaderOptions) {
 		o.BlockDuration = d

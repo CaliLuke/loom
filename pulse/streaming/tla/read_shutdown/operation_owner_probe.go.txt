@@ -1,0 +1,238 @@
+package streaming
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"net"
+	"os/exec"
+	"strings"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"github.com/redis/go-redis/v9"
+	"github.com/stretchr/testify/require"
+)
+
+type (
+	operationProbeBudget struct {
+		duration time.Duration
+	}
+	operationProbeAudit struct {
+		commands atomic.Int32
+	}
+	operationProbeConn struct {
+		net.Conn
+		writeFailures *atomic.Int32
+	}
+)
+
+// Prototype only: no framework implementation calls this. Each borrowed facade
+// requires the proposed dependency hook-clone repair. With the released driver,
+// inherited hook assertions fail. Its pools still belong to the caller.
+func operationProbeClient(client *redis.Client, limit time.Duration) *redis.Client {
+	opts := client.Options()
+	for _, configured := range []time.Duration{opts.ReadTimeout, opts.WriteTimeout} {
+		if configured > 0 && configured < limit {
+			limit = configured
+		}
+	}
+	borrowed := client.WithTimeout(limit)
+	borrowed.AddHook(operationProbeBudget{duration: limit})
+	return borrowed
+}
+
+func TestOperationOwnerProbe(t *testing.T) {
+	for _, command := range []string{"xread", "xreadgroup", "ping-retry", "subscribe"} {
+		t.Run(command, func(t *testing.T) {
+			server := startTestServer(t)
+			if !server.Real() {
+				t.Skip("isolated real Redis required")
+			}
+			opts := *server.Client.Options()
+			opts.ReadTimeout = -1
+			opts.WriteTimeout = -1
+			opts.ContextTimeoutEnabled = false
+			opts.MaxRetries = -1
+			if command == "ping-retry" {
+				opts.MaxRetries = 100
+			}
+			caller := redis.NewClient(&opts)
+			t.Cleanup(func() { require.NoError(t, caller.Close()) })
+			audit := new(operationProbeAudit)
+			caller.AddHook(audit)
+			require.NoError(t, caller.Ping(t.Context()).Err())
+			originalRead, originalWrite := caller.Options().ReadTimeout, caller.Options().WriteTimeout
+			key := "operation-owner-probe"
+			if command == "xreadgroup" {
+				require.NoError(t, caller.XGroupCreateMkStream(t.Context(), key, "probe", "0").Err())
+			}
+			facade := operationProbeClient(caller, 100*time.Millisecond)
+			before := audit.commands.Load()
+			require.NoError(t, exec.Command("docker", "pause", "loom-read-shutdown-probe").Run())
+			paused := true
+			t.Cleanup(func() {
+				if paused {
+					require.NoError(t, exec.Command("docker", "unpause", "loom-read-shutdown-probe").Run())
+				}
+			})
+			started := time.Now()
+			var err error
+			switch command {
+			case "xread":
+				err = facade.XRead(t.Context(), &redis.XReadArgs{Streams: []string{key, "0-0"}, Block: 25 * time.Millisecond}).Err()
+			case "xreadgroup":
+				err = facade.XReadGroup(t.Context(), &redis.XReadGroupArgs{Group: "probe", Consumer: "owner", Streams: []string{key, ">"}, Block: 25 * time.Millisecond}).Err()
+			case "ping-retry":
+				err = facade.Ping(t.Context()).Err()
+			case "subscribe":
+				ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
+				sub := facade.Subscribe(ctx, "owner-probe")
+				_, err = sub.ReceiveTimeout(ctx, 100*time.Millisecond)
+				cancel()
+				require.NoError(t, sub.Close())
+			}
+			elapsed := time.Since(started)
+			t.Logf("%s elapsed=%s error=%v", command, elapsed, err)
+			require.Error(t, err)
+			if command == "xread" || command == "xreadgroup" {
+				require.Greater(t, elapsed, 9*time.Second, "context expiry does not interrupt the active native socket read")
+				require.Less(t, elapsed, 11*time.Second, "positive native BLOCK retains its finite socket deadline")
+			} else {
+				require.Less(t, elapsed, time.Second)
+			}
+			if command != "subscribe" {
+				require.EqualValues(t, before+1, audit.commands.Load(), "native ProcessHook dispatch preserved")
+			}
+			require.NoError(t, exec.Command("docker", "unpause", "loom-read-shutdown-probe").Run())
+			paused = false
+			require.NoError(t, caller.Ping(t.Context()).Err())
+			require.Equal(t, originalRead, caller.Options().ReadTimeout)
+			require.Equal(t, originalWrite, caller.Options().WriteTimeout)
+			// No facade.Close: it shares the caller's pools.
+		})
+	}
+}
+
+func TestOperationOwnerPoolAndHookProbe(t *testing.T) {
+	server := startTestServer(t)
+	if !server.Real() {
+		t.Skip("isolated real Redis required")
+	}
+	opts := *server.Client.Options()
+	opts.PoolSize = 1
+	opts.MaxActiveConns = 1
+	opts.PoolTimeout = time.Hour
+	opts.ReadTimeout = -1
+	opts.WriteTimeout = -1
+	opts.MaxRetries = -1
+	caller := redis.NewClient(&opts)
+	t.Cleanup(func() { require.NoError(t, caller.Close()) })
+	require.NoError(t, caller.Ping(t.Context()).Err())
+	early := new(operationProbeAudit)
+	caller.AddHook(early)
+	oldFacade := operationProbeClient(caller, 100*time.Millisecond)
+	late := new(operationProbeAudit)
+	caller.AddHook(late)
+	facade := operationProbeClient(caller, 100*time.Millisecond)
+	require.NoError(t, facade.Ping(t.Context()).Err())
+	require.EqualValues(t, 1, early.commands.Load())
+	require.EqualValues(t, 1, late.commands.Load(), "new operation sees hooks added after earlier borrows")
+	require.NoError(t, oldFacade.Ping(t.Context()).Err())
+	require.EqualValues(t, 2, early.commands.Load())
+	require.EqualValues(t, 1, late.commands.Load(), "cached facade would lose late hooks")
+	held := caller.Conn()
+	require.NoError(t, held.Ping(t.Context()).Err())
+	started := time.Now()
+	err := facade.Ping(t.Context()).Err()
+	t.Logf("pool acquisition elapsed=%s error=%v", time.Since(started), err)
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	require.Less(t, time.Since(started), time.Second)
+	require.NoError(t, held.Close())
+	// The facade's deadline hook must not have been attached to the caller.
+	require.NoError(t, server.Client.ClientPause(t.Context(), 300*time.Millisecond).Err())
+	started = time.Now()
+	require.NoError(t, caller.Ping(t.Context()).Err())
+	require.Greater(t, time.Since(started), 200*time.Millisecond)
+}
+
+// A paused process stops consuming TCP bytes. This checks an actual socket write
+// timeout, not a hook that chooses to honor cancellation or a server reply bound.
+func TestOperationOwnerSocketWriteProbe(t *testing.T) {
+	server := startTestServer(t)
+	if !server.Real() {
+		t.Skip("isolated real Redis required")
+	}
+	var failures atomic.Int32
+	opts := *server.Client.Options()
+	opts.ReadTimeout = -1
+	opts.WriteTimeout = -1
+	opts.ContextTimeoutEnabled = false
+	opts.MaxRetries = -1
+	opts.Dialer = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		conn, err := (&net.Dialer{}).DialContext(ctx, network, addr)
+		if err != nil {
+			return nil, err
+		}
+		tcp, ok := conn.(*net.TCPConn)
+		if !ok {
+			return nil, errors.Join(fmt.Errorf("expected TCP connection"), conn.Close())
+		}
+		if err := tcp.SetWriteBuffer(4096); err != nil {
+			return nil, errors.Join(err, conn.Close())
+		}
+		return &operationProbeConn{Conn: conn, writeFailures: &failures}, nil
+	}
+	caller := redis.NewClient(&opts)
+	t.Cleanup(func() { require.NoError(t, caller.Close()) })
+	require.NoError(t, caller.Ping(t.Context()).Err())
+	require.NoError(t, exec.Command("docker", "pause", "loom-read-shutdown-probe").Run())
+	t.Cleanup(func() {
+		require.NoError(t, exec.Command("docker", "unpause", "loom-read-shutdown-probe").Run())
+		require.NoError(t, caller.Ping(context.Background()).Err())
+	})
+	started := time.Now()
+	err := operationProbeClient(caller, 100*time.Millisecond).Set(t.Context(), "write-probe", strings.Repeat("x", 16<<20), 0).Err()
+	t.Logf("socket write elapsed=%s error=%v failures=%d", time.Since(started), err, failures.Load())
+	require.Error(t, err)
+	require.Positive(t, failures.Load(), "the write syscall itself must time out")
+	require.Less(t, time.Since(started), time.Second)
+}
+
+func (h operationProbeBudget) DialHook(next redis.DialHook) redis.DialHook {
+	return next
+}
+func (h operationProbeBudget) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
+	return func(ctx context.Context, cmd redis.Cmder) error {
+		bounded, cancel := context.WithTimeout(ctx, h.duration)
+		defer cancel()
+		return next(bounded, cmd)
+	}
+}
+func (h operationProbeBudget) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.ProcessPipelineHook {
+	return func(ctx context.Context, cmds []redis.Cmder) error {
+		bounded, cancel := context.WithTimeout(ctx, h.duration)
+		defer cancel()
+		return next(bounded, cmds)
+	}
+}
+func (h *operationProbeAudit) DialHook(next redis.DialHook) redis.DialHook {
+	return next
+}
+func (h *operationProbeAudit) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
+	return func(ctx context.Context, cmd redis.Cmder) error {
+		h.commands.Add(1)
+		return next(ctx, cmd)
+	}
+}
+func (h *operationProbeAudit) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.ProcessPipelineHook {
+	return next
+}
+func (c *operationProbeConn) Write(data []byte) (int, error) {
+	n, err := c.Conn.Write(data)
+	if err != nil {
+		c.writeFailures.Add(1)
+	}
+	return n, err
+}

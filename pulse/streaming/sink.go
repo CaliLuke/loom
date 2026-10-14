@@ -6,10 +6,12 @@ import (
 	"sync"
 	"time"
 
+	redis "github.com/CaliLuke/go-redis/v9"
 	"github.com/oklog/ulid/v2"
-	redis "github.com/redis/go-redis/v9"
 
 	"github.com/CaliLuke/loom/clue/log"
+	"github.com/CaliLuke/loom/pulse/internal/lifecycle"
+	"github.com/CaliLuke/loom/pulse/internal/redisop"
 	"github.com/CaliLuke/loom/pulse/pulse"
 	"github.com/CaliLuke/loom/pulse/rmap"
 	"github.com/CaliLuke/loom/pulse/streaming/options"
@@ -113,8 +115,8 @@ type (
 		runtimeCtx context.Context
 		// runtimeCancel stops all background Redis operations.
 		runtimeCancel context.CancelFunc
-		// closing is true if Close was called.
-		closing bool
+		// lifetime seals admission and joins cleanup across concurrent Close calls.
+		lifetime lifecycle.Lifetime
 		// eventFilter is the event filter if any.
 		eventFilter eventFilterFunc
 		// filterIdentity is the admitted effective group filter.
@@ -174,7 +176,7 @@ func newSink(ctx context.Context, name string, stream *Stream, runtime sinkRunti
 		return nil, err
 	}
 
-	if err := acquireLeaseScript.Load(ctx, stream.rdb).Err(); err != nil {
+	if err := acquireLeaseScript.Load(ctx, redisop.Client(stream.rdb)).Err(); err != nil {
 		return nil, fmt.Errorf("failed to load stale check lease script: %w", err)
 	}
 
@@ -266,7 +268,7 @@ func newSink(ctx context.Context, name string, stream *Stream, runtime sinkRunti
 func (s *Sink) Subscribe() <-chan *Event {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	ch, admitted := registerSubscriber(&s.subscribers, s.bufferSize, s.closing || s.closed)
+	ch, admitted := registerSubscriber(&s.subscribers, s.bufferSize, s.lifetime.Stopping() || s.closed)
 	if admitted && !s.deliveryStarted {
 		s.deliveryStarted = true
 		s.wait.Add(2)
@@ -317,6 +319,9 @@ func (s *Sink) Ack(ctx context.Context, e *Event) error {
 func (s *Sink) AddStream(ctx context.Context, stream *Stream, opts ...options.AddStream) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
+	if s.lifetime.Stopping() {
+		return fmt.Errorf("sink is closing")
+	}
 	for _, registration := range s.streams {
 		if registration.stream.Name == stream.Name {
 			return nil
@@ -374,6 +379,9 @@ func (s *Sink) AddStream(ctx context.Context, stream *Stream, opts ...options.Ad
 func (s *Sink) RemoveStream(ctx context.Context, stream *Stream) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
+	if s.lifetime.Stopping() {
+		return fmt.Errorf("sink is closing")
+	}
 	cm := s.consumersMap[stream.Name]
 	if cm == nil {
 		return nil
@@ -403,35 +411,30 @@ func (s *Sink) RemoveStream(ctx context.Context, stream *Stream) error {
 // Close stops event polling, waits for all events to be processed, and closes the sink channel.
 // It is safe to call Close multiple times.
 func (s *Sink) Close(ctx context.Context) {
-	s.lock.Lock()
-	if s.closing {
+	s.lifetime.Close(func() {
+		close(s.donechan)
+		if s.runtimeCancel != nil {
+			s.runtimeCancel()
+		}
+	}, func() {
+		s.lock.Lock()
+		s.cancelActiveRead()
 		s.lock.Unlock()
-		return
-	}
-	s.closing = true
-	close(s.donechan)
-	if s.readCancel != nil {
-		s.readCancel()
-	}
-	if s.runtimeCancel != nil {
-		s.runtimeCancel()
-	}
-	s.lock.Unlock()
-	s.wait.Wait()
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	for _, sub := range s.subscribers {
-		sub.close()
-	}
-	s.subscribers = nil
-	// Note: we do not delete the consumer from the keep-alive and consumer maps
-	// so that another instance may claim any pending messages.
-	s.consumersKeepAliveMap.Close()
-	for _, cm := range s.consumersMap {
-		cm.replica.Close()
-	}
-	s.closed = true
-	s.logger.Info("closed")
+		s.wait.Wait()
+		s.lock.Lock()
+		defer s.lock.Unlock()
+		for _, sub := range s.subscribers {
+			sub.close()
+		}
+		s.subscribers = nil
+		// Retain consumer recovery metadata so another instance can claim PEL.
+		s.consumersKeepAliveMap.Close()
+		for _, cm := range s.consumersMap {
+			cm.replica.Close()
+		}
+		s.closed = true
+		s.logger.Info("closed")
+	})
 }
 
 // IsClosed returns true if the sink was closed.

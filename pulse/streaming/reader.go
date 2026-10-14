@@ -12,8 +12,10 @@ import (
 	"sync"
 	"time"
 
-	redis "github.com/redis/go-redis/v9"
+	redis "github.com/CaliLuke/go-redis/v9"
 
+	"github.com/CaliLuke/loom/pulse/internal/lifecycle"
+	"github.com/CaliLuke/loom/pulse/internal/redisop"
 	"github.com/CaliLuke/loom/pulse/pulse"
 	"github.com/CaliLuke/loom/pulse/streaming/options"
 )
@@ -50,8 +52,8 @@ type (
 		runtimeCtx context.Context
 		// runtimeCancel stops the reader background loop.
 		runtimeCancel context.CancelFunc
-		// closing is true if Close was called.
-		closing bool
+		// lifetime seals admission and joins cleanup across concurrent Close calls.
+		lifetime lifecycle.Lifetime
 		// eventFilter is the event filter if any.
 		eventFilter eventFilterFunc
 		// logger is the logger used by the reader.
@@ -121,13 +123,17 @@ func newReader(ctx context.Context, stream *Stream, opts ...options.Reader) (*Re
 	}
 	var eventFilter eventFilterFunc
 	if o.Topic != "" {
-		eventFilter = func(e *Event) bool { return e.Topic == o.Topic }
+		eventFilter = func(e *Event) bool {
+			return e.Topic == o.Topic
+		}
 	} else if o.TopicPattern != "" {
 		topicPatternRegexp, err := regexp.Compile(o.TopicPattern)
 		if err != nil {
 			return nil, fmt.Errorf("topic pattern must be a valid regex: %w", err)
 		}
-		eventFilter = func(e *Event) bool { return topicPatternRegexp.MatchString(e.Topic) }
+		eventFilter = func(e *Event) bool {
+			return topicPatternRegexp.MatchString(e.Topic)
+		}
 	}
 
 	cursor, err := prepareReaderCursor(ctx, stream.rdb, stream.key, o.LastEventID)
@@ -158,7 +164,7 @@ func newReader(ctx context.Context, stream *Stream, opts ...options.Reader) (*Re
 func (r *Reader) Subscribe() <-chan *Event {
 	r.lock.Lock()
 	defer r.lock.Unlock()
-	ch, admitted := registerSubscriber(&r.subscribers, r.bufferSize, r.closing || r.closed)
+	ch, admitted := registerSubscriber(&r.subscribers, r.bufferSize, r.lifetime.Stopping() || r.closed)
 	if admitted {
 		r.start()
 	}
@@ -223,7 +229,7 @@ func (r *Reader) AddStream(ctx context.Context, stream *Stream, opts ...options.
 func (r *Reader) RemoveStream(ctx context.Context, stream *Stream) error {
 	r.lock.Lock()
 	defer r.lock.Unlock()
-	if r.closing {
+	if r.lifetime.Stopping() {
 		return fmt.Errorf("reader is closing")
 	}
 	if i := r.registrationIndex(stream.key); i >= 0 {
@@ -237,35 +243,29 @@ func (r *Reader) RemoveStream(ctx context.Context, stream *Stream) error {
 // Close stops event polling and closes the reader channel. It is safe to call
 // Close multiple times.
 func (r *Reader) Close() {
-	if !r.beginClose() {
-		return
-	}
-	r.wait.Wait()
-	r.lock.Lock()
-	defer r.lock.Unlock()
-	r.closed = true
-	r.logger.Info("stopped")
+	r.lifetime.Close(r.stop, func() {
+		// Synchronize with Subscribe admitting and starting its worker under lock
+		// before Wait observes the count. Stop has already sealed new admission.
+		r.lock.Lock()
+		r.cancelActiveRead()
+		r.lock.Unlock()
+		r.wait.Wait()
+		r.lock.Lock()
+		defer r.lock.Unlock()
+		r.closed = true
+		r.logger.Info("stopped")
+	})
 }
 
-func (r *Reader) beginClose() bool {
-	r.lock.Lock()
-	defer r.lock.Unlock()
-	if r.closing {
-		return false
-	}
-	r.closing = true
+func (r *Reader) stop() {
 	close(r.donechan)
 	if r.runtimeCancel != nil {
 		r.runtimeCancel()
 	}
-	if r.readCancel != nil {
-		r.readCancel()
-	}
-	return true
 }
 
 func (r *Reader) closeFromReadLoop() {
-	r.beginClose()
+	r.lifetime.Stop(r.stop)
 }
 
 // IsClosed returns true if the reader is stopped.
@@ -279,7 +279,9 @@ func (r *Reader) IsClosed() bool {
 func (r *Reader) start() {
 	r.startOnce.Do(func() {
 		r.wait.Add(1)
-		pulse.Go(r.logger, func() { r.read(r.runtimeCtx) })
+		pulse.Go(r.logger, func() {
+			r.read(r.runtimeCtx)
+		})
 	})
 }
 
@@ -318,7 +320,7 @@ func (r *Reader) fanOut(ctx context.Context, registration *readerRegistration, m
 	lastID := messages[len(messages)-1].ID
 	r.lock.Lock()
 	defer r.lock.Unlock()
-	if r.closing {
+	if r.lifetime.Stopping() {
 		return
 	}
 	if slices.Contains(r.registrations, registration) {
@@ -342,10 +344,11 @@ func (r *Reader) xread(ctx context.Context) ([]readerBatch, error) {
 	defer r.clearActiveRead()
 
 	r.logger.Debug("reading", "streams", admitted.args, "max", r.maxPolled, "block", r.blockDuration)
-	streams, err := r.rdb.XRead(readCtx, &redis.XReadArgs{
+	client, block := redisop.Read(r.rdb, r.blockDuration)
+	streams, err := client.XRead(readCtx, &redis.XReadArgs{
 		Streams: admitted.args,
 		Count:   r.maxPolled,
-		Block:   r.blockDuration,
+		Block:   block,
 	}).Result()
 	if err != nil {
 		return nil, err
@@ -367,7 +370,7 @@ func (r *Reader) armRead(ctx context.Context) (context.Context, readerRead, bool
 	readCtx, cancel := context.WithCancel(ctx)
 	r.lock.Lock()
 	defer r.lock.Unlock()
-	if r.closing {
+	if r.lifetime.Stopping() {
 		cancel()
 		return readCtx, readerRead{}, false
 	}
@@ -416,7 +419,7 @@ func (r *Reader) cleanup() {
 func (r *Reader) isClosing() bool {
 	r.lock.Lock()
 	defer r.lock.Unlock()
-	return r.closing
+	return r.lifetime.Stopping()
 }
 
 // CreatedAt returns the event creation time (millisecond precision) encoded in
@@ -479,7 +482,7 @@ func ackRejectedEvent(ctx context.Context, streamKey, sinkName, id string, rdb *
 	if sinkName == "" || rdb == nil {
 		return
 	}
-	if err := rdb.XAck(ctx, streamKey, sinkName, id).Err(); err != nil {
+	if err := redisop.Client(rdb).XAck(ctx, streamKey, sinkName, id).Err(); err != nil {
 		logger.Error(fmt.Errorf("ack rejected stream %q entry %q: %w", streamKey, id, err))
 	}
 }

@@ -1,0 +1,120 @@
+package streaming
+
+import (
+	"bytes"
+	"context"
+	"net"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/redis/go-redis/v9"
+	"github.com/stretchr/testify/require"
+)
+
+type readinessReadConn struct {
+	net.Conn
+	wrote chan struct{}
+	once *sync.Once
+}
+
+func (c *readinessReadConn) Write(p []byte) (int, error) {
+	n, err := c.Conn.Write(p)
+	if bytes.Contains(p[:n], []byte("xread")) {
+		c.once.Do(func() { close(c.wrote) })
+	}
+	return n, err
+}
+
+// A candidate mechanism probe, not a production implementation. CLIENT PAUSE
+// prevents the server from responding after the real TCP command is written.
+func TestReadinessBoundedRedisIO(t *testing.T) {
+	for _, pipeline := range []bool{false, true} {
+		name := "ordinary command override"
+		if pipeline {
+			name = "bounded pipeline"
+		}
+		t.Run(name, func(t *testing.T) {
+			srv := startTestServer(t)
+			if !srv.Real() {
+				t.Skip("requires disposable real Redis")
+			}
+			opts := *srv.Client.Options()
+			opts.ReadTimeout = -1
+			opts.WriteTimeout = -1
+			wrote := make(chan struct{})
+			once := new(sync.Once)
+			dial := opts.Dialer
+			opts.Dialer = func(ctx context.Context, network, addr string) (net.Conn, error) {
+				conn, err := dial(ctx, network, addr)
+				if err != nil {
+					return nil, err
+				}
+				return &readinessReadConn{Conn: conn, wrote: wrote, once: once}, nil
+			}
+			rdb := redis.NewClient(&opts)
+			t.Cleanup(func() { require.NoError(t, rdb.Close()) })
+			require.NoError(t, rdb.Ping(t.Context()).Err())
+			originalTimeout := rdb.Options().ReadTimeout
+			bounded := rdb.WithTimeout(200 * time.Millisecond)
+			// Do not close bounded: it borrows caller-owned pools.
+			require.NoError(t, srv.Client.ClientPause(t.Context(), 500*time.Millisecond).Err())
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			done := make(chan error, 1)
+			go func() {
+				args := &redis.XReadArgs{Streams: []string{"probe", "$"}, Block: 0}
+				if pipeline {
+					args.Block = 25 * time.Millisecond
+					_, err := bounded.Pipelined(ctx, func(p redis.Pipeliner) error {
+						p.XRead(ctx, args)
+						return nil
+					})
+					done <- err
+				} else {
+					done <- bounded.XRead(ctx, args).Err()
+				}
+			}()
+			select {
+			case <-wrote:
+			case <-time.After(time.Second):
+				t.Fatal("XREAD was not written to the real socket")
+			}
+			cancel()
+			finished := false
+			select {
+			case err := <-done:
+				finished = true
+				require.True(t, pipeline, "ordinary BLOCK0 still overrides WithTimeout")
+				require.ErrorIs(t, err, context.Canceled)
+			case <-time.After(400 * time.Millisecond):
+				require.False(t, pipeline, "pipeline socket budget must bound the paused-server read")
+			}
+			// Wait for the bounded server pause to end, then release the legacy read.
+			require.NoError(t, srv.Client.Ping(t.Context()).Err())
+			if !finished {
+                require.Eventually(t, func() bool {
+                    clients, err := srv.Client.ClientList(t.Context()).Result()
+                    require.NoError(t, err)
+                    for _, line := range strings.Split(clients, "\n") {
+                        if strings.Contains(line, "cmd=xread ") && strings.Contains(line, "flags=b ") {
+                            return true
+                        }
+                    }
+                    return false
+                }, time.Second, time.Millisecond)
+            }
+            require.NoError(t, srv.Client.XAdd(t.Context(), &redis.XAddArgs{Stream: "probe", Values: map[string]any{"x": "y"}}).Err())
+			if !finished {
+				select {
+				case <-done:
+				case <-time.After(time.Second):
+					t.Fatal("legacy operation was not joined after releasing Redis")
+				}
+			}
+			require.NoError(t, rdb.Ping(t.Context()).Err())
+			require.Equal(t, originalTimeout, rdb.Options().ReadTimeout)
+		})
+	}
+}

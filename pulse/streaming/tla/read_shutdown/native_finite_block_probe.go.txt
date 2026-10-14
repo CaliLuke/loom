@@ -1,0 +1,48 @@
+// Run from the repository with: go run /path/to/copied-probe.go
+// Requires disposable Redis 8.10.2 at 127.0.0.1:32768. CLIENT PAUSE affects
+// every client of that server; never run this against shared Redis.
+package main
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"github.com/redis/go-redis/v9"
+)
+
+func main() {
+	ctx := context.Background()
+	admin := redis.NewClient(&redis.Options{Addr: "127.0.0.1:32768"})
+	defer func() {
+		if err := admin.Close(); err != nil {
+			panic(err)
+		}
+	}()
+	client := redis.NewClient(&redis.Options{
+		Addr: "127.0.0.1:32768", ReadTimeout: -1, WriteTimeout: -1, MaxRetries: -1,
+	})
+	defer func() {
+		if err := client.Close(); err != nil {
+			panic(err)
+		}
+	}()
+	if err := client.Ping(ctx).Err(); err != nil {
+		panic(err)
+	}
+	if err := admin.ClientPause(ctx, 12*time.Second).Err(); err != nil {
+		panic(err)
+	}
+	started := time.Now()
+	_, err := client.XRead(ctx, &redis.XReadArgs{
+		Streams: []string{"loom-independent-empty-probe", "0-0"},
+		Block:   25 * time.Millisecond,
+	}).Result()
+	fmt.Printf("native finite block elapsed=%v error=%v\n", time.Since(started), err)
+	if err := admin.ClientUnpause(ctx).Err(); err != nil {
+		panic(err)
+	}
+	if err := client.Ping(ctx).Err(); err != nil {
+		panic(err)
+	}
+}

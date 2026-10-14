@@ -1,0 +1,31 @@
+package streaming
+import (
+ "context"
+ "testing"
+ "time"
+ "github.com/CaliLuke/loom/pulse/streaming/options"
+ "github.com/stretchr/testify/require"
+)
+func TestReadinessIndependentZeroBlockClose(t *testing.T) {
+ rdb := startTestRedis(t)
+ stream := newTestStream(t,rdb,"readiness-zero-block")
+ sink,err := stream.NewSink(t.Context(),"readiness",options.WithSinkBlockDuration(0))
+ require.NoError(t,err)
+ // Wait until the local reader owns an active Redis read.
+ require.Eventually(t,func()bool{sink.lock.Lock(); defer sink.lock.Unlock(); return sink.readCancel!=nil},time.Second,time.Millisecond)
+ time.Sleep(100*time.Millisecond)
+ ctx,cancel := context.WithTimeout(t.Context(),10*time.Millisecond)
+ defer cancel()
+ done:=make(chan struct{})
+ go func(){sink.Close(ctx);close(done)}()
+ select {
+ case <-done:
+  t.Log("Close returned before probe deadline")
+ case <-time.After(200*time.Millisecond):
+  t.Error("Close did not return after its context deadline; active XREADGROUP BLOCK 0 survives runtime cancellation")
+ }
+ // Release the actual Redis blocking read, then join the Close owner.
+ _,err=stream.Add(t.Context(),"unblock",[]byte("x"))
+ require.NoError(t,err)
+ select {case <-done: case <-time.After(2*time.Second):t.Fatal("Close did not finish after Redis read returned")}
+}

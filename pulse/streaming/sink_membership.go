@@ -10,8 +10,9 @@ import (
 	"slices"
 	"time"
 
-	"github.com/redis/go-redis/v9"
+	"github.com/CaliLuke/go-redis/v9"
 
+	"github.com/CaliLuke/loom/pulse/internal/redisop"
 	"github.com/CaliLuke/loom/pulse/rmap"
 )
 
@@ -101,14 +102,14 @@ func decodeSinkMembership(raw string) (*sinkMembership, error) {
 // excluded by the coordinated migration contract.
 func readSinkMembership(ctx context.Context, stream *Stream, group string) (*sinkMembership, string, error) {
 	key := consumersMapKey(stream)
-	ttl, err := stream.rdb.PTTL(ctx, key).Result()
+	ttl, err := redisop.Client(stream.rdb).PTTL(ctx, key).Result()
 	if err != nil {
 		return nil, "", fmt.Errorf("read sink membership lifetime: %w", err)
 	}
 	if ttl >= 0 {
 		return nil, "", fmt.Errorf("sink membership requires coordinated migration: expiring membership map")
 	}
-	raw, err := stream.rdb.HGet(ctx, key, group).Result()
+	raw, err := redisop.Client(stream.rdb).HGet(ctx, key, group).Result()
 	if errors.Is(err, redis.Nil) {
 		return nil, "", nil
 	}
@@ -123,6 +124,8 @@ func readSinkMembership(ctx context.Context, stream *Stream, group string) (*sin
 // one revisioned map value. Empty membership retains identity until Stream.Destroy.
 func changeSinkMembership(ctx context.Context, cm *sinkConsumerMap, group string, filter sinkFilter, change sinkMemberChange) ([]string, error) {
 	stream := cm.stream
+	ctx, cancel := redisop.Context(ctx, stream.rdb)
+	defer cancel()
 	for {
 		record, raw, err := readSinkMembership(ctx, stream, group)
 		if err != nil {
@@ -134,23 +137,8 @@ func changeSinkMembership(ctx context.Context, cm *sinkConsumerMap, group string
 				return nil, nil
 			}
 			if !change.restore {
-				groups, err := stream.rdb.XInfoGroups(ctx, stream.key).Result()
-				if err != nil && !redis.HasErrorPrefix(err, "no such key") {
-					return nil, fmt.Errorf("inspect group identity: %w", err)
-				}
-				for _, existing := range groups {
-					if existing.Name != group {
-						continue
-					}
-					// A supported concurrent creator publishes membership first.
-					// Re-read before classifying an unknown pre-existing group.
-					current, _, err := readSinkMembership(ctx, stream, group)
-					if err != nil {
-						return nil, err
-					}
-					if current == nil {
-						return nil, fmt.Errorf("sink group %q requires coordinated migration: existing group has no filter identity", group)
-					}
+				if err := checkSinkGroupIdentity(ctx, stream, group); err != nil {
+					return nil, err
 				}
 			}
 			record = &sinkMembership{Version: 1, Filter: &filter, Members: []sinkMember{}}
@@ -183,6 +171,30 @@ func changeSinkMembership(ctx context.Context, cm *sinkConsumerMap, group string
 			return record.memberNames(), nil
 		}
 	}
+}
+
+// checkSinkGroupIdentity rejects pre-existing groups without the authoritative
+// filter record, while retaining the concurrent supported-creator recheck.
+func checkSinkGroupIdentity(ctx context.Context, stream *Stream, group string) error {
+	groups, err := redisop.Client(stream.rdb).XInfoGroups(ctx, stream.key).Result()
+	if err != nil && !redis.HasErrorPrefix(err, "no such key") {
+		return fmt.Errorf("inspect group identity: %w", err)
+	}
+	for _, existing := range groups {
+		if existing.Name != group {
+			continue
+		}
+		// A supported concurrent creator publishes membership first.
+		// Re-read before classifying an unknown pre-existing group.
+		current, _, err := readSinkMembership(ctx, stream, group)
+		if err != nil {
+			return err
+		}
+		if current == nil {
+			return fmt.Errorf("sink group %q requires coordinated migration: existing group has no filter identity", group)
+		}
+	}
+	return nil
 }
 
 // memberNames exposes the set identity without discarding registration age in storage.

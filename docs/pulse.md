@@ -18,6 +18,30 @@ Older Redis releases are not supported. The real-Redis CI and local test runner
 share the version pin in `scripts/test_pulse_redis.sh`; update that pin and this
 guidance when adopting a newer stable release.
 
+## Redis Client Module
+
+Pulse currently uses `github.com/CaliLuke/go-redis/v9`, an exact pinned fork of
+upstream v9.23.0 with the reviewed [WithTimeout hook-copy correction](https://github.com/redis/go-redis/pull/4095).
+The fork makes the fix available to applications through ordinary Go module
+resolution; applications do not need a `replace` directive.
+
+Change client creation and custom hook imports to:
+
+```go
+import "github.com/CaliLuke/go-redis/v9"
+```
+
+The fork's `Client`, `Hook`, `Cmder`, and other Go types have a different package
+identity from `github.com/redis/go-redis/v9`. Use the fork consistently wherever
+clients or hook signatures cross Pulse boundaries. Instrumentation compiled
+against the upstream package is not interchangeable; adapt its imports before
+passing it fork clients. Upstream `extra/redisotel` and similar extension modules
+have not been republished by this root-module fork.
+
+Return to an upstream stable release once it contains the correction and the
+shutdown/hook regressions pass against it; that transition also changes application
+imports back to the upstream module.
+
 ## Shared Prerequisite and Ownership
 
 Create and health-check a `*redis.Client` before constructing Pulse objects.
@@ -25,9 +49,33 @@ Pulse objects use the supplied client but do not own its process-level
 lifecycle. Close readers, sinks, maps, and pool nodes first; close the Redis
 client only after their background work has stopped.
 
-Use bounded contexts for startup, mutations, and shutdown. A context passed to
-a constructor or operation bounds that call; it is not a substitute for the
-explicit close method on the returned object.
+Use bounded contexts for startup and mutations. A context passed to a constructor
+or operation bounds that call; it is not a substitute for the explicit close
+method on the returned object. Reader, Sink and Map runtime lifetimes are
+independent of constructor-context cancellation. Explicitly close returned objects.
+
+`Reader.Close`, `Sink.Close` and `Map.Close` seal local admission and cancel owned
+work before waiting for it. Every concurrent caller waits for the same cleanup
+to finish. These calls join local workers and release owned subscriptions; they
+do not wait for application processing or outstanding external operations.
+`Sink.Close(ctx)` joins cleanup even when `ctx` is canceled; that argument is not
+a deadline for the join. Close Pulse objects before closing their shared client.
+
+Owned Redis commands and subscription setup use finite operation and socket
+budgets. Native blocking reads use finite polls with time for the reply; a zero
+block duration continues listening through successive polls. Earlier caller
+deadlines are not extended. Shorter positive client read/write limits constrain
+operation budgets, but native blocking commands can have a longer driver socket
+deadline. Cancellation alone does not interrupt every active socket operation.
+There is no fixed five-second Close guarantee: admitted cleanup can contain
+several bounded operations.
+
+Pulse preserves the supplied client's options, connection pools and installed
+hooks; it does not close that client. Hooks, custom dialers and logging callbacks
+must return: Pulse cannot forcibly stop arbitrary application callbacks. Producer
+operations such as `Stream.Add` and application calls to `Sink.Ack` retain caller
+context/client ownership; Close does not cancel or join them. Supply suitable
+contexts and client limits for these calls.
 
 ## Replicated Maps
 
@@ -78,8 +126,9 @@ Reader and Sink buffer sizes must be nonnegative; zero selects an unbuffered
 channel. Sink acknowledgement grace periods must be positive. Constructors
 reject invalid values before contacting Redis or registering a consumer, using
 the final value when an option is supplied more than once. A zero block duration
-still means indefinite blocking. Positive grace periods retain the same strict
-stale threshold of more than two grace periods, including large durations.
+still means continuous listening, implemented as finite repeated polls. Positive
+grace periods retain the same strict stale threshold of more than two grace
+periods, including large durations.
 
 Readers give every reader its own copy of events. Named sinks form a consumer
 group and share its cursor. Unless `WithSinkNoAck` is selected, acknowledge an
