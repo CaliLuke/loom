@@ -75,13 +75,11 @@ func DecodeGuardedRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Dec
 			return payload, loom.DecodePayloadError("invalid query string")
 		}
 		{
-			rawValues, present := qp["token"]
-			if present {
-				raw := ""
-				if len(rawValues) > 0 {
-					raw = rawValues[0]
-				}
-				token = &raw
+			tokenRaw := qp.Get("token")
+			tokenPresent := qp.Has("token")
+
+			if tokenPresent {
+				token = &tokenRaw
 			}
 		}
 		payload = NewGuardedPayload(token)
