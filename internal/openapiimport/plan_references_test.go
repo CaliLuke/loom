@@ -84,23 +84,47 @@ func TestReferencePlanRetainsAcyclicDiamondAndNames(t *testing.T) {
 }
 
 func TestReferencePlanRejectsMandatoryCycles(t *testing.T) {
-	for _, kind := range []string{"array", "map", "alias"} {
-		t.Run(kind, func(t *testing.T) {
+	for _, test := range []struct {
+		kind, constructor, pathSuffix, code, reason string
+	}{
+		{"array", "ArrayOf", "/items", "schema-reference-initialization", "ArrayOf requires a concrete reference"},
+		{"map", "MapOf", "/additionalProperties", "schema-reference-initialization", "MapOf requires a concrete reference"},
+		{"alias", "Type", "", "schema", `cyclic object base "Node"`},
+	} {
+		t.Run(test.kind, func(t *testing.T) {
 			ref := componentReference("Node")
 			schema := ref
-			if kind == "array" {
+			if test.kind == "array" {
 				schema = &Schema{Type: "array", Items: ref}
 			}
-			if kind == "map" {
+			if test.kind == "map" {
 				schema = &Schema{Type: "object", AdditionalProperties: &AdditionalProperties{Schema: ref}}
 			}
-			document := &Document{OpenAPIVersion: "3.1.1", Components: Components{Schemas: []NamedSchema{{Name: "Node", GoName: "Node", Schema: schema}}}}
+			named := NamedSchema{Name: "Node", GoName: "Node", Schema: schema}
+			document := &Document{OpenAPIVersion: "3.1.1", Components: Components{Schemas: []NamedSchema{named}}}
+
+			// Keep the graph owner's mandatory-cycle obligation independent of
+			// earlier shape admission, which rejects the cyclic alias base.
+			_, diagnostics := planSchemaReferences(document, map[string]NamedSchema{"Node": named}, nil)
+			require.Len(t, diagnostics, 1)
+			require.Equal(t, "schema-reference-initialization", diagnostics[0].Code)
+			require.Equal(t, componentDeclaration("Node")+test.pathSuffix, diagnostics[0].Path)
+			require.Contains(t, diagnostics[0].Message, test.constructor+" requires a concrete reference")
+			fatal, warnings := diagnostics.Classify(true)
+			require.Equal(t, diagnostics, fatal)
+			require.Empty(t, warnings)
+
 			plan := planDocument(document)
-			requireDiagnosticCode(t, plan.diagnostics, "schema-reference-initialization")
-			fatal, _ := plan.diagnostics.Classify(true)
-			require.NotEmpty(t, fatal)
+			require.Len(t, plan.diagnostics, 1)
+			require.Equal(t, test.code, plan.diagnostics[0].Code)
+			require.Equal(t, componentDeclaration("Node")+test.pathSuffix, plan.diagnostics[0].Path)
+			require.Contains(t, plan.diagnostics[0].Message, test.reason)
+			fatal, warnings = plan.diagnostics.Classify(true)
+			require.Equal(t, plan.diagnostics, fatal)
+			require.Empty(t, warnings)
 			_, err := Render(document, Options{})
-			require.ErrorContains(t, err, "schema-reference-initialization")
+			require.ErrorContains(t, err, "("+test.code+")")
+			require.ErrorContains(t, err, test.reason)
 		})
 	}
 }
