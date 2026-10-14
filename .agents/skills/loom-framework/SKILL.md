@@ -2380,6 +2380,14 @@ absence and every event-loop exit use that same teardown owner. Check
 TestAndSetEx existence before interpreting its previous value; absence is not a
 serialized timestamp. Complete local teardown before signaling goroutine exit.
 
+Consumer numeric admission runs after option parsing and before native setup:
+`validateConsumerBufferSize` owns Reader/Sink nonnegative channel capacity;
+`newSink` admits positive acknowledgement grace. Keep zero buffers and documented
+zero blocking durations valid. Rotation and stale cleanup derive from
+`consumerKeepAliveExpired`; do not multiply an admitted grace by two, which can
+overflow a positive duration. Direct command-hook tests prove rejection before
+publication, and arithmetic/native-owner controls retain the strict threshold.
+
 Pulse (`pulse/pool`, `pulse/streaming`, `pulse/rmap`) tests run against
 miniredis by default, so `make test` stays hermetic. miniredis does not model
 every Redis behavior: it lacks the Lua `struct` library (the test helper

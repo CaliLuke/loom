@@ -1535,8 +1535,12 @@ loom vet <module-import-path>/design
 
 ## Canonical Guides
 
-For Pulse applications, read `docs/pulse.md`. Use the latest stable Redis
-release, currently 8.10.2; older releases are unsupported. Pool protocol 3 requires ending old schedules with `ErrScheduleStop`,
+For Pulse applications, read `docs/pulse.md`. Reader/Sink buffer sizes must be
+nonnegative and Sink acknowledgement grace periods must be positive; constructors
+return an error for invalid values before contacting Redis. Zero buffers remain
+unbuffered and zero block durations still mean indefinite blocking.
+
+Use the latest stable Redis release, currently 8.10.2; older releases are unsupported. Pool protocol 3 requires ending old schedules with `ErrScheduleStop`,
 draining/stopping work and completing old-binary pool `Shutdown` before upgrade.
 `Close` alone leaves pending old operations. Recreate schedules/jobs afterward;
 mixed versions and rolling upgrades are unsupported. `Node.Health(ctx)` reports incompatible live members. `Job.Epoch`

@@ -74,6 +74,13 @@ if err != nil {
 defer sink.Close(shutdownCtx)
 ```
 
+Reader and Sink buffer sizes must be nonnegative; zero selects an unbuffered
+channel. Sink acknowledgement grace periods must be positive. Constructors
+reject invalid values before contacting Redis or registering a consumer, using
+the final value when an option is supplied more than once. A zero block duration
+still means indefinite blocking. Positive grace periods retain the same strict
+stale threshold of more than two grace periods, including large durations.
+
 Readers give every reader its own copy of events. Named sinks form a consumer
 group and share its cursor. Unless `WithSinkNoAck` is selected, acknowledge an
 event with `Sink.Ack` only after its side effects are durable. Closing a sink

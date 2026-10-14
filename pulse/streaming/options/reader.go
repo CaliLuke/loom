@@ -51,9 +51,10 @@ func WithReaderTopicPattern(pattern string) Reader {
 	}
 }
 
-// WithReaderBufferSize sets the reader channel buffer size.  The default buffer
-// size is 1000. If the buffer is full the reader blocks until the buffer has
-// space available.
+// WithReaderBufferSize sets the reader channel buffer size. The size must be
+// nonnegative; zero selects an unbuffered channel. NewReader rejects a negative
+// size before accessing Redis. The default buffer size is 1000. If the buffer
+// is full the reader blocks until the buffer has space available.
 func WithReaderBufferSize(size int) Reader {
 	return func(o *ReaderOptions) {
 		o.BufferSize = size

@@ -53,9 +53,10 @@ func WithSinkTopicPattern(pattern string) Sink {
 	}
 }
 
-// WithSinkBufferSize sets the sink channel buffer size.  The default buffer
-// size is 1000. If the buffer is full the sink blocks until the buffer has
-// space available.
+// WithSinkBufferSize sets the sink channel buffer size. The size must be
+// nonnegative; zero selects an unbuffered channel. NewSink rejects a negative
+// size before accessing Redis. The default buffer size is 1000. If the buffer
+// is full the sink blocks until the buffer has space available.
 func WithSinkBufferSize(size int) Sink {
 	return func(o *SinkOptions) {
 		o.BufferSize = size
@@ -106,7 +107,8 @@ func WithSinkNoAck() Sink {
 }
 
 // WithSinkAckGracePeriod sets the grace period for acknowledging events.  The
-// default grace period is 20 seconds.
+// default grace period is 20 seconds. The duration must be positive; NewSink
+// rejects zero and negative durations before accessing Redis.
 // Note: all sinks with identical names must have the same ack grace period.
 func WithSinkAckGracePeriod(d time.Duration) Sink {
 	return func(o *SinkOptions) {

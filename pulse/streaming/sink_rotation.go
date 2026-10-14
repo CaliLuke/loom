@@ -23,7 +23,7 @@ func (s *Sink) ensureConsumer(ctx context.Context) error {
 	if err := s.reconcileRegistrations(ctx, false); err != nil {
 		return err
 	}
-	if time.Since(time.Unix(0, s.lastKeepAlive)) > 2*s.ackGracePeriod {
+	if consumerKeepAliveExpired(time.Since(time.Unix(0, s.lastKeepAlive)), s.ackGracePeriod) {
 		s.logger.Debug("consumer stale, creating new one")
 		consumer, err := s.newConsumer(ctx)
 		if err != nil {

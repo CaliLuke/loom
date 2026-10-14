@@ -21,6 +21,13 @@ type sinkClaimStream struct {
 	consumer string
 }
 
+// consumerKeepAliveExpired reports whether elapsed exceeds two admitted positive
+// grace periods without overflowing their sum. Equality and future timestamps
+// remain live, matching the existing strict stale threshold.
+func consumerKeepAliveExpired(elapsed, grace time.Duration) bool {
+	return elapsed > grace && elapsed-grace > grace
+}
+
 // deleteStreamStaleConsumers deletes stale consumers for a specific stream.
 // Consumers that still own pending entries are kept because deleting a Redis
 // consumer drops its pending entries; the idle message check claims them first,
@@ -57,7 +64,7 @@ func (s *Sink) deleteStreamStaleConsumers(ctx context.Context, stream *Stream) e
 			continue
 		}
 
-		if time.Since(time.Unix(0, keepAliveTs)) > 2*s.ackGracePeriod {
+		if consumerKeepAliveExpired(time.Since(time.Unix(0, keepAliveTs)), s.ackGracePeriod) {
 			deleted, err := s.deleteIdleConsumer(ctx, stream.key, consumer.Name)
 			if err != nil {
 				s.logger.Error(fmt.Errorf("failed to delete stale consumer: %w", err), "consumer", consumer.Name)

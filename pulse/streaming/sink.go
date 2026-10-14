@@ -161,6 +161,12 @@ type (
 //nolint:maintidx // Sink setup validates options and initializes Redis-backed state together.
 func newSink(ctx context.Context, name string, stream *Stream, runtime sinkRuntime, opts ...options.Sink) (*Sink, error) {
 	o := options.ParseSinkOptions(opts...)
+	if err := validateConsumerBufferSize(o.BufferSize); err != nil {
+		return nil, err
+	}
+	if o.AckGracePeriod <= 0 {
+		return nil, fmt.Errorf("sink ack grace period must be > 0, got %s", o.AckGracePeriod)
+	}
 	var eventMatcher eventFilterFunc
 	if o.Topic != "" {
 		eventMatcher = func(e *Event) bool { return e.Topic == o.Topic }

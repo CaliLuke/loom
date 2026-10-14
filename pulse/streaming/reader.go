@@ -116,6 +116,9 @@ type (
 // newReader creates a new reader.
 func newReader(ctx context.Context, stream *Stream, opts ...options.Reader) (*Reader, error) {
 	o := options.ParseReaderOptions(opts...)
+	if err := validateConsumerBufferSize(o.BufferSize); err != nil {
+		return nil, err
+	}
 	var eventFilter eventFilterFunc
 	if o.Topic != "" {
 		eventFilter = func(e *Event) bool { return e.Topic == o.Topic }
