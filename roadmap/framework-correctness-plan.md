@@ -4,9 +4,20 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 
 ## Current state
 
-- **208 of 224 tracked reports are delivered, pushed and confirmed closed.**
+- **212 of 224 tracked reports are delivered, pushed and confirmed closed.**
   The [inventory](framework-correctness-inventory.md) records each report;
-  `/tmp/loom-tracker-208-issues.json` is the frozen GitHub reconciliation input.
+  `/tmp/loom-tracker-212-issues.json` is the frozen GitHub reconciliation input.
+- Sink group recovery #765 (`883a19f84`) is reviewed, pushed and closed.
+  One active registration retains its start selector and pending recovery; read,
+  rotation and existing keepalive share locked reconciliation. Native Redis,
+  lifecycle/uncertain-reply controls and bounded models pass. Cleanup is complete.
+- Route fixtures #902 (`8375ce604`) and header expectations #903 (`19cf194ad`)
+  are reviewed, pushed and closed. Naming intent and runtime assertions survive;
+  production contracts are unchanged. Generated module and artifact checks pass.
+- Logr normalization #747 (`92e232503`) is reviewed, pushed and closed.
+  One adapter owner replaces three unguarded pair loops. All public entry paths
+  preserve ordered fields and tolerate missing values; full log races and lint
+  pass, with independent exact review and adapter races.
 - Protobuf service symbols #736 (`2de11550d`) is reviewed, pushed and closed.
   One pinned-plugin declaration inventory reserves inferred message names and
   rejects explicit collisions. Actual plugin inventories, eleven compiled modules
@@ -197,35 +208,37 @@ reconciliation with the inventory before they can establish remaining work.
 
 ## Current execution queue
 
-1. **Sink group recovery (#765):** diagnostic implements in
-   `grpc-message-context`. Readiness independently confirms three runtime failures
-   and the bounded recovery model. One current registration retains its authored
-   start selector; a shared locked reconciler serves read, rotation and keepalive.
-   Restore membership before absent-group creation, retain failed obligations,
-   back off interruptibly and never revive removed registrations or reset existing
-   cursors. Deleted events and pending entries cannot be recovered.
-2. **Request media fidelity (#787):** root implements the accepted contract:
-   the built-in request decoder accepts valid `+json` media types everywhere.
-   One authored endpoint request-media identity feeds importer, typed client
-   publication and OpenAPI. Missing optional bodies stay absent; unknown media
-   and invalid JSON still fail. Application-specific patch behavior remains in
-   the service. Proposal: `/tmp/loom-787-policy-proposal.md`; user accepted it.
-3. **Route fixture adoption (#902):** projection implements in
-   `interceptor-accessor-union` after completed #736 cleanup. Preserve corrected
-   route admission and fixture naming intent; update invalid physical paths,
-   expected rejection diagnostics and the owning static mount golden.
-4. **Header expectation adoption (#903):** omission implements in
-   `numeric-comparison` after #760 preservation/cleanup. Update the two owning
-   error goldens and collision assertions; preserve paired declaration/use and
-   generated build/vet checks. No production formatter change.
-   Both fixture families reproduce on current main. CI run `38484604131` passed
-   Redis, generated-code quality, OpenAPI, value-contract and three compile
-   partitions, but required CI overall is not green. Evidence remains in
-   `/tmp/loom-ci-206-{ci,http,expr}.log` and
-   `/tmp/loom-ci-206-current-probes.log`. The #820 dependency race and retry worker
-   timeout remain separate. Do not increase timeouts without a proven cause or
-   expand these fixture repairs into a full corpus audit.
-5. **Other distinct owners:** required mapping coverage #780, custom-key example
+1. **Request media fidelity (#787):** omission implements in
+   `numeric-comparison` after #903 cleanup. The user accepted valid `+json` media
+   types in the built-in request decoder everywhere. One endpoint request-media
+   identity feeds importer, typed client publication and OpenAPI, preserving
+   supplied-body semantics and custom-codec boundaries. Proposals/plans:
+   `/tmp/loom-787-policy-proposal.md`, `/tmp/loom-787-implementation-plan.md`.
+2. **Imported field names (#789):** projection implements in
+   `interceptor-accessor-union` after #902 cleanup. Shared object-local physical
+   field allocation must preserve JSON keys and inherited field identities;
+   composed allOf and ordinary/suffix controls accompany the original witness.
+3. **Required reconstruction coverage (#780):** diagnostic implements the approved shared
+   expression coverage owner in `grpc-message-context`. Current admission accepts omitted required fields,
+   including a defaulted field that is never reconstructed. Establish coverage
+   through effective bodies and existing wire/ID/Tag owners, preserving views,
+   raw streams and real defaults; do not add per-transport compensating checks.
+4. **Filtered sink disposition (#768):** current subscribed and reclaimed probes
+   retain rejected pending entries. A differing-filter handoff control exposed the policy choice. The
+   user accepted one enforced effective filter per named group: conflicting joins
+   fail, independent subscriptions use distinct groups, and rejected events are
+   terminally acknowledged. Existing groups require coordinated migration. After
+   #780, model the current failure and the typed membership record before
+   implementation; membership and filter admission share one owner. Proposal:
+   `/tmp/loom-768-readiness/filter-contract-proposal.md`.
+   Root next owns #769: consolidate exact-file and wildcard file targets through
+   the existing static handler, preserving range/conditional/MIME behavior and
+   deleting the obsolete generated filesystem adapter.
+   Latest required run `38492168161` at `8375ce604` is queued. Earlier CI failures
+   motivated now-delivered #902/#903; no overall green claim. The #820 dependency
+   race and retry-worker timeout remain distinct, with no unsupported timeout
+   increase or full-corpus sweep added.
+5. **Other distinct owners:** custom-key example
    synthesis #884 and pool subordinate shutdown #687 remain open alongside the
    inventory's other reports. Reconcile original witnesses before assigning their
    owner; do not infer resolution from related deliveries.
@@ -238,6 +251,13 @@ reconciliation with the inventory before they can establish remaining work.
 
 Latest independent delivery records:
 
+- #765: `/tmp/loom-765-independent-final-verdict.json` and integration verdict;
+  preservation/cleanup: `/tmp/loom-765-cleanup-receipt.json`.
+- #902/#903: `/tmp/loom-902-independent-final-verdict.json` and
+  `/tmp/loom-903-independent-final-verdict.json`; exact unchanged integrations
+  recorded in their `integration-sources.json` manifests.
+- #747: `/tmp/loom-747-independent-final-verdict.json`; exact root manifest
+  `/tmp/loom-747-final-manifest.json`, full log race and independent adapter race.
 - #736: `/tmp/loom-736-independent-final-verdict.json` and
   `/tmp/loom-736-independent-integration-verdict.json`; cleanup receipt
   `/tmp/loom-736-cleanup-receipt.json`.
