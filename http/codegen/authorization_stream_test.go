@@ -65,6 +65,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	feed "example.com/accessstream/gen/feed"
 	feedsvr "example.com/accessstream/gen/http/feed/server"
@@ -77,6 +78,7 @@ import (
 
 type service struct {
 	calls atomic.Int32
+	socketReturn <-chan struct{}
 }
 
 func (s *service) Watch(ctx context.Context, p *feed.Ref, stream feed.WatchServerStream) error {
@@ -91,7 +93,11 @@ func (s *service) Socket(ctx context.Context, p *feed.Ref, stream feed.SocketSer
 	if p.ID == "lazy" {
 		return nil
 	}
-	return stream.Send(&feed.Event{Data: p.ID})
+	if err := stream.Send(&feed.Event{Data: p.ID}); err != nil {
+		return err
+	}
+	<-s.socketReturn
+	return nil
 }
 
 type access struct {
@@ -111,7 +117,12 @@ func TestStreamAdmission(t *testing.T) {
 		events = append(events, event)
 		mu.Unlock()
 	}))
-	s := &service{}
+	socketReturn := make(chan struct{})
+	releaseSocket := sync.OnceFunc(func() {
+		close(socketReturn)
+	})
+	defer releaseSocket()
+	s := &service{socketReturn: socketReturn}
 	e := feed.NewEndpoints(s, &access{})
 	mux := loomhttp.NewMuxer()
 	server := feedsvr.New(e, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil, &websocket.Upgrader{}, nil)
@@ -130,7 +141,9 @@ func TestStreamAdmission(t *testing.T) {
 	require.Contains(t, res.Body.String(), "allowed")
 	require.Equal(t, int32(1), s.calls.Load())
 	s.calls.Store(0)
+	socketHandlerDone := make(chan struct{})
 	live := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer close(socketHandlerDone)
 		mux.ServeHTTP(w, r.WithContext(ctx))
 	}))
 	defer live.Close()
@@ -144,19 +157,33 @@ func TestStreamAdmission(t *testing.T) {
 	defer func() {
 		require.NoError(t, conn.Close())
 	}()
+	require.NoError(t, conn.SetReadDeadline(time.Now().Add(5*time.Second)))
 	_, message, err := conn.ReadMessage()
 	require.NoError(t, err)
 	require.Contains(t, string(message), "allowed")
-	// Closing the httptest server waits for its handler before examining state.
+	// A received frame and server Close do not join a hijacked WebSocket handler.
 	live.Close()
+	select {
+	case <-socketHandlerDone:
+		t.Fatal("handler returned before the service-return barrier was released")
+	default:
+	}
+	releaseSocket()
+	select {
+	case <-socketHandlerDone:
+	case <-time.After(5*time.Second):
+		t.Fatal("WebSocket handler did not finish after service return")
+	}
 	require.Equal(t, int32(1), s.calls.Load())
 	// Unopened service streams do not invent successful negotiation events.
 	for _, path := range []string{"/watch", "/socket"} {
 		mux.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest("GET", path+"?id=lazy", nil).WithContext(ctx))
 	}
 	mu.Lock()
+	observed := append([]observation.Event(nil), events...)
+	mu.Unlock()
 	counts := make(map[string]int)
-	for _, event := range events {
+	for _, event := range observed {
 		if event.Kind == observation.EventKindStreamOpen || event.Kind == observation.EventKindStreamClose {
 			require.Equal(t, "feed", event.Service)
 			require.Equal(t, http.MethodGet, event.HTTPMethod)
@@ -165,7 +192,6 @@ func TestStreamAdmission(t *testing.T) {
 		}
 	}
 	require.Equal(t, map[string]int{"watch": 2, "socket": 2}, counts)
-	mu.Unlock()
 	s.calls.Store(0)
 	for _, req := range []any{nil, (*feed.WatchEndpointInput)(nil), &feed.WatchEndpointInput{}} {
 		_, err := e.Watch(context.Background(), req)
