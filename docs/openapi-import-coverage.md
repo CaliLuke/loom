@@ -50,6 +50,15 @@ collide, including collisions with existing numbered names. These allocations
 retain original schema references and wire names. Re-import and regenerate a
 design affected by duplicate declarations or mapped fields in these locations.
 
+Object properties also receive distinct Go field names when keys such as `@type`
+and `type`, or `foo-bar` and `fooBar`, normalize to the same identifier. The
+imported DSL records these names with `struct:field:name`; JSON keys remain
+unchanged. Allocation includes occupied numeric suffixes, inherited properties,
+and reserved error methods. A derived error's override stays on that declaration
+so other uses of the base keep their field names and constraints. Re-import and
+regenerate affected designs, then use the generated Go selectors in service code.
+This does not assign protobuf tags or change protobuf field-name admission.
+
 The following table summarizes fixed fields on objects that the importer
 reads. Specification extensions are patterns, not fixed fields.
 

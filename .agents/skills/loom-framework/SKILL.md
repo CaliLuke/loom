@@ -80,6 +80,13 @@ consumer validation.
   existing key conversion and independent bound/event normalization; never mutate
   caller slices or move malformed-argument policy into output formatters.
 
+- OpenAPI import assigns physical Go fields through one object-local plan in
+  `objectFields`. Reserve natural and inherited names before allocating with
+  NameScope; error methods participate in the same inventory. Keep JSON property
+  identity and property order, and emit derived-only metadata overrides without
+  mutating shared bases or adding new schema-reference initialization edges.
+  The existing protobuf namespace remains independent.
+
 - Sink active registrations own each stream's authored group-start selector and
   unfinished recovery. Read, rotation and existing keepalive paths use one locked
   reconciler: publish membership before absent-group creation, never reset a live

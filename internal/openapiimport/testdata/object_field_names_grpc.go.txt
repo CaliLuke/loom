@@ -1,0 +1,18 @@
+
+// A consuming design selects two imported properties and assigns protobuf tags.
+// Reference retains the importer's physical Go field identities; protobuf keeps
+// its own wire namespace and does not inherit struct:field:name metadata.
+var ProtoFields = Type("ProtoFields", func() {
+	Reference(ImportedFields)
+	Field(1, "type")
+	Field(2, "type2")
+})
+
+var _ = Service("ProtoFields", func() {
+	Method("Echo", func() {
+		Payload(ProtoFields)
+		Result(ProtoFields)
+		GRPC(func() {
+		})
+	})
+})

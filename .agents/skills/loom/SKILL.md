@@ -403,6 +403,11 @@ Loom `Bytes` keeps its existing decoded-byte contract.
 Local component references accept equivalent percent-encoded URI spellings, such
 as `#/components/schemas/%49temName` for `ItemName`. Regeneration emits canonical
 references; component keys must still obey OpenAPI's naming rules.
+Imported object keys that normalize to the same Go field name receive distinct
+`struct:field:name` metadata. JSON keys stay unchanged, including nested and
+inherited objects and error bodies. Re-import and regenerate, then use the emitted
+Go selectors; no manual property renaming is needed. Protobuf tags and its field
+namespace remain separate consuming-design choices.
 Cookie parameters require primitive schemas. Array and object cookies are
 blocked before rendering, including schemas reached through references.
 Parameter reference description overrides in OpenAPI 3.1 and 3.2 survive

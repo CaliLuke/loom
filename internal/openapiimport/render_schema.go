@@ -270,22 +270,8 @@ func (r *renderer) schemaBlock(schema *Schema, path string, errorType bool, desc
 		}
 		r.line("Extend(%s)", expression)
 	}
-	fieldOverrides := map[int]string(nil)
-	if errorType {
-		fields := make([]string, len(schema.Properties))
-		for index, property := range schema.Properties {
-			fields[index] = property.Name
-		}
-		fieldOverrides = errorTypeFieldOverrides(fields)
-	}
-	for index, property := range schema.Properties {
-		var metadata []renderedMetadata
-		if field := fieldOverrides[index]; field != "" {
-			metadata = append(metadata, renderedMetadata{name: "struct:field:name", value: field})
-		}
-		if err := r.attribute(property.Name, property.Schema, nil, path+"/properties/"+escapeJSONPointer(property.Name), metadata...); err != nil {
-			return err
-		}
+	if err := r.objectFieldAttributes(schema, path, errorType); err != nil {
+		return err
 	}
 	if len(schema.Required) > 0 {
 		properties := make(map[string]struct{}, len(schema.Properties))

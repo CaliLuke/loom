@@ -1,0 +1,85 @@
+package imported_test
+
+import (
+	"context"
+	"encoding/json/v2"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	svc "example.com/imported/gen/field_names"
+	pb "example.com/imported/gen/grpc/proto_fields/pb"
+	grpcserver "example.com/imported/gen/grpc/proto_fields/server"
+	server "example.com/imported/gen/http/field_names/server"
+	loomhttp "github.com/CaliLuke/loom/http"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
+)
+
+func TestImportedFieldIdentityWire(t *testing.T) {
+	const value = `{"@type":"at","type":"plain","type2":"suffix","foo-bar":"dash","fooBar":"camel","user_id":"underscore","userId":"camel-user","nested":{"@id":"at-id","id":"plain-id"},"base":{"type":"base","error":2},"derived":{"@type":"derived-at","type":"derived-base","type2":"derived-suffix","error":3}}`
+	const failure = `{"@type":"failure-at","type":"failure-base","error":4,"errorField":5,"errorField2":6,"loomErrorName":"ordinary","@loomErrorName":"at-error"}`
+	for _, tc := range []struct {
+		name, path, body, response string
+		status, calls              int
+	}{
+		{"named and inherited", "/value", value, value, http.StatusOK, 1},
+		{"inline", "/inline", `{"@id":"at","id":"plain"}`, `{"@id":"at","id":"plain"}`, http.StatusOK, 1},
+		{"error methods", "/value", value, failure, http.StatusBadRequest, 1},
+		{"inherited required", "/value", `{"derived":{"type":"x"}}`, "", http.StatusBadRequest, 0},
+		{"inherited minimum", "/value", `{"derived":{"error":0}}`, "", http.StatusBadRequest, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			calls := 0
+			endpoints := &svc.Endpoints{
+				Value: func(_ context.Context, raw any) (any, error) {
+					calls++
+					if tc.name == "error methods" {
+						var err svc.Failure
+						require.NoError(t, json.Unmarshal([]byte(failure), &err))
+						require.Equal(t, 4, err.ErrorField3)
+						return nil, &err
+					}
+					return raw.(*svc.ValuePayload).Body, nil
+				},
+				Inline: func(_ context.Context, raw any) (any, error) {
+					calls++
+					body := raw.(*svc.InlinePayload).Body
+					return &svc.InlineResult{ID: body.ID, ID2: body.ID2}, nil
+				},
+			}
+			mux := loomhttp.NewMuxer()
+			server.Mount(mux, server.New(endpoints, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil))
+			request := httptest.NewRequest(http.MethodPost, tc.path, strings.NewReader(tc.body))
+			request.Header.Set("Content-Type", "application/json")
+			recorder := httptest.NewRecorder()
+			mux.ServeHTTP(recorder, request)
+			require.Equal(t, tc.status, recorder.Code, recorder.Body.String())
+			require.Equal(t, tc.calls, calls)
+			if tc.response != "" {
+				var want, got map[string]any
+				require.NoError(t, json.Unmarshal([]byte(tc.response), &want))
+				require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &got))
+				require.Equal(t, want, got)
+			} else {
+				require.Contains(t, recorder.Body.String(), "error")
+			}
+		})
+	}
+}
+
+func TestImportedFieldIdentityProtobuf(t *testing.T) {
+	plain, suffix := "plain", "suffix"
+	original := &pb.EchoRequest{Type: &plain, Type2: &suffix}
+	wire, err := proto.Marshal(original)
+	require.NoError(t, err)
+	var request pb.EchoRequest
+	require.NoError(t, proto.Unmarshal(wire, &request))
+	payload := grpcserver.NewEchoPayload(&request)
+	require.Equal(t, &plain, payload.Type3)
+	require.Equal(t, &suffix, payload.Type2)
+	response := grpcserver.NewProtoEchoResponse(payload)
+	require.Equal(t, original.Type, response.Type)
+	require.Equal(t, original.Type2, response.Type2)
+}

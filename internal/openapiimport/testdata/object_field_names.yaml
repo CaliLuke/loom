@@ -1,0 +1,85 @@
+openapi: 3.1.1
+info: {title: Field Names, version: '1'}
+paths:
+  /value:
+    post:
+      operationId: value
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Fields'}
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Fields'}
+        '400':
+          description: bad
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Failure'}
+  /inline:
+    post:
+      operationId: inline
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                '@id': {type: string}
+                id: {type: string}
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  '@id': {type: string}
+                  id: {type: string}
+components:
+  schemas:
+    Base:
+      type: object
+      properties:
+        type: {type: string}
+        error: {type: integer, minimum: 1}
+      required: [error]
+    Derived:
+      allOf:
+        - {$ref: '#/components/schemas/Base'}
+        - type: object
+          properties:
+            '@type': {type: string}
+            type2: {type: string}
+    Failure:
+      allOf:
+        - {$ref: '#/components/schemas/Base'}
+        - type: object
+          properties:
+            '@type': {type: string}
+            errorField: {type: integer}
+            errorField2: {type: integer}
+            loomErrorName: {type: string}
+            '@loomErrorName': {type: string}
+    Fields:
+      type: object
+      properties:
+        '@type': {type: string}
+        type: {type: string}
+        type2: {type: string}
+        foo-bar: {type: string}
+        fooBar: {type: string}
+        user_id: {type: string}
+        userId: {type: string}
+        nested:
+          type: object
+          properties:
+            '@id': {type: string}
+            id: {type: string}
+        base: {$ref: '#/components/schemas/Base'}
+        derived: {$ref: '#/components/schemas/Derived'}
