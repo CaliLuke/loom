@@ -369,3 +369,7 @@ func (s *TockClientStream) Close() error {
 	s.markClosed()
 	return s.reader.Close()
 }
+
+var _ clock.TickClientStream = (*TickClientStream)(nil)
+
+var _ clock.TockClientStream = (*TockClientStream)(nil)

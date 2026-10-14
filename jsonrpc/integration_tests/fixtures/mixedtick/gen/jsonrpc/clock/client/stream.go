@@ -195,3 +195,5 @@ func (s *TickClientStream) Close() error {
 	s.markClosed()
 	return s.reader.Close()
 }
+
+var _ clock.TickClientStream = (*TickClientStream)(nil)
