@@ -24,16 +24,6 @@ func testcase() {
 	return body, nil
 }
 
-// case: header-value
-func testcase() {
-	return location, nil
-}
-
-// case: cookie-value
-func testcase() {
-	return session, nil
-}
-
 // case: empty
 func testcase() {
 	return nil, nil

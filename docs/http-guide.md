@@ -575,8 +575,9 @@ Scalar headers retain their complete wire text. Quoting does not escape commas
 in a schema-based collection: use a scalar for a field with its own quoted grammar,
 such as an Accept value containing quoted parameters. `Set-Cookie` is not a
 comma-list header; array mappings to it are rejected. Use the cookie DSL for
-cookies. These HTTP rules also apply to JSON-RPC's HTTP metadata; gRPC metadata
-and trailers retain their separate transport contract.
+cookies. These rules also apply to JSON-RPC request metadata. JSON-RPC response values
+belong in `result` or `error.data`; response Header/Cookie mappings are rejected.
+gRPC metadata and trailers retain their separate transport contract.
 
 ### Raw Request and Response Bodies
 

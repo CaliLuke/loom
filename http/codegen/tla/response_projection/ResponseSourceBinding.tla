@@ -14,6 +14,7 @@ Init == /\ phase = "choose" /\ shape = "unset" /\ forwarding = FALSE
 Choose == /\ phase = "choose"
           /\ \E s \in Shapes, f \in BOOLEAN:
                /\ shape' = s /\ forwarding' = f
+               /\ (Repair = "uniform-bodies" => s # "metadata-only")
           /\ phase' = "bind"
           /\ UNCHANGED <<bound, consumed>>
 Bind == /\ phase = "bind"

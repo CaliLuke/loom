@@ -26,6 +26,30 @@ Loom provides first-class, type-safe support for JSON-RPC 2.0, enabling you to b
   - [Mixed Results](#mixed-results)
 - [Best Practices](#best-practices)
 
+## Response values
+
+Application response values belong in `result` or `error.data`. JSON-RPC
+`Response` declarations reject `Header` and `Cookie` mappings, including inherited
+error responses. A batch or stream can carry many independently identified
+responses through one physical HTTP connection, so HTTP metadata cannot represent
+an individual message's fields.
+
+Migrate response mappings by removing `Header`/`Cookie` and including those fields
+in the default body or an explicit `Body` selection. Regenerate clients and
+servers together. An explicit selection can carry both an error discriminator
+and its details:
+
+```go
+Body(func() {
+    Attribute("kind")
+    Attribute("details")
+})
+```
+
+Neither field depends on a response header. Request metadata and ordinary HTTP
+response mappings are unchanged. Framework view identity, CORS and HTTP headers
+set by middleware retain their existing owners.
+
 ## Quick Start
 
 Define a simple JSON-RPC calculator service:

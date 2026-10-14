@@ -1,3 +1,20 @@
+# Current JSON-RPC response admission (#905)
+
+The user accepted uniform application response bodies. `uniform-bodies.cfg` and
+`binding-uniform-bodies.cfg` retain the projection/source invariants while admitting
+no authored metadata mappings. The prepared endpoint validator rejects these
+mappings for every JSON-RPC carrier; generators no longer capture HTTP metadata or
+decode application fields from it. HTTP envelopes call the configured encoder
+once; notifications do not. Framework-owned view identity is unaffected.
+
+The configurations and descriptions below retain historical #853/#868/#886 evidence,
+including the old metadata-capture alternatives. They do not describe currently
+admitted metadata mappings. Run the current configurations with their respective
+ResponseProjection and ResponseSourceBinding modules using the toolchain below.
+They pass with 97 and 17 distinct states, respectively.
+Static DSL admission is checked by TestJSONRPCResponseCarrierAdmission; mounted
+body/typed-error tests cover actual codecs and physical carriers outside this model.
+
 # Response projection before protocol framing
 
 This #853 model describes the constructor-only fallback in JSON-RPC
@@ -39,15 +56,15 @@ The model treats bytes, names and nullable representations as correctly resolved
 by the pre-existing analysis; direct Go tests must establish that correspondence.
 
 `CurrentProjection` follows `writeJSONRPCResultSuccess`,
-`writeStreamResultBodyInit` and `writeServerWebSocketResponseBody`. Metadata
-capture already uses the correct HTTP response encoder. `Expected` is the
+`writeStreamResultBodyInit` and `writeServerWebSocketResponseBody`. The historical metadata
+capture used the correct HTTP response encoder. `Expected` is the
 complete shared response projection. Mixed SSE has a separate StreamingResult,
 so its event remains independent of unary selection. The model does not assert
 that an otherwise unsupported pure StreamingResult/Body DSL design is accepted.
 
 `calls` counts calls to the configured HTTP encoder, not JSON marshaler methods
-or WebSocket framing internals. Existing nonmetadata HTTP responses call it once
-and metadata captures twice; the shared plan preserves that boundary. WebSocket
+or WebSocket framing internals. In the historical design, nonmetadata HTTP responses called it once
+and metadata captures twice; the then-shared plan preserved that boundary. WebSocket
 and SSE do not use that configurable HTTP codec here. HTTP requests without IDs
 invoke no response encoder; outgoing stream notifications still carry their
 projected params. Request parsing, endpoint invocation and batch envelope joining
@@ -67,7 +84,7 @@ all constructor ServerArgs, or the canonical service/projected/selected value.
 HTTP response templates and WebSocket final sends consume that map. JSON-RPC
 `responseBodyInit` binds the canonical source before using the same expressions;
 `writeJSONRPCResultSuccess`, stream responses and outgoing notifications frame
-its result. Existing metadata capture still invokes the HTTP encoder. The SSE
+its result. The historical metadata capture invoked the HTTP encoder. The SSE
 body family uses the owning response plan; a separate mixed StreamingResult
 retains its event source. View construction and validation remain upstream.
 

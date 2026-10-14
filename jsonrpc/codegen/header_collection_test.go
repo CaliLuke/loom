@@ -10,7 +10,7 @@ import (
 	. "github.com/CaliLuke/loom/dsl"
 )
 
-func TestJSONRPCHeaderCollection(t *testing.T) {
+func TestJSONRPCResponseCollection(t *testing.T) {
 	root := RunJSONRPCDSL(t, jsonrpcHeaderCollectionDSL)
 	dir := t.TempDir()
 	if output := os.Getenv("LOOM_HEADER_OUTPUT"); output != "" {
@@ -53,8 +53,10 @@ func jsonrpcHeaderCollectionDSL() {
 			})
 			JSONRPC(func() {
 				Response(func() {
-					Header("tags:X-Tags")
-					Header("numbers:X-Numbers")
+					Body(func() {
+						Attribute("tags")
+						Attribute("numbers")
+					})
 				})
 			})
 		})

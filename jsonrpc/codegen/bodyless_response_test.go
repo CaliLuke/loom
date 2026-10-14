@@ -22,9 +22,9 @@ func TestJSONRPCBodylessResultBinding(t *testing.T) {
 	data := CreateJSONRPCServices(root).Get("bodyless")
 	for _, endpoint := range data.Endpoints {
 		t.Run(endpoint.Method.Name, func(t *testing.T) {
-			wantBody := endpoint.Method.Name == "value" || endpoint.Method.Name == "explicit" || endpoint.Method.Name == "selected"
+			wantBody := endpoint.Method.Name == "value" || endpoint.Method.Name == "explicit" || endpoint.Method.Name == "selected" || endpoint.Method.Name == "metadata"
 			require.Equal(t, wantBody, endpoint.Result.Responses[0].EncodePlan.HasBody)
-			wantResult := wantBody || endpoint.Method.Name == "metadata"
+			wantResult := wantBody
 			source := fmt.Sprintf("%#v", jen.BlockFunc(func(group *jen.Group) {
 				writeJSONRPCEndpointInvoke(group, endpoint)
 			}))
@@ -96,11 +96,10 @@ func bodylessResponseDSL() {
 			Result(func() {
 				Attribute("body", local)
 				Attribute("header", String)
-				Required("body", "header")
+				Required("body")
 			})
 			JSONRPC(func() {
 				Response(func() {
-					Header("header:X-Result")
 					Body("body")
 				})
 			})
@@ -113,8 +112,6 @@ func bodylessResponseDSL() {
 			})
 			JSONRPC(func() {
 				Response(func() {
-					Header("header:X-Result")
-					Cookie("cookie:result")
 				})
 			})
 		})

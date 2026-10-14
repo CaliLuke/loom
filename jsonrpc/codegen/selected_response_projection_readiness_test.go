@@ -56,10 +56,14 @@ func TestSelectedResponseProjectionReadiness(t *testing.T) {
 					})
 					JSONRPC(func() {
 						Response(StatusOK, func() {
-							Body("value")
 							if tc.name == "meta" {
-								Header("header:X-Selected")
-								Cookie("cookie:selection")
+								Body(func() {
+									Attribute("value")
+									Attribute("header")
+									Attribute("cookie")
+								})
+							} else {
+								Body("value")
 							}
 						})
 					})
@@ -192,14 +196,14 @@ func TestProjectionFramingAndCodecBoundary(t *testing.T) {
 		fail                        bool
 	}{
 		{"ordinary", "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"call\"}", "call", "\"hello\"", 1, 1, false},
-		{"metadata", "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"meta\"}", "meta", "\"hello\"", 2, 1, false},
+		{"metadata", "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"meta\"}", "meta", "{\"value\":\"hello\",\"header\":\"public-tag\",\"cookie\":\"public-cookie\"}", 1, 1, false},
 		{"empty list", "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"list\"}", "list", "[]", 1, 1, false},
 		{"object", "{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"record\"}", "record", "{\"text\":\"visible\"}", 1, 1, false},
 		{"notification", "{\"jsonrpc\":\"2.0\",\"method\":\"call\"}", "call", "", 0, 1, false},
 		{"metadata notification", "{\"jsonrpc\":\"2.0\",\"method\":\"meta\"}", "meta", "", 0, 1, false},
 		{"batch", "[{\"jsonrpc\":\"2.0\",\"id\":\"one\",\"method\":\"call\"},{\"jsonrpc\":\"2.0\",\"method\":\"call\"},{\"jsonrpc\":\"2.0\",\"id\":\"two\",\"method\":\"list\"}]", "batch", "", 2, 3, false},
 		{"encode failure", "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"call\"}", "call", "", 1, 1, true},
-		{"capture failure", "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"meta\"}", "meta", "", 1, 1, true},
+		{"object encode failure", "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"meta\"}", "meta", "", 1, 1, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			calls, invoked, failures := 0, 0, 0
@@ -225,11 +229,7 @@ func TestProjectionFramingAndCodecBoundary(t *testing.T) {
 				base := loomhttp.ResponseEncoder(ctx, w)
 				return loomhttp.EncodingFunc(func(v any) error {
 					calls++
-					if tc.method == "meta" && calls == 1 {
-						if text, ok := v.(string); !ok || text != "hello" {
-							t.Errorf("capture input=%#v", v)
-						}
-					} else if _, ok := v.(*loomrpc.Response); !ok {
+					if _, ok := v.(*loomrpc.Response); !ok {
 						t.Errorf("envelope input=%T", v)
 					}
 					if tc.fail {
@@ -286,7 +286,7 @@ func TestProjectionFramingAndCodecBoundary(t *testing.T) {
 			if string(got.Result) != tc.want {
 				t.Errorf("result=%s want=%s", got.Result, tc.want)
 			}
-			if tc.method == "meta" && (response.Header().Get("X-Selected") != "public-tag" || !strings.Contains(response.Header().Get("Set-Cookie"), "selection=public-cookie")) {
+			if response.Header().Get("X-Selected") != "" || len(response.Header().Values("Set-Cookie")) != 0 {
 				t.Errorf("metadata=%v", response.Header())
 			}
 		})

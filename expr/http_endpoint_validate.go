@@ -619,6 +619,7 @@ func (e *HTTPEndpointExpr) validateJSONRPCTransport(verr *eval.ValidationErrors)
 	if !e.IsJSONRPC() {
 		return
 	}
+	e.validateJSONRPCResponseCarriers(verr)
 	e.validateJSONRPCID(verr)
 	e.validateJSONRPCWebSocketCredentials(verr)
 	if e.MethodExpr.Stream == ServerStreamKind && e.SSE == nil &&
@@ -671,4 +672,21 @@ func (e *HTTPEndpointExpr) validateRoutes(verr *eval.ValidationErrors) {
 
 func hasRequiredBodyAttributes(att *AttributeExpr) bool {
 	return att != nil && len(att.AllRequired()) > 0
+}
+
+// validateJSONRPCResponseCarriers admits only per-message application values.
+// Inherited mappings have already been copied onto the prepared endpoint.
+func (e *HTTPEndpointExpr) validateJSONRPCResponseCarriers(verr *eval.ValidationErrors) {
+	responses := append([]*HTTPResponseExpr(nil), e.Responses...)
+	for _, failure := range e.HTTPErrors {
+		responses = append(responses, failure.Response)
+	}
+	for _, response := range responses {
+		if response.Headers != nil && !response.Headers.IsEmpty() {
+			verr.Add(response, "JSON-RPC response Header mappings are not supported; carry application values in result or error.data using Body")
+		}
+		if len(response.Cookies) > 0 {
+			verr.Add(response, "JSON-RPC response Cookie mappings are not supported; carry application values in result or error.data using Body")
+		}
+	}
 }

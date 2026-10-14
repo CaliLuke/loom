@@ -28,7 +28,7 @@ type (
 func TestOptionalFailureReporting(t *testing.T) {
 	for _, entry := range []string{"mounted", "direct"} {
 		for _, provided := range []bool{false, true} {
-			for _, mode := range []string{"decode-notification", "endpoint-notification", "decode-request", "endpoint-request", "result-encode", "empty-encode", "error-encode", "capture-encode", "capture-envelope-encode", "success"} {
+			for _, mode := range []string{"decode-notification", "endpoint-notification", "decode-request", "endpoint-request", "result-encode", "empty-encode", "error-encode", "object-encode", "success"} {
 				name := entry + "/nil/" + mode
 				if provided {
 					name = entry + "/provided/" + mode
@@ -40,16 +40,16 @@ func TestOptionalFailureReporting(t *testing.T) {
 					if mode == "empty-encode" {
 						method = "nothing"
 					}
-					if strings.HasPrefix(mode, "capture-") {
-						method = "captured"
+					if strings.HasPrefix(mode, "object-") {
+						method = "object"
 					}
 					endpoint := func(context.Context, any) (any, error) {
 						calls++
 						if strings.HasPrefix(mode, "endpoint-") || mode == "error-encode" {
 							return nil, cause
 						}
-						if method == "captured" {
-							return &probe.CapturedResult{Value: "ok", Header: "header"}, nil
+						if method == "object" {
+							return &probe.ObjectResult{Value: "ok", Header: "header"}, nil
 						}
 						if method == "nothing" {
 							return nil, nil
@@ -58,7 +58,7 @@ func TestOptionalFailureReporting(t *testing.T) {
 					}
 					encoder := func(ctx context.Context, w http.ResponseWriter) loomhttp.Encoder {
 						encodes++
-						if strings.HasSuffix(mode, "encode") && (mode != "capture-envelope-encode" || encodes == 2) {
+						if strings.HasSuffix(mode, "encode") {
 							return failureEncoder{err: cause}
 						}
 						return loomhttp.ResponseEncoder(ctx, w)
@@ -99,7 +99,7 @@ func TestOptionalFailureReporting(t *testing.T) {
 					mux := loomhttp.NewMuxer()
 					require.NotPanics(t, func() {
 						if entry == "mounted" {
-							endpoints := &probe.Endpoints{Call: endpoint, Nothing: endpoint, Captured: endpoint}
+							endpoints := &probe.Endpoints{Call: endpoint, Nothing: endpoint, Object: endpoint}
 							server.Mount(mux, server.New(endpoints, mux, loomhttp.RequestDecoder, encoder, handler))
 							mux.ServeHTTP(response, request)
 							return
@@ -112,8 +112,8 @@ func TestOptionalFailureReporting(t *testing.T) {
 							dispatch = server.NewCallHandler(endpoint, mux, loomhttp.RequestDecoder, encoder, handler)
 						case "nothing":
 							dispatch = server.NewNothingHandler(endpoint, mux, loomhttp.RequestDecoder, encoder, handler)
-						case "captured":
-							dispatch = server.NewCapturedHandler(endpoint, mux, loomhttp.RequestDecoder, encoder, handler)
+						case "object":
+							dispatch = server.NewObjectHandler(endpoint, mux, loomhttp.RequestDecoder, encoder, handler)
 						}
 						require.NoError(t, dispatch(request.Context(), request, &raw, response))
 					})

@@ -9,10 +9,11 @@ import (
 	"github.com/CaliLuke/loom/dsl"
 )
 
-func TestJSONRPCResponseMetadataPreservedInHandler(t *testing.T) {
+func TestJSONRPCResponseValuesUseBody(t *testing.T) {
 	root := RunJSONRPCDSL(t, func() {
 		dsl.API("jsonrpc-response-metadata-test", func() {
-			dsl.JSONRPC(func() {})
+			dsl.JSONRPC(func() {
+			})
 		})
 		dsl.Service("session", func() {
 			dsl.JSONRPC(func() {
@@ -30,10 +31,7 @@ func TestJSONRPCResponseMetadataPreservedInHandler(t *testing.T) {
 					dsl.Required("protocol_version", "session_id", "refresh")
 				})
 				dsl.JSONRPC(func() {
-					dsl.Response(func() {
-						dsl.Header("session_id:Mcp-Session-Id")
-						dsl.Cookie("refresh:ak-refresh")
-					})
+
 				})
 			})
 		})
@@ -53,17 +51,17 @@ func TestJSONRPCResponseMetadataPreservedInHandler(t *testing.T) {
 		}
 	}
 
-	require.Contains(t, serverCode, "type jsonrpcResponseCapture struct")
-	require.Contains(t, serverCode, "encodeResponse := EncodeInitializeResponse(encoder)")
-	require.Contains(t, serverCode, "copyJSONRPCResponseMetadata(w, capture)")
-	require.Contains(t, serverCode, `case "Content-Length", "Content-Type", "Transfer-Encoding":`)
-	require.Contains(t, serverCode, `result = jsontext.Value(capture.body.Bytes())`)
+	require.NotContains(t, serverCode, "jsonrpcResponseCapture")
+	require.NotContains(t, serverCode, "copyJSONRPCResponseMetadata")
+	require.Contains(t, serverCode, "NewInitializeResponseBody")
+	require.Contains(t, serverCode, "MakeSuccessResponse")
 }
 
 func TestJSONRPCNotificationHandlerDoesNotBindUnusedResult(t *testing.T) {
 	root := RunJSONRPCDSL(t, func() {
 		dsl.API("jsonrpc-notification-test", func() {
-			dsl.JSONRPC(func() {})
+			dsl.JSONRPC(func() {
+			})
 		})
 		dsl.Service("events", func() {
 			dsl.JSONRPC(func() {
@@ -74,7 +72,8 @@ func TestJSONRPCNotificationHandlerDoesNotBindUnusedResult(t *testing.T) {
 					dsl.Attribute("message", dsl.String)
 					dsl.Required("message")
 				})
-				dsl.JSONRPC(func() {})
+				dsl.JSONRPC(func() {
+				})
 			})
 		})
 	})

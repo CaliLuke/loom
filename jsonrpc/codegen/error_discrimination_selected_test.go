@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	client "example.com/selectederrors/gen/jsonrpc/tools/client"
+	server "example.com/selectederrors/gen/jsonrpc/tools/server"
 	tools "example.com/selectederrors/gen/tools"
 	loomhttp "github.com/CaliLuke/loom/http"
 	"github.com/CaliLuke/loom/jsonrpc"
@@ -44,8 +45,7 @@ func TestSelectedObjectError(t *testing.T) {
 			code = 4404
 		}
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("X-Error-Kind", name)
-		response := jsonrpc.MakeErrorResponse(request.ID, jsonrpc.Code(code), "safe", map[string]string{"kind": "ordinary"})
+		response := jsonrpc.MakeErrorResponse(request.ID, jsonrpc.Code(code), "safe", map[string]any{"kind": name, "details": map[string]string{"kind": "ordinary"}})
 		if err := loomhttp.ResponseEncoder(r.Context(), w).Encode(response); err != nil {
 			t.Error(err)
 		}
@@ -56,7 +56,26 @@ func TestSelectedObjectError(t *testing.T) {
 		_, err := c.Call()(context.Background(), name)
 		var typed *tools.Failure
 		if !errors.As(err, &typed) || typed.Kind != name || typed.Details == nil || typed.Details.Kind != "ordinary" {
-			t.Errorf("selected object must not borrow outer ErrorName provenance: %T %v", err, err)
+			t.Errorf("selected body must preserve explicit ErrorName and details: %T %v", err, err)
+		}
+	}
+}
+
+// TestMountedSelectedObjectError checks body migration against the generated peer.
+func TestMountedSelectedObjectError(t *testing.T) {
+	mux := loomhttp.NewMuxer()
+	endpoints := &tools.Endpoints{Call: func(_ context.Context, v any) (any, error) {
+		return nil, &tools.Failure{Kind: v.(string), Details: &tools.Details{Kind: "ordinary"}}
+	}}
+	server.New(endpoints, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil).Mount(mux)
+	host := httptest.NewServer(mux)
+	defer host.Close()
+	c := client.NewClient("http", strings.TrimPrefix(host.URL, "http://"), host.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
+	for _, name := range []string{"forbidden", "denied"} {
+		_, err := c.Call()(context.Background(), name)
+		var typed *tools.Failure
+		if !errors.As(err, &typed) || typed.Kind != name || typed.Details == nil || typed.Details.Kind != "ordinary" {
+			t.Errorf("mounted body error: %T %v", err, err)
 		}
 	}
 }
@@ -135,8 +154,10 @@ func TestJSONRPCSelectedErrorDiscriminator(t *testing.T) {
 								dsl.Response(name, code, func() {
 									switch selected {
 									case "other object":
-										dsl.Header("kind:X-Error-Kind")
-										dsl.Body("details")
+										dsl.Body(func() {
+											dsl.Attribute("kind")
+											dsl.Attribute("details")
+										})
 									case "root":
 										dsl.Body("kind")
 									default:

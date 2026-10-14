@@ -2,6 +2,7 @@ package rpcheaders_test
 
 import (
 	"context"
+	"encoding/json/v2"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -17,7 +18,7 @@ import (
 	loomhttp "github.com/CaliLuke/loom/http"
 )
 
-func TestHeaderMetadataRoundTrip(t *testing.T) {
+func TestResponseCollectionsRoundTrip(t *testing.T) {
 	for _, value := range []*svc.MetadataResult{
 		{Tags: []string{"a", "b"}, Numbers: []int{1, 2}},
 		{Tags: []string{}, Numbers: []int{}},
@@ -38,32 +39,66 @@ func TestHeaderMetadataRoundTrip(t *testing.T) {
 	}
 }
 
-func TestHeaderMetadataIndependentPeer(t *testing.T) {
+func TestResponseCollectionsIndependentPeer(t *testing.T) {
 	for _, tc := range []struct {
 		name    string
 		tags    []string
-		numbers []string
+		numbers []int
 		want    *svc.MetadataResult
 	}{
-		{"repeated-combined", []string{"a", "b, c"}, []string{"1", "2,3"}, &svc.MetadataResult{Tags: []string{"a", "b", "c"}, Numbers: []int{1, 2, 3}}},
+		{"body-collections", []string{"a", "b, c"}, []int{1, 2, 3}, &svc.MetadataResult{Tags: []string{"a", "b, c"}, Numbers: []int{1, 2, 3}}},
 		{"absent-defaults", nil, nil, &svc.MetadataResult{Tags: []string{"fallback"}, Numbers: []int{7}}},
-		{"present-empty", []string{""}, []string{""}, &svc.MetadataResult{Tags: []string{}, Numbers: []int{}}},
+		{"present-empty", []string{}, []int{}, &svc.MetadataResult{Tags: []string{}, Numbers: []int{}}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			body := make(map[string]any)
+			if tc.tags != nil {
+				body["tags"] = tc.tags
+			}
+			if tc.numbers != nil {
+				body["numbers"] = tc.numbers
+			}
+			encoded, err := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": "request", "result": body})
+			require.NoError(t, err)
 			response := &http.Response{
 				StatusCode: http.StatusOK,
 				Header:     make(http.Header),
-				Body:       io.NopCloser(strings.NewReader(`{"jsonrpc":"2.0","id":"request","result":null}`)),
-			}
-			for _, value := range tc.tags {
-				response.Header.Add("X-Tags", value)
-			}
-			for _, value := range tc.numbers {
-				response.Header.Add("X-Numbers", value)
+				Body:       io.NopCloser(strings.NewReader(string(encoded))),
 			}
 			res, err := client.DecodeMetadataResponse(loomhttp.ResponseDecoder, false)(response)
 			require.NoError(t, err)
 			require.Equal(t, tc.want, res)
 		})
+	}
+}
+
+// TestBatchResponseCollections preserves per-envelope values and physical middleware metadata.
+func TestBatchResponseCollections(t *testing.T) {
+	mux := loomhttp.NewMuxer()
+	calls := 0
+	endpoints := &svc.Endpoints{Metadata: func(context.Context, any) (any, error) {
+		calls++
+		return &svc.MetadataResult{Tags: []string{"a,b", ""}, Numbers: []int{calls}}, nil
+	}}
+	server.New(endpoints, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil).Mount(mux)
+	request := httptest.NewRequest(http.MethodPost, "/rpc", strings.NewReader(`[{"jsonrpc":"2.0","id":"one","method":"metadata"},{"jsonrpc":"2.0","id":"two","method":"metadata"}]`))
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	response.Header().Set("X-Middleware", "retained")
+	http.SetCookie(response, &http.Cookie{Name: "middleware", Value: "retained"})
+	mux.ServeHTTP(response, request)
+	require.Equal(t, 2, calls)
+	require.Equal(t, "retained", response.Header().Get("X-Middleware"))
+	require.Contains(t, response.Header().Get("Set-Cookie"), "middleware=retained")
+	var envelopes []struct {
+		ID     string             `json:"id"`
+		Result svc.MetadataResult `json:"result"`
+	}
+	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &envelopes))
+	require.Len(t, envelopes, 2)
+	for i, id := range []string{"one", "two"} {
+		require.Equal(t, id, envelopes[i].ID)
+		require.Equal(t, []string{"a,b", ""}, envelopes[i].Result.Tags)
+		require.Equal(t, []int{i + 1}, envelopes[i].Result.Numbers)
 	}
 }

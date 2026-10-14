@@ -48,9 +48,9 @@ func TestNamedMetadataRoundTrip(t *testing.T) {
 }
 `
 
-// TestJSONRPCHeaderCollectionPhysicalTypes checks the shared response encoder's
+// TestJSONRPCResponseCollectionPhysicalTypes checks the body response encoder's
 // named string and numeric element carriers through actual JSON-RPC generation.
-func TestJSONRPCHeaderCollectionPhysicalTypes(t *testing.T) {
+func TestJSONRPCResponseCollectionPhysicalTypes(t *testing.T) {
 	root := RunJSONRPCDSL(t, func() {
 		API("headers", func() {
 			JSONRPC(func() {
@@ -73,8 +73,10 @@ func TestJSONRPCHeaderCollectionPhysicalTypes(t *testing.T) {
 				})
 				JSONRPC(func() {
 					Response(func() {
-						Header("tags:X-Tags")
-						Header("numbers:X-Numbers")
+						Body(func() {
+							Attribute("tags")
+							Attribute("numbers")
+						})
 					})
 				})
 			})

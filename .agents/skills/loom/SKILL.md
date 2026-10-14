@@ -713,6 +713,12 @@ callback call the generated gRPC client and return a
 Client-streaming and bidirectional completion contracts are reported as
 unsupported generation diagnostics.
 
+JSON-RPC response fields belong in `result` or `error.data`. Response Header/Cookie
+mappings, including inherited errors, are rejected across HTTP, batches, SSE and
+WebSocket. Remove those mappings and include the fields in the default or selected
+Body, then regenerate clients and servers together. Ordinary HTTP responses,
+JSON-RPC request metadata and framework-owned HTTP/view metadata are unchanged.
+
 Request `ID()` fields bind only to the JSON-RPC envelope and are excluded from
 params. Regenerate clients and servers together after this change. Required IDs
 reject absence before defaults; optional defaults affect service data without

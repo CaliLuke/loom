@@ -61,7 +61,7 @@ func optionalFailureReportingDSL(mixed bool) func() {
 				JSONRPC(func() {
 				})
 			})
-			Method("captured", func() {
+			Method("object", func() {
 				Result(func() {
 					Attribute("value", String)
 					Attribute("header", String)
@@ -69,7 +69,6 @@ func optionalFailureReportingDSL(mixed bool) func() {
 				})
 				JSONRPC(func() {
 					Response(func() {
-						Header("header:X-Result")
 					})
 				})
 			})

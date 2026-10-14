@@ -182,7 +182,7 @@ consumer validation.
 
 - HTTP codegen's typed transport formatter consumes both normalized wire types
   and actual field carriers. Request and response header lists share element
-  conversion before the standard list codec; JSON-RPC reuses that response path.
+  conversion before the standard list codec; JSON-RPC reuses the request path.
   Preserve nil/empty and native default literals, and never cast whole slices
   from named elements to primitive elements. Scalar query/cookie adapters reuse
   the formatter; escaping, custom codecs and framing stay with their owners.
@@ -246,8 +246,8 @@ consumer validation.
   admissibility. Expr validates effective mapped defaults/enums/examples on a
   detached mapping initialized by the existing transport binding owner. Runtime
   `http.HeaderValues` and `SetHeaderValues` own actual field presence and redacted
-  error context; all HTTP request/response codecs and JSON-RPC's separate response
-  writer consume them. Preserve nil versus empty through scalar conversion and
+  error context; HTTP request/response codecs and JSON-RPC request codecs
+  consume them. Preserve nil versus empty through scalar conversion and
   route response defaults through the same encoder. Keep scalar/cookie grammars
   independent and reject generic Set-Cookie arrays; do not restore template-local
   joining, physical-line decoding or invented quote/percent escaping.
@@ -455,11 +455,12 @@ consumer validation.
   body/view variant, including selected fields that need no constructor. HTTP
   encoders, HTTP WebSocket final results and JSON-RPC framing consume these same
   expressions. JSON-RPC endpoint result binding also derives from the effective
-  body's presence, while metadata capture and WebSocket forwarding retain their
-  sources. A named empty result is not evidence of a body. JSON-RPC binds the
+  body's presence, while WebSocket forwarding retains its source. A named empty result is not evidence of a body. JSON-RPC binds the
   canonical projection source in a private rendering scope;
-  do not restore constructor-only/raw-result fallbacks. Preserve metadata capture
-  and configured encoder invocation counts. Mixed SSE events retain their
+  do not restore constructor-only/raw-result fallbacks. JSON-RPC authored response
+  Header/Cookie mappings are rejected once by prepared endpoint admission; delete
+  metadata capture/decoder branches, retain one configured encoder invocation per
+  emitted HTTP envelope, and preserve separately owned view/CORS/middleware metadata. Mixed SSE events retain their
   distinct StreamingResult source. Keep the
   [response projection model](../../../http/codegen/tla/response_projection/README.md)
   and mounted selected-body, notification, codec and view controls aligned.

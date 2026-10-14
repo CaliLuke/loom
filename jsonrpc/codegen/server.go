@@ -139,9 +139,6 @@ func jsonrpcServerBaseSections(data *httpcodegen.ServiceData, hasSSE, hasMixed b
 		jsonrpcServerUseSection(data),
 		jsonrpcServerMethodNamesSection(data),
 	}
-	if serviceNeedsJSONRPCResponseCapture(data) {
-		sections = append(sections, jsonrpcServerResponseCaptureSection())
-	}
 	return sections
 }
 

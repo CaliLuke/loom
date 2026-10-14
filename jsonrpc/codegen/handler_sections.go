@@ -82,9 +82,7 @@ func jsonrpcServerHandlerInitSection(e *httpcodegen.EndpointData) codegen.Sectio
 						g.Id("decodeParams").Op(":=").Id(e.RequestDecoder).Call(jen.Id("mux"), jen.Id("decoder"))
 					}
 				}
-				if !httpcodegen.IsWebSocketEndpoint(e) && needsJSONRPCResponseCapture(e) {
-					g.Id("encodeResponse").Op(":=").Id(e.ResponseEncoder).Call(jen.Id("encoder"))
-				}
+
 				g.Return(
 					jen.Func().
 						Params(jsonrpcHandlerClosureParams(e)...).
@@ -278,7 +276,7 @@ func writeJSONRPCStandardHandlerInitBody(g *jen.Group, e *httpcodegen.EndpointDa
 	writeJSONRPCEndpointErrorHandling(g, e)
 
 	if e.Result == nil || e.Result.Ref == "" {
-		writeJSONRPCNoResultSuccess(g, e)
+		writeJSONRPCNoResultSuccess(g)
 		return
 	}
 
@@ -297,10 +295,6 @@ func writeJSONRPCEndpointInvoke(g *jen.Group, e *httpcodegen.EndpointData) {
 	case httpcodegen.IsWebSocketEndpoint(e):
 		g.List(jen.Id("res"), jen.Id("err")).Op(":=").Id("endpoint").Call(callArgs...)
 	case !hasJSONRPCResponseBody(e):
-		if needsJSONRPCResponseCapture(e) {
-			g.List(jen.Id("res"), jen.Id("err")).Op(":=").Id("endpoint").Call(callArgs...)
-			return
-		}
 		if e.Payload != nil && e.Payload.Ref != "" {
 			g.List(jen.Id("_"), jen.Id("err")).Op("=").Id("endpoint").Call(callArgs...)
 			return
@@ -456,29 +450,13 @@ func writeJSONRPCDefaultEndpointError(g *jen.Group) {
 	g.Add(writeJSONRPCEncodeErrorCall(jen.Id("code")))
 }
 
-func writeJSONRPCNoResultSuccess(g *jen.Group, e *httpcodegen.EndpointData) {
+func writeJSONRPCNoResultSuccess(g *jen.Group) {
 	g.If(
 		jen.Op("!").Id("req").Dot("HasID"),
 	).Block(
 		jen.Return(jen.Nil()),
 	)
-	if needsJSONRPCResponseCapture(e) {
-		g.Id("capture").Op(":=").Op("&").Id("jsonrpcResponseCapture").Values()
-		g.If(
-			jen.Err().Op(":=").Id("encodeResponse").Call(jen.Id("ctx"), jen.Id("capture"), jen.Id("res")),
-			jen.Err().Op("!=").Nil(),
-		).Block(
-			loomtransportRef("RequestObserverFromContext").Call(jen.Id("ctx")).Dot("Fail").Call(loomtransportRef("ReasonResponseWriteFailed")),
-			jen.Qual("github.com/CaliLuke/loom/jsonrpc", "ReportFailure").Call(
-				jen.Id("ctx"),
-				jen.Id("w"),
-				jen.Id("errhandler"),
-				jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to encode transport response: %w"), jen.Err()),
-			),
-			jen.Return(jen.Nil()),
-		)
-		g.Id("copyJSONRPCResponseMetadata").Call(jen.Id("w"), jen.Id("capture"))
-	}
+
 	g.Id("response").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "MakeSuccessResponse").Call(jen.Id("req").Dot("ID"), jen.Nil())
 	g.If(
 		jen.Err().Op(":=").Id("encoder").Call(jen.Id("ctx"), jen.Id("w")).Dot("Encode").Call(jen.Id("response")),
@@ -494,7 +472,6 @@ func writeJSONRPCNoResultSuccess(g *jen.Group, e *httpcodegen.EndpointData) {
 	g.Return(jen.Nil())
 }
 
-//nolint:maintidx // Result encoding path is branch-heavy by generated transport shape.
 func writeJSONRPCResultSuccess(g *jen.Group, e *httpcodegen.EndpointData) {
 	g.Id("id").Op(":=").Id("req").Dot("ID")
 	g.If(
@@ -502,42 +479,7 @@ func writeJSONRPCResultSuccess(g *jen.Group, e *httpcodegen.EndpointData) {
 	).Block(
 		jen.Return(jen.Nil()),
 	)
-	if needsJSONRPCResponseCapture(e) {
-		g.Id("capture").Op(":=").Op("&").Id("jsonrpcResponseCapture").Values()
-		g.If(
-			jen.Err().Op(":=").Id("encodeResponse").Call(jen.Id("ctx"), jen.Id("capture"), jen.Id("res")),
-			jen.Err().Op("!=").Nil(),
-		).Block(
-			loomtransportRef("RequestObserverFromContext").Call(jen.Id("ctx")).Dot("Fail").Call(loomtransportRef("ReasonResponseWriteFailed")),
-			jen.Qual("github.com/CaliLuke/loom/jsonrpc", "ReportFailure").Call(
-				jen.Id("ctx"),
-				jen.Id("w"),
-				jen.Id("errhandler"),
-				jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to encode transport response: %w"), jen.Err()),
-			),
-			jen.Return(jen.Nil()),
-		)
-		g.Id("copyJSONRPCResponseMetadata").Call(jen.Id("w"), jen.Id("capture"))
-		g.Var().Id("result").Any()
-		g.If(jen.Id("capture").Dot("body").Dot("Len").Call().Op(">").Lit(0)).Block(
-			jen.Id("result").Op("=").Qual("encoding/json/jsontext", "Value").Call(jen.Id("capture").Dot("body").Dot("Bytes").Call()),
-		)
-		g.Id("response").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "MakeSuccessResponse").Call(jen.Id("id"), jen.Id("result"))
-		g.If(
-			jen.Err().Op(":=").Id("encoder").Call(jen.Id("ctx"), jen.Id("w")).Dot("Encode").Call(jen.Id("response")),
-			jen.Err().Op("!=").Nil(),
-		).Block(
-			loomtransportRef("RequestObserverFromContext").Call(jen.Id("ctx")).Dot("Fail").Call(loomtransportRef("ReasonResponseWriteFailed")),
-			jen.Qual("github.com/CaliLuke/loom/jsonrpc", "ReportFailure").Call(
-				jen.Id("ctx"),
-				jen.Id("w"),
-				jen.Id("errhandler"),
-				jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to encode JSON-RPC response: %w"), jen.Err()),
-			),
-		)
-		g.Return(jen.Nil())
-		return
-	}
+
 	success := e.Result.Responses[0]
 	source := fmt.Sprintf("res.(%s)", e.Result.Ref)
 	if viewed := e.Method.ViewedResult; viewed != nil {
@@ -572,24 +514,4 @@ func hasJSONRPCResponseBody(e *httpcodegen.EndpointData) bool {
 	}
 	response := e.Result.Responses[0]
 	return response != nil && response.EncodePlan != nil && response.EncodePlan.HasBody
-}
-
-func needsJSONRPCResponseCapture(e *httpcodegen.EndpointData) bool {
-	if e == nil || e.Result == nil || len(e.Result.Responses) == 0 {
-		return false
-	}
-	success := e.Result.Responses[0]
-	if success == nil {
-		return false
-	}
-	return len(success.Headers) > 0 || len(success.Cookies) > 0
-}
-
-func serviceNeedsJSONRPCResponseCapture(data *httpcodegen.ServiceData) bool {
-	for _, endpoint := range data.Endpoints {
-		if needsJSONRPCResponseCapture(endpoint) {
-			return true
-		}
-	}
-	return false
 }

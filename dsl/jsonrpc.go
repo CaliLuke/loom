@@ -47,6 +47,16 @@ const (
 // payload and the "id" field to the payload attribute specified by the ID
 // function.
 //
+// Response Values:
+//
+// Application response values are carried in result or error.data. Header and
+// Cookie mappings inside JSON-RPC Response declarations are rejected, including
+// inherited errors: batches and streaming messages have no independent HTTP
+// header set per response. Use Body to select the response fields and regenerate
+// clients and servers. Ordinary HTTP response mappings and JSON-RPC request
+// metadata are unaffected. Framework view identity, CORS and middleware-owned
+// HTTP metadata retain their separate contracts.
+//
 // Non-Streaming:
 //
 // For non-streaming methods, if the result's ID attribute is not

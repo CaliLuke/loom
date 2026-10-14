@@ -23,6 +23,7 @@ Choose == /\ phase = "choose"
           /\ \E c \in Channels, s \in Shapes, m \in BOOLEAN, i \in BOOLEAN, v \in {"default", "tiny"}:
                /\ channel' = c /\ shape' = s /\ metadata' = m /\ hasID' = i /\ view' = v
                /\ (m => c = "rpc-http")
+               /\ (Repair = "uniform-bodies" => ~m)
           /\ phase' = "frame"
           /\ UNCHANGED <<wireView, wire, calls, emitted>>
 Frame == /\ phase = "frame"

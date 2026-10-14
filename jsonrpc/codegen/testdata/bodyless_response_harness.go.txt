@@ -35,7 +35,7 @@ func TestBodylessResponses(t *testing.T) {
 					case "value":
 						return "value", nil
 					case "selected":
-						return &svc.SelectedResult{Body: &svc.LocalEmpty{}, Header: "header"}, nil
+						return &svc.SelectedResult{Body: &svc.LocalEmpty{}, Header: new("header")}, nil
 					case "metadata":
 						return &svc.MetadataResult{Header: "header", Cookie: "cookie"}, nil
 					default:
@@ -89,20 +89,15 @@ func TestBodylessResponses(t *testing.T) {
 				want := "null"
 				if method == "value" {
 					want = `"value"`
+				} else if method == "metadata" {
+					want = `{"header":"header","cookie":"cookie"}`
 				} else if method == "explicit" || method == "selected" {
 					want = "{}"
 				}
 				require.JSONEq(t, want, string(envelope["result"]))
-				if method == "metadata" {
-					require.Equal(t, "header", response.Header().Get("X-Result"))
-					require.Contains(t, response.Header().Get("Set-Cookie"), "result=cookie")
-					require.Equal(t, 1, encodes)
-				} else if method == "selected" {
-					require.Equal(t, "header", response.Header().Get("X-Result"))
-					require.Equal(t, 2, encodes)
-				} else {
-					require.Equal(t, 1, encodes)
-				}
+				require.Empty(t, response.Header().Get("X-Result"))
+				require.Empty(t, response.Header().Values("Set-Cookie"))
+				require.Equal(t, 1, encodes)
 			})
 		}
 	}

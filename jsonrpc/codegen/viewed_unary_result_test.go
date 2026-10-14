@@ -16,7 +16,7 @@ import (
 // returned, as the response encoder does, and not the body of the default
 // view: a method without a fixed view renders the view that the service
 // selects, a method with a fixed view renders that view, and a method with
-// response headers renders its view through the response encoder.
+// migrated response values stay in the selected view body.
 func TestJSONRPCViewedUnaryResultGeneratedModule(t *testing.T) {
 	root := RunJSONRPCDSL(t, jsonrpcViewedUnaryResultDSL)
 	dir := t.TempDir()
@@ -86,9 +86,6 @@ func jsonrpcViewedUnaryResultDSL() {
 			dsl.Payload(dsl.String)
 			dsl.Result(note)
 			dsl.JSONRPC(func() {
-				dsl.Response(func() {
-					dsl.Header("id:X-Note-Id")
-				})
 			})
 		})
 	})
@@ -167,8 +164,7 @@ type response struct {
 // service selects, or the view that the design fixes.
 func TestWireViews(t *testing.T) {
 	hs := serve(t)
-	// The endpoint names the empty view default, and the attribute mapped to
-	// the X-Note-Id header is not in the body.
+	// The endpoint names the empty view default; application values stay in the body.
 	for i, tc := range []struct {
 		method, view, want, header, loomView string
 	}{
@@ -178,8 +174,8 @@ func TestWireViews(t *testing.T) {
 		{"showTiny", "", tinyJSON, "", ""},
 		{"list", "", "[" + fullJSON + "," + fullJSON + "]", "", "default"},
 		{"list", "tiny", "[" + tinyJSON + "," + tinyJSON + "]", "", "tiny"},
-		{"showTagged", "", ` + "`" + `{"title":"t","body":"b"}` + "`" + `, "n1", "default"},
-		{"showTagged", "tiny", "{}", "n1", "tiny"},
+		{"showTagged", "", fullJSON, "", "default"},
+		{"showTagged", "tiny", tinyJSON, "", "tiny"},
 	} {
 		id := i + 1
 		req := fmt.Sprintf(` + "`" + `{"jsonrpc":"2.0","id":%d,"method":%q,"params":%q}` + "`" + `, id, tc.method, tc.view)
