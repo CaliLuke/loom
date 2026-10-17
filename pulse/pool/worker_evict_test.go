@@ -330,31 +330,50 @@ func waitBriefly(done <-chan struct{}) {
 }
 
 // TestEvictionStopsJobRestoredByFailedStop covers an eviction that overlaps a
-// failing stopJob, as in shutdown's stopAllJobs: stopJob takes k, eviction
-// starts, then Stop fails and stopJob tracks k again. Eviction must still
+// failing stopJob, as in shutdown's stopAllJobs: Stop holds k, eviction
+// starts, then Stop fails and stopJob leaves k tracked. Eviction must still
 // stop k and leave the worker with no tracked job.
 func TestEvictionStopsJobRestoredByFailedStop(t *testing.T) {
 	handler := &failingStopHandler{failFirst: true, entered: make(chan struct{}), release: make(chan struct{})}
 	_, worker := startBlockingStopWorker(t, "evict-failed-stop", "k1", handler)
-	stopDone := make(chan struct{})
+	release := sync.OnceFunc(func() {
+		close(handler.release)
+	})
+	defer release()
+	// stopJob publishes a stop event as well as processing it directly. Join
+	// the runtime before gating Stop, so the event loop cannot take the
+	// callback and make worker.stop wait for a release owned by this test.
+	worker.stop(t.Context())
+	stopDone := make(chan error, 1)
 	go func() {
-		defer close(stopDone)
-		if err := worker.stopJob(t.Context(), "k1"); err == nil {
-			t.Errorf("stopJob succeeded, want the handler error")
-		}
+		stopDone <- worker.stopJob(t.Context(), "k1")
 	}()
 	waitEntered(t, handler)
 
-	worker.stop(t.Context())
 	evictDone := make(chan struct{})
 	go func() {
 		worker.stopHandlers()
 		close(evictDone)
 	}()
 	waitBriefly(evictDone)
-	close(handler.release)
-	<-stopDone
-	<-evictDone
+	select {
+	case <-evictDone:
+		t.Error("eviction returned before the in-progress Stop finished")
+	default:
+	}
+	require.Len(t, worker.Jobs(), 1, "in-progress Stop must retain the tracked job")
+	release()
+	select {
+	case err := <-stopDone:
+		require.ErrorContains(t, err, "stop failed")
+	case <-time.After(5 * time.Second):
+		t.Fatal("stopJob did not return after releasing the handler")
+	}
+	select {
+	case <-evictDone:
+	case <-time.After(5 * time.Second):
+		t.Fatal("eviction did not finish after the failed Stop")
+	}
 
 	require.Empty(t, worker.Jobs(), "evicted worker still tracks a job")
 	require.Equal(t, int32(2), handler.stops.Load(), "handler.Stop calls")
