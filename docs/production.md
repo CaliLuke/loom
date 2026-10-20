@@ -252,6 +252,11 @@ committed, and bytes written directly to a hijacked connection are not counted.
 `mcp_session_not_found`, `mcp_session_principal_mismatch`, and
 `mcp_events_stream_write_failed`.
 
+JSON-RPC WebSocket parse, envelope and method rejections mark the connection's
+request observation as failed even when a later message succeeds. They preserve
+the socket for subsequent requests and keep one physical connection lifecycle.
+A valid notification still suppresses its error response.
+
 The two timeout reasons distinguish a configured streaming deadline from an
 ordinary writer or flusher failure. `stream_final_response_suppressed` is a
 successful JSON-RPC protocol decision: an ID-less SSE notification or raw GET

@@ -218,6 +218,7 @@ func ReceiveWebSocketRequest(
 		return err
 	}
 	if decodeErr != nil {
+		loomtransport.RequestObserverFromContext(ctx).Fail(loomtransport.ReasonInvalidJSONRPCEnvelope)
 		if sendErr := sendError(ctx, nil, ParseError, "Parse error", nil); sendErr != nil {
 			return fmt.Errorf("failed to send parse error: %w", sendErr)
 		}
@@ -225,10 +226,12 @@ func ReceiveWebSocketRequest(
 	}
 	binding := loomtransport.StreamObserverFromContext(ctx, loomtransport.TransportJSONRPC).JSONRPC(request.Method, IDToString(request.ID), isNotification(&request))
 	ctx = loomtransport.WithStreamObserver(ctx, binding)
-	if _, message := invalidStreamRequest(&request); message != "" {
+	if reason, message := invalidStreamRequest(&request); reason != loomtransport.ReasonOK {
+		loomtransport.RequestObserverFromContext(ctx).Fail(reason)
 		return sendError(ctx, request.ID, InvalidRequest, message, nil)
 	}
 	if !matches(request.Method) {
+		loomtransport.RequestObserverFromContext(ctx).Fail(loomtransport.ReasonUnsupportedMethod)
 		if isNotification(&request) {
 			return nil
 		}

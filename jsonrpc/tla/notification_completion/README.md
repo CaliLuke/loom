@@ -45,6 +45,10 @@ admission exercises #790 without confusing service data with envelope HasID.
 `TestNotificationCompletionPreservesTransportFailures` injects dispatch and
 protocol-error sender failures. Existing receive tests cover real close codes,
 timeouts, cancellation, malformed frames, and repeated reads after termination.
+`TestWebSocketRequestFailureObservation` covers parse, envelope and method
+rejections over real sockets, including notification suppression and a valid
+barrier request. It checks failure classification without adding a request
+lifecycle per frame or turning a request rejection into a terminal error.
 
 The model explores one failed frame and one following valid request, three ID
 presence classes, two adapter families and independent error-write failure.

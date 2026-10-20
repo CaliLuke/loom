@@ -2850,7 +2850,13 @@ feed that owner; drain outside every runtime or generated wrapper lock. Failures
 and logical suppression stay synchronous, never enter a growing queue. Explicit
 server WebSocket construction installs observation; outgoing clients remain
 neutral. JSON-RPC wrappers retain per-envelope bindings across later dispatch and
-per-call contexts. `SSEStreamWriter.Complete` owns final admission, encoding and
+per-call contexts. JSON-RPC WebSocket parse failures, invalid envelopes and
+unsupported methods fail the existing connection-level RequestObserver with
+their established reason. Preserve protocol errors, valid notification response
+suppression and connection reuse; never create a lifecycle per frame or turn a
+request rejection into a connection failure. Keep the notification-completion
+model's request-local versus terminal distinction aligned with socket tests.
+`SSEStreamWriter.Complete` owns final admission, encoding and
 write/close; generated wrappers must not recreate terminal flags/locking. Retain
 only view-selection locks, sampled before I/O. Handler `End` preserves original
 panic precedence. Keep the bounded observation/terminal model, actual generated
