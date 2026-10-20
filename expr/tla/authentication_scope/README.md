@@ -40,13 +40,19 @@ Production correspondence:
 | HTTP mapping finalization, service endpoint analysis, OpenAPI operation requirements | `TestHTTPSecurityScope`, parsed OpenAPI, compiled adapters and wire rejection |
 | gRPC and JSON-RPC transport analysis | `TestGRPCSecurityScope`, `TestJSONRPCSecurityScope`, compiled adapters and selected endpoint callbacks |
 
-The two latter transport tests compile their protocol adapters and execute the
-shared endpoint callbacks with those generated service types. They do not claim
-new gRPC network-ordering or JSON-RPC framing coverage. Existing transport session
-harnesses remain unchanged. The HTTP wire regression rejects bearer-only,
-cookie-only and absent credentials at the Basic-only method, accepts Basic, and
-checks invocation counts. Compiled endpoint tests check both replacement
-directions, bearer-to-cookie fallback and failed credentials.
+`expr/testdata.SecurityScopeMatrixDSL` additionally supplies one bounded corpus
+for generated HTTP, JSON-RPC and gRPC adapter runtime tests: API inheritance,
+service inheritance, method replacement, same-scope alternatives and
+`NoSecurity`. Each adapter verifies accepted and rejected credentials, callback
+and service invocation counts, and its own protocol failure representation.
+HTTP session carriers and gRPC session metadata have separate runtime controls.
+Compiled endpoint tests retain both replacement directions, bearer-to-cookie
+fallback and failed credentials.
+
+These runtime checks extend implementation correspondence beyond the model's
+opaque authentication alternatives. They do not add a proof of credential
+parsing, network ordering or arbitrary generated programs. No model transition
+or invariant changes for this coverage improvement.
 
 ## Run
 

@@ -10,12 +10,16 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 
-	svc "example.com/scope/gen/scope"
 	pb "example.com/scope/gen/grpc/scope/pb"
 	server "example.com/scope/gen/grpc/scope/server"
+	svc "example.com/scope/gen/scope"
+	loomgrpc "github.com/CaliLuke/loom/grpc"
+	loompb "github.com/CaliLuke/loom/grpc/pb"
 	loom "github.com/CaliLuke/loom/pkg"
 	"github.com/CaliLuke/loom/security"
 )
@@ -27,14 +31,16 @@ type metadataImplementation struct {
 
 func TestSelectedMetadata(t *testing.T) {
 	for _, tc := range []struct {
-		name string
-		values metadata.MD
+		name      string
+		values    metadata.MD
 		callbacks []string
-		accepted bool
+		accepted  bool
 	}{
 		{"bearer", metadata.Pairs("authorization", "Bearer bearer"), []string{"jwt:bearer", "service"}, true},
 		{"cookie", metadata.Pairs("x-session", "cookie"), []string{"jwt:", "key:cookie", "service"}, true},
 		{"separate", metadata.Pairs("authorization", "Bearer wrong", "x-session", "cookie"), []string{"jwt:wrong", "key:cookie", "service"}, true},
+		{"invalid bearer", metadata.Pairs("authorization", "Bearer invalid"), []string{"jwt:invalid", "key:"}, false},
+		{"invalid cookie", metadata.Pairs("x-session", "invalid"), []string{"jwt:", "key:invalid"}, false},
 		{"absent", metadata.MD{}, []string{"jwt:", "key:"}, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -63,6 +69,11 @@ func TestSelectedMetadata(t *testing.T) {
 				require.NoError(t, err)
 			} else {
 				require.Error(t, err)
+				require.Equal(t, codes.Unknown, status.Code(err))
+				detail, ok := loomgrpc.DecodeError(err).(*loompb.ErrorResponse)
+				require.True(t, ok)
+				require.Equal(t, "unauthorized", detail.Name)
+				require.Equal(t, "invalid", detail.Msg)
 			}
 			for _, want := range tc.callbacks {
 				select {

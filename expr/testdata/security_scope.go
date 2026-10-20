@@ -51,6 +51,7 @@ func SecurityScopeDSL(transport string, sessionOverride bool) func() {
 				case "http":
 					HTTP(func() {
 						GET("/")
+						AuthErrorResponses()
 					})
 				case "grpc":
 					GRPC(func() {
@@ -65,5 +66,94 @@ func SecurityScopeDSL(transport string, sessionOverride bool) func() {
 				}
 			})
 		})
+	}
+}
+
+// SecurityScopeMatrixDSL exercises inherited, replaced, alternative, and
+// explicitly disabled requirements through one transport.
+func SecurityScopeMatrixDSL(transport string) func() {
+	return func() {
+		basic := BasicAuthSecurity("basic")
+		jwt := JWTSecurity("jwt")
+		key := APIKeySecurity("key")
+		API("scope", func() {
+			Security(basic)
+			if transport == "jsonrpc" {
+				JSONRPC(func() {})
+			}
+		})
+		Service("api_scope", func() {
+			matrixTransportService(transport, "api_scope")
+			Method("read", func() {
+				matrixMethod(transport, "read", nil, "basic")
+			})
+		})
+		Service("scope", func() {
+			Security(jwt)
+			matrixTransportService(transport, "scope")
+			Method("inherited", func() {
+				matrixMethod(transport, "inherited", nil, "jwt")
+			})
+			Method("override", func() {
+				matrixMethod(transport, "override", func() {
+					Security(key)
+				}, "key")
+			})
+			Method("alternatives", func() {
+				matrixMethod(transport, "alternatives", func() {
+					Security(basic)
+					Security(jwt)
+				}, "basic", "jwt")
+			})
+			Method("open", func() {
+				matrixMethod(transport, "open", func() {
+					NoSecurity()
+				})
+			})
+		})
+	}
+}
+
+func matrixTransportService(transport, path string) {
+	if transport == "jsonrpc" {
+		JSONRPC(func() {
+			POST("/" + path)
+		})
+	}
+}
+
+func matrixMethod(transport, path string, security func(), credentials ...string) {
+	if security != nil {
+		security()
+	}
+	Payload(func() {
+		Field(1, "message", String)
+		for _, credential := range credentials {
+			switch credential {
+			case "basic":
+				Username("user", String)
+				Password("password", String)
+			case "jwt":
+				Token("token", String)
+			case "key":
+				APIKey("key", "key", String)
+			}
+		}
+		if transport == "jsonrpc" {
+			ID("id", String)
+		}
+	})
+	switch transport {
+	case "http":
+		HTTP(func() {
+			GET("/" + path)
+			if len(credentials) > 0 {
+				AuthErrorResponses()
+			}
+		})
+	case "grpc":
+		GRPC(func() {})
+	case "jsonrpc":
+		JSONRPC(func() {})
 	}
 }

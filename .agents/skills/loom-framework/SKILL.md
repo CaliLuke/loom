@@ -879,6 +879,13 @@ consumer validation.
   and transport mapping share that owner. Do not add transport-specific
   inheritance or separately inherit `SessionAuths`. Keep
   `expr/tla/authentication_scope` and its direct/generated regressions aligned.
+  The shared `expr/testdata.SecurityScopeMatrixDSL` corpus checks API and service
+  inheritance, method replacement, same-scope alternatives and `NoSecurity`
+  through generated HTTP, JSON-RPC and gRPC adapters. Extend this corpus when
+  changing scope selection; assert credential callbacks, dispatch admission and
+  each protocol's own failure representation. Session checks additionally cover
+  HTTP carriers and gRPC metadata. Transport-specific extraction and encoding
+  stay in their adapters.
 
 - `expr` effective HTTP wire bindings own complete detached request, response and
   error mappings before validation. One plan retains physical slots, source field

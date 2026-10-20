@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr/testdata"
 )
 
@@ -44,4 +45,44 @@ func TestGRPCSecurityScope(t *testing.T) {
 			runGRPCGoCommand(t, dir, "test", "-race", "./...", "-run", "^TestSelected(Endpoint|Metadata)$")
 		})
 	}
+}
+
+func TestGRPCSecurityScopeMatrixProjection(t *testing.T) {
+	root := RunGRPCDSL(t, testdata.SecurityScopeMatrixDSL("grpc"))
+	services := CreateGRPCServices(root)
+	apiEndpoint := services.Get("api_scope").Endpoint("read")
+	require.Equal(t, []string{"basic"}, grpcRequirementSchemeNames(apiEndpoint.Method.Requirements))
+
+	for _, tc := range []struct {
+		method string
+		want   []string
+	}{
+		{method: "inherited", want: []string{"jwt"}},
+		{method: "override", want: []string{"key"}},
+		{method: "alternatives", want: []string{"basic", "jwt"}},
+		{method: "open"},
+	} {
+		endpoint := services.Get("scope").Endpoint(tc.method)
+		require.NotNil(t, endpoint)
+		require.Equal(t, tc.want, grpcRequirementSchemeNames(endpoint.Method.Requirements), tc.method)
+	}
+}
+
+func TestGRPCSecurityScopeMatrixRuntime(t *testing.T) {
+	root := RunGRPCDSL(t, testdata.SecurityScopeMatrixDSL("grpc"))
+	dir := t.TempDir()
+	renderGRPCResponseContractModule(t, dir, "example.com/scopematrix", root)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "scope_matrix_test.go"), []byte(grpcSecurityScopeMatrixHarness), 0o600))
+	runGRPCGoCommand(t, dir, "mod", "tidy")
+	runGRPCGoCommand(t, dir, "test", "-race", "./...", "-run", "^TestSecurityScopeMatrix$")
+}
+
+func grpcRequirementSchemeNames(requirements service.RequirementsData) []string {
+	var names []string
+	for _, requirement := range requirements {
+		for _, scheme := range requirement.Schemes {
+			names = append(names, scheme.SchemeName)
+		}
+	}
+	return names
 }
