@@ -1247,6 +1247,11 @@ filter, and serialization rules belong here.
   parent closure, including ancestor metadata, in source order. Selection and
   partial import must use that same closure; traversal must terminate on missing
   or cyclic source parents.
+- OpenAPI tag metadata uses the shared `internal/openapimeta` key parser and
+  builders. Names containing colons use the unpadded Base64URL `openapi:tag-id:`
+  form; ordinary names retain `openapi:tag:` spelling. Import and export share
+  this identity contract. Reject malformed keys or value arity at generation
+  admission, and preserve complete tag extension names and literal percent signs.
 - Copy a shared normalized schema before adding request or response metadata.
   Do not mutate a component schema while rendering one media type.
 - Classify a schema as unconstrained only when it has no type and no retained

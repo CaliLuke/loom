@@ -77,6 +77,46 @@ paths:
 	requireRenderedDesignEvaluates(t, rendered, 1)
 }
 
+func TestImportPreservesColonAndPercentTagNames(t *testing.T) {
+	source := []byte(`openapi: 3.2.0
+info: {title: Tags, version: "1"}
+tags:
+  - name: 'billing:desc'
+    summary: Billing
+    description: Billing operations.
+    parent: 'commerce:parent'
+    "x-visible:mode": true
+  - name: 'commerce:parent'
+  - name: 'literal%3Aname'
+paths:
+  /invoices:
+    get:
+      operationId: listInvoices
+      tags: ['billing:desc', 'literal%3Aname']
+      responses:
+        '204': {description: Done}
+`)
+
+	document, diagnostics, err := Analyze(source)
+	require.NoError(t, err)
+	require.Empty(t, diagnostics)
+
+	rendered, err := Render(document, Options{PackageName: "design"})
+	require.NoError(t, err)
+	for _, want := range []string{
+		`Meta("openapi:tag-id:YmlsbGluZzpkZXNj")`,
+		`Meta("openapi:tag-id:YmlsbGluZzpkZXNj:summary", "Billing")`,
+		`Meta("openapi:tag-id:YmlsbGluZzpkZXNj:desc", "Billing operations.")`,
+		`Meta("openapi:tag-id:YmlsbGluZzpkZXNj:parent", "commerce:parent")`,
+		`Meta("openapi:tag-id:YmlsbGluZzpkZXNj:extension:x-visible:mode", "true")`,
+		`Meta("openapi:tag-id:Y29tbWVyY2U6cGFyZW50")`,
+		`Meta("openapi:tag:literal%3Aname")`,
+	} {
+		require.Contains(t, string(rendered), want)
+	}
+	requireRenderedDesignEvaluates(t, rendered, 1)
+}
+
 func TestImportPreservesRepresentableSecuritySchemes(t *testing.T) {
 	source := []byte(`openapi: 3.2.0
 info: {title: Security symmetry, version: "1"}

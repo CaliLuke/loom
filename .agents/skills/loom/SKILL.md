@@ -314,6 +314,14 @@ only one format. Generation removes the stale sibling file when this setting
 changes. JSON output is deterministically ordered, two-space indented, and
 newline-terminated for reviewable diffs.
 
+For tag names containing colons, use `openapi:tag-id:` followed by the name's
+unpadded URL-safe Base64 encoding. For example, `billing:desc` uses
+`Meta("openapi:tag-id:YmlsbGluZzpkZXNj")`; its description uses the same key
+with `:desc` appended and one value. Names without colons keep
+`openapi:tag:<name>`, including literal percent signs. Identity keys take no
+value; annotation keys take exactly one. OpenAPI import writes the appropriate
+form automatically.
+
 Automatic request-body, parameter and header components share complete
 definitions only when their contents, including examples, agree. Responses share
 by HTTP status and complete shape except the top-level description: in both 3.1

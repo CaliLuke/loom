@@ -330,10 +330,15 @@ const DefaultProtoc = expr.DefaultProtoc
 //	    Meta("openapi:example", "false")
 //	})
 //
-// - "openapi:tag:xxx" sets the OpenAPI object field tag xxx. Applicable to
-// HTTP services and methods. Tags are defined on services and used by
-// methods. A method may reference a tag from its HTTP expression or directly
-// from its body; when both declare tags the operation carries the union.
+// - "openapi:tag:<name>" identifies an OpenAPI tag. Use
+// "openapi:tag-id:<base64url-name>" when the tag name contains a colon; the
+// name is UTF-8 encoded with unpadded URL-safe Base64. Add annotation suffixes
+// such as ":desc", ":parent", or ":extension:x-name" after either identity
+// form. Identity keys take no value; annotation keys take exactly one value.
+// Applicable to APIs, HTTP services, and methods. Tags are defined on APIs or
+// services and used by methods. A method may reference a tag from its HTTP
+// expression or directly from its body; when both declare tags the operation
+// carries the union.
 //
 //	var _ = Service("MyService", func() {
 //	    HTTP(func() {
@@ -341,6 +346,7 @@ const DefaultProtoc = expr.DefaultProtoc
 //	    	Meta("openapi:tag:Backend:url", "http://example.com")
 //	    	Meta("openapi:tag:Backend:url:desc", "See more docs here")
 //	    	Meta("openapi:tag:Backend:extension:x-data", `{"foo":"bar"}`)
+//	    	Meta("openapi:tag-id:YmlsbGluZzpkZXNj:desc", "Billing tag") // billing:desc
 //	    })
 //	    Method("MyMethod", func() {
 //	        Meta("openapi:tag:Backend") // or inside HTTP(func() { ... })

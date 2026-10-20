@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/internal/openapimeta"
 )
 
 // Options configures deterministic Loom design rendering.
@@ -305,7 +306,7 @@ func (r *renderer) errorDefinitions(responses []renderedResponse, path string) e
 func (r *renderer) operationHTTP(operation *Operation, plan operationPlan, path string) error {
 	r.open("HTTP(func()")
 	for _, tag := range operation.Tags {
-		r.line("Meta(%q)", "openapi:tag:"+tag)
+		r.line("Meta(%q)", openapimeta.TagIdentityKey(tag))
 	}
 	if err := r.route(operation); err != nil {
 		return err

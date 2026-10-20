@@ -1183,6 +1183,7 @@ var _ = Service("UserService", func() {
     HTTP(func() {
         Meta("openapi:tag:Users")
         Meta("openapi:tag:Backend:desc", "Backend API Operations")
+        Meta("openapi:tag-id:YmlsbGluZzpkZXNj:desc", "Billing tag") // billing:desc
     })
     
     Method("CreateUser", func() {
@@ -1205,6 +1206,12 @@ var User = Type("User", func() {
     Meta("openapi:typename", "CustomUser")
 })
 ```
+
+Tag identities use `openapi:tag:<name>` when the name has no colon. A name
+containing a colon uses `openapi:tag-id:<base64url-name>`, where the name is
+UTF-8 encoded with unpadded URL-safe Base64. Annotation suffixes such as
+`:desc`, `:parent`, and `:extension:x-name` follow either identity form.
+Identity metadata has no value; each annotation has exactly one value.
 
 Loom synthesizes deterministic OpenAPI examples by default. Regenerating the
 same design produces the same examples, and changing one schema does not shift

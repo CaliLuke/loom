@@ -83,3 +83,39 @@ func TestTagContract(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, string(encodedYAML), "x-visibility: public")
 }
+
+func TestTagContractPreservesColonAndLiteralEscapeNames(t *testing.T) {
+	meta := expr.MetaExpr{
+		"openapi:tag-id:YmlsbGluZzpkZXNj":                                    {},
+		"openapi:tag-id:YmlsbGluZzpkZXNj:desc":                               {"Billing"},
+		"openapi:tag-id:b3BzOnBhcmVudDpsaXRlcmFsJQ:parent":                   {"root"},
+		"openapi:tag-id:b3BzOnBhcmVudDpsaXRlcmFsJQ:extension:x-visible:mode": {`true`},
+		"openapi:tag:literal%3Aname":                                         {},
+		"openapi:tag:ordinary":                                               {},
+	}
+
+	tags := TagsFromExpr(meta)
+	require.Len(t, tags, 4)
+	require.Equal(t, "billing:desc", tags[0].Name)
+	require.Equal(t, "Billing", tags[0].Description)
+	require.Equal(t, "ops:parent:literal%", tags[1].Name)
+	require.Equal(t, "root", tags[1].Parent)
+	require.Equal(t, map[string]any{"x-visible:mode": jsontext.Value(`true`)}, tags[1].Extensions)
+	require.Equal(t, "literal%3Aname", tags[2].Name)
+	require.Equal(t, "ordinary", tags[3].Name)
+	require.Equal(t, []string{"billing:desc", "ops:parent:literal%", "literal%3Aname", "ordinary"}, TagNamesFromExpr(meta))
+}
+
+func TestTagContractAllowsEmptyIdentityAndSkipsMalformedValuesWithoutPanic(t *testing.T) {
+	meta := expr.MetaExpr{
+		"openapi:tag:":              {},
+		"openapi:tag:ordinary:desc": {},
+	}
+
+	tags := TagsFromExpr(meta)
+
+	require.Len(t, tags, 2)
+	require.Equal(t, "", tags[0].Name)
+	require.Equal(t, "ordinary", tags[1].Name)
+	require.Empty(t, tags[1].Description)
+}

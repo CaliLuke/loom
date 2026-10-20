@@ -843,7 +843,8 @@ The most commonly used metadata keys are:
 | `openapi:self` | API | Set the OpenAPI 3.2 `$self` document URI |
 | `openapi:operationId` | API, service, method | Customize generated operation IDs; `{routeIndex}` counts emitted method paths, including service base-path expansion, while static IDs remain literal and must be unique |
 | `openapi:summary` | Method | Set operation summary |
-| `openapi:tag:<name>` | HTTP service or method | Define or assign OpenAPI tags |
+| `openapi:tag:<name>` | API, HTTP service, or method | Define or assign a tag whose name has no colon |
+| `openapi:tag-id:<base64url-name>` | API, HTTP service, or method | Define or assign a tag whose name contains a colon |
 | `openapi:extension:<x-name>` | API, service, method, route, param, response, security | Add OpenAPI extension JSON. At API scope it lands on the `info` object |
 | `openapi:document:extension:<x-name>` | API | Add OpenAPI extension JSON to the document root |
 | `openapi:schema:extension:<x-name>` | Type, attribute | Add OpenAPI extension JSON to that schema |
@@ -862,6 +863,12 @@ The most commonly used metadata keys are:
 | `openapi:allowEmptyValue` | Query parameter attribute | Override the generated OpenAPI `allowEmptyValue` flag; import uses `false` to preserve an authored query parameter |
 | `openapi:component:response` | HTTP response | Hoist and name reusable responses |
 | `openapi:component:example` | Example | Hoist and name reusable examples |
+
+Tag names without colons use `openapi:tag:<name>`. For a name containing a
+colon, encode its UTF-8 bytes with unpadded URL-safe Base64 and use
+`openapi:tag-id:<base64url-name>`. Annotation keys append fields such as
+`:desc`, `:parent`, or `:extension:x-name`; identity keys take no value and
+annotation keys take exactly one value.
 
 ### Vet Metadata
 

@@ -1,10 +1,12 @@
 package openapi
 
 import (
+	"encoding/json/jsontext"
 	"sort"
 	"strings"
 
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/openapimeta"
 )
 
 // Tag allows adding meta data to a single tag that is used by the Operation Object. It is
@@ -35,15 +37,11 @@ func TagsFromExpr(mdata expr.MetaExpr) (tags []*Tag) {
 	}
 	sort.Strings(keys)
 	for _, key := range keys {
-		chunks := strings.SplitN(key, ":", 4)
-		if len(chunks) < 3 {
-			continue
-		}
-		if chunks[0] != "openapi" || chunks[1] != "tag" {
+		name, field, ok, err := openapimeta.ParseTagKey(key)
+		if !ok || err != nil {
 			continue
 		}
 
-		name := chunks[2]
 		var tag *Tag
 		for _, t := range tags {
 			if t.Name == name {
@@ -52,40 +50,61 @@ func TagsFromExpr(mdata expr.MetaExpr) (tags []*Tag) {
 			}
 		}
 		if tag == nil {
-			tag = &Tag{Name: chunks[2]}
+			tag = &Tag{Name: name}
 			tags = append(tags, tag)
 		}
-		if len(chunks) == 4 {
-			switch chunks[3] {
+		if field != "" {
+			values := mdata[key]
+			if len(values) != 1 {
+				continue
+			}
+			switch field {
 			case "desc":
-				tag.Description = mdata[key][0]
+				tag.Description = values[0]
 			case "summary":
-				tag.Summary = mdata[key][0]
+				tag.Summary = values[0]
 			case "parent":
-				tag.Parent = mdata[key][0]
+				tag.Parent = values[0]
 			case "kind":
-				tag.Kind = mdata[key][0]
+				tag.Kind = values[0]
 			case "url":
 				if tag.ExternalDocs == nil {
 					tag.ExternalDocs = &ExternalDocs{}
 				}
-				tag.ExternalDocs.URL = mdata[key][0]
+				tag.ExternalDocs.URL = values[0]
 			case "url:desc":
 				if tag.ExternalDocs == nil {
 					tag.ExternalDocs = &ExternalDocs{}
 				}
-				tag.ExternalDocs.Description = mdata[key][0]
+				tag.ExternalDocs.Description = values[0]
 			default:
-				idx := strings.Index(key, "extension:")
-				if idx == -1 {
-					continue
-				}
-				tag.Extensions = extensionsFromExprWithPrefix(mdata, key[:idx+10])
+				tag.Extensions = tagExtensionsFromExpr(mdata, name)
 			}
 		}
 	}
 
 	return tags
+}
+
+func tagExtensionsFromExpr(metadata expr.MetaExpr, name string) map[string]any {
+	var extensions map[string]any
+	for key, values := range metadata {
+		tagName, field, ok, err := openapimeta.ParseTagKey(key)
+		if !ok || err != nil || tagName != name || !strings.HasPrefix(field, "extension:") || len(values) != 1 {
+			continue
+		}
+		name := strings.TrimPrefix(field, "extension:")
+		if extensions == nil {
+			extensions = make(map[string]any)
+		}
+		raw := jsontext.Value(values[0]).Clone()
+		if err := raw.Format(jsontext.ReorderRawObjects(true)); err != nil {
+			extensions[name] = values[0]
+			continue
+		}
+		extensions[name] = raw
+	}
+	return extensions
 }
 
 // TagNamesFromExpr computes the names of the OpenAPI tags specified in the

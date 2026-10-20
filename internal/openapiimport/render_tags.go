@@ -1,6 +1,10 @@
 package openapiimport
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/CaliLuke/loom/internal/openapimeta"
+)
 
 func (r *renderer) importedTags() []Tag {
 	seen := make(map[string]struct{})
@@ -27,8 +31,8 @@ func (r *renderer) importedTags() []Tag {
 }
 
 func (r *renderer) tagMetadata(tag Tag) error {
-	prefix := "openapi:tag:" + tag.Name
-	r.line("Meta(%q)", prefix)
+	identity := openapimeta.TagIdentityKey(tag.Name)
+	r.line("Meta(%q)", identity)
 	fields := []renderedMetadata{
 		{name: "summary", value: tag.Summary},
 		{name: "desc", value: tag.Description},
@@ -39,7 +43,7 @@ func (r *renderer) tagMetadata(tag Tag) error {
 	}
 	for _, field := range fields {
 		if field.value != "" {
-			r.line("Meta(%q, %q)", prefix+":"+field.name, field.value)
+			r.line("Meta(%q, %q)", openapimeta.TagAnnotationKey(tag.Name, field.name), field.value)
 		}
 	}
 	extensions, err := renderedExtensions("", tag.Extensions)
@@ -48,7 +52,7 @@ func (r *renderer) tagMetadata(tag Tag) error {
 	}
 	for _, extension := range extensions {
 		name := strings.TrimPrefix(extension.name, "openapi:extension:")
-		r.line("Meta(%q, %q)", prefix+":extension:"+name, extension.value)
+		r.line("Meta(%q, %q)", openapimeta.TagAnnotationKey(tag.Name, "extension:"+name), extension.value)
 	}
 	return nil
 }
