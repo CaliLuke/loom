@@ -28,8 +28,9 @@ type (
 	}
 
 	sinkMember struct {
-		Name         string `json:"name"`
-		RegisteredAt int64  `json:"registeredAt"`
+		Name          string `json:"name"`
+		RegisteredAt  int64  `json:"registeredAt"`
+		LastKeepAlive int64  `json:"lastKeepAlive,omitempty"`
 	}
 
 	sinkMembership struct {
@@ -39,8 +40,10 @@ type (
 	}
 
 	sinkMemberChange struct {
-		add    string
-		remove []string
+		add               string
+		remove            []string
+		keepAliveAt       int64
+		retireIfUnchanged map[string]sinkMember
 		// restore is authority from an already admitted active registration.
 		restore bool
 	}
@@ -71,7 +74,7 @@ func decodeSinkMembership(raw string) (*sinkMembership, error) {
 	if err := json.Unmarshal([]byte(raw), &record, json.RejectUnknownMembers(true)); err != nil {
 		return nil, fmt.Errorf("sink membership requires coordinated migration: %w", err)
 	}
-	if record.Version != 1 || record.Filter == nil || record.Members == nil {
+	if record.Version != 2 || record.Filter == nil || record.Members == nil {
 		return nil, fmt.Errorf("sink membership requires coordinated migration: invalid version, filter or members")
 	}
 	switch record.Filter.Kind {
@@ -88,7 +91,7 @@ func decodeSinkMembership(raw string) (*sinkMembership, error) {
 	}
 	seen := make(map[string]bool, len(record.Members))
 	for _, member := range record.Members {
-		if member.Name == "" || member.RegisteredAt <= 0 || seen[member.Name] {
+		if member.Name == "" || member.RegisteredAt <= 0 || member.LastKeepAlive < 0 || seen[member.Name] {
 			return nil, fmt.Errorf("sink membership requires coordinated migration: invalid consumer names or registration timestamps")
 		}
 		seen[member.Name] = true
@@ -127,43 +130,18 @@ func changeSinkMembership(ctx context.Context, cm *sinkConsumerMap, group string
 	ctx, cancel := redisop.Context(ctx, stream.rdb)
 	defer cancel()
 	for {
-		record, raw, err := readSinkMembership(ctx, stream, group)
+		record, raw, missing, err := prepareSinkMembership(ctx, stream, group, filter, change)
 		if err != nil {
 			return nil, err
 		}
-		missing := record == nil
-		if missing {
-			if change.add == "" {
-				return nil, nil
-			}
-			if !change.restore {
-				if err := checkSinkGroupIdentity(ctx, stream, group); err != nil {
-					return nil, err
-				}
-			}
-			record = &sinkMembership{Version: 1, Filter: &filter, Members: []sinkMember{}}
-		} else if *record.Filter != filter {
-			return nil, fmt.Errorf("sink group %q filter conflicts with its persisted identity", group)
+		if record == nil {
+			return nil, nil
 		}
-		record.Members = slices.DeleteFunc(record.Members, func(member sinkMember) bool {
-			return slices.Contains(change.remove, member.Name)
-		})
-		if change.add != "" && !slices.Contains(record.memberNames(), change.add) {
-			record.Members = append(record.Members, sinkMember{Name: change.add, RegisteredAt: time.Now().UnixNano()})
+		if sinkRetirementChanged(record, change.retireIfUnchanged) {
+			return record.memberNames(), nil
 		}
-		slices.SortFunc(record.Members, func(a, b sinkMember) int {
-			return cmp.Compare(a.Name, b.Name)
-		})
-		encoded, err := json.Marshal(record)
-		if err != nil {
-			return nil, fmt.Errorf("encode sink membership: %w", err)
-		}
-		var updated bool
-		if missing {
-			updated, err = cm.replica.SetIfNotExists(ctx, group, string(encoded))
-		} else {
-			_, _, updated, err = cm.replica.TestAndSetEx(ctx, group, raw, string(encoded))
-		}
+		applySinkMemberChange(record, change)
+		updated, err := publishSinkMembership(ctx, cm, group, record, raw, missing)
 		if err != nil {
 			return nil, err
 		}
@@ -171,6 +149,80 @@ func changeSinkMembership(ctx context.Context, cm *sinkConsumerMap, group string
 			return record.memberNames(), nil
 		}
 	}
+}
+
+func prepareSinkMembership(ctx context.Context, stream *Stream, group string, filter sinkFilter, change sinkMemberChange) (*sinkMembership, string, bool, error) {
+	record, raw, err := readSinkMembership(ctx, stream, group)
+	if err != nil {
+		return nil, "", false, err
+	}
+	if record == nil {
+		if change.add == "" {
+			return nil, "", true, nil
+		}
+		if !change.restore {
+			if err := checkSinkGroupIdentity(ctx, stream, group); err != nil {
+				return nil, "", false, err
+			}
+		}
+		return &sinkMembership{Version: 2, Filter: &filter, Members: []sinkMember{}}, raw, true, nil
+	}
+	if *record.Filter != filter {
+		return nil, "", false, fmt.Errorf("sink group %q filter conflicts with its persisted identity", group)
+	}
+	return record, raw, false, nil
+}
+
+func sinkRetirementChanged(record *sinkMembership, expectedMembers map[string]sinkMember) bool {
+	for name, expected := range expectedMembers {
+		for _, member := range record.Members {
+			if member.Name == name && member != expected {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func applySinkMemberChange(record *sinkMembership, change sinkMemberChange) {
+	record.Members = slices.DeleteFunc(record.Members, func(member sinkMember) bool {
+		return slices.Contains(change.remove, member.Name)
+	})
+	if change.add != "" {
+		found := false
+		for i := range record.Members {
+			if record.Members[i].Name != change.add {
+				continue
+			}
+			found = true
+			if change.keepAliveAt > record.Members[i].LastKeepAlive {
+				record.Members[i].LastKeepAlive = change.keepAliveAt
+			}
+			break
+		}
+		if !found {
+			record.Members = append(record.Members, sinkMember{
+				Name:          change.add,
+				RegisteredAt:  time.Now().UnixNano(),
+				LastKeepAlive: change.keepAliveAt,
+			})
+		}
+	}
+	slices.SortFunc(record.Members, func(a, b sinkMember) int {
+		return cmp.Compare(a.Name, b.Name)
+	})
+}
+
+func publishSinkMembership(ctx context.Context, cm *sinkConsumerMap, group string, record *sinkMembership, raw string, missing bool) (bool, error) {
+	encoded, err := json.Marshal(record)
+	if err != nil {
+		return false, fmt.Errorf("encode sink membership: %w", err)
+	}
+	if missing {
+		return cm.replica.SetIfNotExists(ctx, group, string(encoded))
+	}
+	_, _, updated, err := cm.replica.TestAndSetEx(ctx, group, raw, string(encoded))
+	return updated, err
 }
 
 // checkSinkGroupIdentity rejects pre-existing groups without the authoritative

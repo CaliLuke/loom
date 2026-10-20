@@ -89,6 +89,18 @@ func TestSinkRemoveStreamDestroysGroupOfLastConsumer(t *testing.T) {
 	requireGroups(t, rdb, stream, 0)
 }
 
+func TestSinkRemoveStreamToleratesMissingGroup(t *testing.T) {
+	rdb := startTestRedis(t)
+	ctx := t.Context()
+	stream := newTestStream(t, rdb, "removestream-missing-group")
+	sink := newTestSink(t, stream, "sink")
+	require.NoError(t, rdb.XGroupDestroy(ctx, stream.key, sink.Name).Err())
+
+	require.NoError(t, sink.RemoveStream(ctx, stream))
+	assert.Empty(t, streamConsumers(t, rdb, stream))
+	requireGroups(t, rdb, stream, 0)
+}
+
 // DialHook implements redis.Hook.
 func (interleaveHook) DialHook(next redis.DialHook) redis.DialHook {
 	return next

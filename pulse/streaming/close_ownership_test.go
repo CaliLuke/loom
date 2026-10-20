@@ -27,7 +27,8 @@ func TestSinkCloseCancelsBeforeMaintenanceLock(t *testing.T) {
 	sink := newTestSink(t, stream, "owner", options.WithSinkAckGracePeriod(20*time.Millisecond))
 	gate := &shutdownCommandGate{
 		match: func(cmd redis.Cmder) bool {
-			return cmd.Name() == "evalsha" && strings.Contains(strings.Join(stringArgs(cmd.Args()), " "), sinkKeepAliveMapName(sink.Name))
+			return cmd.Name() == "evalsha" && strings.Contains(strings.Join(stringArgs(cmd.Args()), " "), consumersMapKey(stream)) &&
+				strings.Contains(strings.Join(stringArgs(cmd.Args()), " "), `"lastKeepAlive":`)
 		},
 		entered: make(chan struct{}), canceled: make(chan struct{}), release: make(chan struct{}),
 	}

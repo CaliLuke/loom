@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"slices"
-	"strconv"
 	"time"
 
 	"github.com/CaliLuke/loom/pulse/internal/redisop"
@@ -72,8 +71,19 @@ func (s *Sink) reconcileRegistrations(ctx context.Context, missingGroup bool) er
 // is held, or during private constructor setup before any worker starts.
 func (s *Sink) updateConsumerKeepAlive(ctx context.Context, consumer string) error {
 	now := time.Now().UnixNano()
-	if _, err := s.consumersKeepAliveMap.Set(ctx, consumer, strconv.FormatInt(now, 10)); err != nil {
-		return err
+	for _, registration := range s.streams {
+		stream := registration.stream
+		cm := s.consumersMap[stream.Name]
+		if cm == nil {
+			return fmt.Errorf("missing sink membership map for stream %s", stream.Name)
+		}
+		if _, err := changeSinkMembership(ctx, cm, s.Name, s.filterIdentity, sinkMemberChange{
+			add:         consumer,
+			restore:     true,
+			keepAliveAt: now,
+		}); err != nil {
+			return fmt.Errorf("failed to publish sink keep-alive on stream %s: %w", stream.Name, err)
+		}
 	}
 	s.lastKeepAlive = now
 	return nil

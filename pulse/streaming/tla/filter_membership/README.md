@@ -73,42 +73,66 @@ by the existing group-recovery model and explicit local registration authority;
 new admission cannot use that authority. Strict version decoding remains a Go
 test obligation rather than a modeled JSON parser.
 
-## Persistent member retirement (final-review correction)
+## Persistent member retirement and heartbeat races
 
-Stream expiry deletes Redis consumer inventory but does not delete the persistent
-filter record. `MembershipRetirement.tla` starts after this expiry and recreation:
-a closed stale member is absent from native inventory, a fresh join is published
-before native creation, and another member owns a pending entry. The native-only
-alternative cannot retire the closed member (2 distinct states); deleting every
-native-absent member loses the fresh join (4 distinct states). The owned candidate
-preserves fresh and pending members and eventually retires the closed member
-under weakly fair cleanup (5 generated / 4 distinct states).
+Stream expiry removes Redis consumer inventory without removing the persistent
+filter record. Cleanup therefore considers both typed membership records and
+native consumers. Registration age protects the interval before a member's first
+heartbeat; afterward, `LastKeepAlive` in the member record is the freshness
+authority. `updateConsumerKeepAlive` changes that same record through
+`changeSinkMembership`, and stale retirement compares the exact member value
+through the same rmap CAS protocol. There is no separate keepalive hash whose
+snapshot can disagree with membership.
+
+`MembershipRetirement.tla` models the existing native-absence, registration
+freshness and pending-member obligations. Its `pending` set is fixed at
+initialization: it checks that cleanup does not discard an entry already pending
+when its native inventory is taken. It does not model new deliveries or PEL
+changes during cleanup. The model keeps the `native_only`, `absent_only` and
+`owned` controls for the older cleanup alternatives; this model is not evidence
+that pending preservation is dynamic.
+
+`HeartbeatRetirement.tla` models the heartbeat and pending-entry races across
+native deletion, membership retirement and final group destruction. The
+snapshot-only alternative violates `FreshPreserved` when a heartbeat arrives
+between snapshot and native deletion (24 generated / 22 distinct states, depth
+5). A separate freshness recheck still fails when the heartbeat arrives after
+that recheck but before membership CAS (48 / 34, depth 6). Versioned CAS passes
+fresh-member preservation (136 / 80, depth 12), but the current unguarded
+final-destroy path violates `PendingPreserved` when a new read becomes pending
+after native deletion (123 / 76, depth 11). Adding a pending check to the
+atomic final group-destroy decision preserves both invariants (127 / 76, depth
+11).
 
 ```sh
-for mode in native_only absent_only owned; do
+for cfg in heartbeat-snapshot.cfg heartbeat-recheck.cfg heartbeat-versioned-cas.cfg \
+  heartbeat-pending-current.cfg heartbeat-pending-guard.cfg; do
   java -XX:+UseParallelGC -cp "$HOME/.cache/loom-tools/tla2tools-1.7.4.jar" \
-    tlc2.TLC -workers 1 -config "retirement-$mode.cfg" MembershipRetirement.tla
+    tlc2.TLC -workers 1 -config "$cfg" HeartbeatRetirement.tla
 done
 ```
 
-`deleteStreamStaleConsumers` reconciles the union of typed members and native
-consumers. Each CAS member carries its registration timestamp. An authoritative
-keepalive, when present, determines freshness; registration age protects the
-interval before the first keepalive and permits retirement if that keepalive is
-absent after shutdown/expiry. The existing two-grace threshold remains unchanged.
-The Redis XPENDING/DELCONSUMER script checks pending ownership atomically even if
-an entry arrived after inventory was read. CAS removal retains filter identity;
-conditional keepalive deletion preserves a newer observed timestamp.
+The heartbeat model has one stream, one refreshable member and one other
+member. It abstracts heartbeat values to a membership revision and pending
+entries to whether the group has a PEL. It does not model clock skew, Redis
+failures, multiple simultaneous entries, stream contents or application
+processing. `DeliverPending` represents an outstanding blocked read that can
+complete after `DELCONSUMER`. Membership retirement can still remove that member;
+the final atomic `destroyGroupScript` decision preserves an empty group's PEL.
+An unacknowledged group remains claimable by a later same-name sink. The model
+assumes cooperating writers and a successful atomic Redis command; Go tests
+cover actual Lua behavior and rmap CAS/revision publication.
 
-The model abstracts timestamps to a freshness predicate and assumes cleanup
-continues while the named group exists. It does not model clock skew, indefinite
-constructor pauses beyond the existing grace lease, Redis failures or a heartbeat
-refresh racing a stale snapshot; these do not establish a distributed lease lock.
-`TestSinkFilterReviewExpiredStreamRetiresClosedMember` checks actual expiry and
-final group removal; `TestSinkFilterCleanupPreservesJoiningMember` interleaves
-cleanup after group creation but before consumer/heartbeat publication;
-`TestSinkFilterRetiresMemberWithoutKeepAlive` checks old/fresh registration
-fallback. Existing pending-consumer controls check the atomic PEL guard. Strict
-record tests now distinguish absent/null/empty filter from explicit `none` and
-reject missing/invalid member registration timestamps. JSON parsing remains a Go
-test obligation, not a property of this bounded state model.
+`TestSinkStaleSnapshotCannotRetireRefreshedMember` blocks both before native
+delete and after successful native deletion but before membership CAS. It
+commits a heartbeat and verifies membership, the shared group and subsequent
+active delivery. `TestSinkStaleDeletePreservesPendingReadBeforeMembershipRetirement`
+starts an outstanding read, creates pending work in that same gap, removes the
+other member, and verifies the group retains an acknowledgeable PEL entry.
+`TestSinkFilterReviewExpiredStreamRetiresClosedMember` checks stale closed-member
+retirement after expiry. `TestSinkFilterCleanupPreservesJoiningMember` checks the
+pre-heartbeat registration window, `TestSinkFilterRetiresMemberWithoutKeepAlive`
+checks registration-age fallback, and
+`TestSinkKeepsStaleConsumerWithPendingEventsUntilClaimed` checks the native
+pending-entry guard. Strict record tests cover v1 rejection and JSON field
+validation; JSON parsing remains a Go test obligation.

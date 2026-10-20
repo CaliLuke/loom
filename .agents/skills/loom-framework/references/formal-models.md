@@ -226,6 +226,7 @@ Rendered schema validation and actual decoder behavior are separate obligations.
 | Reader registration identity across admission, reply, fanout and replacement | [Reader registration model](../../../../pulse/streaming/tla/reader_registration/README.md); stale-cursor counterexamples and synchronized replacement/close tests, preserving admitted delivery |
 | Reader newest snapshots and duplicate/close publication rechecks | [Reader cursor model](../../../../pulse/streaming/tla/reader_cursor/README.md); one-time boundaries and atomic publication, excluding stale-registration replies and shutdown termination |
 | Sink missing-group recovery and retained start selectors | [Group recovery](../../../../pulse/streaming/tla/group_recovery/README.md); read/rotation hot-loop and stale-registration counterexamples, serialized repair and finite-failure recovery; excludes deleted events and PEL |
+| Sink filter identity, heartbeat refresh versus retirement, and pending work before group deletion | [Filter membership and retirement](../../../../pulse/streaming/tla/filter_membership/README.md); stale-snapshot and split-recheck counterexamples, membership CAS and atomic pending-entry guard, with synchronized Redis regressions |
 | Stream group creation/removal, per-stream map ownership and consumer rotation | [Pulse streaming models](../../../../pulse/streaming/tla/README.md) |
 | Integration child-process ownership, parent death and launch races | [Process lease model](../../../../internal/testprocess/tla/README.md) |
 

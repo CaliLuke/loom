@@ -87,14 +87,13 @@ func TestSinkFilterAdmissionLostReplyRollsBack(t *testing.T) {
 func TestSinkFilterRecordAdmission(t *testing.T) {
 	for _, raw := range []string{
 		`[]`,
-		`{"version":2,"filter":{"kind":"none","value":""},"members":[]}`,
-		`{"version":1,"filter":{"kind":"none","value":""},"members":null}`,
-		`{"version":1,"filter":{"kind":"exact","value":""},"members":[]}`,
-		`{"version":1,"filter":{"kind":"unknown","value":"x"},"members":[]}`,
-		`{"version":1,"filter":{"kind":"none","value":""},"members":[{"name":"x","registeredAt":1},{"name":"x","registeredAt":1}]}`,
-		`{"version":1,"filter":{"kind":"none","value":""},"members":[],"unknown":true}`,
-		`{"version":1,"filter":{"kind":"none"},"members":[{"name":"x"}]}`,
-		`{"version":1,"filter":{"kind":"none"},"members":[{"name":"x","registeredAt":0}]}`,
+		`{"version":2,"filter":{"kind":"none","value":""},"members":null}`,
+		`{"version":2,"filter":{"kind":"exact","value":""},"members":[]}`,
+		`{"version":2,"filter":{"kind":"unknown","value":"x"},"members":[]}`,
+		`{"version":2,"filter":{"kind":"none","value":""},"members":[{"name":"x","registeredAt":1},{"name":"x","registeredAt":1}]}`,
+		`{"version":2,"filter":{"kind":"none","value":""},"members":[],"unknown":true}`,
+		`{"version":2,"filter":{"kind":"none"},"members":[{"name":"x"}]}`,
+		`{"version":2,"filter":{"kind":"none"},"members":[{"name":"x","registeredAt":0}]}`,
 	} {
 		t.Run(raw, func(t *testing.T) {
 			_, err := decodeSinkMembership(raw)
@@ -103,8 +102,13 @@ func TestSinkFilterRecordAdmission(t *testing.T) {
 	}
 }
 
+func TestSinkFilterVersionOneMembershipRequiresMigration(t *testing.T) {
+	_, err := decodeSinkMembership(`{"version":1,"filter":{"kind":"none","value":""},"members":[{"name":"old","registeredAt":1}]}`)
+	require.ErrorContains(t, err, "migration")
+}
+
 func TestSinkFilterExplicitNoneRecordAdmission(t *testing.T) {
-	raw := `{"version":1,"filter":{"kind":"none"},"members":[]}`
+	raw := `{"version":2,"filter":{"kind":"none"},"members":[]}`
 	record, err := decodeSinkMembership(raw)
 	require.NoError(t, err)
 	require.Equal(t, &sinkFilter{Kind: "none"}, record.Filter)

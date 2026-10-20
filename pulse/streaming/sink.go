@@ -53,16 +53,25 @@ var deleteIdleConsumerScript = redis.NewScript(`
 `)
 
 // destroyGroupScript destroys the consumer group of a sink only if the
-// replicated consumers map of the stream holds no consumer of the sink. The
-// check and the destroy run atomically, so a group that another instance of
-// the sink added the stream with, after RemoveStream removed the last
-// consumer from the map, is kept (issue #508, tla/SinkAddStream.tla).
+// replicated consumers map of the stream holds no consumer and the group has
+// no pending entries. The checks and destroy run atomically, so a group that
+// another instance joined or that acquired pending work during cleanup is kept.
 // KEYS[1] is the hash key of the consumers map and KEYS[2] the stream key.
 // ARGV[1] is the sink name, which is both the map key and the group name.
 // ARGV[2] is the validated empty membership record. The script compares it
 // again before destruction, retaining identity. It returns 1 if destroyed.
 var destroyGroupScript = redis.NewScript(`
     if redis.call("HGET", KEYS[1], ARGV[1]) ~= ARGV[2] then
+        return 0
+    end
+    local pending = redis.pcall("XPENDING", KEYS[2], ARGV[1])
+    if pending.err then
+        if string.sub(pending.err, 1, 7) == "NOGROUP" then
+            return 0
+        end
+        return redis.error_reply(pending.err)
+    end
+    if pending[1] > 0 then
         return 0
     end
     return redis.call("XGROUP", "DESTROY", KEYS[2], ARGV[1])
@@ -127,9 +136,6 @@ type (
 		// consumer names are unique for each in-process sink instance. Maps
 		// also retain ownership of group cleanup after failed RemoveStream calls.
 		consumersMap map[string]*sinkConsumerMap
-		// consumersKeepAliveMap records consumer keep-alives for this
-		// sink (i.e. for all in-process instances of the sink).
-		consumersKeepAliveMap *rmap.Map
 		// ackGracePeriod is the grace period after which an event is
 		// considered unacknowledged.
 		ackGracePeriod time.Duration
@@ -186,23 +192,15 @@ func newSink(ctx context.Context, name string, stream *Stream, runtime sinkRunti
 		return nil, fmt.Errorf("failed to join replicated map for sink %s: %w", name, err)
 	}
 	cm := &sinkConsumerMap{stream: stream, replica: replica}
-	km, err := rmap.Join(ctx, sinkKeepAliveMapName(name), stream.rdb, rmap.WithLogger(logger))
-	if err != nil {
-		cm.replica.Close()
-		return nil, fmt.Errorf("failed to join replicated map for sink keep-alives %s: %w", name, err)
-	}
-
 	consumer := ulid.Make().String()
 	if _, err := changeSinkMembership(ctx, cm, name, filter, sinkMemberChange{add: consumer}); err != nil {
 		err = rollbackConsumer(ctx, cm, name, consumer, filter, err)
-		km.Close()
 		cm.replica.Close()
 		return nil, fmt.Errorf("failed to register consumer %s in replicated map for stream %s: %w", consumer, stream.Name, err)
 	}
 	if err := stream.createGroup(ctx, name, o.LastEventID); err != nil {
 		err = fmt.Errorf("failed to create Redis consumer group %s for stream %s: %w", name, stream.Name, err)
 		err = rollbackConsumer(ctx, cm, name, consumer, filter, err)
-		km.Close()
 		cm.replica.Close()
 		return nil, err
 	}
@@ -210,28 +208,27 @@ func newSink(ctx context.Context, name string, stream *Stream, runtime sinkRunti
 	runtimeBase := log.WithContext(context.WithoutCancel(ctx), ctx)
 	runtimeCtx, runtimeCancel := context.WithCancel(runtimeBase)
 	sink := &Sink{
-		Name:                  name,
-		consumer:              consumer,
-		leaseKeyName:          []string{staleLockName(name)},
-		startID:               o.LastEventID,
-		noAck:                 o.NoAck,
-		streams:               []sinkRegistration{{stream: stream, startID: o.LastEventID}},
-		blockDuration:         o.BlockDuration,
-		maxPolled:             o.MaxPolled,
-		bufferSize:            o.BufferSize,
-		donechan:              make(chan struct{}),
-		eventFilter:           eventMatcher,
-		filterIdentity:        filter,
-		consumersMap:          map[string]*sinkConsumerMap{stream.Name: cm},
-		consumersKeepAliveMap: km,
-		ackGracePeriod:        o.AckGracePeriod,
-		acquireLease:          acquireLeaseScript,
-		logger:                logger,
-		rdb:                   stream.rdb,
-		runtimeCtx:            runtimeCtx,
-		runtimeCancel:         runtimeCancel,
-		idleCheckPeriod:       runtime.idleCheckPeriod,
-		idleChecks:            runtime.idleChecks,
+		Name:            name,
+		consumer:        consumer,
+		leaseKeyName:    []string{staleLockName(name)},
+		startID:         o.LastEventID,
+		noAck:           o.NoAck,
+		streams:         []sinkRegistration{{stream: stream, startID: o.LastEventID}},
+		blockDuration:   o.BlockDuration,
+		maxPolled:       o.MaxPolled,
+		bufferSize:      o.BufferSize,
+		donechan:        make(chan struct{}),
+		eventFilter:     eventMatcher,
+		filterIdentity:  filter,
+		consumersMap:    map[string]*sinkConsumerMap{stream.Name: cm},
+		ackGracePeriod:  o.AckGracePeriod,
+		acquireLease:    acquireLeaseScript,
+		logger:          logger,
+		rdb:             stream.rdb,
+		runtimeCtx:      runtimeCtx,
+		runtimeCancel:   runtimeCancel,
+		idleCheckPeriod: runtime.idleCheckPeriod,
+		idleChecks:      runtime.idleChecks,
 	}
 	if sink.idleCheckPeriod <= 0 {
 		sink.idleCheckPeriod = defaultIdleCheckPeriod
@@ -245,7 +242,6 @@ func newSink(ctx context.Context, name string, stream *Stream, runtime sinkRunti
 	if err := sink.createConsumer(ctx, stream, consumer); err != nil {
 		err = rollbackConsumer(ctx, cm, name, consumer, filter, fmt.Errorf("failed to create consumer: %w", err))
 		runtimeCancel()
-		km.Close()
 		cm.replica.Close()
 		return nil, err
 	}
@@ -371,11 +367,12 @@ func (s *Sink) AddStream(ctx context.Context, stream *Stream, opts ...options.Ad
 
 // RemoveStream removes the stream from the sink, it is idempotent. It removes
 // the sink consumer from the replicated consumers map of the stream and, when
-// no consumer remains, destroys the consumer group. The group is kept if
-// another instance of the sink added the stream in the meantime. If map
-// removal fails, the local stream is retained. If group cleanup fails after
-// deregistration, polling stops but cleanup remains owned: retry RemoveStream
-// to finish, or AddStream to resume using the stream.
+// no consumer remains and no pending entries remain, destroys the consumer
+// group. A group with pending entries is kept so a later sink can claim them.
+// The group is also kept if another instance added the stream in the meantime.
+// If map removal fails, the local stream is retained. If group cleanup fails
+// after deregistration, polling stops but cleanup remains owned: retry
+// RemoveStream to finish, or AddStream to resume using the stream.
 func (s *Sink) RemoveStream(ctx context.Context, stream *Stream) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
@@ -427,8 +424,6 @@ func (s *Sink) Close(ctx context.Context) {
 			sub.close()
 		}
 		s.subscribers = nil
-		// Retain consumer recovery metadata so another instance can claim PEL.
-		s.consumersKeepAliveMap.Close()
 		for _, cm := range s.consumersMap {
 			cm.replica.Close()
 		}

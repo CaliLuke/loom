@@ -166,14 +166,17 @@ consumer validation.
   rejects legacy/expiring state and unknown existing groups, and only previously
   admitted registrations may restore missing identity. Empty membership retains
   identity; group cleanup compares the decoded empty record atomically before
-  destruction. Keep membership persistent until coordinated Stream.Destroy.
-  Require explicit filter identity and member registration ages; stale cleanup
-  reconciles persistent members with native inventory, using authoritative
-  keepalive or registration age and the atomic pending-entry deletion guard.
+  destruction and preserves groups with pending entries. Keep membership
+  persistent until coordinated Stream.Destroy. Version 2 stores each member's
+  heartbeat with its registration age; stale retirement compares the observed
+  member through the same CAS as refresh. Do not restore a separate heartbeat
+  authority. Cleanup reconciles persistent members with native inventory, using
+  member freshness and the atomic pending-entry deletion guard.
   Native absence alone must not retire an in-flight join.
   `streamEvents` owns terminal rejection XACK for fresh/claimed Sink events;
   Reader rejection does not ACK, and accepted events remain application-owned.
-  Preserve the filter-membership/disposition models and migration controls.
+  Preserve the filter-membership/disposition and heartbeat-retirement models,
+  their distinct pending-entry assumptions, and coordinated migration controls.
 
 - Sink active registrations own each stream's authored group-start selector and
   unfinished recovery. Read, rotation and existing keepalive paths use one locked

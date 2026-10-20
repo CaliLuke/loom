@@ -176,18 +176,32 @@ skip rejected events without acknowledging them. Accepted sink events remain
 application-owned; `WithSinkNoAck` applies to fresh reads, not historical pending
 entries reclaimed by that instance.
 
-Upgrading to enforced filters requires coordinated migration: stop all old
-instances, preserve or drain any data that must survive, and either move to a
-fresh stream or use `Stream.Destroy` for intentional shared teardown before
-recreating it. Do not mix old and new binaries. Legacy membership records,
-expiring membership hashes, and existing Redis groups without a recorded filter
-are rejected rather than assigned a guessed identity. Group identity no longer
-inherits the stream TTL and survives empty membership and `RemoveStream`.
-`Stream.Destroy` removes it together with the stream; ordinary shutdown does not.
-Use a new group name to change a subscription on an already migrated stream.
-Stale-member cleanup also reconciles members left behind by stream expiry. A
-new registration receives the existing grace period before its first heartbeat;
-pending entries continue to protect their consumer from deletion.
+Sink membership version 2 stores each consumer's registration time and latest
+keepalive in the same persistent record that owns its filter and membership.
+Stale cleanup removes membership only if that exact member value is still current
+after the native consumer check. A heartbeat that commits first keeps the member
+and its shared group. New registrations receive the existing grace period before
+their first heartbeat; pending entries continue to protect their consumer from
+deletion. Group destruction also checks the pending list atomically. If a new
+delivery becomes pending after native consumer deletion but before membership
+retirement, the empty group is retained so an active sink or a later sink can
+acknowledge or claim that entry.
+
+Version 1 membership records cannot bind freshness to retirement and are rejected
+with a migration error. Restarting alone does not upgrade them. For a coordinated
+migration, stop every old process that can read or write the stream, then either
+copy the stream entries that must survive to a fresh stream and create new sink
+groups there, or use `Stream.Destroy` for an intentional destructive reset before
+recreating the stream. `Stream.Destroy` deletes all stream entries and per-stream
+membership. Copying entries does not carry consumer groups, their delivery
+cursor, or pending-entry ownership; copied entries may be delivered again by the
+new groups. Preserve required progress with application checkpoints or
+deduplication. Do not mix old and new binaries.
+
+Filter identity survives empty membership and `RemoveStream`; ordinary shutdown
+does not remove it. `Stream.Destroy` removes it together with the stream. Use a
+new group name to change a subscription on an already migrated stream. Stale
+member cleanup also reconciles members left behind by stream expiry.
 
 A default reader captures the newest event ID once during `NewReader`. It skips
 history present at that snapshot and retains events added afterward, including
@@ -226,8 +240,12 @@ instance still consumes that stream. On a membership-removal error, the local
 stream is retained; retry removal because Redis may have applied a write whose
 reply was lost. If membership removal succeeds but group cleanup fails, polling
 stops and the sink retains the map for cleanup. Retry `RemoveStream` to finish,
-or call `AddStream` to resume the stream with that same map. `Sink.Close` also
-closes maps retained for pending cleanup.
+or call `AddStream` to resume the stream with that same map. Group cleanup
+destroys the group only when no member and no pending entry remain. A group
+retained for pending work preserves its cursor and PEL for a future same-name
+sink to claim; it can remain after `RemoveStream` returns until a later
+membership removal or an intentional `Stream.Destroy`. `Sink.Close` also closes
+maps retained for pending cleanup.
 
 A stale sink consumer is replaced across every active stream before the sink
 switches to the new name. Rotation preserves pending messages on old Redis

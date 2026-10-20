@@ -263,8 +263,13 @@ func (h *recoveryHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
 			key := fmt.Sprint(args[3])
 			if key == h.memberKey {
 				op = "membership"
-			} else if strings.Contains(key, "sink:"+h.group+":keepalive") {
-				op = "keepalive"
+				if len(args) > 7 {
+					previous, previousErr := decodeSinkMembership(fmt.Sprint(args[6]))
+					next, nextErr := decodeSinkMembership(fmt.Sprint(args[7]))
+					if previousErr == nil && nextErr == nil && sinkMembershipKeepAliveChanged(previous, next) {
+						op = "keepalive"
+					}
+				}
 			}
 		}
 		fault, ok := ctx.Value(recoveryFaultKey{}).(recoveryFault)
@@ -294,4 +299,15 @@ func (h *recoveryHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
 
 func (h *recoveryHook) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.ProcessPipelineHook {
 	return next
+}
+
+func sinkMembershipKeepAliveChanged(previous, next *sinkMembership) bool {
+	for _, member := range next.Members {
+		for _, old := range previous.Members {
+			if member.Name == old.Name && member.LastKeepAlive != old.LastKeepAlive {
+				return true
+			}
+		}
+	}
+	return false
 }

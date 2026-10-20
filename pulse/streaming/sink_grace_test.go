@@ -17,9 +17,15 @@ func TestSinkPositiveGraceRetainsLiveConsumer(t *testing.T) {
 			stream := newTestStream(t, rdb, "positive-grace")
 			sink := newTestSink(t, stream, "grace", options.WithSinkAckGracePeriod(time.Duration(math.MaxInt64)))
 			consumer := sink.consumer
-			require.Eventually(t, func() bool {
-				return sink.consumersKeepAliveMap.Map()[consumer] != ""
-			}, time.Second, time.Millisecond, "observe constructor keepalive before testing its age")
+			record, _, err := readSinkMembership(t.Context(), stream, sink.Name)
+			require.NoError(t, err)
+			var member sinkMember
+			for _, candidate := range record.Members {
+				if candidate.Name == consumer {
+					member = candidate
+				}
+			}
+			require.Positive(t, member.LastKeepAlive, "constructor heartbeat must be in the membership authority")
 			if path == "rotation" {
 				require.NoError(t, sink.ensureConsumer(t.Context()))
 				require.Equal(t, consumer, sink.consumer, "fresh consumer must not rotate within a positive grace")

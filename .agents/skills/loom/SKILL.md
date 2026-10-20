@@ -1673,10 +1673,13 @@ A named Sink group has one persistent effective filter per stream: no filter,
 exact topic, or exact regex spelling. Nonempty Topic wins over TopicPattern;
 conflicting joins fail. Use distinct groups for independent subscriptions.
 Filtered/malformed entries are acknowledged for that group, never deleted from
-the stream. Old membership records require coordinated migration: stop old
-instances and preserve needed data before shared Destroy or moving to a fresh
-stream. Group identity survives empty membership and stream TTL; only coordinated
-Destroy resets it. Read `docs/pulse.md` before upgrading; do not mix old binaries.
+the stream. Version 2 membership binds heartbeats to consumer membership;
+restarting does not upgrade version 1 records. Stop old instances and preserve
+needed data before shared Destroy or moving to a fresh stream. Destroy deletes
+stream data, and copying entries does not preserve group cursors or pending-entry
+ownership. Read the migration steps in `docs/pulse.md` before upgrading; do not
+mix old binaries. Group identity survives empty membership and stream TTL; only
+coordinated Destroy resets it.
 A Sink begins reading and claiming pending entries on its first successful
 `Subscribe`; construction creates membership and starts keepalive. Delivery
 continues if all subscribers later unsubscribe, without a new replay guarantee.
@@ -1688,7 +1691,9 @@ lists cannot be restored. Stop participating sinks before shared stream teardown
 Retry failed `Sink.RemoveStream` calls: membership errors retain the local
 stream, while group-cleanup errors stop polling and retain cleanup ownership.
 `AddStream` can resume a stream with pending group cleanup; `Close` releases all
-retained map subscriptions. Consumer rotation covers all active streams and
+retained map subscriptions. Removing the final member preserves a group with
+pending entries so another consumer can claim and acknowledge them. Consumer
+rotation covers all active streams and
 preserves pending entries for idle recovery. A sink with no streams waits;
 adding a stream resumes polling.
 

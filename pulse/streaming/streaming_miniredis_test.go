@@ -444,11 +444,10 @@ func TestSinkKeepsStaleConsumerWithPendingEventsUntilClaimed(t *testing.T) {
 
 	// Expire the closed consumer keep-alive so every cleanup pass sees it as
 	// stale while its pending entry is still younger than the ack grace period.
-	keepAlives, err := rmap.Join(ctx, sinkKeepAliveMapName("claimer"), rdb)
+	membership, err := rmap.Join(ctx, consumersMapName(stream), rdb)
 	require.NoError(t, err)
-	_, err = keepAlives.Set(ctx, firstConsumer, "1")
-	require.NoError(t, err)
-	keepAlives.Close()
+	setSinkMemberKeepAlive(t, &sinkConsumerMap{stream: stream, replica: membership}, "claimer", sinkFilter{Kind: "none"}, firstConsumer, 1)
+	membership.Close()
 
 	// Creating a sink runs the stale consumer cleanup before any claim.
 	idleChecks := make(chan time.Time)

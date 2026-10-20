@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/pulse/pulse"
-	"github.com/CaliLuke/loom/pulse/rmap"
 )
 
 type (
@@ -44,9 +43,16 @@ func TestSinkRotationOwnsEveryStream(t *testing.T) {
 	pending, err := sink.rdb.XPending(t.Context(), streams[1].key, sink.Name).Result()
 	require.NoError(t, err)
 	require.EqualValues(t, 1, pending.Count, "rotation must preserve the old consumer's pending message")
-	for _, stream := range streams {
+	for i, stream := range streams {
 		require.NoError(t, sink.RemoveStream(t.Context(), stream))
 		require.Empty(t, streamConsumers(t, sink.rdb, stream))
+		if i == 1 {
+			requireGroups(t, sink.rdb, stream, 1)
+			pending, err := sink.rdb.XPending(t.Context(), stream.key, sink.Name).Result()
+			require.NoError(t, err)
+			require.EqualValues(t, 1, pending.Count)
+			continue
+		}
 		requireGroups(t, sink.rdb, stream, 0)
 	}
 }
@@ -140,12 +146,10 @@ func TestSinkRotationWithNoStreams(t *testing.T) {
 func newRotationSink(t *testing.T) (*Sink, []*Stream) {
 	t.Helper()
 	rdb := startTestRedis(t)
-	km, err := rmap.Join(t.Context(), sinkKeepAliveMapName("sink"), rdb)
-	require.NoError(t, err)
 	sink := &Sink{
 		Name: "sink", consumer: "initial", rdb: rdb, logger: pulse.NoopLogger(),
 		filterIdentity: sinkFilter{Kind: "none"},
-		consumersMap:   make(map[string]*sinkConsumerMap), consumersKeepAliveMap: km,
+		consumersMap:   make(map[string]*sinkConsumerMap),
 		ackGracePeriod: time.Second, blockDuration: 20 * time.Millisecond,
 		donechan: make(chan struct{}), startID: "0-0", bufferSize: 1,
 	}

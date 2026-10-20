@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"strconv"
 	"strings"
 	"time"
 
@@ -50,22 +49,12 @@ func (s *Sink) deleteStreamStaleConsumers(ctx context.Context, stream *Stream) e
 			candidates[member.Name] = member
 		}
 	}
-	keepAlives, err := redisop.Client(s.rdb).HGetAll(ctx, fmt.Sprintf("map:%s:content", sinkKeepAliveMapName(s.Name))).Result()
-	if err != nil {
-		return fmt.Errorf("failed to read consumer keep-alives: %w", err)
-	}
 	for _, member := range candidates {
-		// Registration itself protects a join before native consumer creation
-		// and its first keepalive. Persistent members outlive stream expiry.
+		// Registration protects a join before its first keep-alive. The latest
+		// heartbeat shares the membership CAS used by retirement.
 		lastActive := member.RegisteredAt
-		ts, hasKeepAlive := keepAlives[member.Name]
-		if hasKeepAlive {
-			observed, err := strconv.ParseInt(ts, 10, 64)
-			if err != nil {
-				s.logger.Error(fmt.Errorf("failed to parse keep-alive timestamp: %w", err), "consumer", member.Name, "timestamp", ts)
-				continue
-			}
-			lastActive = observed
+		if member.LastKeepAlive > 0 {
+			lastActive = member.LastKeepAlive
 		}
 		if lastActive > 0 && !consumerKeepAliveExpired(time.Since(time.Unix(0, lastActive)), s.ackGracePeriod) {
 			continue
@@ -81,14 +70,12 @@ func (s *Sink) deleteStreamStaleConsumers(ctx context.Context, stream *Stream) e
 			continue
 		}
 		if sinks := s.consumersMap[stream.Name]; sinks != nil {
-			if _, err := changeSinkMembership(ctx, sinks, s.Name, s.filterIdentity, sinkMemberChange{remove: []string{member.Name}}); err != nil {
+			if _, err := changeSinkMembership(ctx, sinks, s.Name, s.filterIdentity, sinkMemberChange{
+				remove:            []string{member.Name},
+				retireIfUnchanged: map[string]sinkMember{member.Name: member},
+			}); err != nil {
 				s.logger.Error(fmt.Errorf("failed to remove consumer from map: %w", err), "stream", stream.Name, "consumer", member.Name)
 				continue
-			}
-		}
-		if hasKeepAlive {
-			if _, err := s.consumersKeepAliveMap.TestAndDelete(ctx, member.Name, ts); err != nil {
-				s.logger.Error(fmt.Errorf("failed to delete stale keep-alive: %w", err), "consumer", member.Name)
 			}
 		}
 	}
@@ -452,11 +439,6 @@ func consumersMapName(stream *Stream) string {
 // replicated map named consumersMapName(stream), as rmap.Join names it.
 func consumersMapKey(stream *Stream) string {
 	return fmt.Sprintf("map:%s:content", consumersMapName(stream))
-}
-
-// sinkKeepAliveMapName is the name of the replicated map that backs a sink keep-alives.
-func sinkKeepAliveMapName(sink string) string {
-	return fmt.Sprintf("sink:%s:keepalive", sink)
 }
 
 // staleLockName is the name of the lock used to check for stale messages.

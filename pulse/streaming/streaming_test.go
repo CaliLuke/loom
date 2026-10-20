@@ -48,7 +48,6 @@ func TestSinkNameHelpers(t *testing.T) {
 	stream := &Stream{Name: "events"}
 
 	require.Equal(t, "stream:events:sinks", consumersMapName(stream))
-	require.Equal(t, "sink:orders:keepalive", sinkKeepAliveMapName("orders"))
 	require.Equal(t, "sink:orders:stalelease", staleLockName("orders"))
 }
 

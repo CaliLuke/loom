@@ -1,7 +1,6 @@
 package streaming
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -183,8 +182,7 @@ func TestSinkFilterReviewExpiredStreamRetiresClosedMember(t *testing.T) {
 	}
 	require.EqualValues(t, 0, srv.Client.Exists(t.Context(), stream.key).Val())
 	live := newTestSink(t, stream, "shared", options.WithSinkAckGracePeriod(time.Hour))
-	_, err = live.consumersKeepAliveMap.SetAndWait(t.Context(), oldName, fmt.Sprint(time.Now().Add(-3*time.Hour).UnixNano()))
-	require.NoError(t, err)
+	setSinkMemberKeepAlive(t, live.consumersMap[stream.Name], live.Name, live.filterIdentity, oldName, time.Now().Add(-3*time.Hour).UnixNano())
 	native, err := srv.Client.XInfoConsumers(t.Context(), stream.key, live.Name).Result()
 	require.NoError(t, err)
 	require.Len(t, native, 1)
@@ -206,10 +204,10 @@ func TestSinkFilterReviewExpiredStreamRetiresClosedMember(t *testing.T) {
 
 func TestSinkFilterReviewMissingFilterIdentityRejects(t *testing.T) {
 	for _, raw := range []string{
-		`{"version":1,"members":[]}`,
-		`{"version":1,"filter":null,"members":[]}`,
-		`{"version":1,"filter":{},"members":[]}`,
-		`{"version":1,"filter":{"kind":null},"members":[]}`,
+		`{"version":2,"members":[]}`,
+		`{"version":2,"filter":null,"members":[]}`,
+		`{"version":2,"filter":{},"members":[]}`,
+		`{"version":2,"filter":{"kind":null},"members":[]}`,
 	} {
 		t.Run(raw, func(t *testing.T) {
 			rdb := startTestRedis(t)

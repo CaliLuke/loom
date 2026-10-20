@@ -2,6 +2,7 @@ package streaming
 
 import (
 	"context"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"slices"
@@ -25,9 +26,10 @@ type (
 	}
 
 	// failScriptHook fails every script call (EVAL or EVALSHA) that names
-	// key with errInjectedCommand.
+	// key and contains the optional argument fragment.
 	failScriptHook struct {
-		key string
+		key       string
+		heartbeat bool
 	}
 
 	// commandArgs are the leading arguments of a command, compared ignoring
@@ -55,12 +57,6 @@ func TestNewSinkClosesJoinedMapsOnError(t *testing.T) {
 		want  string
 	}{
 		{
-			name: "keep-alive map join",
-			sink: "invalid sink name",
-			fail: func(*testing.T, *redis.Client, *Stream) {},
-			want: "failed to join replicated map for sink keep-alives",
-		},
-		{
 			name: "group creation",
 			sink: "sink",
 			fail: func(t *testing.T, rdb *redis.Client, stream *Stream) {
@@ -82,7 +78,7 @@ func TestNewSinkClosesJoinedMapsOnError(t *testing.T) {
 			name: "keep-alive update",
 			sink: "sink",
 			fail: func(_ *testing.T, rdb *redis.Client, _ *Stream) {
-				rdb.AddHook(failScriptHook{key: fmt.Sprintf("map:%s:content", sinkKeepAliveMapName("sink"))})
+				rdb.AddHook(failScriptHook{key: consumersMapKey(&Stream{Name: "newsink-leak"}), heartbeat: true})
 			},
 			group: true,
 			want:  "failed to set sink keep-alive",
@@ -99,7 +95,6 @@ func TestNewSinkClosesJoinedMapsOnError(t *testing.T) {
 			assert.Nil(t, sink)
 			channels := []string{
 				mapUpdatesChannel(consumersMapName(stream)),
-				mapUpdatesChannel(sinkKeepAliveMapName(tc.sink)),
 			}
 			assert.Eventually(t, func() bool {
 				subs, err := rdb.PubSubNumSub(t.Context(), channels...).Result()
@@ -238,9 +233,30 @@ func mapUpdatesChannel(name string) string {
 // matches reports whether cmd is a script call that names h.key.
 func (h failScriptHook) matches(cmd redis.Cmder) bool {
 	script := commandArgs{"evalsha"}.matches(cmd) || commandArgs{"eval"}.matches(cmd)
-	return script && slices.ContainsFunc(cmd.Args(), func(arg any) bool {
+	if !script {
+		return false
+	}
+	hasKey := slices.ContainsFunc(cmd.Args(), func(arg any) bool {
 		return fmt.Sprint(arg) == h.key
 	})
+	if !hasKey {
+		return false
+	}
+	if !h.heartbeat {
+		return true
+	}
+	for _, arg := range cmd.Args() {
+		var record sinkMembership
+		if err := json.Unmarshal([]byte(fmt.Sprint(arg)), &record); err != nil {
+			continue
+		}
+		for _, member := range record.Members {
+			if member.LastKeepAlive > 0 {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // matches reports whether the leading arguments of cmd are a.
