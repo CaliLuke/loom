@@ -87,6 +87,9 @@ func responseContractCaseFields(contractCase *ResponseContractCaseData) []jen.Co
 	if contractCase.ErrorName != "" {
 		fields = append(fields, jen.Id("ErrorName").Op(":").Lit(contractCase.ErrorName))
 	}
+	if contractCase.ErrorNameFromStatus {
+		fields = append(fields, jen.Id("ErrorNameFromStatus").Op(":").True())
+	}
 	if len(contractCase.ContentTypes) > 0 {
 		fields = append(fields, jen.Id("ContentTypes").Op(":").Index().String().Values(quotedValues(contractCase.ContentTypes)...))
 	}

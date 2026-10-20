@@ -281,11 +281,12 @@ func buildResponseContractCaseData(endpoint *transportir.Endpoint) ([]*ResponseC
 	cases := make([]*ResponseContractCaseData, 0, len(analysis.Cases))
 	for _, contractCase := range analysis.Cases {
 		data := &ResponseContractCaseData{
-			ID:         contractCase.ID,
-			IsError:    contractCase.Kind == transportir.ResponseContractError,
-			Transport:  string(contractCase.Transport),
-			StatusCode: contractCase.StatusCode,
-			ErrorName:  contractCase.ErrorName,
+			ID:                  contractCase.ID,
+			IsError:             contractCase.Kind == transportir.ResponseContractError,
+			Transport:           string(contractCase.Transport),
+			StatusCode:          contractCase.StatusCode,
+			ErrorName:           contractCase.ErrorName,
+			ErrorNameFromStatus: contractCase.ErrorNameFromStatus,
 		}
 		if contractCase.Multipart != nil {
 			data.Multipart = &MultipartRequestContractData{
@@ -300,21 +301,7 @@ func buildResponseContractCaseData(endpoint *transportir.Endpoint) ([]*ResponseC
 				})
 			}
 		}
-		if contractCase.SSE != nil {
-			data.SSE = &SSEResponseContractData{
-				Direction:         contractCase.SSE.Direction,
-				MessageType:       contractCase.SSE.MessageType,
-				DataField:         contractCase.SSE.DataField,
-				DataEncoding:      contractCase.SSE.DataEncoding,
-				IDField:           contractCase.SSE.IDField,
-				EventField:        contractCase.SSE.EventField,
-				RetryField:        contractCase.SSE.RetryField,
-				IDRequired:        contractCase.SSE.IDRequired,
-				EventTypeRequired: contractCase.SSE.EventTypeRequired,
-				EventTypes:        append([]string(nil), contractCase.SSE.EventTypes...),
-				Terminal:          contractCase.SSE.Terminal,
-			}
-		}
+		data.SSE = buildSSEResponseContractData(contractCase.SSE)
 		if contractCase.WebSocket != nil {
 			data.WebSocket = &WebSocketResponseContractData{
 				Direction:           contractCase.WebSocket.Direction,

@@ -998,8 +998,13 @@ fields to appropriate transport bindings. Existing authentication, envelope ID
 and response-tag reconstruction count; a default or documentation-only body
 does not supply an otherwise unmapped field. Views retain their own projected
 requiredness. A custom required `ErrorName` must appear in its body or an
-explicit header/cookie mapping: the `Loom-Error` dispatch header does not assign
-that field. Previously accepted designs that silently lost required values now
+explicit header/cookie mapping, or use `ErrorNameFromStatus()` inside its HTTP
+error `Response`. The latter reconstructs the declared error name from a unique
+status and omits the field from the implicit body and the automatic `Loom-Error`
+header. It rejects shared statuses and competing explicit field mappings.
+The ordinary `Loom-Error` dispatch header does not assign that field without a
+mapping, and required mapped headers never fall back to the status.
+Previously accepted designs that silently lost required values now
 fail generation; add the missing mapping before regenerating.
 
 A response `Body(func() { ... })` that lists attributes of the result or error

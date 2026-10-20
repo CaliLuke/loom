@@ -92,6 +92,9 @@ func (b *errorBuilder) buildResultInit(errorResponse *transportir.ResponseStatus
 	}
 	args = append(args, buildHeaderInitArgs(headers)...)
 	args = append(args, buildCookieInitArgs(cookies)...)
+	if errorResponse.StatusErrorName != "" {
+		args = append(args, b.statusErrorNameArg(errorResponse, errctx, vars))
+	}
 	code, origin, skipFieldInit := b.buildResultInitCode(errorResponse, errctx, args)
 	fieldName, _, fieldPointer := transportFieldBinding(origin, httpError.Attribute, httpError.Attribute, errctx)
 	name := fmt.Sprintf("New%s%s", codegen.Goify(b.method.Name, true), codegen.Goify(httpError.Name, true))
@@ -158,6 +161,7 @@ func (b *errorBuilder) buildResponseData(errorResponse *transportir.ResponseStat
 			ContentType:          contentType,
 			Cookies:              cookies,
 			ErrorHeader:          httpError.Name,
+			ErrorNameFromStatus:  errorResponse.StatusErrorName != "",
 			ServerBody:           serverBodyData,
 			ClientBody:           clientBodyData,
 			ResultInit:           init,

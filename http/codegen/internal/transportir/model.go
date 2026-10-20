@@ -202,6 +202,9 @@ type (
 		Links        []*ResponseLink
 		// ErrorSelector records the effective JSON-RPC ErrorName path.
 		ErrorSelector []string
+		// StatusErrorName is the service field reconstructed from the error
+		// name selected by a unique HTTP status, or empty for wire identity.
+		StatusErrorName string
 	}
 
 	Route struct {

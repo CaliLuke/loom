@@ -257,6 +257,37 @@ field from it, and the field is omitted from the response body and OpenAPI
 schema. This supports several named errors with one unchanged payload shape,
 including multiple errors that use the same HTTP status.
 
+If a named error has its own HTTP status, you can instead declare that status
+as the source of its `ErrorName` field:
+
+```go
+Response("forbidden", StatusForbidden, func() {
+    ErrorNameFromStatus()
+})
+```
+
+The generated client sets the field to `"forbidden"` after selecting status 403.
+The server omits the automatic `Loom-Error` header, and the implicit response
+body and OpenAPI body schema omit the field. The application still sets the
+field when returning the error so the server can select the named response.
+Regenerate both client and server after adding this mapping.
+
+`ErrorNameFromStatus` requires a custom error with a required `ErrorName` field.
+Its declared error name must satisfy the field's constraints. The status must
+select exactly one response on each effective endpoint, including inherited
+responses and success responses. For example, separate 400 and 404 mappings are
+accepted; two named errors at 400 are rejected if either uses this option.
+
+This source is exclusive: do not also put the field in an explicit `Body`,
+header or cookie mapping, or declare a `Loom-Error` header. Other required fields
+still need their own reconstruction sources. Explicit selected and empty bodies
+are supported when they meet that rule. An extra, unbound `Loom-Error` received
+by a status-derived client does not override the declared identity.
+
+Existing header mappings remain strict: a missing required header is a decoding
+error even when the status is unique. This option is available only for HTTP
+error responses; JSON-RPC and gRPC retain their own error identity rules.
+
 OpenAPI combines responses that share a status. Distinct media types retain
 their own schemas; alternatives within one media type use `anyOf`, since error
 shapes may overlap. Header schemas also use `anyOf` when they differ. A header

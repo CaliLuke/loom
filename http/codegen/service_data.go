@@ -456,9 +456,12 @@ type (
 		// ContentType contains the value of the response
 		// "Content-Type" header.
 		ContentType string
-		// ErrorHeader contains the value of the response "loom-error"
-		// header if any.
+		// ErrorHeader identifies the declared error for error encoding and the
+		// automatic "loom-error" header, unless ErrorNameFromStatus omits it.
 		ErrorHeader string
+		// ErrorNameFromStatus omits the automatic routing header because the
+		// response status is the declared source of error identity.
+		ErrorNameFromStatus bool
 		// ServerBody is the type of the response body used by server
 		// code, nil if body should be empty. The type does NOT use
 		// pointers for all fields. If the method result is a result
@@ -532,6 +535,9 @@ type (
 		// NeedsProblemSource is true when the generated body, headers or cookies need a
 		// problem response adapter.
 		NeedsProblemSource bool
+		// NeedsErrorSource is true when encoding a declared error reads its
+		// typed value for a body, header, cookie or automatic routing header.
+		NeedsErrorSource bool
 	}
 
 	// InitData contains the data required to render a constructor.

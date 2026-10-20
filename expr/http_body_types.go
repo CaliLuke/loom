@@ -305,6 +305,9 @@ func buildHTTPResponseBody(name string, attr *AttributeExpr, resp *HTTPResponseE
 		mv := NewMappedAttributeExpr(v.AttributeExpr)
 		removeAttributes(mv, resp.Headers)
 		removeResponseCookieAttributes(mv, resp.Cookies)
+		if resp.ErrorNameFromStatus {
+			removeAttribute(mv, TaggedAttribute(attr, "struct:error:name"))
+		}
 		nv := *v
 		nv.AttributeExpr = mv.Attribute()
 		views[i] = &nv
@@ -335,6 +338,9 @@ func responseBodyObject(attr *AttributeExpr, resp *HTTPResponseExpr) *MappedAttr
 	inheritBodyReferences(body)
 	removeAttributes(body, resp.Headers)
 	removeResponseCookieAttributes(body, resp.Cookies)
+	if resp.ErrorNameFromStatus {
+		removeAttribute(body, TaggedAttribute(attr, "struct:error:name"))
+	}
 	return body
 }
 

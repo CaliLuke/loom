@@ -56,6 +56,9 @@ func responseReconstructionBindings(response *HTTPResponseExpr) []string {
 	if response.TagBinding != nil {
 		bindings = append(bindings, response.TagBinding.Key)
 	}
+	if response.StatusErrorName != "" {
+		bindings = append(bindings, response.StatusErrorName)
+	}
 	return bindings
 }
 

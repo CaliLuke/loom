@@ -1,14 +1,36 @@
 package testdata
 
-import . "github.com/CaliLuke/loom/dsl"
+import (
+	. "github.com/CaliLuke/loom/dsl"
+	"github.com/CaliLuke/loom/expr"
+)
 
-var OpenAPISharedErrorHeaderDSL = func() {
+var (
+	// OpenAPISharedErrorHeaderDSL exercises shared status codes with header identity.
+	OpenAPISharedErrorHeaderDSL = func() {
+		openAPISharedErrorDSL(false)
+	}
+	// OpenAPIStatusErrorNameDSL adds unique-status identity with the same error type.
+	OpenAPIStatusErrorNameDSL = func() {
+		openAPISharedErrorDSL(true)
+	}
+)
+
+func openAPISharedErrorDSL(statusIdentity bool) {
 	var ExceptionResponse = Type("ExceptionResponse", func() {
-		ErrorName("loomError", String, "Which declared error this is.")
+		ErrorName("loomError", String, "Which declared error this is.", func() {
+			if statusIdentity {
+				Meta("struct:field:name", "Kind")
+			}
+		})
 		Attribute("error", String, func() {
 			Meta("struct:field:name", "ErrorDetail")
 		})
-		Attribute("message", String)
+		Attribute("message", String, func() {
+			if statusIdentity {
+				MinLength(1)
+			}
+		})
 		Attribute("path", String)
 		Attribute("status", Int32)
 		Attribute("timestamp", Int64)
@@ -61,5 +83,39 @@ var OpenAPISharedErrorHeaderDSL = func() {
 				})
 			})
 		}
+		if statusIdentity {
+			statusErrorNameMethods(ExceptionResponse)
+		}
 	})
+}
+
+func statusErrorNameMethods(errorType expr.UserType) {
+	for _, mode := range []string{"body", "selected", "empty"} {
+		Method("status_"+mode, func() {
+			NoSecurity()
+			Error("bad_request", errorType)
+			Error("not_found", errorType)
+			HTTP(func() {
+				GET("/status/" + mode)
+				Response(StatusNoContent)
+				for _, failure := range []struct {
+					name string
+					code int
+				}{
+					{"bad_request", StatusBadRequest},
+					{"not_found", StatusNotFound},
+				} {
+					Response(failure.name, failure.code, func() {
+						ErrorNameFromStatus()
+						switch mode {
+						case "selected":
+							Body("message")
+						case "empty":
+							Body(Empty)
+						}
+					})
+				}
+			})
+		})
+	}
 }

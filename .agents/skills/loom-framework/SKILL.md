@@ -675,6 +675,13 @@ consumer validation.
   and synchronized reply/fanout regressions aligned.
 - Shared analysis belongs in a shared IR rather than being independently
   rediscovered by transport renderers.
+- `expr/http_error_name_status.go` owns admission of explicit HTTP status-derived
+  error identity: one effective response per status, a custom ErrorName whose
+  constraints accept the declared name, and no competing wire mapping. Carry
+  the resolved field through transport IR into the ordinary constructor inputs;
+  derive implicit body exclusion and response-contract header omission from
+  that source. Required mapped headers remain strict. Keep the
+  `expr/tla/status_error_identity` model and generated HTTP/OpenAPI tests aligned.
 - OpenAPI response accumulation belongs in `openapi/internal/ir`: collect every
   alternative before projecting one response per status. Merge media maps and
   schema alternatives, intersect header requiredness, and reject conflicting

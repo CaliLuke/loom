@@ -35,7 +35,8 @@ A selected or listed `Body` must leave every required payload and reconstructed
 result/error field supplied by the body or another transport mapping. Existing
 authentication, envelope IDs and response Tags can reconstruct their fields;
 a default alone cannot supply an unmapped field. Keep custom required ErrorName
-fields in the body or map them explicitly. Views retain their projected contract.
+fields in the body, map them explicitly, or declare `ErrorNameFromStatus()` on
+an HTTP error response with a unique status. Views retain their projected contract.
 Generation rejects incomplete mappings; add the missing source and regenerate.
 
 ## Core Workflow
@@ -713,6 +714,12 @@ receive status `404` and the public message `404 page not found`.
 - For a shared custom error type, use `ErrorName` for routing. Map that field
   with `Header("field:loom-error")` on each HTTP error response when routing
   metadata must stay out of the response body and OpenAPI schema.
+- Use `ErrorNameFromStatus()` inside an HTTP error `Response` to reconstruct its
+  custom required ErrorName from the declared error name. Each effective endpoint
+  must have exactly one response at that status. The implicit body excludes the
+  field and the server omits `Loom-Error`. Do not also map the field to an explicit
+  body, header or cookie. Existing required headers remain strict; there is no
+  missing-header fallback. Regenerate both client and server.
 - Use `Body("field")` on a custom HTTP error response to encode that field as
   the entire body and restore it in generated clients. String fields support
   `text/plain` and `text/html`; JSON `Any` and map fields have no extra envelope.

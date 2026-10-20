@@ -103,6 +103,7 @@ func buildResponseStatus(status *expr.HTTPResponseExpr, httpErrorExpr *expr.HTTP
 	return &ResponseStatus{
 		Error:                   httpError,
 		ErrorSelector:           httpErrorExpr.JSONRPCErrorSelector(),
+		StatusErrorName:         status.StatusErrorName,
 		StatusCode:              status.StatusCode,
 		Description:             status.Description,
 		ContentType:             status.ContentType,

@@ -31,6 +31,7 @@ func (e *HTTPEndpointExpr) Validate() error {
 	for _, er := range e.HTTPErrors {
 		verr.Merge(er.Validate())
 	}
+	e.validateStatusErrorNames(verr)
 
 	body := httpRequestBody(e)
 	if e.MethodExpr.IsStreaming() && body.Type != Empty {

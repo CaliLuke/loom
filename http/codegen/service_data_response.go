@@ -483,5 +483,8 @@ func newResponseEncodePlan(response *ResponseData) *ResponseEncodePlan {
 			response.ViewedResult != nil,
 		NeedsProblemSource: response.SourceVar == "problem" &&
 			(bodyCount > 0 || len(response.Headers) > 0 || len(response.Cookies) > 0),
+		NeedsErrorSource: (response.SourceVar != "problem" &&
+			(bodyCount > 0 || len(response.Headers) > 0 || len(response.Cookies) > 0)) ||
+			(response.ErrorHeader != "" && !response.ErrorNameFromStatus),
 	}
 }

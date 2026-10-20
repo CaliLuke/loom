@@ -1,5 +1,7 @@
 package codegen
 
+import "github.com/CaliLuke/loom/http/codegen/internal/transportir"
+
 type (
 	// ResponseContractCaseData contains the transport metadata required to
 	// render a generated HTTP response contract case.
@@ -14,6 +16,8 @@ type (
 		StatusCode int
 		// ErrorName is the declared service error name.
 		ErrorName string
+		// ErrorNameFromStatus identifies responses that omit Loom-Error.
+		ErrorNameFromStatus bool
 		// ContentTypes lists the declared response media types.
 		ContentTypes []string
 		// RequiredHeaders lists the required response header names.
@@ -86,3 +90,22 @@ type (
 		Terminal string
 	}
 )
+
+func buildSSEResponseContractData(source *transportir.ResponseContractSSE) *SSEResponseContractData {
+	if source == nil {
+		return nil
+	}
+	return &SSEResponseContractData{
+		Direction:         source.Direction,
+		MessageType:       source.MessageType,
+		DataField:         source.DataField,
+		DataEncoding:      source.DataEncoding,
+		IDField:           source.IDField,
+		EventField:        source.EventField,
+		RetryField:        source.RetryField,
+		IDRequired:        source.IDRequired,
+		EventTypeRequired: source.EventTypeRequired,
+		EventTypes:        append([]string(nil), source.EventTypes...),
+		Terminal:          source.Terminal,
+	}
+}

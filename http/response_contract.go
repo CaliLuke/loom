@@ -34,8 +34,12 @@ type (
 		Transport ResponseContractTransport
 		// StatusCode is the exact declared HTTP status code.
 		StatusCode int
-		// ErrorName is the expected Loom-Error header value for an error case.
+		// ErrorName is the declared service error name. It is also the expected
+		// Loom-Error value unless ErrorNameFromStatus is true.
 		ErrorName string
+		// ErrorNameFromStatus requires an absent Loom-Error header because the
+		// response status supplies error identity.
+		ErrorNameFromStatus bool
 		// ContentTypes lists the allowed response media types.
 		ContentTypes []string
 		// RequiredHeaders lists declared response headers that must be present.
@@ -163,7 +167,7 @@ func ValidateResponseContract(resp *http.Response, contract ResponseContractCase
 		return fmt.Errorf("%s: %w", prefix, err)
 	}
 	actualErrorName := resp.Header.Get("Loom-Error")
-	if contract.Kind == ResponseContractError {
+	if contract.Kind == ResponseContractError && !contract.ErrorNameFromStatus {
 		if actualErrorName != contract.ErrorName {
 			return fmt.Errorf("%s: Loom-Error is %q, want %q", prefix, actualErrorName, contract.ErrorName)
 		}

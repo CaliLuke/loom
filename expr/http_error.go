@@ -72,6 +72,7 @@ func (e *HTTPErrorExpr) Validate() *eval.ValidationErrors {
 		)
 	}
 	e.validateHeaders(ee, verr)
+	e.validateStatusErrorName(ee.AttributeExpr, verr)
 	// Built-in problem documents reconstruct ServiceError through the problem
 	// adapter, which supplies zero values for omitted properties. Their required
 	// wire fields are not required service fields. Custom errors reconstruct

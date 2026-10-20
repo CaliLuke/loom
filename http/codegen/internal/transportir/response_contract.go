@@ -52,6 +52,8 @@ type (
 		StatusCode int
 		// ErrorName is the declared service error name for error cases.
 		ErrorName string
+		// ErrorNameFromStatus identifies responses that omit Loom-Error.
+		ErrorNameFromStatus bool
 		// TagName is the result field selecting a tagged success response.
 		TagName string
 		// TagValue is the result field value selecting a tagged success response.
@@ -456,17 +458,18 @@ func newResponseContractCase(serviceName, methodName string, fileResponse bool, 
 		tagName, tagValue = expr.AttributeName(response.Tag.Key), response.Tag.Value
 	}
 	return &ResponseContractCase{
-		ID:           responseContractCaseID(serviceName, methodName, kind, response),
-		Kind:         kind,
-		Transport:    ResponseContractHTTP,
-		StatusCode:   response.StatusCode,
-		ErrorName:    errorName,
-		TagName:      tagName,
-		TagValue:     tagValue,
-		ContentTypes: append([]string(nil), response.ContentTypes...),
-		HasBody:      (fileResponse && !response.IsError) || responseHasBody(response),
-		Headers:      responseContractHeaders(response.Headers),
-		Cookies:      responseContractCookies(response.Cookies),
+		ID:                  responseContractCaseID(serviceName, methodName, kind, response),
+		Kind:                kind,
+		Transport:           ResponseContractHTTP,
+		StatusCode:          response.StatusCode,
+		ErrorName:           errorName,
+		ErrorNameFromStatus: response.StatusErrorName != "",
+		TagName:             tagName,
+		TagValue:            tagValue,
+		ContentTypes:        append([]string(nil), response.ContentTypes...),
+		HasBody:             (fileResponse && !response.IsError) || responseHasBody(response),
+		Headers:             responseContractHeaders(response.Headers),
+		Cookies:             responseContractCookies(response.Cookies),
 	}
 }
 

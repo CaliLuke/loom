@@ -291,6 +291,7 @@ func TestRepresentativeSpecsPassVacuumLintAndConsumerSmoke(t *testing.T) {
 		{name: "raw-request-bodies", dsl: testdata.RawRequestBodyOpenAPIDSL},
 		{name: "problem-links-async", dsl: testdata.OpenAPIProblemLinksAsyncDSL},
 		{name: "shared-error-responses", dsl: testdata.OpenAPISharedErrorHeaderDSL},
+		{name: "status-error-name", dsl: testdata.OpenAPIStatusErrorNameDSL},
 		{name: "vendor-extension-scopes", dsl: testdata.OpenAPIVendorExtensionScopeDSL},
 		{name: "nullable-presence", dsl: presenceOpenAPIDSL},
 		{name: "scalar-map-keys", dsl: testdata.OpenAPIScalarMapKeysDSL},

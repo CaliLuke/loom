@@ -70,7 +70,7 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
 	{{- range $err := .Errors }}
 		case {{ printf "%q" .Name }}:
 			//nolint:errorlint // Response ownership is already resolved.
-			res, ok := errorResponse.Owner.({{ $err.Ref }})
+			{{ if .Response.EncodePlan.NeedsErrorSource }}res{{ else }}_{{ end }}, ok := errorResponse.Owner.({{ $err.Ref }})
 			if !ok {
 				return encodeError(ctx, w, v)
 			}
@@ -229,7 +229,7 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
 
 	{{- end }}
 
-	{{- if .ErrorHeader }}
+	{{- if and .ErrorHeader (not .ErrorNameFromStatus) }}
 	w.Header().Set("loom-error", res.LoomErrorName())
 	{{- end }}
 		{{- if not .DeferStatus }}

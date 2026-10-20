@@ -114,6 +114,11 @@ type (
 		// ErrorName identifies the error whose response DSL is executing. It is
 		// empty for successful responses.
 		ErrorName string
+		// ErrorNameFromStatus requests status-derived error identity.
+		ErrorNameFromStatus bool
+		// StatusErrorName is the validated ErrorName field reconstructed from
+		// the declared error name, or empty when identity comes from the wire.
+		StatusErrorName string
 		// Meta is a list of key/value pairs
 		Meta MetaExpr
 		// Links describes the OpenAPI links emitted for this response.
@@ -516,12 +521,14 @@ func (r *HTTPResponseExpr) finalizeOpenAPIBody(a *HTTPEndpointExpr) {
 // Dup creates a copy of the response expression.
 func (r *HTTPResponseExpr) Dup() *HTTPResponseExpr {
 	res := HTTPResponseExpr{
-		StatusCode:  r.StatusCode,
-		Description: r.Description,
-		ContentType: r.ContentType,
-		Parent:      r.Parent,
-		ErrorName:   r.ErrorName,
-		Meta:        r.Meta,
+		StatusCode:          r.StatusCode,
+		Description:         r.Description,
+		ContentType:         r.ContentType,
+		Parent:              r.Parent,
+		ErrorName:           r.ErrorName,
+		ErrorNameFromStatus: r.ErrorNameFromStatus,
+		StatusErrorName:     r.StatusErrorName,
+		Meta:                r.Meta,
 	}
 	if r.Body != nil {
 		res.Body = DupAtt(r.Body)
