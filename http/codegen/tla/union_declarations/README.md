@@ -115,3 +115,37 @@ by corrected, explicitly asserted untagged tests. `required_untagged_probe.go.tx
 retains a separate parent-reproduced service-view validation defect exposed by
 the correction; the roadmap records reproduction and scope. The final fixture
 uses optional constrained fields to exercise real branch validators independently.
+
+## Validator discovery order
+
+`ValidatorOrdering.tla` covers #1028: a declaration first allocated by an
+ordinary response can later become a dependency of an untagged union validator.
+The eager policy fixes eligibility at first allocation and loses that later
+requirement. The deferred policy collects requirements before deciding which
+validators to emit. An unrelated ordinary response must not acquire a validator.
+
+Using the pinned tool above, run:
+
+```sh
+java -cp /Users/luca/.cache/loom-tools/tla2tools-1.7.4.jar tlc2.TLC -metadir /tmp/loom-validator-eager -config validator-eager.cfg ValidatorOrdering.tla
+java -cp /Users/luca/.cache/loom-tools/tla2tools-1.7.4.jar tlc2.TLC -metadir /tmp/loom-validator-deferred -config validator-deferred.cfg ValidatorOrdering.tla
+```
+
+The eager configuration violates `DependenciesDeclared` (15 generated, 11 distinct
+states). Deferred passes both invariants (14 generated, nine distinct states).
+This checks all orders of three roots over a fixed dependency graph; it assumes
+correct physical type identity and dependency extraction. It does not prove Go
+layout, generated syntax, recursion termination or runtime validation.
+
+`serverResponseValidation` retains each allocated declaration's physical context.
+`finalizeServerResponseValidation` runs after prepared body registration and
+attribute collection, using the complete server validation membership. The
+declaration allocation order is unchanged. This replaces the earlier claim that
+registration before each individual response's construction was sufficient:
+later responses may introduce dependencies on earlier declarations.
+
+`TestUnionResponseReusedValidator` checks emitted helper closure in both method
+orders and with collection/root reuse. Its `Generated` companion compiles those
+modules and checks valid and invalid nested values. The existing viewed union,
+type-identity and ordinary-response controls cover package reachability and
+absence of unnecessary response validation.

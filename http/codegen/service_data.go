@@ -98,8 +98,9 @@ type (
 		// ServerUnionTypes contains declarations reachable from prepared server bodies.
 		ServerUnionTypes []*uniongen.Type
 		// ClientUnionTypes contains declarations reachable from prepared client bodies.
-		ClientUnionTypes []*uniongen.Type
-		bodyRoots        []httpBodyRoot
+		ClientUnionTypes    []*uniongen.Type
+		bodyRoots           []httpBodyRoot
+		responseValidations []serverResponseValidation
 		// CORS contains the generated service CORS policy, if any.
 		CORS *CORSData
 		// Scope initialized with all the server and client types.

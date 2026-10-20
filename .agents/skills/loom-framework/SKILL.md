@@ -683,7 +683,11 @@ consumer validation.
   [response media model](../../../http/codegen/openapi/internal/ir/tla/response_media/README.md).
 - HTTP and JSON-RPC body declarations derive from registered prepared body roots.
   Register server response roots after view projection; declaration membership
-  and branch validator requirements consume that same graph. Allocate each union
+  and branch validator requirements consume that same graph. Retain response
+  declaration contexts and finalize their validators after all prepared roots
+  are registered; first allocation cannot decide eligibility because a later
+  union may need an earlier ordinary response type. Preserve allocation order.
+  Allocate each union
   once by its existing physical Go identity, then retain separate client/server
   membership and visited sets. Discover client roots in established endpoint order
   before server-only roots to preserve allocated names. Never emit a client-only

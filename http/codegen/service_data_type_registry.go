@@ -142,22 +142,15 @@ func (sds *ServicesData) attributeTypeData(ut expr.UserType, req, ptr, server, j
 	)
 	recordUserTypeLayout(rd, ut, server, jsonPresence, ptr, hctx.UseDefault)
 	applyUserTypeLayout(hctx, rd, att, server)
-	if server {
-		hctx.JSONPresenceTypes = rd.ServerJSONPresenceTypes
-		hctx.PresencePointerTypes = rd.ServerPresencePointerTypes
-		hctx.PresenceUseDefaultTypes = rd.ServerPresenceUseDefaultTypes
-	} else {
-		hctx.JSONPresenceTypes = rd.ClientJSONPresenceTypes
-		hctx.PresencePointerTypes = rd.ClientPresencePointerTypes
-		hctx.PresenceUseDefaultTypes = rd.ClientPresenceUseDefaultTypes
-	}
 	name = rd.Scope.GoValueTypeName(att)
 	ctx := "request"
 	if !req {
 		ctx = "response"
 	}
 	desc = name + " is used to define fields on " + ctx + " body types."
-	validate = attributeValidationDefinition(ut, req, server, rd, hctx)
+	if !server || req {
+		validate = attributeValidationDefinition(ut, req, server, rd, hctx)
+	}
 	if validate != "" {
 		validateRef = fmt.Sprintf("err = Validate%s(v)", name)
 	}
@@ -165,7 +158,7 @@ func (sds *ServicesData) attributeTypeData(ut expr.UserType, req, ptr, server, j
 	if sds != nil && sds.Root != nil && sds.Root.API != nil {
 		example = att.Example(sds.examplesFor(rd))
 	}
-	return &TypeData{
+	data := &TypeData{
 		Name:               ut.Name(),
 		VarName:            name,
 		Description:        desc,
@@ -176,6 +169,12 @@ func (sds *ServicesData) attributeTypeData(ut expr.UserType, req, ptr, server, j
 		ValidateRef:        validateRef,
 		Example:            example,
 	}
+	if server && !req {
+		rd.responseValidations = append(rd.responseValidations, serverResponseValidation{
+			data: data, attribute: att, context: hctx,
+		})
+	}
+	return data
 }
 
 func attributeValidationDefinition(ut expr.UserType, req, server bool, rd *ServiceData, hctx *codegen.AttributeContext) string {

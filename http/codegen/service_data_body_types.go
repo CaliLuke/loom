@@ -258,16 +258,6 @@ func (sds *ServicesData) buildResponseBodyType(body, att *expr.AttributeExpr, lo
 	httpctx := httpContext(sd.Scope, false, svr)
 	httpctx.JSONPresence = !svr
 	httpctx.CollectionElementPresence = httpctx.JSONPresence
-	ensureTypeLayoutMaps(sd)
-	if svr {
-		httpctx.JSONPresenceTypes = sd.ServerJSONPresenceTypes
-		httpctx.PresencePointerTypes = sd.ServerPresencePointerTypes
-		httpctx.PresenceUseDefaultTypes = sd.ServerPresenceUseDefaultTypes
-	} else {
-		httpctx.JSONPresenceTypes = sd.ClientJSONPresenceTypes
-		httpctx.PresencePointerTypes = sd.ClientPresencePointerTypes
-		httpctx.PresenceUseDefaultTypes = sd.ClientPresenceUseDefaultTypes
-	}
 	att, svcctx, sourceVar := responseBodySource(att, loc, svr, sd)
 	body, viewName := projectResponseBodyView(body, view, svr, sd)
 	sd.registerBodyRoot(body, endpointName, false, svr, httpctx.JSONPresence)
@@ -302,7 +292,7 @@ func (sds *ServicesData) buildResponseBodyType(body, att *expr.AttributeExpr, lo
 	if init != nil {
 		data.ref = init.ReturnTypeRef
 	}
-	return &TypeData{
+	result := &TypeData{
 		Name:               data.name,
 		VarName:            data.varName,
 		Description:        data.desc,
@@ -317,6 +307,12 @@ func (sds *ServicesData) buildResponseBodyType(body, att *expr.AttributeExpr, lo
 		Value:              value,
 		View:               viewName,
 	}
+	if _, named := body.Type.(expr.UserType); svr && named && view == nil {
+		sd.responseValidations = append(sd.responseValidations, serverResponseValidation{
+			data: result, attribute: body, context: httpctx, root: data,
+		})
+	}
+	return result
 }
 
 func applyUnionResponseBodyTypeData(data *responseBodyTypeData, body *expr.AttributeExpr, endpointName string, httpctx *codegen.AttributeContext, sd *ServiceData) {
@@ -373,8 +369,14 @@ func applyUserResponseBodyTypeData(data *responseBodyTypeData, body *expr.Attrib
 		data.def = goValueTypeDef(sd.Scope, ut.Attribute(), !svr, svr, !svr)
 	}
 	data.desc = fmt.Sprintf("%s is the type of the %q service %q endpoint HTTP response body.", data.varName, sd.Service.Name, endpointName)
+	if !svr && allowValidateDef {
+		applyUserResponseBodyValidation(data, body, ut, httpctx, sd, false)
+	}
+}
+
+func applyUserResponseBodyValidation(data *responseBodyTypeData, body *expr.AttributeExpr, ut expr.UserType, httpctx *codegen.AttributeContext, sd *ServiceData, svr bool) {
 	serverRequestValidation := svr && sd.ServerRequestValidationTypes[ut.Hash()]
-	if allowValidateDef && (!svr || serverRequestValidation) {
+	if !svr || serverRequestValidation {
 		bodyRef := bodyValueRef(sd.Scope, body, data.varName, httpctx)
 		validationContext := httpctx
 		if expr.IsPrimitive(ut) {
