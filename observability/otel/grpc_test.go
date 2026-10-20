@@ -10,6 +10,7 @@ import (
 	"github.com/CaliLuke/loom/observability/otel/internal/testkit"
 
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func TestGRPCOptionsEmitClientAndServerSpans(t *testing.T) {
@@ -40,6 +41,11 @@ func TestGRPCOptionsEmitClientAndServerSpans(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, healthpb.HealthCheckResponse_SERVING, resp.Status)
 
+	// Receiving the response does not wait for the server's deferred stats
+	// handler. Drain the server before inspecting its completed spans.
+	fixture.Server.GracefulStop()
 	ended := traceHarness.Recorder.Ended()
-	require.GreaterOrEqual(t, len(ended), 2)
+	require.Len(t, ended, 2)
+	require.ElementsMatch(t, []trace.SpanKind{trace.SpanKindClient, trace.SpanKindServer},
+		[]trace.SpanKind{ended[0].SpanKind(), ended[1].SpanKind()})
 }
