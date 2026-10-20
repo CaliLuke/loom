@@ -352,9 +352,34 @@ func (p *componentPruner) retain(document *Document) {
 			usedTags[tag] = struct{}{}
 		}
 	}
+	usedTags = tagParentClosure(usedTags, document.TagMetadata)
 	document.Tags = retainStrings(document.Tags, usedTags)
 	document.TagMetadata = retainTags(document.TagMetadata, usedTags)
 	p.closure.tags = usedTags
+}
+
+func tagParentClosure(retained map[string]struct{}, metadata []Tag) map[string]struct{} {
+	parents := make(map[string]string, len(metadata))
+	for _, tag := range metadata {
+		parents[tag.Name] = tag.Parent
+	}
+
+	queue := make([]string, 0, len(retained))
+	for name := range retained {
+		queue = append(queue, name)
+	}
+	for index := 0; index < len(queue); index++ {
+		parent := parents[queue[index]]
+		if parent == "" {
+			continue
+		}
+		if _, seen := retained[parent]; seen {
+			continue
+		}
+		retained[parent] = struct{}{}
+		queue = append(queue, parent)
+	}
+	return retained
 }
 
 func retainTags(source []Tag, retained map[string]struct{}) []Tag {

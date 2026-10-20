@@ -1238,6 +1238,10 @@ filter, and serialization rules belong here.
   must not make every operation fail during `--skip-unrenderable`.
 - Apply component-closure filtering independently from document and operation
   filtering. Referenced component diagnostics must stay with their consumers.
+  The shared component pruner retains each selected operation tag's transitive
+  parent closure, including ancestor metadata, in source order. Selection and
+  partial import must use that same closure; traversal must terminate on missing
+  or cyclic source parents.
 - Copy a shared normalized schema before adding request or response metadata.
   Do not mutate a component schema while rendering one media type.
 - Classify a schema as unconstrained only when it has no type and no retained

@@ -114,6 +114,95 @@ components:
 	require.Equal(t, []string{"/other"}, report.UnclaimedPaths)
 }
 
+func TestAnalyzeSelectedRetainsTagParentClosure(t *testing.T) {
+	source := []byte(`openapi: 3.2.0
+info: {title: Tag hierarchy, version: "1"}
+tags:
+  - name: catalog
+    description: Catalog operations.
+  - name: products
+    parent: catalog
+    summary: Product operations
+  - name: featured
+    parent: products
+    description: Featured product operations.
+  - name: admin
+    description: Unselected operations.
+paths:
+  /products:
+    get:
+      tags: [featured]
+      responses: {"204": {description: done}}
+  /admin:
+    get:
+      tags: [admin]
+      responses: {"204": {description: done}}
+`)
+
+	for _, selection := range []Selection{
+		{Tags: []string{"featured"}},
+		{Paths: []string{"/products"}},
+	} {
+		document, diagnostics, _, err := AnalyzeSelected(source, selection)
+		require.NoError(t, err)
+		require.Empty(t, diagnostics)
+		require.Len(t, document.Operations, 1)
+		require.Equal(t, []string{"catalog", "products", "featured"}, document.Tags)
+		require.Equal(t, []Tag{
+			{Name: "catalog", Description: "Catalog operations."},
+			{Name: "products", Summary: "Product operations", Parent: "catalog"},
+			{Name: "featured", Description: "Featured product operations.", Parent: "products"},
+		}, document.TagMetadata)
+	}
+}
+
+func TestAnalyzePartialRetainsTagAncestorsAfterSkippingOperation(t *testing.T) {
+	source := []byte(`openapi: 3.2.0
+info: {title: Partial tag hierarchy, version: "1"}
+tags:
+  - {name: catalog, description: Catalog operations.}
+  - {name: products, parent: catalog}
+  - {name: featured, parent: products}
+  - {name: admin, description: Unselected operations.}
+paths:
+  /products:
+    get:
+      tags: [featured]
+      responses: {"204": {description: done}}
+  /admin:
+    get:
+      tags: [admin]
+      callbacks: {unsupported: {}}
+      responses: {"204": {description: done}}
+`)
+
+	analysis, _, err := AnalyzePartial(source, Selection{PathPrefixes: []string{"/"}}, false)
+	require.NoError(t, err)
+	require.Len(t, analysis.Document.Operations, 1)
+	require.Len(t, analysis.Skipped, 1)
+	require.Equal(t, "/admin", analysis.Skipped[0].Path)
+	require.Equal(t, []string{"catalog", "products", "featured"}, analysis.Document.Tags)
+	require.Equal(t, "catalog", analysis.Document.TagMetadata[1].Parent)
+	require.Equal(t, "products", analysis.Document.TagMetadata[2].Parent)
+}
+
+func TestPruneComponentsTagParentTraversalStopsAtMissingAndCyclicParents(t *testing.T) {
+	document := &Document{
+		Operations: []Operation{{Tags: []string{"missing-parent", "cycle-a"}}},
+		Tags:       []string{"missing-parent", "cycle-a", "cycle-b", "unrelated"},
+		TagMetadata: []Tag{
+			{Name: "missing-parent", Parent: "absent"},
+			{Name: "cycle-a", Parent: "cycle-b"},
+			{Name: "cycle-b", Parent: "cycle-a"},
+			{Name: "unrelated"},
+		},
+	}
+
+	pruneComponents(document)
+	require.Equal(t, []string{"missing-parent", "cycle-a", "cycle-b"}, document.Tags)
+	require.Len(t, document.TagMetadata, 3)
+}
+
 func TestAnalyzeSelectedReassignsSchemaNamesAfterPruning(t *testing.T) {
 	source := []byte(`openapi: 3.1.1
 info: {title: Selection names, version: "1"}
