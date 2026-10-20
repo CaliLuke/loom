@@ -2,8 +2,8 @@ package service
 
 import (
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/codegen/uniongen"
 	"github.com/CaliLuke/loom/expr"
-	"github.com/CaliLuke/loom/internal/uniongen"
 )
 
 type (

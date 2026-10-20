@@ -8,8 +8,8 @@ import (
 	"github.com/dave/jennifer/jen"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/codegen/uniongen"
 	"github.com/CaliLuke/loom/expr"
-	"github.com/CaliLuke/loom/internal/uniongen"
 )
 
 type errorMessageField struct {

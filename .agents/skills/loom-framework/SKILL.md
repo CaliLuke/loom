@@ -714,15 +714,18 @@ consumer validation.
   concrete helper and preserves absent/null/value states. Helper collection and
   invocation must agree on physical carriers; a name-only repair is insufficient.
   Keep `codegen/tla/union_transform_carrier` and direct/generated controls aligned.
-- `internal/uniongen` owns the common Go union declaration and codec emitter.
+- `codegen/uniongen` owns the common Go union declaration and codec emitter.
+  These public codegen packages are also the plugin extension boundary. JSON-only
+  plugins set `Type.JSONOnly`; built-in service and HTTP emission retains form
+  codecs. Plugins supply finalized expressions and NameScope-derived references.
   Service and HTTP analysis supply that model; service-only validation helpers
   stay in service analysis. Keep untagged occurrence matching in
-  `internal/unionjson`, and do not fork emitted union methods by transport.
+  `codegen/unionjson`, and do not fork emitted union methods by transport.
   Tagged branch JSON admission consumes the `expr.AllowsNull` fact carried in
   `uniongen.Field`; a value property is mandatory even when it permits null.
   Service, projected and HTTP analysis must retain that semantic fact rather
   than infer it from physical type names. Keep the null-admission model under
-  `internal/uniongen/tla/null_admission` and generated wire controls aligned.
+  `codegen/uniongen/tla/null_admission` and generated wire controls aligned.
 - Put design-semantic vet rules over the evaluated `expr` graph. Use Go source
   analysis only for module adoption facts that the graph cannot contain. A
   source analyzer must report when an active target-module package lacks
@@ -1308,13 +1311,13 @@ filter, and serialization rules belong here.
   arrays; reject maps, nested unions, inline object leaves and opaque codecs.
   Promote inline object branches to deterministic components; inline array
   branches remain unsupported. `expr.ValuePlan.JSONShape` lowers captured
-  effective predicates. `internal/unionjson` projects service or HTTP member
+  effective predicates. `codegen/unionjson` projects service or HTTP member
   layouts and renders typed adapters; `pkg.MatchUntaggedJSON` owns orchestration.
   Independently require unique schema and actual Go matches with the same identity
   in both directions. Do not use numeric widths as schema discriminators, select
   the first successful branch, or mutate a destination before matching succeeds.
   Preserve API-level closed-object policy in the HTTP schema projection. See the
-  [matching design](../../../internal/unionjson/README.md) and its bounded model.
+  [matching design](../../../codegen/unionjson/README.md) and its bounded model.
 
 - Normalize a scalar JSON Schema `const` without a sibling `enum` to a
   one-member Loom enum. Keep structured constants and combined `const` plus

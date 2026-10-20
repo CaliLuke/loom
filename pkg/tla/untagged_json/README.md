@@ -1,7 +1,7 @@
 # Untagged JSON matching
 
 `UntaggedJSON.tla` models the orchestration in `pkg/json_union.go` and the
-transactional adapters emitted by `internal/unionjson`. It supplements the
+transactional adapters emitted by `codegen/unionjson`. It supplements the
 [value-contract model](../../../expr/lean/value_projection/README.md): schema
 membership and concrete Go decoding are independent predicates over one wire
 value. Both must identify the same single branch; emission must retain the

@@ -7,12 +7,12 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/service"
+	"github.com/CaliLuke/loom/codegen/uniongen"
 	. "github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/internal/representation"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
-	"github.com/CaliLuke/loom/internal/uniongen"
 )
 
 func TestHTTPDirectBuilderSeams(t *testing.T) {

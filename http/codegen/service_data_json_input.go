@@ -6,9 +6,9 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/cli"
+	"github.com/CaliLuke/loom/codegen/uniongen"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/internal/representation"
-	"github.com/CaliLuke/loom/internal/uniongen"
 )
 
 // jsonBodyInput owns a detached decoding representation and its declaration

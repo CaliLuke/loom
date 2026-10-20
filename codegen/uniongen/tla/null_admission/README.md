@@ -25,7 +25,7 @@ Checked passes Contract, RequiredValue, KnownBranch and Completes (24 states).
 Initial parallel runs shared an extraction directory and were discarded; the
 reported results use sequential runs and a dedicated temporary directory.
 
-`internal/uniongen.UnmarshalJSONBody` corresponds to admission. Service,
+`codegen/uniongen.UnmarshalJSONBody` corresponds to admission. Service,
 projected service and HTTP analyses populate its shared Field model. The proposed
 Field fact comes from `expr.AllowsNull` at the branch occurrence. Presence remains
 mandatory even for nullable/Any branches. Unknown and missing discriminators

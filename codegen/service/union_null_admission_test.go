@@ -5,10 +5,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/CaliLuke/loom/codegen"
-	"github.com/CaliLuke/loom/expr"
-	"github.com/CaliLuke/loom/internal/uniongen"
 	"github.com/stretchr/testify/require"
+
+	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/codegen/uniongen"
+	"github.com/CaliLuke/loom/expr"
 )
 
 func TestUnionNullAdmission(t *testing.T) {

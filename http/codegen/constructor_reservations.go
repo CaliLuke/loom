@@ -1,6 +1,6 @@
 package codegen
 
-import "github.com/CaliLuke/loom/internal/uniongen"
+import "github.com/CaliLuke/loom/codegen/uniongen"
 
 type constructorNames map[string]bool
 

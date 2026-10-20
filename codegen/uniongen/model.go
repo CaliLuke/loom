@@ -1,8 +1,9 @@
+// Package uniongen renders Go sum types for service, transport and plugin generators.
 package uniongen
 
 import (
 	"github.com/CaliLuke/loom/codegen"
-	"github.com/CaliLuke/loom/internal/unionjson"
+	"github.com/CaliLuke/loom/codegen/unionjson"
 )
 
 type (
@@ -24,6 +25,9 @@ type (
 		// Untagged reports whether JSON marshaling emits the selected branch value
 		// directly instead of the canonical discriminator/value wrapper.
 		Untagged bool
+		// JSONOnly omits form codecs for transports that only consume JSON.
+		// The zero value preserves both JSON and form emission.
+		JSONOnly bool
 		// JSON holds shared untagged JSON analysis; nil for tagged unions.
 		JSON *unionjson.Union
 		// HasScalarFormBranch is true when at least one branch keeps canonical

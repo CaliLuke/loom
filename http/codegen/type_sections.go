@@ -7,7 +7,7 @@ import (
 	"github.com/dave/jennifer/jen"
 
 	"github.com/CaliLuke/loom/codegen"
-	"github.com/CaliLuke/loom/internal/uniongen"
+	"github.com/CaliLuke/loom/codegen/uniongen"
 )
 
 func typeDeclSection(name string, data *TypeData) codegen.Section {

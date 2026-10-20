@@ -6,9 +6,9 @@ import (
 	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/codegen/uniongen"
+	"github.com/CaliLuke/loom/codegen/unionjson"
 	"github.com/CaliLuke/loom/expr"
-	"github.com/CaliLuke/loom/internal/uniongen"
-	"github.com/CaliLuke/loom/internal/unionjson"
 )
 
 func collectServiceUnions(service *expr.ServiceExpr, types, errTypes []*UserTypeData, scope *codegen.NameScope) []*UnionTypeData {

@@ -6,9 +6,9 @@ import (
 	"reflect"
 	"unicode/utf8"
 
+	"github.com/CaliLuke/loom/codegen/unionjson"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/internal/exactnum"
-	"github.com/CaliLuke/loom/internal/unionjson"
 	loom "github.com/CaliLuke/loom/pkg"
 )
 

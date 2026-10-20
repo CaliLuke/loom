@@ -6,10 +6,10 @@ import (
 	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/codegen/uniongen"
+	"github.com/CaliLuke/loom/codegen/unionjson"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/internal/representation"
-	"github.com/CaliLuke/loom/internal/uniongen"
-	"github.com/CaliLuke/loom/internal/unionjson"
 )
 
 // makeHTTPType traverses the attribute recursively and performs these actions:

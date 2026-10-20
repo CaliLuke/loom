@@ -8,8 +8,8 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/testutil"
+	"github.com/CaliLuke/loom/codegen/uniongen"
 	"github.com/CaliLuke/loom/expr"
-	"github.com/CaliLuke/loom/internal/uniongen"
 )
 
 func TestTypeInitSectionStructuredDeclaration(t *testing.T) {

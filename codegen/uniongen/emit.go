@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/CaliLuke/loom/codegen"
 	"github.com/dave/jennifer/jen"
+
+	"github.com/CaliLuke/loom/codegen"
 )
 
 // Emit appends the union declaration, constructors, accessors and codecs to stmt.
@@ -19,8 +20,10 @@ func Emit(stmt *jen.Statement, data *Type) {
 	addUnionVariantMethods(stmt, data)
 	addUnionValidateMethod(stmt, data)
 	addUnionMarshalJSONMethod(stmt, data)
-	addUnionMarshalFormMethod(stmt, data)
-	addUnionUnmarshalFormMethod(stmt, data)
+	if !data.JSONOnly {
+		addUnionMarshalFormMethod(stmt, data)
+		addUnionUnmarshalFormMethod(stmt, data)
+	}
 	addUnionUnmarshalJSONMethod(stmt, data)
 }
 

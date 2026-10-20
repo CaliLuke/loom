@@ -4,8 +4,8 @@ import (
 	"slices"
 	"sort"
 
+	"github.com/CaliLuke/loom/codegen/uniongen"
 	"github.com/CaliLuke/loom/expr"
-	"github.com/CaliLuke/loom/internal/uniongen"
 )
 
 // httpBodyRoot records the exact prepared graph used to declare a transport body.

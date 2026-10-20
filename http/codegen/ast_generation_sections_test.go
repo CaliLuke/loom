@@ -8,7 +8,7 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/testutil"
-	"github.com/CaliLuke/loom/internal/uniongen"
+	"github.com/CaliLuke/loom/codegen/uniongen"
 )
 
 func TestHTTPUnionSectionStructuredDeclarations(t *testing.T) {

@@ -325,7 +325,7 @@ The old nested-map untagged specimens exercised a validation loophole and were
 replaced by explicit recursive rejection tests. Their tagged map and deterministic
 serialization coverage remains in place.
 
-Direct and package checks cover `pkg`, `expr`, `internal/unionjson`,
+Direct and package checks cover `pkg`, `expr`, `codegen/unionjson`,
 `codegen/service`, and OpenAPI IR. Focused HTTP tests cover union analysis,
 mapped-name codecs, retained bytes examples, tagged boolean maps and determinism.
 Generated HTTP checks assert status, problem code/detail, invocation and decoded

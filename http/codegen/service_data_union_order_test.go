@@ -6,9 +6,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	cg "github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/codegen/uniongen"
+	"github.com/CaliLuke/loom/codegen/unionjson"
 	"github.com/CaliLuke/loom/expr"
-	"github.com/CaliLuke/loom/internal/uniongen"
-	"github.com/CaliLuke/loom/internal/unionjson"
 	loom "github.com/CaliLuke/loom/pkg"
 )
 
