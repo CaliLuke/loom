@@ -1230,6 +1230,11 @@ filter, and serialization rules belong here.
 - Parameter reference descriptions retain occurrence presence separately from
   the resolved component. Resolve by copying the parameter value and applying
   the override; never mutate the component or infer presence from nonempty text.
+- Security-scheme import resolves descriptions along local component alias
+  chains from the authored reference occurrences. In OpenAPI 3.1+, a present
+  description, including an empty string, overrides the target's effective value;
+  an absent description inherits it. Apply the result to the detached named
+  scheme without mutating its target. OpenAPI 3.0 reference siblings stay ignored.
 - Generated HTTP request code currently reserves the local name `body`. Until
   function-local names have an independent allocator, fail an imported
   request-body operation closed when a parameter or security field Goifies to

@@ -9,10 +9,68 @@ import (
 	"github.com/CaliLuke/libopenapi/datamodel/high/base"
 	v3 "github.com/CaliLuke/libopenapi/datamodel/high/v3"
 	"github.com/CaliLuke/libopenapi/orderedmap"
+	"github.com/CaliLuke/loom/internal/openapiref"
 	"github.com/pb33f/go-yaml"
 )
 
-func (a *analyzer) securityScheme(name string, source *v3.SecurityScheme, path string) (SecurityScheme, bool) {
+// securitySchemeDescriptions resolves each alias chain from authored reference occurrences.
+func (a *analyzer) securitySchemeDescriptions(source *orderedmap.Map[string, *v3.SecurityScheme]) map[string]string {
+	sources := make(map[string]*v3.SecurityScheme, orderedmap.Len(source))
+	for name, scheme := range source.FromOldest() {
+		sources[name] = scheme
+	}
+
+	descriptions := make(map[string]string, len(sources))
+	active := make(map[string]bool, len(sources))
+	for name := range source.FromOldest() {
+		a.securitySchemeDescription(name, sources, descriptions, active)
+	}
+	return descriptions
+}
+
+func (a *analyzer) securitySchemeDescription(
+	name string,
+	sources map[string]*v3.SecurityScheme,
+	descriptions map[string]string,
+	active map[string]bool,
+) string {
+	if description, exists := descriptions[name]; exists {
+		return description
+	}
+	source := sources[name]
+	if source == nil {
+		return ""
+	}
+	if active[name] {
+		return source.Description
+	}
+	active[name] = true
+	defer delete(active, name)
+
+	description := source.Description
+	low := source.GoLow()
+	if low != nil && low.GetReference() != "" {
+		if targetName, err := openapiref.Name(low.GetReference(), "#/components/securitySchemes/"); err == nil {
+			if _, exists := sources[targetName]; exists {
+				description = a.securitySchemeDescription(targetName, sources, descriptions, active)
+			}
+		}
+		if !strings.HasPrefix(a.version, "3.0.") {
+			if override := referenceDescriptionOverride(low.GetReferenceNode()); override != nil {
+				description = *override
+			}
+		}
+	}
+	descriptions[name] = description
+	return description
+}
+
+func (a *analyzer) securityScheme(
+	name string,
+	source *v3.SecurityScheme,
+	path string,
+	description string,
+) (SecurityScheme, bool) {
 	if source == nil {
 		a.unsupported("security-scheme", path, "security scheme is nil")
 		return SecurityScheme{}, false
@@ -22,7 +80,7 @@ func (a *analyzer) securityScheme(name string, source *v3.SecurityScheme, path s
 		return SecurityScheme{}, false
 	}
 	scheme := SecurityScheme{
-		Name: name, Type: source.Type, Scheme: strings.ToLower(source.Scheme), Description: source.Description,
+		Name: name, Type: source.Type, Scheme: strings.ToLower(source.Scheme), Description: description,
 		In: source.In, ParameterName: source.Name, Deprecated: source.Deprecated,
 		OAuth2MetadataURL: source.OAuth2MetadataUrl, Extensions: a.extensions(path, source.Extensions),
 	}

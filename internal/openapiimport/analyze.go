@@ -191,8 +191,10 @@ func (a *analyzer) components(source *v3.Components) Components {
 	}
 	result.Schemas = a.componentSchemas(source)
 	assignSchemaNames(result.Schemas)
+	securityDescriptions := a.securitySchemeDescriptions(source.SecuritySchemes)
 	for name, scheme := range source.SecuritySchemes.FromOldest() {
-		if normalized, ok := a.securityScheme(name, scheme, "#/components/securitySchemes/"+escapeJSONPointer(name)); ok {
+		path := "#/components/securitySchemes/" + escapeJSONPointer(name)
+		if normalized, ok := a.securityScheme(name, scheme, path, securityDescriptions[name]); ok {
 			result.SecuritySchemes = append(result.SecuritySchemes, normalized)
 		}
 	}
