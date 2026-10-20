@@ -28,8 +28,11 @@ func TestAuthoredStartAfterExternalStop(t *testing.T) {
 	old := readTestIntent(t, sched)
 	require.True(t, old.Complete)
 	require.NoError(t, node.StopJob(t.Context(), "key"))
+	// Jobs reports local deletion, so wait for the stop to release Redis ownership too.
 	require.Eventually(t, func() bool {
-		return len(worker.Jobs()) == 0
+		owned, ownerErr := node.rdb.HExists(t.Context(), node.ownersKey(), "key").Result()
+		payloadExists, payloadErr := node.rdb.HExists(t.Context(), rmapContentKey(jobPayloadMapName(node.PoolName)), "key").Result()
+		return ownerErr == nil && payloadErr == nil && len(worker.Jobs()) == 0 && !owned && !payloadExists
 	}, time.Second, time.Millisecond)
 	// Reconciliation alone must not turn responsibility into supervision.
 	sched.applyPlan(t.Context(), &JobPlan{})
