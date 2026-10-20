@@ -19,8 +19,9 @@ type clientTypeSections struct {
 
 // ClientTypeFiles returns the HTTP transport client types files.
 func ClientTypeFiles(genpkg string, data *ServicesData) []*codegen.File {
-	fw := make([]*codegen.File, 0, len(data.Expressions.Services))
-	for _, svc := range data.Expressions.Services {
+	services := data.servicesForGeneration()
+	fw := make([]*codegen.File, 0, len(services))
+	for _, svc := range services {
 		file := clientType(genpkg, svc, make(map[string]struct{}), data)
 		fw = append(fw, splitTypeFileIfLarge(file, svc.Name()+" HTTP client types", "client")...)
 	}

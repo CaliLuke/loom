@@ -9,6 +9,7 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/dsl"
+	"github.com/CaliLuke/loom/expr"
 	httpcodegen "github.com/CaliLuke/loom/http/codegen"
 )
 
@@ -53,6 +54,66 @@ func TestJSONRPCExampleCLIFilesSkipServicesWithoutTransportData(t *testing.T) {
 	code := renderCodegenFile(t, files[0])
 	assert.Contains(t, code, "doJSONRPC")
 	assert.NotContains(t, code, "prompts")
+}
+
+func TestJSONRPCFilesSkipServicesWithoutEndpoints(t *testing.T) {
+	root := RunJSONRPCDSL(t, jsonrpcTransportAbsentServiceDSL)
+	require.Equal(t, []string{"calc"}, serviceNames(root.API.JSONRPC.ServicesWithEndpoints()))
+	services := CreateJSONRPCServices(root)
+
+	serverFiles := ServerFiles("example.com/gen", services)
+	clientFiles := ClientFiles("example.com/gen", services)
+	clientTypeFiles := ClientTypeFiles("example.com/gen", services)
+	serverTypeFiles := ServerTypeFiles("example.com/gen", services)
+	pathFiles := PathFiles(services)
+	httpFiles := httpcodegen.ExampleServerFiles("example.com/gen", services)
+	exampleServerFiles := ExampleServerFiles("example.com/gen", services, httpFiles)
+
+	allFiles := append([]*codegen.File(nil), serverFiles...)
+	allFiles = append(allFiles, clientFiles...)
+	allFiles = append(allFiles, clientTypeFiles...)
+	allFiles = append(allFiles, serverTypeFiles...)
+	allFiles = append(allFiles, pathFiles...)
+	allFiles = append(allFiles, exampleServerFiles...)
+	for _, file := range allFiles {
+		renderCodegenFile(t, file)
+		assert.NotContains(t, file.Path, "prompts")
+	}
+	serverPaths := make([]string, 0, len(serverFiles))
+	for _, file := range serverFiles {
+		serverPaths = append(serverPaths, file.Path)
+	}
+	clientPaths := make([]string, 0, len(clientFiles))
+	for _, file := range clientFiles {
+		clientPaths = append(clientPaths, file.Path)
+	}
+	assert.Contains(t, serverPaths, filepath.Join(codegen.Gendir, "jsonrpc", "calc", "server", "server.go"))
+	assert.Contains(t, clientPaths, filepath.Join(codegen.Gendir, "jsonrpc", "calc", "client", "client.go"))
+}
+
+func TestJSONRPCFilesSkipConfiguredServicesWithoutMethodEndpoints(t *testing.T) {
+	root := RunJSONRPCDSL(t, jsonrpcTransportZeroEndpointDSL)
+	services := CreateJSONRPCServices(root)
+
+	require.Empty(t, root.API.JSONRPC.ServicesWithEndpoints())
+	require.Empty(t, ServerFiles("example.com/gen", services))
+	require.Empty(t, ClientFiles("example.com/gen", services))
+	require.Empty(t, ClientTypeFiles("example.com/gen", services))
+	require.Empty(t, ServerTypeFiles("example.com/gen", services))
+	require.Empty(t, PathFiles(services))
+	require.Empty(t, SSEServerFiles("example.com/gen", services))
+	require.Empty(t, ExampleCLIFiles("example.com/gen", services))
+
+	httpFiles := httpcodegen.ExampleServerFiles("example.com/gen", services)
+	require.Empty(t, ExampleServerFiles("example.com/gen", services, httpFiles))
+}
+
+func serviceNames(services []*expr.HTTPServiceExpr) []string {
+	names := make([]string, 0, len(services))
+	for _, service := range services {
+		names = append(names, service.Name())
+	}
+	return names
 }
 
 func TestJSONRPCExampleServerFilesUseTransportConfiguration(t *testing.T) {
@@ -198,6 +259,33 @@ var jsonrpcTransportAbsentServiceDSL = func() {
 	})
 
 	dsl.Service("prompts", func() {
+		dsl.JSONRPC(func() {
+			dsl.POST("/rpc")
+		})
+		dsl.Method("dynamic", func() {
+			dsl.Payload(func() {
+				dsl.Attribute("name", dsl.String)
+			})
+			dsl.Result(dsl.String)
+		})
+	})
+}
+
+var jsonrpcTransportZeroEndpointDSL = func() {
+	dsl.API("jsonrpc-zero-endpoint", func() {
+		dsl.Server("PromptsOnly", func() {
+			dsl.Services("prompts")
+			dsl.Host("dev", func() {
+				dsl.URI("http://example:8081")
+			})
+		})
+		dsl.JSONRPC(func() {})
+	})
+
+	dsl.Service("prompts", func() {
+		dsl.JSONRPC(func() {
+			dsl.POST("/rpc")
+		})
 		dsl.Method("dynamic", func() {
 			dsl.Payload(func() {
 				dsl.Attribute("name", dsl.String)

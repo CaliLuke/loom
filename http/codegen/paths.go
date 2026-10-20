@@ -14,18 +14,20 @@ import (
 
 // PathFiles returns the service path files.
 func PathFiles(data *ServicesData) []*codegen.File {
-	fw := make([]*codegen.File, 2*len(data.Expressions.Services))
-	for i := 0; i < len(data.Expressions.Services); i++ {
-		fw[i*2] = serverPath(data.Expressions.Services[i], data)
-		fw[i*2+1] = clientPath(data.Expressions.Services[i], data)
+	services := data.servicesForGeneration()
+	fw := make([]*codegen.File, 2*len(services))
+	for i, service := range services {
+		fw[i*2] = serverPath(service, data)
+		fw[i*2+1] = clientPath(service, data)
 	}
 	return fw
 }
 
 // ServerPathFiles returns the service path files used by HTTP servers.
 func ServerPathFiles(data *ServicesData) []*codegen.File {
-	files := make([]*codegen.File, len(data.Expressions.Services))
-	for i, service := range data.Expressions.Services {
+	services := data.servicesForGeneration()
+	files := make([]*codegen.File, len(services))
+	for i, service := range services {
 		files[i] = serverPath(service, data)
 	}
 	return files

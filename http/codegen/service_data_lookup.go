@@ -8,11 +8,13 @@ import (
 
 // NewServicesData creates a new ServicesData instance for the given service data.
 func NewServicesData(services *service.ServicesData, expressions *expr.HTTPExpr) *ServicesData {
+	jsonrpc := services.Root.API.JSONRPC != nil && expressions == &services.Root.API.JSONRPC.HTTPExpr
 	return &ServicesData{
 		ServicesData:         services,
 		Expressions:          expressions,
 		HTTPData:             make(map[string]*ServiceData),
 		serviceImportAliases: newServiceImportAliases(services.Root, expressions),
+		jsonrpc:              jsonrpc,
 	}
 }
 
@@ -29,6 +31,28 @@ func (sds *ServicesData) Get(name string) *ServiceData {
 	}
 	sds.HTTPData[name] = sds.analyze(svc)
 	return sds.HTTPData[name]
+}
+
+// ServicesWithEndpoints returns the services whose analyzed transport data
+// contains at least one method endpoint, preserving design order.
+func (sds *ServicesData) ServicesWithEndpoints() []*expr.HTTPServiceExpr {
+	var services []*expr.HTTPServiceExpr
+	for _, service := range sds.Expressions.Services {
+		data := sds.Get(service.Name())
+		if data != nil && len(data.Endpoints) > 0 {
+			services = append(services, service)
+		}
+	}
+	return services
+}
+
+// servicesForGeneration returns the configured HTTP services, or the
+// endpoint-bearing services when analyzing JSON-RPC transport data.
+func (sds *ServicesData) servicesForGeneration() []*expr.HTTPServiceExpr {
+	if !sds.jsonrpc {
+		return sds.Expressions.Services
+	}
+	return sds.ServicesWithEndpoints()
 }
 
 // FileData returns the transport data of the service name that renders the
@@ -50,6 +74,7 @@ func (sds *ServicesData) FileData(name string, imports []*codegen.ImportSpec) (*
 			Expressions:          sds.Expressions,
 			HTTPData:             make(map[string]*ServiceData),
 			serviceImportAliases: sds.serviceImportAliases,
+			jsonrpc:              sds.jsonrpc,
 		}
 		if sds.renamed == nil {
 			sds.renamed = make(map[*service.ServicesData]*ServicesData)

@@ -12,6 +12,14 @@ func (*JSONRPCExpr) EvalName() string {
 	return "API JSON-RPC"
 }
 
+// ServicesWithEndpoints returns the JSON-RPC services that have method
+// endpoints, preserving the configured service order.
+func (j *JSONRPCExpr) ServicesWithEndpoints() []*HTTPServiceExpr {
+	return httpServicesWithEndpoints(&j.HTTPExpr, func(endpoint *HTTPEndpointExpr) bool {
+		return endpoint.IsJSONRPC()
+	})
+}
+
 // Prepare copies shared HTTP API constructs over to the JSON-RPC API.
 func (j *JSONRPCExpr) Prepare() {
 	j.Path = Root.API.HTTP.Path

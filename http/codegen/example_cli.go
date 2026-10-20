@@ -66,7 +66,7 @@ func ExampleCLIForTransport(
 	services *ServicesData,
 	transport ExampleCLITransport,
 ) *codegen.File {
-	if !hostsTransportService(svr, services.Expressions) {
+	if !hostsTransportEndpoints(svr, services) {
 		return nil
 	}
 	return exampleCLIWithCache(genpkg, svr, services, example.NewServersData(), transport)
@@ -140,7 +140,11 @@ func exampleCLIServiceImports(
 ) (map[string]exampleCLIServiceData, []*codegen.ImportSpec) {
 	var specs []*codegen.ImportSpec
 	exampleServices := make(map[string]exampleCLIServiceData, len(services.Expressions.Services))
-	for _, svc := range services.Expressions.Services {
+	transportServices := services.Expressions.Services
+	if transportPath == "jsonrpc" {
+		transportServices = services.ServicesWithEndpoints()
+	}
+	for _, svc := range transportServices {
 		data := services.Get(svc.Name())
 		serviceImport := importScope.Unique(data.Service.PkgName, "svc")
 		diagnosticsImport := ""

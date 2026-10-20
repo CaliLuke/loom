@@ -20,8 +20,9 @@ type serverTypeSections struct {
 
 // ServerTypeFiles returns the HTTP transport type files.
 func ServerTypeFiles(genpkg string, data *ServicesData) []*codegen.File {
-	fw := make([]*codegen.File, 0, len(data.Expressions.Services))
-	for _, svc := range data.Expressions.Services {
+	services := data.servicesForGeneration()
+	fw := make([]*codegen.File, 0, len(services))
+	for _, svc := range services {
 		file := serverType(genpkg, svc, data)
 		fw = append(fw, splitTypeFileIfLarge(file, svc.Name()+" HTTP server types", "server")...)
 	}

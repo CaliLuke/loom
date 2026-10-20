@@ -13,7 +13,7 @@ import (
 
 // ServerFiles returns the generated JSON-RPC server files if any.
 func ServerFiles(genpkg string, data *httpcodegen.ServicesData) []*codegen.File {
-	jsvcs := data.Root.API.JSONRPC.Services
+	jsvcs := data.ServicesWithEndpoints()
 	files := make([]*codegen.File, 0, len(jsvcs)*3)
 	for _, svc := range jsvcs {
 		files = append(files, serverFile(genpkg, svc, data))

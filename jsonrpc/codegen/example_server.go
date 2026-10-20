@@ -3,6 +3,7 @@ package codegen
 import (
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
@@ -19,6 +20,15 @@ type jsonrpcExampleServiceData struct {
 	JSONRPCServerImport string
 }
 
+func serverHasJSONRPCEndpoints(server *expr.ServerExpr, services []*expr.HTTPServiceExpr) bool {
+	for _, service := range services {
+		if slices.Contains(server.Services, service.Name()) {
+			return true
+		}
+	}
+	return false
+}
+
 // ExampleServerFiles returns an example JSON-RPC server implementation for
 // each server expression that hosts a JSON-RPC service. The generated
 // handleHTTPServer function also serves the plain HTTP services the server
@@ -28,7 +38,7 @@ func ExampleServerFiles(genpkg string, data *httpcodegen.ServicesData, files []*
 	servers := example.NewServersData()
 	httpData := httpcodegen.NewServicesData(data.ServicesData, data.Root.API.HTTP)
 	for _, svr := range data.Root.API.Servers {
-		if !servers.Get(svr, data.Root).HostsJSONRPC() {
+		if !servers.Get(svr, data.Root).HostsJSONRPC() || !serverHasJSONRPCEndpoints(svr, data.ServicesWithEndpoints()) {
 			continue
 		}
 		if m := exampleServer(genpkg, data, httpData, svr, files, servers); m != nil {
@@ -124,7 +134,7 @@ func addJSONRPCExampleImports(header codegen.Section, genpkg string, data *httpc
 			}
 		}
 	}
-	for _, svc := range data.Root.API.JSONRPC.Services {
+	for _, svc := range data.ServicesWithEndpoints() {
 		sd := data.Get(svc.Name())
 		svcName := sd.Service.PathName
 		servicePath := path.Join(genpkg, svcName)
@@ -153,7 +163,7 @@ func buildJSONRPCExampleServiceData(svr *expr.ServerExpr, data *httpcodegen.Serv
 	}
 	for _, svc := range svr.Services {
 		d := data.Get(svc)
-		if d == nil {
+		if d == nil || len(d.Endpoints) == 0 {
 			continue
 		}
 		svcName := d.Service.PathName

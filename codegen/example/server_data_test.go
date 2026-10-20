@@ -27,8 +27,12 @@ func TestComputeHandlerArgsJSONRPCOrdering(t *testing.T) {
 		},
 		HTTPEndpoints: []*expr.HTTPEndpointExpr{{MethodExpr: method}},
 	}
-	mcpMethod := &expr.MethodExpr{Name: "ListTools"}
-	jsonrpcOrchestrator := &expr.HTTPServiceExpr{ServiceExpr: &expr.ServiceExpr{Name: "orchestrator"}}
+	rpcMethod := &expr.MethodExpr{Name: "Status", Meta: expr.MetaExpr{"jsonrpc": {}}}
+	mcpMethod := &expr.MethodExpr{Name: "ListTools", Meta: expr.MetaExpr{"jsonrpc": {}}}
+	jsonrpcOrchestrator := &expr.HTTPServiceExpr{
+		ServiceExpr:   &expr.ServiceExpr{Name: "orchestrator", Methods: []*expr.MethodExpr{method, rpcMethod}},
+		HTTPEndpoints: []*expr.HTTPEndpointExpr{{MethodExpr: rpcMethod}},
+	}
 	jsonrpcMCPAssistant := &expr.HTTPServiceExpr{
 		ServiceExpr: &expr.ServiceExpr{
 			Name:    "mcp_assistant",
@@ -48,7 +52,7 @@ func TestComputeHandlerArgsJSONRPCOrdering(t *testing.T) {
 			},
 		},
 		Services: []*expr.ServiceExpr{
-			{Name: "orchestrator", Methods: []*expr.MethodExpr{method}},
+			{Name: "orchestrator", Methods: []*expr.MethodExpr{method, rpcMethod}},
 			{Name: "mcp_assistant", Methods: []*expr.MethodExpr{mcpMethod}},
 		},
 	}
@@ -82,7 +86,7 @@ func TestComputeHandlerArgsSkipsJSONRPCServicesOutsideServer(t *testing.T) {
 		ServiceExpr:   &expr.ServiceExpr{Name: "web", Methods: []*expr.MethodExpr{method}},
 		HTTPEndpoints: []*expr.HTTPEndpointExpr{{MethodExpr: method}},
 	}
-	rpcMethod := &expr.MethodExpr{Name: "Echo"}
+	rpcMethod := &expr.MethodExpr{Name: "Echo", Meta: expr.MetaExpr{"jsonrpc": {}}}
 	rpcSvc := &expr.HTTPServiceExpr{
 		ServiceExpr:   &expr.ServiceExpr{Name: "rpc", Methods: []*expr.MethodExpr{rpcMethod}},
 		HTTPEndpoints: []*expr.HTTPEndpointExpr{{MethodExpr: rpcMethod}},
@@ -144,19 +148,25 @@ func TestServerDataHostedTransports(t *testing.T) {
 	rpc := &expr.ServiceExpr{Name: "rpc"}
 	dual := &expr.ServiceExpr{Name: "dual"}
 	both := &expr.ServiceExpr{Name: "both"}
+	emptyRPC := &expr.ServiceExpr{Name: "empty"}
+	rpcMethod := &expr.MethodExpr{Name: "Read", Meta: expr.MetaExpr{"jsonrpc": {}}}
+	rpc.Methods = []*expr.MethodExpr{rpcMethod}
+	both.Methods = []*expr.MethodExpr{rpcMethod}
 	root := &expr.RootExpr{
 		API: &expr.APIExpr{
 			HTTP: &expr.HTTPExpr{Services: []*expr.HTTPServiceExpr{
 				{ServiceExpr: web}, {ServiceExpr: dual}, {ServiceExpr: both},
 			}},
 			JSONRPC: &expr.JSONRPCExpr{HTTPExpr: expr.HTTPExpr{Services: []*expr.HTTPServiceExpr{
-				{ServiceExpr: rpc}, {ServiceExpr: both},
+				{ServiceExpr: rpc, HTTPEndpoints: []*expr.HTTPEndpointExpr{{MethodExpr: rpcMethod}}},
+				{ServiceExpr: both, HTTPEndpoints: []*expr.HTTPEndpointExpr{{MethodExpr: rpcMethod}}},
+				{ServiceExpr: emptyRPC},
 			}}},
 			GRPC: &expr.GRPCExpr{Services: []*expr.GRPCServiceExpr{
 				{ServiceExpr: store}, {ServiceExpr: dual},
 			}},
 		},
-		Services: []*expr.ServiceExpr{web, store, rpc, dual, both},
+		Services: []*expr.ServiceExpr{web, store, rpc, dual, both, emptyRPC},
 	}
 	cases := []struct {
 		Name        string
@@ -168,6 +178,8 @@ func TestServerDataHostedTransports(t *testing.T) {
 		{Name: "http-only", Services: []string{"web"}, WantHTTP: true},
 		{Name: "grpc-only", Services: []string{"store"}, WantGRPC: true},
 		{Name: "jsonrpc-only", Services: []string{"rpc"}, WantJSONRPC: true},
+		{Name: "empty-jsonrpc-only", Services: []string{"empty"}},
+		{Name: "empty-jsonrpc-with-http", Services: []string{"empty", "web"}, WantHTTP: true},
 		{Name: "http-and-grpc-services", Services: []string{"web", "store"}, WantHTTP: true, WantGRPC: true},
 		{Name: "http-and-grpc-service", Services: []string{"dual"}, WantHTTP: true, WantGRPC: true},
 		{Name: "http-and-jsonrpc-service", Services: []string{"both"}, WantHTTP: true, WantJSONRPC: true},

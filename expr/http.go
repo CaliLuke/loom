@@ -65,6 +65,27 @@ func (h *HTTPExpr) Service(name string) *HTTPServiceExpr {
 	return nil
 }
 
+// ServicesWithEndpoints returns the services that have method endpoints in
+// this transport, preserving the configured service order.
+func (h *HTTPExpr) ServicesWithEndpoints() []*HTTPServiceExpr {
+	return httpServicesWithEndpoints(h, func(endpoint *HTTPEndpointExpr) bool {
+		return !endpoint.IsJSONRPC()
+	})
+}
+
+func httpServicesWithEndpoints(h *HTTPExpr, isEndpoint func(*HTTPEndpointExpr) bool) []*HTTPServiceExpr {
+	var services []*HTTPServiceExpr
+	for _, service := range h.Services {
+		for _, endpoint := range service.HTTPEndpoints {
+			if isEndpoint(endpoint) {
+				services = append(services, service)
+				break
+			}
+		}
+	}
+	return services
+}
+
 // ServiceFor creates a new or returns the existing service definition for the
 // given service.
 func (h *HTTPExpr) ServiceFor(s *ServiceExpr, root *HTTPExpr) *HTTPServiceExpr {

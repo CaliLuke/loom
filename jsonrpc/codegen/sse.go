@@ -11,7 +11,7 @@ import (
 // SSEServerFiles returns the generated JSON-RPC SSE server files if any.
 func SSEServerFiles(genpkg string, data *httpcodegen.ServicesData) []*codegen.File {
 	var files []*codegen.File
-	jsvcs := data.Root.API.JSONRPC.Services
+	jsvcs := data.ServicesWithEndpoints()
 	for _, svc := range jsvcs {
 		if f := sseServerFile(genpkg, svc, data); f != nil {
 			files = append(files, f)

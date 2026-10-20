@@ -277,8 +277,9 @@ func collectServerTransports(svr *expr.ServerExpr, root *expr.RootExpr) []*Trans
 
 func collectJSONRPCServices(svr *expr.ServerExpr, root *expr.RootExpr) []string {
 	var names []string
+	services := root.API.JSONRPC.ServicesWithEndpoints()
 	for _, svc := range svr.Services {
-		if root.API.JSONRPC.Service(svc) != nil {
+		if serviceInHTTPServices(services, svc) {
 			names = append(names, svc)
 		}
 	}
@@ -298,7 +299,7 @@ func ensureHTTPTransport(transports []*TransportData, foundTrans map[Transport]s
 }
 
 func ensureJSONRPCTransport(transports []*TransportData, foundTrans map[Transport]struct{}, root *expr.RootExpr, svc string, seenHTTP bool) []*TransportData {
-	if root.API.JSONRPC.Service(svc) == nil || seenHTTP {
+	if !serviceInHTTPServices(root.API.JSONRPC.ServicesWithEndpoints(), svc) || seenHTTP {
 		return transports
 	}
 	if _, ok := foundTrans[TransportHTTP]; !ok {
@@ -306,6 +307,15 @@ func ensureJSONRPCTransport(transports []*TransportData, foundTrans map[Transpor
 		foundTrans[TransportHTTP] = struct{}{}
 	}
 	return transports
+}
+
+func serviceInHTTPServices(services []*expr.HTTPServiceExpr, name string) bool {
+	for _, service := range services {
+		if service.Name() == name {
+			return true
+		}
+	}
+	return false
 }
 
 func ensureGRPCTransport(transports []*TransportData, foundTrans map[Transport]struct{}, root *expr.RootExpr, svc string, grpcServices *[]string) []*TransportData {
@@ -465,7 +475,7 @@ func computeHandlerArgs(transport Transport, server *Data, root *expr.RootExpr) 
 
 	var jsonrpcServices []*expr.HTTPServiceExpr
 	if root.API != nil && root.API.JSONRPC != nil {
-		jsonrpcServices = root.API.JSONRPC.Services
+		jsonrpcServices = root.API.JSONRPC.ServicesWithEndpoints()
 	}
 
 	out := make([]HandlerArg, 0, len(server.Services)+len(jsonrpcServices))
@@ -528,16 +538,10 @@ func transportServiceNames(transports []*TransportData, transportType Transport)
 }
 
 func serviceHasURIHandlers(name string, root *expr.RootExpr) bool {
-	if svc := root.Service(name); len(svc.Methods) > 0 {
+	if serviceInHTTPServices(root.API.HTTP.ServicesWithEndpoints(), name) {
 		return true
 	}
-	if hs := root.API.HTTP.Service(name); hs != nil && len(hs.HTTPEndpoints) > 0 {
-		return true
-	}
-	if js := root.API.JSONRPC.Service(name); js != nil && len(js.HTTPEndpoints) > 0 {
-		return true
-	}
-	return false
+	return serviceInHTTPServices(root.API.JSONRPC.ServicesWithEndpoints(), name)
 }
 
 func templateServiceSet(root *expr.RootExpr) map[string]struct{} {
@@ -551,7 +555,7 @@ func templateServiceSet(root *expr.RootExpr) map[string]struct{} {
 		return servicesInTemplate
 	}
 	if root.API != nil && root.API.JSONRPC != nil {
-		for _, js := range root.API.JSONRPC.Services {
+		for _, js := range root.API.JSONRPC.ServicesWithEndpoints() {
 			if js.ServiceExpr != nil {
 				servicesInTemplate[js.ServiceExpr.Name] = struct{}{}
 			}

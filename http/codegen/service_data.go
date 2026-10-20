@@ -15,6 +15,7 @@ type (
 		Expressions          *expr.HTTPExpr
 		HTTPData             map[string]*ServiceData
 		serviceImportAliases map[string]string
+		jsonrpc              bool
 		// renamed caches the transport data returned by fileData by the
 		// service data it is computed from.
 		renamed map[*service.ServicesData]*ServicesData

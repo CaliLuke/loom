@@ -3,6 +3,7 @@ package codegen
 import (
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/dave/jennifer/jen"
@@ -88,7 +89,7 @@ func ClientCLIFilesForTransport(
 	}
 	files := make([]*codegen.File, 0, len(data.Root.API.Servers)*2) // preallocate for CLI files
 	for _, svr := range data.Root.API.Servers {
-		if !hostsTransportService(svr, data.Expressions) {
+		if !hostsTransportEndpoints(svr, data) {
 			continue
 		}
 		plan := buildCLIArgumentPlan(svr, data)
@@ -560,6 +561,18 @@ func streamFlag(svcn, en string) *cli.FlagData {
 func hostsTransportService(svr *expr.ServerExpr, transport *expr.HTTPExpr) bool {
 	for _, name := range svr.Services {
 		if transport.Service(name) != nil {
+			return true
+		}
+	}
+	return false
+}
+
+func hostsTransportEndpoints(svr *expr.ServerExpr, transport *ServicesData) bool {
+	if !transport.jsonrpc {
+		return hostsTransportService(svr, transport.Expressions)
+	}
+	for _, service := range transport.ServicesWithEndpoints() {
+		if slices.Contains(svr.Services, service.Name()) {
 			return true
 		}
 	}

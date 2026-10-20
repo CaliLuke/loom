@@ -373,6 +373,11 @@ consumer validation.
   renderer's own aliases from that plan. Do not regroup multipart and interceptor
   arguments independently or infer identity from rendered names/configurer nils.
 
+- JSON-RPC generation admits only services with analyzed JSON-RPC method
+  endpoints. Use the shared transport service selection for server, client, CLI,
+  path, type, SSE and example generation. Preserve HTTP file-server-only service
+  selection and keep generic service packages independent of transport admission.
+
 - `expr.validateErrorNames` admits authored API, service and method error lists
   before finalization. Exact wire names are unique within each original scope;
   narrower overrides, sibling scopes and distinct Go-normalized names remain
