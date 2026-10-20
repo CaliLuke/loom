@@ -45,7 +45,9 @@ func TestWebSocketMessageLimit(t *testing.T) {
 		{name: "explicit config replaces prior smaller framing", limit: 128, priorLimit: 64, size: 128},
 		{name: "configured limit exceeded", limit: 128, size: 129, tooLarge: true},
 		{name: "compressed expansion", limit: 128, size: 4096, compress: true, tooLarge: true},
-		{name: "default limit exceeded", size: loomhttp.DefaultMaxRequestBodyBytes + 1, tooLarge: true},
+		// Compressible data keeps the default expanded-byte-limit case a small
+		// wire frame under coverage while still exceeding the configured default.
+		{name: "default limit exceeded", size: loomhttp.DefaultMaxRequestBodyBytes + 1, compress: true, tooLarge: true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
