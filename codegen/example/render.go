@@ -32,6 +32,15 @@ func newRenderSection(name string, code func() string) codegen.Section {
 
 func renderClientMain(server *Data, hasJSONRPC, hasHTTP bool) string {
 	var b bytes.Buffer
+	if hasJSONRPC && hasHTTP {
+		fmt.Fprintf(&b, "func commandUsesJSONRPC(args []string) bool {\n")
+		fmt.Fprintf(&b, "\tif len(args) == 0 {\n\t\treturn false\n\t}\n")
+		fmt.Fprintf(&b, "\tservice := args[0]\n\tendpoint := \"\"\n")
+		fmt.Fprintf(&b, "\tif len(args) > 1 && args[1] != \"-h\" && args[1] != \"--help\" {\n\t\tendpoint = args[1]\n\t}\n")
+		fmt.Fprintf(&b, "\tif jsonrpcHasCommand(service, \"\") && !httpHasCommand(service, \"\") {\n\t\treturn true\n\t}\n")
+		fmt.Fprintf(&b, "\treturn jsonrpcHasCommand(service, endpoint) && !httpHasCommand(service, endpoint)\n")
+		fmt.Fprintf(&b, "}\n\n")
+	}
 	fmt.Fprintf(&b, "func main() {\n")
 	writeClientFlagBlock(&b, server, hasJSONRPC && hasHTTP)
 	fmt.Fprintf(&b, "\tflag.Usage = usage\n")
@@ -239,11 +248,10 @@ func writeClientTransportSelection(b *bytes.Buffer, t *TransportData, hasJSONRPC
 		if hasHTTP {
 			fmt.Fprintf(b, "\t\t\tif *jsonrpcF || *jF {\n")
 			fmt.Fprintf(b, "\t\t\t\tendpoint, payload, err = doJSONRPC(scheme, host, timeout, debug)\n")
+			fmt.Fprintf(b, "\t\t\t} else if commandUsesJSONRPC(flag.Args()) {\n")
+			fmt.Fprintf(b, "\t\t\t\tendpoint, payload, err = doJSONRPC(scheme, host, timeout, debug)\n")
 			fmt.Fprintf(b, "\t\t\t} else {\n")
 			fmt.Fprintf(b, "\t\t\t\tendpoint, payload, err = doHTTP(scheme, host, timeout, debug)\n")
-			fmt.Fprintf(b, "\t\t\t\tif err != nil && strings.HasPrefix(err.Error(), \"unknown\") {\n")
-			fmt.Fprintf(b, "\t\t\t\t\tendpoint, payload, err = doJSONRPC(scheme, host, timeout, debug)\n")
-			fmt.Fprintf(b, "\t\t\t\t}\n")
 			fmt.Fprintf(b, "\t\t\t}\n")
 			return
 		}

@@ -66,6 +66,15 @@ across services; the parser signature is unchanged. `loom example` does not
 replace existing files. For an affected application, compare a fresh example in
 a separate directory and reorder the arguments in its existing call.
 
+For a server exposing both HTTP and JSON-RPC, the example client selects the
+transport from the service and endpoint command names. JSON-RPC commands work
+without a transport flag, including JSON-RPC methods on a service that also has
+HTTP methods. `-j` or `-jsonrpc` explicitly selects JSON-RPC; a command available
+through both transports defaults to HTTP. To adopt this correction, regenerate
+`gen/`, compare a fresh example in a separate directory, and update the existing
+CLI's transport selection and command lookup bindings. `loom example` does not
+overwrite existing CLI files.
+
 Generated Go names belong to their declaration scope. Service-package types
 avoid emitted framework declarations such as `Client`, `NewEndpoints`, and
 method stream or body carriers by receiving a deterministic numeric suffix.

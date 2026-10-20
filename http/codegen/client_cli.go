@@ -101,7 +101,8 @@ func ClientCLIFilesForTransport(
 				}
 			}
 		}
-		files = append(files, endpointParser(genpkg, svr, svrData, plan, transport))
+		includeCommandLookup := hostsOtherClientCLITransport(svr, data.Root, transport.PathName)
+		files = append(files, endpointParser(genpkg, svr, svrData, plan, transport, includeCommandLookup))
 	}
 	for i, svc := range svcs {
 		files = append(files, payloadBuilders(genpkg, svc, cmds[i].CommandData, data, transport))
@@ -188,6 +189,7 @@ func endpointParser(
 	data []*commandData,
 	plan *cliArgumentPlan,
 	transport ClientCLITransport,
+	includeCommandLookup bool,
 ) *codegen.File {
 	pkg := naming.ServerDir(svr.Name)
 	path := filepath.Join(codegen.Gendir, transport.PathName, "cli", pkg, "cli.go")
@@ -230,8 +232,11 @@ func endpointParser(
 		codegen.Header(title, "cli", specs),
 		cli.UsageCommands(cliData),
 		cli.UsageExamples(cliData),
-		parseEndpointSection(cliData, data, plan, transport),
 	)
+	if includeCommandLookup {
+		sections = append(sections, commandLookupSection(cliData))
+	}
+	sections = append(sections, parseEndpointSection(cliData, data, plan, transport))
 	for _, cmd := range cliData {
 		sections = append(sections, cli.CommandUsage(cmd))
 	}
@@ -245,6 +250,7 @@ func allocateHTTPCommandIdentifiers(
 ) []*commandData {
 	reserved := []string{
 		"UsageCommands", "UsageExamples", "ParseEndpoint", "commandLine",
+		"HasCommand",
 		"scheme", "host", "doer", "enc", "dec", "restore", "dialer",
 		"command", "args", "svcn", "epn", "path", "err", "data", "endpoint", "c", "value",
 	}
@@ -577,4 +583,27 @@ func hostsTransportEndpoints(svr *expr.ServerExpr, transport *ServicesData) bool
 		}
 	}
 	return false
+}
+
+func hostsJSONRPCEndpoints(svr *expr.ServerExpr, root *expr.RootExpr) bool {
+	if root.API.JSONRPC == nil {
+		return false
+	}
+	for _, service := range root.API.JSONRPC.ServicesWithEndpoints() {
+		if slices.Contains(svr.Services, service.Name()) {
+			return true
+		}
+	}
+	return false
+}
+
+func hostsOtherClientCLITransport(svr *expr.ServerExpr, root *expr.RootExpr, transportPath string) bool {
+	switch transportPath {
+	case "http":
+		return hostsJSONRPCEndpoints(svr, root)
+	case "jsonrpc":
+		return root.API.HTTP != nil && hostsTransportService(svr, root.API.HTTP)
+	default:
+		return false
+	}
 }

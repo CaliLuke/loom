@@ -96,9 +96,15 @@ func renderExampleCLIEnd(plan *cliArgumentPlan, apiPkg, streamingConfigDefault s
 	return b.String()
 }
 
-func exampleCLIUsageSection(usagePrefix string) codegen.Section {
+func exampleCLIUsageSection(usagePrefix string, includeCommandLookup bool) codegen.Section {
 	return codegen.NewJenniferSection("cli-http-usage", func(stmt *jen.Statement) {
-		stmt.Line()
+		if includeCommandLookup {
+			stmt.Line()
+			stmt.Var().Id(usagePrefix + "HasCommand").Op("=").Id("cli").Dot("HasCommand")
+			stmt.Line()
+		} else {
+			stmt.Line()
+		}
 		stmt.Func().Id(usagePrefix + "UsageCommands").Params().Index().String().Block(
 			jen.Return(jen.Id("cli").Dot("UsageCommands").Call()),
 		)

@@ -92,3 +92,19 @@ func TestClientUsageOmitsEmptyAggregateExampleBlock(t *testing.T) {
 	require.Contains(t, source, `if usageExamples != "" {`)
 	require.Contains(t, source, `"\nExample:\n%s\n"`)
 }
+
+func TestMixedClientDispatchUsesFullCommandIdentityAndDefaultsToHTTP(t *testing.T) {
+	server := &Data{
+		Hosts: []*HostData{{Name: "dev"}},
+		Transports: []*TransportData{
+			{Type: TransportHTTP, Name: "HTTP"},
+			{Type: Transport("jsonrpc"), Name: "JSON-RPC"},
+		},
+	}
+
+	source := renderClientMain(server, true, true)
+
+	require.Contains(t, source, `jsonrpcHasCommand(service, endpoint) && !httpHasCommand(service, endpoint)`)
+	require.Contains(t, source, `if *jsonrpcF || *jF`)
+	require.NotContains(t, source, `strings.HasPrefix(err.Error(), "unknown")`)
+}

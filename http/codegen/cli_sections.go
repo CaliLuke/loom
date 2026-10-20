@@ -46,6 +46,33 @@ func parseEndpointSection(
 	})
 }
 
+func commandLookupSection(commands []*cli.CommandData) codegen.Section {
+	return codegen.NewJenniferSection("command-lookup", func(stmt *jen.Statement) {
+		stmt.Comment("HasCommand reports whether the named service and endpoint are registered with the CLI.").Line()
+		stmt.Func().Id("HasCommand").Params(
+			jen.Id("service").String(),
+			jen.Id("endpoint").String(),
+		).Bool().BlockFunc(func(block *jen.Group) {
+			block.Switch(jen.Id("service")).BlockFunc(func(cases *jen.Group) {
+				for _, command := range commands {
+					cases.Case(jen.Lit(command.Name)).BlockFunc(func(serviceBlock *jen.Group) {
+						serviceBlock.If(jen.Id("endpoint").Op("==").Lit("")).Block(
+							jen.Return(jen.True()),
+						)
+						serviceBlock.Switch(jen.Id("endpoint")).BlockFunc(func(endpoints *jen.Group) {
+							for _, endpoint := range command.Subcommands {
+								endpoints.Case(jen.Lit(endpoint.Name)).Block(jen.Return(jen.True()))
+							}
+						})
+						serviceBlock.Return(jen.False())
+					})
+				}
+			})
+			block.Return(jen.False())
+		})
+	})
+}
+
 func appendKongCommandLineStruct(stmt *jen.Statement, commands []*cli.CommandData) {
 	stmt.Line().Type().Id("commandLine").StructFunc(func(group *jen.Group) {
 		for _, cmd := range commands {

@@ -126,7 +126,10 @@ func exampleCLIWithCache(
 		exampleCLIStartSection(svcData, interceptorsPkg, transport.FunctionName),
 		exampleCLIStreamingSection(plan),
 		exampleCLIEndSection(plan, apiPkg, transport.StreamingConfigDefault),
-		exampleCLIUsageSection(transport.UsagePrefix),
+		exampleCLIUsageSection(
+			transport.UsagePrefix,
+			hostsOtherClientCLITransport(svr, services.Root, transport.PathName),
+		),
 	}
 	return &codegen.File{
 		Path:      path,

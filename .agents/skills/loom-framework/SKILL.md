@@ -375,6 +375,11 @@ consumer validation.
   service and endpoint identity through command-name allocation; project each
   renderer's own aliases from that plan. Do not regroup multipart and interceptor
   arguments independently or infer identity from rendered names/configurer nils.
+  Mixed example CLIs select transport before parsing from each parser's allocated
+  service and endpoint command inventory. Share the lookup-emission predicate
+  between parser and example files. Explicit JSON-RPC flags take precedence;
+  an identity present in both transports defaults to HTTP. Never infer transport
+  from error text or retry malformed HTTP arguments through JSON-RPC.
 
 - JSON-RPC generation admits only services with analyzed JSON-RPC method
   endpoints. Use the shared transport service selection for server, client, CLI,
