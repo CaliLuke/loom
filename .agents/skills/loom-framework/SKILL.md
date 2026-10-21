@@ -1091,6 +1091,13 @@ There is one DSL parser, one shared semantic IR, and one renderer.
   example records. Different sampling policies require distinct synthesis scopes;
   sharing occurrences must not change documentation examples or suppression.
   See `codegen/service/SEMANTICS.md` and its bounded ownership model.
+- Target capture is distinct from projection policy. `ValuePlanRequest.Target`
+  captures mutable state now; `TargetOccurrence` reuses an immutable capture in
+  the same context. Never supply both or cache mutable attributes by pointer.
+  Normalize source ancestry during capture; policy pointer fields are location
+  identities, not live provenance. HTTP final-layout schema, anchor and example
+  plans share that target capture while keeping visibility and codec policies
+  independent. See `codegen/COMPILATION.md` and `expr/tla/target_capture`.
 - Prepare builtin OpenAPI examples in `internal/representation` from retained
   `ValueContext` selection and synthesis results. Preserve ordered authored
   groups, metadata, explicit nulls, precision and selected union branches.

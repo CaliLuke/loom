@@ -18,6 +18,11 @@ compares duplicate captures, shared mutable selection, and synthesis-cache polic
 collisions. Its corrected bounded model shares semantic ownership while isolating
 backend records and sampling scopes; it does not establish memory bounds.
 
+The [target capture model](../../../../expr/tla/target_capture/README.md) checks
+snapshot stability, context isolation and independent projection policies after
+caller mutation. It rejects live-target rereads, foreign capture admission and
+policy-cache conflation; Go tests retain the opaque-value/materialization boundary.
+
 ## Shared generated declarations
 
 The [declaration merge model](../../../../codegen/generator/tla/declaration_merge/README.md)

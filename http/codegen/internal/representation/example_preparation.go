@@ -94,13 +94,13 @@ func PrepareStandaloneExamples(
 	}
 	data := &service.ValueData{Context: context, Occurrence: occurrence}
 	schema, err := context.NewValuePlan(occurrence, expr.ValuePlanRequest{
-		Target: attribute, Codec: expr.ValueCodecJSON, Use: expr.ValuePlanSchema,
+		TargetOccurrence: occurrence, Codec: expr.ValueCodecJSON, Use: expr.ValuePlanSchema,
 	})
 	if err != nil {
 		return nil, err
 	}
-	documentation, err := context.NewValuePlan(occurrence, DocumentationPlanRequest(expr.ValuePlanRequest{
-		Target: attribute,
+	documentation, err := context.NewValuePlan(occurrence, DocumentationPlanRequest(attribute, expr.ValuePlanRequest{
+		TargetOccurrence: occurrence,
 	}))
 	if err != nil {
 		return nil, err

@@ -52,26 +52,48 @@ func BuildValuePlan(value *transportir.ValueTarget, target *expr.AttributeExpr, 
 	if builder.boundary != "" {
 		result.Boundary = builder.boundary
 	}
+	captured, err := result.Source.Context.NewOccurrence(target)
+	if err != nil {
+		result.Error = err
+		return &result
+	}
+	builder.request.Target = nil
+	builder.request.TargetOccurrence = captured
 	result.Plan, result.Error = result.Source.Context.NewValuePlan(result.Source.Occurrence, builder.request)
 	if result.Error != nil || use != expr.ValuePlanSchema {
 		return &result
 	}
-	documentation := builder.request
+	result.Error = buildDocumentationPlans(&result, target, builder.request)
+	return &result
+}
+
+func buildDocumentationPlans(result *transportir.ValueTarget, target *expr.AttributeExpr, request expr.ValuePlanRequest) (err error) {
 	// Documentation examples are JSON values attached to OpenAPI schemas even
 	// when the runtime target is text, multipart or raw. Node-local custom/SSE
 	// codec policies remain explicit boundaries in the copied request.
-	documentation = DocumentationPlanRequest(documentation)
+	documentation := DocumentationPlanRequest(target, request)
 	if result.Anchor != nil {
-		result.AnchorPlan, result.Error = result.Anchor.Context.NewValuePlan(result.Anchor.Occurrence, documentation)
-		if result.Error != nil {
-			return &result
+		if result.Anchor.Context != result.Source.Context {
+			captured, err := result.Anchor.Context.NewOccurrence(target)
+			if err != nil {
+				return err
+			}
+			documentation.TargetOccurrence = captured
+		}
+		result.AnchorPlan, err = result.Anchor.Context.NewValuePlan(result.Anchor.Occurrence, documentation)
+		if err != nil {
+			return err
 		}
 	}
 	if result.ExampleOccurrence.ID() != (expr.ValueIdentity{}) {
 		documentation.Selection = nil
-		result.ExamplePlan, result.Error = result.Source.Context.NewValuePlan(result.ExampleOccurrence, documentation)
+		documentation.TargetOccurrence = request.TargetOccurrence
+		result.ExamplePlan, err = result.Source.Context.NewValuePlan(result.ExampleOccurrence, documentation)
+		if err != nil {
+			return err
+		}
 	}
-	return &result
+	return nil
 }
 
 func (b *httpValuePlanBuilder) walk(attribute *expr.AttributeExpr, context *codegen.AttributeContext, untaggedBranch, reachable bool) error {

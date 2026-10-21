@@ -5,7 +5,7 @@ import "github.com/CaliLuke/loom/expr"
 // DocumentationPlanRequest captures OpenAPI visibility in the value plan before
 // projection. It preserves supplied emitter policies and hides only fields
 // explicitly excluded from the documentation contract. Runtime plans are unchanged.
-func DocumentationPlanRequest(request expr.ValuePlanRequest) expr.ValuePlanRequest {
+func DocumentationPlanRequest(target *expr.AttributeExpr, request expr.ValuePlanRequest) expr.ValuePlanRequest {
 	request.Codec, request.Use = expr.ValueCodecJSON, expr.ValuePlanDocumentation
 	request.Fields = append([]expr.ValueFieldPolicy(nil), request.Fields...)
 	visited := make(map[*expr.AttributeExpr]bool)
@@ -58,6 +58,6 @@ func DocumentationPlanRequest(request expr.ValuePlanRequest) expr.ValuePlanReque
 			}
 		}
 	}
-	walk(request.Target)
+	walk(target)
 	return request
 }

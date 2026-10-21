@@ -19,7 +19,12 @@ type (
 	// not authorize resolving a source again or selecting a different union.
 	ValuePlanRequest struct {
 		// Target is the finalized view, body or location attribute.
+		// It is captured at this call and must be nil when TargetOccurrence is set.
 		Target *AttributeExpr
+		// TargetOccurrence reuses an immutable target captured in this context.
+		// It preserves that snapshot even if the original attribute later changes.
+		// Exactly one of Target and TargetOccurrence must be supplied.
+		TargetOccurrence ValueOccurrence
 		// Selection is an authored member path from the semantic root, for a
 		// selected body or location. An empty path selects the root itself.
 		Selection []string

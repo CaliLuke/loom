@@ -30,6 +30,12 @@ justify their own scope against this rule.
 
 ## Active Work
 
+- The [compiler architecture contract](../codegen/COMPILATION.md) defines ongoing
+  work on immutable representation reuse, declaration sharing, artifact lifetime,
+  bounded scheduling and evidence-driven performance validation. Captured-target
+  reuse is the next concrete stage; later plugin and scheduling contracts require
+  their own refinement before implementation.
+
 - [Value-contract follow-ups](value-contract-plan.md) cover the remaining source
   ownership, schema failure handling and reference-adapter questions. The
   [consumer inventory](value-contract-inventory.md) records their current scope;

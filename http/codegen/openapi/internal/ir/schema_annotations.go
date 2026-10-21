@@ -22,7 +22,7 @@ func standaloneSchemaValueAnnotations(attr *expr.AttributeExpr) (expr.JSONSchema
 	if err != nil {
 		return expr.JSONSchemaAnnotations{}, err
 	}
-	plan, err := context.NewValuePlan(occurrence, representation.DocumentationPlanRequest(expr.ValuePlanRequest{Target: attr}))
+	plan, err := context.NewValuePlan(occurrence, representation.DocumentationPlanRequest(attr, expr.ValuePlanRequest{TargetOccurrence: occurrence}))
 	if err != nil {
 		return expr.JSONSchemaAnnotations{}, err
 	}

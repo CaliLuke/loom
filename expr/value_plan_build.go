@@ -27,8 +27,9 @@ type (
 	}
 )
 
-// NewValuePlan captures a finalized target and maps it to a supplied semantic
-// root using structural copy ancestry. It rejects foreign contexts, unrelated
+// NewValuePlan maps a finalized target to a supplied semantic root using captured
+// copy ancestry. Target attributes are captured now; TargetOccurrence reuses an
+// existing immutable capture. It rejects foreign contexts, unrelated
 // targets, ambiguous mappings and incomplete runtime field policies. It never
 // interns by type hash or takes ownership of a mutable caller attribute.
 func (c *ValueContext) NewValuePlan(source ValueOccurrence, request ValuePlanRequest) (ValuePlan, error) {
@@ -39,12 +40,15 @@ func (c *ValueContext) NewValuePlan(source ValueOccurrence, request ValuePlanReq
 	if err != nil {
 		return ValuePlan{}, err
 	}
-	if !valueSameAncestry(selected.origin, request.Target) {
-		return ValuePlan{}, fmt.Errorf("value plan target does not descend from the selected occurrence")
+	target := request.TargetOccurrence
+	if request.Target != nil {
+		target, err = c.NewOccurrence(request.Target)
+		if err != nil {
+			return ValuePlan{}, fmt.Errorf("value plan target: %w", err)
+		}
 	}
-	target, err := c.NewOccurrence(request.Target)
-	if err != nil {
-		return ValuePlan{}, fmt.Errorf("value plan target: %w", err)
+	if !valueSameCapturedAncestry(selected, target.node) {
+		return ValuePlan{}, fmt.Errorf("value plan target does not descend from the selected occurrence: unrelated ancestry")
 	}
 	builder := &valuePlanBuilder{request: request, context: c, source: source,
 		nodes: make(map[valuePlanKey]*valuePlanNode), assocs: make(map[*valueOccurrenceNode][]*valuePlanAssociation),
@@ -74,6 +78,13 @@ func validateValuePlanRequest(context *ValueContext, source ValueOccurrence, req
 	if request.Codec < ValueCodecJSON || request.Codec > ValueCodecCustom ||
 		(request.Use != ValuePlanRuntime && request.Use != ValuePlanDocumentation && request.Use != ValuePlanSchema) {
 		return fmt.Errorf("value plan requires an explicit codec and use")
+	}
+	if (request.Target != nil) == (request.TargetOccurrence != (ValueOccurrence{})) {
+		return fmt.Errorf("value plan requires exactly one target attribute or captured occurrence")
+	}
+	if target := request.TargetOccurrence; target != (ValueOccurrence{}) &&
+		(target.context != context.identity || target.graph == nil || target.node == nil) {
+		return fmt.Errorf("value plan target requires its capture context")
 	}
 	return nil
 }
@@ -138,9 +149,8 @@ func (b *valuePlanBuilder) associate(source *valueOccurrenceNode, root *valuePla
 	return association
 }
 
-func valueSameAncestry(left, right *AttributeExpr) bool {
-	leftOrigin, rightOrigin := valueSemanticOrigin(left), valueSemanticOrigin(right)
-	return leftOrigin != nil && leftOrigin == rightOrigin
+func valueSameCapturedAncestry(left, right *valueOccurrenceNode) bool {
+	return left != nil && right != nil && left.semanticOrigin != nil && left.semanticOrigin == right.semanticOrigin
 }
 
 func valueUnderlyingOccurrence(node *valueOccurrenceNode) *valueOccurrenceNode {
@@ -156,7 +166,7 @@ func valuePlanAliasSource(source, target *valueOccurrenceNode, binding bool) (*v
 	original := source
 	seen := make(map[*valueOccurrenceNode]bool)
 	for source != nil && !seen[source] {
-		if valueSameAncestry(source.origin, target.origin) {
+		if valueSameCapturedAncestry(source, target) {
 			return source, source == original, nil
 		}
 		seen[source] = true
@@ -203,7 +213,7 @@ func (b *valuePlanBuilder) nodeAssociated(
 	associate, binding bool,
 ) (*valuePlanNode, error) {
 	owner := source
-	binding = binding || target.sourceBound && valueSameAncestry(source.origin, target.origin)
+	binding = binding || target.sourceBound && valueSameCapturedAncestry(source, target)
 	if target.declaration.alias == nil {
 		binding = false
 		var err error
@@ -297,7 +307,7 @@ func (b *valuePlanBuilder) object(node *valuePlanNode, source, target *valueOccu
 		var matched *valueOccurrenceMember
 		for i := range source.declaration.members {
 			candidate := &source.declaration.members[i]
-			matches := valueSameAncestry(candidate.node.origin, field.node.origin)
+			matches := valueSameCapturedAncestry(candidate.node, field.node)
 			if b.enumConstant {
 				// Extend retains logical fields but gives refinements new origins.
 				// This mode is only entered with a captured ancestor clause.
@@ -460,7 +470,7 @@ func (b *valuePlanBuilder) union(node *valuePlanNode, source, target *valueOccur
 		var matched *valueOccurrenceBranch
 		for i := range source.declaration.branches {
 			candidate := &source.declaration.branches[i]
-			if candidate.name == branch.name && valueSameAncestry(candidate.node.origin, branch.node.origin) {
+			if candidate.name == branch.name && valueSameCapturedAncestry(candidate.node, branch.node) {
 				if matched != nil {
 					return fmt.Errorf("value plan has ambiguous branch %q", branch.name)
 				}

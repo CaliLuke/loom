@@ -608,7 +608,7 @@ func inlineSchemaAnnotations(attribute *AttributeExpr) (JSONSchemaAnnotations, e
 	if err != nil {
 		return JSONSchemaAnnotations{}, err
 	}
-	plan, err := context.NewValuePlan(occurrence, ValuePlanRequest{Target: attribute, Codec: ValueCodecJSON, Use: ValuePlanDocumentation})
+	plan, err := context.NewValuePlan(occurrence, ValuePlanRequest{TargetOccurrence: occurrence, Codec: ValueCodecJSON, Use: ValuePlanDocumentation})
 	if err != nil {
 		return JSONSchemaAnnotations{}, err
 	}
