@@ -9,7 +9,7 @@ require (
 	github.com/CaliLuke/selvedge v0.7.0
 	github.com/alecthomas/kong v1.16.1
 	github.com/alicebob/miniredis/v2 v2.40.0
-	github.com/aws/smithy-go v1.28.4
+	github.com/aws/smithy-go v1.28.5
 	github.com/dave/jennifer v1.7.1
 	github.com/dimfeld/httppath v0.0.0-20170720192232-ee938bf73598
 	github.com/felixge/httpsnoop v1.1.0
