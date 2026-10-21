@@ -1109,6 +1109,13 @@ There is one DSL parser, one shared semantic IR, and one renderer.
   Ordered alias lookup has a different first-match contract. Query captured
   scalar metadata with `MetaLast`/`IsInlineHTTPBody`; request `Attribute()` only
   when an owned mutable graph is needed. See `expr/tla/association_query`.
+- Semantic memo tables follow immutable key owners: source snapshots own
+  resolutions, capture graphs own synthesis, and plan graphs own projections.
+  The context synchronizes access without rooting every temporary owner. Plan
+  copies/subplans share pending publication and completed results; never evict
+  or replay custom codecs to reclaim storage. Authored-example provenance remains
+  context-owned. Keep `expr/tla/memo_lifetime` and GC/race/panic controls aligned;
+  reachability eligibility does not promise collection timing or lower peak RSS.
 - Prepare builtin OpenAPI examples in `internal/representation` from retained
   `ValueContext` selection and synthesis results. Preserve ordered authored
   groups, metadata, explicit nulls, precision and selected union branches.

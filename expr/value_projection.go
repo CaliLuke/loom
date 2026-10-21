@@ -21,6 +21,12 @@ type (
 		outcome ProjectionOutcome
 		message string
 	}
+	// valueProjectionMemo is shared by a plan and every derived subplan. Its
+	// entries are guarded by the context mutex, but the context does not retain
+	// them: completed representation analyses can be collected independently.
+	valueProjectionMemo struct {
+		entries map[valueProjectionKey]*valueProjectionSlot
+	}
 	valueProjectionKey struct {
 		source      *valueSourceData
 		occurrence  *valueOccurrenceNode
@@ -69,13 +75,16 @@ func (c *ValueContext) ProjectJSON(result ValueResult, plan ValuePlan) Projectio
 	key := valueProjectionKey{source: result.source, occurrence: result.occurrence.node, role: result.role,
 		plan: plan.root, association: plan.association}
 	c.mu.Lock()
-	if prior := c.projected[key]; prior != nil {
+	if prior := plan.projections.entries[key]; prior != nil {
 		c.mu.Unlock()
 		<-prior.done
 		return prior.result
 	}
 	slot := &valueProjectionSlot{done: make(chan struct{})}
-	c.projected[key] = slot
+	if plan.projections.entries == nil {
+		plan.projections.entries = make(map[valueProjectionKey]*valueProjectionSlot)
+	}
+	plan.projections.entries[key] = slot
 	c.mu.Unlock()
 	// Always release concurrent readers, including when a user codec panics.
 	// The panic remains the caller's panic; subsequent readers see the failure.

@@ -32,10 +32,10 @@ func (c *ValueContext) Resolve(occurrence ValueOccurrence, source ValueSource, r
 	if role < ValueRoleExample || role > ValueRoleDefault {
 		return valueFailure(ValueInvalid, "role", "unknown source role")
 	}
-	key := valueResolutionKey{occurrence.node, source.data, role}
+	key := valueResolutionKey{occurrence.node, role}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if prior, found := c.resolved[key]; found {
+	if prior, found := source.data.resolutions[key]; found {
 		return prior
 	}
 	resolver := valueResolver{context: c, occurrence: occurrence, source: source.data, active: make(map[valueSnapshotVisit]bool)}
@@ -52,7 +52,10 @@ func (c *ValueContext) Resolve(occurrence ValueOccurrence, source ValueSource, r
 	result.role = role
 	result.source, result.occurrence = source.data, occurrence
 	result.customBoundary = result.outcome == ValueUnsupported && valueCustomSource(source.data.snapshot.raw)
-	c.resolved[key] = result
+	if source.data.resolutions == nil {
+		source.data.resolutions = make(map[valueResolutionKey]ValueResult)
+	}
+	source.data.resolutions[key] = result
 	return result
 }
 

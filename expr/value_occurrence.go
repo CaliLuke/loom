@@ -25,6 +25,8 @@ type (
 		declarations []*valueDeclarationNode
 		next         uint64
 		parentIndex  valueOccurrenceParentIndex
+		// synthesis is guarded by the context synthesis mutex.
+		synthesis map[valueSynthesisKey]ValueResult
 	}
 
 	valueOccurrenceNode struct {

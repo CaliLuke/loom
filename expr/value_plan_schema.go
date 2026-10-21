@@ -67,7 +67,7 @@ func (p ValuePlan) ForOccurrence(source ValueOccurrence, target ValuePlanNode) (
 	if p.association != nil && source.node == p.association.source && target.node == p.association.root {
 		return ValuePlan{context: p.context, source: source, root: p.association.root,
 			selection: append([]uint64(nil), p.association.selection...), association: p.association,
-			associations: p.associations, queryIndex: p.queryIndex, nodes: p.nodes}, nil
+			associations: p.associations, queryIndex: p.queryIndex, projections: p.projections, nodes: p.nodes}, nil
 	}
 	var matched []*valuePlanAssociation
 	for _, association := range p.associations[source.node] {
@@ -88,7 +88,7 @@ func (p ValuePlan) ForOccurrence(source ValueOccurrence, target ValuePlanNode) (
 	}
 	return ValuePlan{context: p.context, source: source, root: association.root,
 		selection: append([]uint64(nil), association.selection...), association: association,
-		associations: p.associations, queryIndex: p.queryIndex, nodes: nodes}, nil
+		associations: p.associations, queryIndex: p.queryIndex, projections: p.projections, nodes: nodes}, nil
 }
 
 func (p ValuePlan) containsNode(target *valuePlanNode) bool {

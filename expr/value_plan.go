@@ -11,6 +11,7 @@ type (
 		association  *valuePlanAssociation
 		associations map[*valueOccurrenceNode][]*valuePlanAssociation
 		queryIndex   *valuePlanQueryIndex
+		projections  *valueProjectionMemo
 		// nodes indexes the complete captured root. Subplans leave it nil so
 		// membership remains restricted to their own reachable subtree.
 		nodes map[*valuePlanNode]bool

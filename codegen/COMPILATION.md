@@ -208,6 +208,38 @@ publication. Width scaling must show that successful sibling queries do not
 allocate a whole-graph search per member. Generated output, allocation, peak RSS
 and CPU/elapsed time must be measured against the preceding stage.
 
+## Semantic memo lifetimes
+
+Memo tables belong to their immutable key owners. Resolution tables belong to
+supplied source snapshots; synthesis tables belong to occurrence capture graphs;
+projection tables belong to constructed plan graphs. The context supplies
+synchronization without rooting every temporary source, capture and target plan.
+A new plan and its copies/subplans share one memo owner created before publication;
+independently constructed plans have independent owners. Entry tables initialize
+lazily. Keys, admission, outcomes and callback counts remain unchanged.
+
+Projection publishes a pending slot before invoking custom materialization outside
+the lock. Readers wait for completion. Success and ordinary failure publish the
+retained result; a panic propagates to its creator while releasing readers with
+the existing incomplete-materialization failure. This is the existing effect
+contract, not permission to replay callbacks. Reentrant same-key projection
+remains unsupported. Resolution and synthesis retain their existing context
+serialization and role/sampling-scope isolation.
+
+Live handles and active calls retain the owners they need. Once they disappear,
+Go's tracing collector can collect owner/cache cycles. No weak cache, eviction,
+finalizer, forced collection or terminal phase-close API is used in production.
+A live source can retain sibling resolutions, a capture retains scoped synthesis,
+and a subplan can retain its full association graph. The context still retains
+authored-example source associations for cross-capture identity, which can retain
+those sources' resolutions. These are explicit limits, not a total-memory bound.
+
+The [memo lifetime model](../expr/tla/memo_lifetime/README.md) compares global
+retention, owner-local reachability and unsafe early release. Concrete weak-pointer
+GC tests keep the context alive while dropping owners; identity, scope, concurrency,
+codec-panic and subplan tests check behavior beyond the model. Weak pointers are
+observations in tests only.
+
 ## Artifact planning and rendering
 
 Planning establishes paths, write intent, removals, warnings and same-path
@@ -351,3 +383,15 @@ direct and generated-code tests establish implementation behavior.
   conversion/comparison allocation tests require zero allocations; arbitrary
   precision remains available and exact. These figures measure generation,
   excluding Go compilation of its executable.
+
+- Semantic memo lifetime stage against compact numbers: resolution, synthesis and
+  projection tables now belong to their source, capture and plan owners. A
+  separate forced-GC diagnostic after OpenAPI analysis reduced reachable heap
+  from 186,674,904 to 106,903,896 bytes (42.7%). This is not a normal-run peak.
+  Three alternating fresh-process pairs allocated 3,762,746,440 versus
+  3,763,984,320 bytes (flat); median RSS was 609,370,112 versus 634,421,248
+  bytes (4.1% higher), elapsed 2.84 versus 2.64 seconds, CPU 5.38 versus 5.33.
+  These runs do not demonstrate a peak-RSS improvement. The ownership change
+  removes a retention root; Go's collection timing and other live phases still
+  determine peak memory. The 63 real-project artifacts and the same five fixture
+  designs remained byte-identical across independent processes and compiled.

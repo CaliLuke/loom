@@ -43,8 +43,12 @@ func (c *ValueContext) Synthesize(selection ExampleSelection, generator *Example
 	key := valueSynthesisKey{selection.occurrence.node, selection.scope}
 	c.synthesisMu.Lock()
 	defer c.synthesisMu.Unlock()
-	if prior, found := c.synthesized[key]; found {
+	memo := selection.occurrence.graph
+	if prior, found := memo.synthesis[key]; found {
 		return prior
+	}
+	if memo.synthesis == nil {
+		memo.synthesis = make(map[valueSynthesisKey]ValueResult)
 	}
 	graph := valueSynthesisGraph{occurrence: selection.occurrence,
 		nodes: make(map[*valueOccurrenceNode]*AttributeExpr), declarations: make(map[*valueDeclarationNode]DataType)}
@@ -60,7 +64,7 @@ func (c *ValueContext) Synthesize(selection ExampleSelection, generator *Example
 	raw := attribute.Example(random)
 	if raw == nil {
 		result := ValueResult{outcome: ValueSuppressed, role: ValueRoleExample, synthesized: true}
-		c.synthesized[key] = result
+		memo.synthesis[key] = result
 		return result
 	}
 	source := c.SupplyValue(ValueInput{Raw: raw, Origin: "synthesized example"})
@@ -68,7 +72,7 @@ func (c *ValueContext) Synthesize(selection ExampleSelection, generator *Example
 	snapshot := valueSnapshotState{eraseSelections: true}
 	legacy := snapshot.snapshot(raw)
 	result.legacy, result.synthesized = &legacy, true
-	c.synthesized[key] = result
+	memo.synthesis[key] = result
 	return result
 }
 

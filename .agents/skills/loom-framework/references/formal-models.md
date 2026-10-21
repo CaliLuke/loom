@@ -33,6 +33,11 @@ checks normalized meaning and checked native reconstruction, with wraparound as
 its negative control. Independent Go oracles cover IEEE decoding, promotion and
 storage-independent identity; the bounded model does not prove those operations.
 
+The [semantic memo lifetime model](../../../../expr/tla/memo_lifetime/README.md)
+checks owner-local retention, active-call lifetime and pending publication, with
+compilation-global retention and early-release counterexamples. Go GC and race
+controls check the concrete roots and callback behavior outside model assumptions.
+
 ## Shared generated declarations
 
 The [declaration merge model](../../../../codegen/generator/tla/declaration_merge/README.md)
