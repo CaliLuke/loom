@@ -500,7 +500,7 @@ func firstHTTPBuildContext(t *testing.T, dsl func()) (*ServicesData, *expr.HTTPE
 func preparedEndpointIR(t *testing.T, endpoint *expr.HTTPEndpointExpr, data *ServiceData) *transportir.Endpoint {
 	t.Helper()
 
-	prepared, err := representation.PrepareService(endpoint.Service, data.Service)
+	prepared, err := representation.PrepareService(endpoint.Service, data.Service, nil)
 	require.NoError(t, err)
 	for _, candidate := range prepared.Endpoints {
 		if candidate.MethodName == endpoint.Name() {

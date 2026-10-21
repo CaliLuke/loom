@@ -18,38 +18,45 @@ func Service(genpkg string, roots []eval.Root) ([]*codegen.File, error) {
 		if !ok {
 			continue
 		}
-		// Create service data
-		services := service.NewServicesData(r)
-
-		for _, s := range r.Services {
-			d := services.Get(s.Name)
-			if err := service.SetUserTypeImports(genpkg, d); err != nil {
-				return nil, err
-			}
-
-			// Make sure service is first so name scope is
-			// properly initialized.
-			svcFiles := service.Files(genpkg, s, services, userTypePkgs)
-			addMetaTypeImports(svcFiles, d)
-			files = append(files, svcFiles...)
-
-			endpointFiles := []*codegen.File{
-				service.EndpointFile(genpkg, s, services),
-				service.ClientFile(genpkg, s, services),
-			}
-			addMetaTypeImports(endpointFiles, d)
-			files = append(files, endpointFiles...)
-
-			if f := service.ViewsFile(genpkg, s, services); f != nil {
-				addMetaTypeImports([]*codegen.File{f}, d)
-				files = append(files, f)
-			}
-			convFiles, err := service.ConvertFiles(r, s, services)
-			if err != nil {
-				return nil, err
-			}
-			files = append(files, convFiles...)
+		generated, err := serviceFiles(genpkg, r, service.NewServicesData(r), userTypePkgs)
+		if err != nil {
+			return nil, err
 		}
+		files = append(files, generated...)
+	}
+	return files, nil
+}
+
+func serviceFiles(genpkg string, r *expr.RootExpr, services *service.ServicesData, userTypePkgs map[string][]string) ([]*codegen.File, error) {
+	var files []*codegen.File
+	for _, s := range r.Services {
+		d := services.Get(s.Name)
+		if err := service.SetUserTypeImports(genpkg, d); err != nil {
+			return nil, err
+		}
+
+		// Make sure service is first so name scope is
+		// properly initialized.
+		svcFiles := service.Files(genpkg, s, services, userTypePkgs)
+		addMetaTypeImports(svcFiles, d)
+		files = append(files, svcFiles...)
+
+		endpointFiles := []*codegen.File{
+			service.EndpointFile(genpkg, s, services),
+			service.ClientFile(genpkg, s, services),
+		}
+		addMetaTypeImports(endpointFiles, d)
+		files = append(files, endpointFiles...)
+
+		if f := service.ViewsFile(genpkg, s, services); f != nil {
+			addMetaTypeImports([]*codegen.File{f}, d)
+			files = append(files, f)
+		}
+		convFiles, err := service.ConvertFiles(r, s, services)
+		if err != nil {
+			return nil, err
+		}
+		files = append(files, convFiles...)
 	}
 	return files, nil
 }

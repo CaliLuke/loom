@@ -29,7 +29,7 @@ func (sds *ServicesData) analyze(httpSvc *expr.HTTPServiceExpr) (sd *ServiceData
 		"endpoints", len(httpSvc.HTTPEndpoints),
 		"file_servers", len(httpSvc.FileServers),
 	)
-	irService, err := representation.PrepareService(httpSvc, svc)
+	irService, err := representation.PrepareService(httpSvc, svc, nil)
 	if err != nil {
 		panic(err)
 	}

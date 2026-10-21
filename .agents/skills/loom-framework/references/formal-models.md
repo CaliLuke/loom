@@ -11,6 +11,13 @@ stated predicates under its hypotheses; it does not establish handwritten Go
 refinement, correct plan extraction, arbitrary codec behavior or generated-code
 correctness. Keep proved, tested, bounded-checked and assumed claims distinct.
 
+## Compilation value ownership
+
+The [service semantic ownership model](../../../../codegen/service/tla/semantic_ownership/README.md)
+compares duplicate captures, shared mutable selection, and synthesis-cache policy
+collisions. Its corrected bounded model shares semantic ownership while isolating
+backend records and sampling scopes; it does not establish memory bounds.
+
 ## Shared generated declarations
 
 The [declaration merge model](../../../../codegen/generator/tla/declaration_merge/README.md)

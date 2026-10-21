@@ -38,7 +38,7 @@ func TestHTTPValueCarriersUseServiceOwnership(t *testing.T) {
 	})
 	services := service.NewServicesData(root)
 	method := services.Get("values").Method("show")
-	prepared, err := representation.PrepareService(root.API.HTTP.Services[0], services.Get("values"))
+	prepared, err := representation.PrepareService(root.API.HTTP.Services[0], services.Get("values"), nil)
 	require.NoError(t, err)
 	ir := prepared.Endpoints[0]
 	require.Same(t, method.PayloadValue, ir.Request.BodyValue.Source)

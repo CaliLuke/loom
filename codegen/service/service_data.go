@@ -548,12 +548,7 @@ type (
 // force silence regardless of environment can assign [codegen.NewSilentContext]
 // to the Ctx field.
 func NewServicesData(root *expr.RootExpr) *ServicesData {
-	promoteSharedTypeLocations(root)
-	return &ServicesData{
-		Services: make(map[string]*Data),
-		Root:     root,
-		Ctx:      codegen.NewContext(),
-	}
+	return NewSemanticData(root).Services()
 }
 
 // Get retrieves the data for the service with the given name computing it if

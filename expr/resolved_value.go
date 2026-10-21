@@ -14,7 +14,7 @@ type (
 		synthesisMu sync.Mutex
 		examples    map[*ExampleExpr]*valueSourceData
 		resolved    map[valueResolutionKey]ValueResult
-		synthesized map[*valueOccurrenceNode]ValueResult
+		synthesized map[valueSynthesisKey]ValueResult
 		projected   map[valueProjectionKey]*valueProjectionSlot
 	}
 
@@ -189,7 +189,7 @@ func NewValueContext() *ValueContext {
 		identity:    &valueContextIdentity{marker: 1},
 		examples:    make(map[*ExampleExpr]*valueSourceData),
 		resolved:    make(map[valueResolutionKey]ValueResult),
-		synthesized: make(map[*valueOccurrenceNode]ValueResult),
+		synthesized: make(map[valueSynthesisKey]ValueResult),
 		projected:   make(map[valueProjectionKey]*valueProjectionSlot),
 	}
 }

@@ -71,7 +71,7 @@ func TestFileResponseRequestHeadersAndHeadResponse(t *testing.T) {
 func preparedFileResponseEndpoint(t *testing.T, root *expr.RootExpr) *transportir.Endpoint {
 	t.Helper()
 	service := root.API.HTTP.Services[0]
-	prepared, err := representation.PrepareService(service, nil)
+	prepared, err := representation.PrepareService(service, nil, nil)
 	require.NoError(t, err)
 	require.NoError(t, representation.PrepareServiceExamples(prepared, service, root.API.ExampleGenerator))
 	require.Len(t, prepared.Endpoints, 1)

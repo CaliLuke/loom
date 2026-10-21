@@ -45,13 +45,13 @@ func New(root *expr.RootExpr) *OpenAPI {
 	return spec
 }
 
-func newForVersion(root *expr.RootExpr, target openAPIVersion) (*OpenAPI, []string, error) {
+func newForVersion(root *expr.RootExpr, target openAPIVersion, options ...Option) (*OpenAPI, []string, error) {
 	if root == nil || root.API == nil || root.API.HTTP == nil || len(root.API.HTTP.Services) == 0 {
 		// No HTTP transport
 		return nil, nil, nil
 	}
 
-	spec, err := buildDocument(root)
+	spec, err := buildDocument(root, options...)
 	if err != nil {
 		return nil, nil, err
 	}

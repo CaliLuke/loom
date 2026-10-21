@@ -225,7 +225,7 @@ func TestBodyTypeIdentityPreservesOpenAPIExample(t *testing.T) {
 	require.True(t, ok)
 	example, ok := defaultExample["value"].(map[string]any)
 	require.True(t, ok)
-	prepared, err := representation.PrepareService(root.API.HTTP.Services[0], nil)
+	prepared, err := representation.PrepareService(root.API.HTTP.Services[0], nil, nil)
 	require.NoError(t, err)
 	require.NoError(t, representation.PrepareServiceExamples(
 		prepared,

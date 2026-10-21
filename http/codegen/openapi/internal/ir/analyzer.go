@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/internal/representation"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
@@ -22,6 +23,7 @@ type (
 
 	// Analyzer converts expr types into IR schemas and endpoint body models.
 	Analyzer struct {
+		semantic                *service.SemanticData
 		err                     error
 		discriminatorReferences []discriminatorReference
 		declarationRoots        map[string]*Schema
@@ -64,6 +66,11 @@ const (
 	schemaUsageResponse
 	projectedResultMetaKey = "loom:openapi:projected-result"
 )
+
+// WithServiceSemantics shares captured service occurrences with other backends.
+func WithServiceSemantics(semantic *service.SemanticData) AnalyzerOption {
+	return func(a *Analyzer) { a.semantic = semantic }
+}
 
 // WithExampleValue selects a custom projector over the original attribute and
 // raw example. A nil projector uses retained declared JSON-shaped values,

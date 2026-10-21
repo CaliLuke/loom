@@ -56,7 +56,7 @@ func prepareValueData(data *service.ValueData, attribute *expr.AttributeExpr, ge
 	if data == nil || data.Example.Outcome() != 0 {
 		return
 	}
-	policy := expr.ExamplePolicy{Reachable: true, SuppressGenerated: suppressGeneratedExample(attribute)}
+	policy := expr.ExamplePolicy{Reachable: true, SuppressGenerated: suppressGeneratedExample(attribute), SynthesisScope: data.SynthesisScope}
 	selection := data.Context.SelectExample(data.Occurrence, policy)
 	if source, found := selection.Source(); found {
 		data.Example = data.Context.Resolve(data.Occurrence, source, expr.ValueRoleExample)
@@ -254,7 +254,7 @@ func prepareTargetExampleSet(
 				plan = target.AnchorPlan
 			}
 		} else {
-			data = &service.ValueData{Context: target.Source.Context, Occurrence: position.example}
+			data = &service.ValueData{Context: target.Source.Context, Occurrence: position.example, SynthesisScope: target.Source.SynthesisScope}
 		}
 		prepareValueData(data, attribute, generator)
 		set.Representative = &transportir.ValueExample{Source: data, Plan: plan}
@@ -293,7 +293,7 @@ func targetExampleOwner(
 	}
 	if position.example.ID() != (expr.ValueIdentity{}) {
 		candidates = append(candidates, candidate{
-			&service.ValueData{Context: target.Source.Context, Occurrence: position.example}, position.exampleProjection,
+			&service.ValueData{Context: target.Source.Context, Occurrence: position.example, SynthesisScope: target.Source.SynthesisScope}, position.exampleProjection,
 		})
 	}
 	seen := make(map[expr.ValueIdentity]bool)

@@ -33,7 +33,7 @@ func TestComponentAnnotationsSurviveRepresentationRegistration(t *testing.T) {
 					})
 				})
 			})
-			service, err := representation.PrepareService(root.API.HTTP.Services[0], nil)
+			service, err := representation.PrepareService(root.API.HTTP.Services[0], nil, nil)
 			require.NoError(t, err)
 			calls := 0
 			a := NewAnalyzer(root.API.ExampleGenerator, false, WithExampleValue(func(attribute *expr.AttributeExpr, value any) (any, bool) {
@@ -162,7 +162,7 @@ func TestComponentAnnotationControlledWrapperReuse(t *testing.T) {
 						})
 					})
 				})
-				prepared, err := representation.PrepareService(root.API.HTTP.Services[0], nil)
+				prepared, err := representation.PrepareService(root.API.HTTP.Services[0], nil, nil)
 				require.NoError(t, err)
 				calls := 0
 				analyzer := NewAnalyzer(root.API.ExampleGenerator, false, WithExampleValue(func(attribute *expr.AttributeExpr, raw any) (any, bool) {

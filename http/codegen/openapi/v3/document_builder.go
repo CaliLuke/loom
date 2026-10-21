@@ -16,13 +16,16 @@ func openAPIExampleGenerator(api *expr.APIExpr) *expr.ExampleGenerator {
 	return api.ExampleGenerator
 }
 
-func buildDocument(root *expr.RootExpr) (*OpenAPI, error) {
+func buildDocument(root *expr.RootExpr, options ...Option) (*OpenAPI, error) {
+	analysisOptions := append(analyzerOptions(options),
+		openapiir.WithExampleGenerator(openAPIExampleGenerator(root.API)),
+		openapiir.WithExampleSuppression(shouldSuppressOpenAPIExamples),
+	)
 	doc, err := openapiir.BuildDocument(
 		root.API,
 		root.Types,
 		root.ResultTypes,
-		openapiir.WithExampleGenerator(openAPIExampleGenerator(root.API)),
-		openapiir.WithExampleSuppression(shouldSuppressOpenAPIExamples),
+		analysisOptions...,
 	)
 	if err != nil {
 		return nil, err

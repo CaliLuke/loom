@@ -1086,6 +1086,11 @@ There is one DSL parser, one shared semantic IR, and one renderer.
   construction and check dynamic interface-key comparability before insertion.
   Preserve authored examples and representable recursive placeholders; never
   reject a valid custom key merely because no automatic example can be built.
+- Builtin compilation shares `service.SemanticData` after preparation plugins.
+  Keep captured method values independent of backend Go naming and mutable
+  example records. Different sampling policies require distinct synthesis scopes;
+  sharing occurrences must not change documentation examples or suppression.
+  See `codegen/service/SEMANTICS.md` and its bounded ownership model.
 - Prepare builtin OpenAPI examples in `internal/representation` from retained
   `ValueContext` selection and synthesis results. Preserve ordered authored
   groups, metadata, explicit nulls, precision and selected union branches.
