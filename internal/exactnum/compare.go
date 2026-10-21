@@ -1,6 +1,9 @@
 package exactnum
 
-import "math/big"
+import (
+	"cmp"
+	"math/big"
+)
 
 // interval encloses a positive value between lo*2^scale and hi*2^scale.
 type interval struct {
@@ -11,16 +14,26 @@ type interval struct {
 func (n Number) Cmp(other Number) int {
 	left, right := n, other
 	if left.sign != right.sign {
-		return sign(left.sign - right.sign)
+		return sign(int(left.sign - right.sign))
 	}
-	if left.sign == 0 || left.c.Cmp(right.c) == 0 && left.e2.Cmp(right.e2) == 0 && left.e5.Cmp(right.e5) == 0 {
+	if left.sign == 0 || left == right {
 		return 0
 	}
-	d2 := new(big.Int).Sub(left.e2, right.e2)
-	d5 := new(big.Int).Sub(left.e5, right.e5)
+	if lm, ok := left.nativeMagnitude(); ok {
+		if rm, ok := right.nativeMagnitude(); ok {
+			return cmp.Compare(lm, rm) * int(left.sign)
+		}
+	}
+	lc, l2, l5 := left.parts()
+	rc, r2, r5 := right.parts()
+	if lc.Cmp(rc) == 0 && l2.Cmp(r2) == 0 && l5.Cmp(r5) == 0 {
+		return 0
+	}
+	d2 := new(big.Int).Sub(l2, r2)
+	d5 := new(big.Int).Sub(l5, r5)
 	precision := 64 + max(d2.BitLen(), d5.BitLen())
 	for {
-		l, r := exact(left.c, precision), exact(right.c, precision)
+		l, r := exact(lc, precision), exact(rc, precision)
 		if d5.Sign() > 0 {
 			l = multiply(l, power5(d5, precision), precision)
 		} else if d5.Sign() < 0 {
@@ -34,7 +47,7 @@ func (n Number) Cmp(other Number) int {
 			order = 1
 		}
 		if order != 0 {
-			return order * left.sign
+			return order * int(left.sign)
 		}
 		precision *= 2
 	}

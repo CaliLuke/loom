@@ -1086,6 +1086,11 @@ There is one DSL parser, one shared semantic IR, and one renderer.
   construction and check dynamic interface-key comparability before insertion.
   Preserve authored examples and representable recursive placeholders; never
   reject a valid custom key merely because no automatic example can be built.
+- Exact numeric meaning belongs to `internal/exactnum`. Native constants use
+  inline coefficient/exponent storage; promotion and checked reconstruction must
+  preserve keys, text, bounds and admitted values. Never round or wrap to retain
+  compact storage, or add a global constant cache. Keep independent arithmetic
+  oracles and `internal/exactnum/tla/compact` aligned with representation changes.
 - Builtin compilation shares `service.SemanticData` after preparation plugins.
   Keep captured method values independent of backend Go naming and mutable
   example records. Different sampling policies require distinct synthesis scopes;

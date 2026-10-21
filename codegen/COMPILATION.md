@@ -249,6 +249,30 @@ not install any of it on failure. The eventual cancellation contract must stop
 queued work and join owned workers before returning. Arbitrary plugin side
 effects remain plugin-owned.
 
+## Exact constant representation
+
+The numeric owner stores ordinary finite constants inline: sign, a uint64
+coefficient and signed 32-bit powers of two and five. Larger coefficients or
+exponents use private immutable arbitrary-precision storage. Copies may share
+that storage; inputs and returned values cannot mutate it. This follows the
+small-value/large-value representation principle used by
+[LLVM APInt](https://llvm.org/doxygen/APInt_8h_source.html), adapted to Loom's
+exact finite numeric contract.
+
+Native integer conversion and finite IEEE binary floating conversion normalize
+without heap allocation. Comparison reconstructs a native unsigned magnitude
+only when checked shifts and multiplication prove that it fits. Other cases use
+the existing exact arbitrary-exponent comparator. No overflow, rounding, altered
+JSON/DSL grammar or changed carrier admission is permitted. Canonical keys and
+text are independent of storage, including signed zero and forced promotion.
+There is no global interning cache.
+
+The [bounded arithmetic model](../internal/exactnum/tla/compact/README.md)
+checks normalization and checked reconstruction, with a wraparound negative
+control. Independent big.Rat oracles test finite float decoding and numeric
+meaning; existing numeric contract tests cover parsing, huge exponents, bounds
+and consumers. Neither model alone proves the Go implementation.
+
 ## Evidence and completion criteria
 
 Measure the generator process separately from CLI package loading, Go compilation
@@ -316,3 +340,14 @@ direct and generated-code tests establish implementation behavior.
   Direct tests cover rejected handles, ambiguity, constraints and concurrent
   publication; the bounded [query model](../expr/tla/association_query/README.md)
   compares indexed lookup with exhaustive reachability.
+
+- Compact exact-number stage against the immutable query stage: three alternating
+  fresh-process runs per version on the same 63-artifact design and Go 1.27.3.
+  Median allocation fell from 5,345,139,280 to 3,762,742,400 bytes (29.6%);
+  elapsed time from 3.36 to 2.52 seconds (25.0%); CPU from 7.09 to 5.23 seconds.
+  Peak RSS fell from 647,610,368 to 630,718,464 bytes (2.6%). All output trees
+  matched exactly. The same five representative fixture designs matched across
+  independent processes and their generated code compiled. Native integer
+  conversion/comparison allocation tests require zero allocations; arbitrary
+  precision remains available and exact. These figures measure generation,
+  excluding Go compilation of its executable.

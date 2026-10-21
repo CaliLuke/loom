@@ -28,6 +28,11 @@ checks inverse association lookup against exhaustive structural reachability,
 including cycles and pair-local precedence. It rejects omitted scope filtering;
 Go tests cover handle admission, immutable metadata and synchronized publication.
 
+The [compact exact-number model](../../../../internal/exactnum/tla/compact/README.md)
+checks normalized meaning and checked native reconstruction, with wraparound as
+its negative control. Independent Go oracles cover IEEE decoding, promotion and
+storage-independent identity; the bounded model does not prove those operations.
+
 ## Shared generated declarations
 
 The [declaration merge model](../../../../codegen/generator/tla/declaration_merge/README.md)
