@@ -19,9 +19,9 @@ func TestGeneratorUsesCallerWorkspace(t *testing.T) {
 				root := t.TempDir()
 				moduleDir := filepath.Join(root, "app")
 				require.NoError(t, os.MkdirAll(filepath.Join(moduleDir, "design"), 0o755))
-				mod := []byte("module example.com/service\n\ngo 1.27.2\n\nrequire github.com/CaliLuke/loom v0.0.0\n")
+				mod := []byte("module example.com/service\n\ngo 1.27.3\n\nrequire github.com/CaliLuke/loom v0.0.0\n")
 				if workspace == "use" {
-					mod = []byte("module example.com/service\n\ngo 1.27.2\n")
+					mod = []byte("module example.com/service\n\ngo 1.27.3\n")
 				}
 				require.NoError(t, os.WriteFile(filepath.Join(moduleDir, "go.mod"), mod, 0o600))
 				sum, err := os.ReadFile(filepath.Join(repositoryRoot, "go.sum"))
@@ -31,7 +31,7 @@ func TestGeneratorUsesCallerWorkspace(t *testing.T) {
 import . "github.com/CaliLuke/loom/dsl"
 var _ = API("service", func() {})
 `), 0o600))
-				work := "go 1.27.2\n\nuse ./app\n"
+				work := "go 1.27.3\n\nuse ./app\n"
 				if workspace == "replace" {
 					work += fmt.Sprintf("replace github.com/CaliLuke/loom => %q\n", repositoryRoot)
 				} else {

@@ -100,6 +100,7 @@ func (s *helloService) SayHello(ctx context.Context, name string) (string, error
 
 | Guide | Description |
 |-------|-------------|
+| [Typed activities](execution.md) | Typed execution contracts and native Selvedge activity binding |
 | [Quickstart](quickstart.md) | Install Loom and build your first service |
 | [DSL Reference](dsl-reference.md) | Complete reference for Loom's design language |
 | [Code Generation](code-generation.md) | Understanding Loom's code generation process |

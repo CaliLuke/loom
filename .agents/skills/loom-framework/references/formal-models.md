@@ -199,6 +199,7 @@ Rendered schema validation and actual decoder behavior are separate obligations.
 
 | Code concern | Model |
 | --- | --- |
+| Activity registration publication and immutable future scopes | [Activity binding](../../../../execution/selvedge/tla/README.md); native-conflict and parent/canceled/detached scope tests, with a rejected future-rebinding alternative |
 | Artifact write intent, atomic create-only installation, rollback ownership and gen-tree admission | [Artifact write intent](../../../../cmd/loom/tla/artifact_write_intent/README.md); bounded intent-loss/race controls paired with real filesystem and registered-plugin CLI tests |
 | Service-error merge and history snapshot ownership | [Error ownership](../../../../pkg/tla/error_ownership/README.md); bounded aliasing counterexamples, with repeated merges and protobuf reconstruction checked in Go |
 | Public message ownership, history masking, diagnostic exclusion, transparent wrappers and independent joins | [Public disclosure](../../../../pkg/tla/error_disclosure/README.md); finite owner/message model, with HTTP/gRPC/JSON-RPC unary/SSE/WebSocket wire tests |

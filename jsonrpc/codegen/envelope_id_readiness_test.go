@@ -28,7 +28,7 @@ func TestJSONRPCEnvelopeIDMounted(t *testing.T) {
 		dir = output
 		require.NoError(t, os.MkdirAll(dir, 0o700))
 	}
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte(fmt.Sprintf("module example.com/r4id\n\ngo 1.27.2\n\nrequire github.com/CaliLuke/loom v1.0.0\nreplace github.com/CaliLuke/loom => %s\n", resolveJSONRPCTestLoomModulePath(t, dir))), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte(fmt.Sprintf("module example.com/r4id\n\ngo 1.27.3\n\nrequire github.com/CaliLuke/loom v1.0.0\nreplace github.com/CaliLuke/loom => %s\n", resolveJSONRPCTestLoomModulePath(t, dir))), 0o600))
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, "design"), 0o700))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "design", "design.go"), []byte(`package design
 import "github.com/CaliLuke/loom/jsonrpc/codegen/testdata"

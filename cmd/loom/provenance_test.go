@@ -15,7 +15,7 @@ import (
 // through the package loader before embedding the origin in generation or vet.
 func TestGeneratorCanonicalDesignOrigin(t *testing.T) {
 	dir := t.TempDir()
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/origin\n\ngo 1.27.2\n"), 0600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/origin\n\ngo 1.27.3\n"), 0600))
 	require.NoError(t, os.Mkdir(filepath.Join(dir, "design"), 0750))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "design", "design.go"), []byte("package design\n"), 0600))
 	t.Chdir(dir)

@@ -75,6 +75,14 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- `execution/` owns typed activity names, options, registration/execution
+  contracts, and futures. `execution/adapter` owns concrete-handler reflection;
+  it does not own serialization. `execution/selvedge` uses native generic
+  definitions and captures each future's workflow scope. Selvedge owns codecs,
+  retry execution, storage, and app lifecycle. Agent policies and type-erased
+  agent JSON bridges remain in their consumer. This runtime surface has no DSL
+  or generated workflow API. Keep the binding model and scope tests aligned.
+
 - `internal/patternsyntax` owns the portable Go/ECMAScript bridge. Export derives
   syntax from the admitted Go tree; import admits a bounded ECMAScript grammar
   before Go parsing and translates direction-specific escapes. Never use Go

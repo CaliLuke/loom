@@ -27,6 +27,8 @@ belong in the `loom` skill and the canonical guides under `docs/`.
   WebSocket lifecycle, including the client connection demultiplexer
   (`websocket_client.go`, modeled in `jsonrpc/tla/`); typed transport
   generation; and integrations
+- `execution/`: typed activity contracts, adapter reflection, and native Selvedge
+  activity binding; no workflow DSL or persistence implementation
 - `observability/`: framework-owned tracing, metrics, logging, and transport
   event contracts
 - `security/authorization.go`: mandatory endpoint checks and cancellation;
