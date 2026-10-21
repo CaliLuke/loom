@@ -21,7 +21,7 @@ Loom's gRPC support includes:
 
 ### Prerequisites and Supported Toolchain
 
-Use Go 1.27.2 and keep these protobuf tools on `PATH` when generating a
+Use Go 1.27.3 and keep these protobuf tools on `PATH` when generating a
 gRPC service:
 
 | Tool | Supported version |

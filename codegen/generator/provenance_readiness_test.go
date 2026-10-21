@@ -44,7 +44,7 @@ func TestGenerationProvenanceIncludesPluginState(t *testing.T) {
 		})
 		require.NoError(t, eval.Register(&provenancePluginRoot{Value: value}))
 		dir := t.TempDir()
-		require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/provenance\n\ngo 1.27.2\n"), 0600))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/provenance\n\ngo 1.27.3\n"), 0600))
 		_, err := Generate(dir, "gen", "github.com/CaliLuke/loom/codegen/generator", false)
 		require.NoError(t, err)
 		data, err := os.ReadFile(filepath.Join(dir, codegen.Gendir, "loom.json"))

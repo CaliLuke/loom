@@ -28,7 +28,7 @@ func TestSharedDeclarationSpecimens(t *testing.T) {
 				dir = filepath.Join(root, shape)
 				require.NoError(t, os.MkdirAll(dir, 0750))
 			}
-			module := fmt.Sprintf("module example.com/merge\n\ngo 1.27.2\n\nrequire github.com/CaliLuke/loom v0.0.0\nreplace github.com/CaliLuke/loom => %s\n", loomModuleSource(t))
+			module := fmt.Sprintf("module example.com/merge\n\ngo 1.27.3\n\nrequire github.com/CaliLuke/loom v0.0.0\nreplace github.com/CaliLuke/loom => %s\n", loomModuleSource(t))
 			require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte(module), 0600))
 			_, err := Generate(dir, "gen", "github.com/CaliLuke/loom/codegen/generator", false)
 			require.NoError(t, err)

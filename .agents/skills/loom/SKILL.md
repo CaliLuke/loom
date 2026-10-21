@@ -39,6 +39,20 @@ fields in the body, map them explicitly, or declare `ErrorNameFromStatus()` on
 an HTTP error response with a unique status. Views retain their projected contract.
 Generation rejects incomplete mappings; add the missing source and regenerate.
 
+## Typed background activities
+
+Use `execution.Activity[Input, Output]` for named, typed activity calls without
+adding DSL declarations. With Selvedge, create `execution/selvedge.New(app)`,
+register each handler using its typed `Register` function and native options
+before `app.Start`, then execute through `activities.Scope(workflowContext)`.
+Native Selvedge owns codecs, workflow definitions, app lifecycle, submission,
+status, cancellation, and transactions. Futures retain their scheduling scope.
+The typed native registry does not implement `ActivityRegistrar`; that interface
+serves backends able to register a concrete function dynamically. See
+[typed activities](../../../docs/execution.md) for the complete boundary.
+Selvedge v0.7.0 needs Go 1.27.3 and a fresh database; finish old runs and retain
+their database before changing worker storage.
+
 ## Core Workflow
 
 1. Treat `design/*.go` as the source of truth.

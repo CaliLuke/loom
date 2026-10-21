@@ -1,6 +1,6 @@
 module example.com/http-quality
 
-go 1.27.2
+go 1.27.3
 
 require github.com/CaliLuke/loom v1.7.1
 

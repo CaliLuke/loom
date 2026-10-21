@@ -20,7 +20,7 @@ func TestGenerationStageUsesWritableOutput(t *testing.T) {
 	parent := t.TempDir()
 	module := filepath.Join(parent, "module")
 	require.NoError(t, os.Mkdir(module, 0o750))
-	require.NoError(t, os.WriteFile(filepath.Join(module, "go.mod"), []byte("module example.com/app\n\ngo 1.27.2\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(module, "go.mod"), []byte("module example.com/app\n\ngo 1.27.3\n"), 0o600))
 	require.NoError(t, os.Chmod(parent, 0o500))
 	t.Cleanup(func() {
 		require.NoError(t, os.Chmod(parent, 0o700))
@@ -38,7 +38,7 @@ func TestGenerationStageModuleContext(t *testing.T) {
 			output := filepath.Join(module, nested)
 			require.NoError(t, os.MkdirAll(output, 0o750))
 			absoluteTarget := filepath.Join(root, "absolute")
-			original := []byte(fmt.Sprintf("module example.com/app\n\ngo 1.27.2\n\nreplace (\nexample.com/dep => ../dep\nexample.com/other v1.0.0 => ./other\nexample.com/absolute => %q\nexample.com/version v1.0.0 => example.com/release v1.2.3\n)\n", absoluteTarget))
+			original := []byte(fmt.Sprintf("module example.com/app\n\ngo 1.27.3\n\nreplace (\nexample.com/dep => ../dep\nexample.com/other v1.0.0 => ./other\nexample.com/absolute => %q\nexample.com/version v1.0.0 => example.com/release v1.2.3\n)\n", absoluteTarget))
 			require.NoError(t, os.WriteFile(filepath.Join(module, "go.mod"), original, 0o600))
 			tx, err := newGenerationTransaction(output)
 			require.NoError(t, err)
@@ -91,14 +91,14 @@ func TestGenerationMountedDestinations(t *testing.T) {
 			case "module":
 				output = mount
 			case "nested-output":
-				require.NoError(t, os.WriteFile(filepath.Join(base, "go.mod"), []byte("module example.com/app\n\ngo 1.27.2\n"), 0o600))
+				require.NoError(t, os.WriteFile(filepath.Join(base, "go.mod"), []byte("module example.com/app\n\ngo 1.27.3\n"), 0o600))
 				output = filepath.Join(base, "nested")
 				require.NoError(t, os.Symlink(mount, output))
 			default:
 				require.NoError(t, os.Symlink(mount, filepath.Join(output, "plugin")))
 			}
 			if kind == "module" {
-				require.NoError(t, os.WriteFile(filepath.Join(output, "go.mod"), []byte("module example.com/app\n\ngo 1.27.2\n"), 0o600))
+				require.NoError(t, os.WriteFile(filepath.Join(output, "go.mod"), []byte("module example.com/app\n\ngo 1.27.3\n"), 0o600))
 			}
 			t.Cleanup(func() {
 				require.NoError(t, os.RemoveAll(filepath.Join(mount, "go.mod")))

@@ -1,13 +1,11 @@
 package rmap
 
 import (
-	"context"
 	"fmt"
 	"maps"
 	"testing"
 	"time"
 
-	"github.com/CaliLuke/go-redis/v9"
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/pulse/internal/redistest"
@@ -155,36 +153,16 @@ func TestReplicaNoOpPreservesStateAndTTL(t *testing.T) {
 	}
 }
 
-type retireWriteHook struct {
-	retire func(context.Context) error
-}
-
-func (h retireWriteHook) DialHook(next redis.DialHook) redis.DialHook {
-	return next
-}
-func (h retireWriteHook) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.ProcessPipelineHook {
-	return next
-}
-func (h retireWriteHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
-	return func(ctx context.Context, cmd redis.Cmder) error {
-		if err := next(ctx, cmd); err != nil {
-			return err
-		}
-		if cmd.Name() == "evalsha" && cmd.Args()[1] == luaSet.Hash() {
-			return h.retire(ctx)
-		}
-		return nil
-	}
-}
-
 func TestReplicaWriteObservationRejectsRetiredGeneration(t *testing.T) {
 	srv := redistest.Start(t, redistest.DBRmap)
-	m := joinMap(t, srv.Client, "retire-before-observe")
-	require.NoError(t, m.sub.Unsubscribe(t.Context(), m.chankey))
-	srv.Client.AddHook(retireWriteHook{retire: func(ctx context.Context) error {
-		return srv.Client.Del(ctx, m.hashkey).Err()
-	}})
-	_, err := m.SetAndWait(t.Context(), "lost", "value")
+	writer := joinMap(t, srv.Client, "retire-before-observe")
+	committed, err := writer.runSetScript(t.Context(), "lost", "value")
+	require.NoError(t, err)
+	// Isolate this observer from Pub/Sub and periodic repair: either could
+	// legitimately observe the committed revision before it is retired.
+	m := newPendingObservationMap(t, writer)
+	require.NoError(t, srv.Client.Del(t.Context(), m.hashkey).Err())
+	err = m.observe(observationRequest{ctx: t.Context(), generation: committed.generation, rev: committed.rev})
 	require.ErrorContains(t, err, "retired before observation")
 	require.Empty(t, m.Map())
 }

@@ -63,7 +63,7 @@ type Moment time.Time
 	dir := t.TempDir()
 	_, err := mergeFilesByPath(files)[0].Render(dir)
 	require.NoError(t, err)
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/merge\n\ngo 1.27.2\n"), 0600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/merge\n\ngo 1.27.3\n"), 0600))
 	const test = `package shared
 import ("reflect"; "testing")
 func TestValues(t *testing.T) {

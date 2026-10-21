@@ -19,7 +19,7 @@ import (
 func TestExampleCLISelectsTransportByCommand(t *testing.T) {
 	codegen.RunDSL(t, cliTransportDispatchDesign)
 	dir := t.TempDir()
-	goMod := fmt.Sprintf("module example.com/dispatch\n\ngo 1.27.2\n\nrequire github.com/CaliLuke/loom v0.0.0\n\nreplace github.com/CaliLuke/loom => %s\n", loomModuleSource(t))
+	goMod := fmt.Sprintf("module example.com/dispatch\n\ngo 1.27.3\n\nrequire github.com/CaliLuke/loom v0.0.0\n\nreplace github.com/CaliLuke/loom => %s\n", loomModuleSource(t))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte(goMod), 0o600))
 
 	_, err := Generate(dir, "gen", "github.com/CaliLuke/loom/codegen/generator", false)
@@ -89,7 +89,7 @@ func TestExampleCLISelectsTransportByCommand(t *testing.T) {
 func TestHTTPOnlyExampleCLICompiles(t *testing.T) {
 	codegen.RunDSL(t, httpOnlyExampleCLIDesign)
 	dir := t.TempDir()
-	goMod := fmt.Sprintf("module example.com/http-only\n\ngo 1.27.2\n\nrequire github.com/CaliLuke/loom v0.0.0\n\nreplace github.com/CaliLuke/loom => %s\n", loomModuleSource(t))
+	goMod := fmt.Sprintf("module example.com/http-only\n\ngo 1.27.3\n\nrequire github.com/CaliLuke/loom v0.0.0\n\nreplace github.com/CaliLuke/loom => %s\n", loomModuleSource(t))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte(goMod), 0o600))
 
 	_, err := Generate(dir, "gen", "github.com/CaliLuke/loom/codegen/generator", false)

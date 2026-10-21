@@ -36,7 +36,7 @@ func TestGeneratedCLIArgumentOrder(t *testing.T) {
 				require.NoError(t, os.MkdirAll(dir, 0o700))
 			}
 			codegen.RunDSL(t, testdata.CLIArgumentOrderDSL(tc.transport, tc.shape))
-			mod := fmt.Sprintf("module example.com/order\n\ngo 1.27.2\n\nrequire github.com/CaliLuke/loom v1.0.0\nreplace github.com/CaliLuke/loom => %s\n", loomModuleSource(t))
+			mod := fmt.Sprintf("module example.com/order\n\ngo 1.27.3\n\nrequire github.com/CaliLuke/loom v1.0.0\nreplace github.com/CaliLuke/loom => %s\n", loomModuleSource(t))
 			require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte(mod), 0o600))
 			_, err := Generate(dir, "gen", "github.com/CaliLuke/loom/codegen/generator", false)
 			require.NoError(t, err)
