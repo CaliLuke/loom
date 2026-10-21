@@ -57,8 +57,14 @@ func (c *ValueContext) NewValuePlan(source ValueOccurrence, request ValuePlanReq
 		return ValuePlan{}, err
 	}
 	association := builder.associate(source.node, root, selection)
+	// Every successfully built node is attached to the root. Enum projection
+	// plans use separate builders and do not belong to this structural graph.
+	nodes := make(map[*valuePlanNode]bool, len(builder.nodes))
+	for _, node := range builder.nodes {
+		nodes[node] = true
+	}
 	return ValuePlan{context: c.identity, source: source, root: root, selection: selection,
-		association: association, associations: builder.assocs}, nil
+		association: association, associations: builder.assocs, nodes: nodes}, nil
 }
 
 func validateValuePlanRequest(context *ValueContext, source ValueOccurrence, request ValuePlanRequest) error {

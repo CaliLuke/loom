@@ -10,6 +10,9 @@ type (
 		selection    []uint64
 		association  *valuePlanAssociation
 		associations map[*valueOccurrenceNode][]*valuePlanAssociation
+		// nodes indexes the complete captured root. Subplans leave it nil so
+		// membership remains restricted to their own reachable subtree.
+		nodes map[*valuePlanNode]bool
 	}
 
 	// ValuePlanRequest describes an already finalized effective target. It does
