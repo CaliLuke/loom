@@ -22,10 +22,9 @@ owns staged installation. `generationFiles` shares one service `SemanticData`
 per root; backend names and synthesis domains remain separate.
 
 `ValueContext.NewOccurrence` snapshots a mutable attribute graph independently.
-Its declaration table is local to that capture. `NewValuePlan` captures another
-target graph, even when another plan just captured the same finalized target.
-HTTP schema, service-anchor and target-example plans therefore repeat capture
-and constraint analysis. Generated sections retain backend data until rendering;
+Its declaration table is local to that capture. `NewValuePlan` accepts either a
+mutable target to capture or an existing immutable target occurrence. HTTP schema,
+service-anchor and target-example plans share the finalized target capture. Generated sections retain backend data until rendering;
 the renderer queues every file and uses the host CPU count for concurrency.
 
 The existing generated-file plugin API can inspect and replace the entire file
@@ -116,6 +115,98 @@ Earlier transport-local example captures cannot substitute for this later
 layout capture. A rebuilt layout creates a new target capture and invalidates
 all plans/annotations keyed to the previous target. Standalone schema analysis
 can use its existing capture as both source and target when their shapes agree.
+
+## Immutable compiler queries
+
+The captured-target stage removes repeated construction. Consumers still ask
+read-only questions by copying complete declaration graphs or searching every
+semantic descendant for each target member. The current real-project profile
+attributes about 603 MB to repeated association searches and 169 MB to
+`ValuePlanNode.Attribute` copies (sampled allocations, overlapping callers).
+
+### Contract
+
+`ValuePlan` owns the exact semantic-to-representation association relation built
+by `valuePlanBuilder.associate`. Queries must derive from that relation. HTTP
+example preparation must not reconstruct it from names, shapes or ancestry.
+
+Add `ValuePlan.OccurrenceForTarget(root, target)` to return the unique associated
+semantic occurrence in the region reachable from `root`, including `root`.
+Reachability follows captured alias, object member, union alternative, array
+item and map key/value edges. Cycles are finite graph reachability; repeated
+paths to the same occurrence count once. Constraint inheritance and stored result views are not
+structural edges merely because their nodes appear in the capture node table. Named aliases remain distinct semantic owners.
+
+Admission and outcome rules, in order:
+
+1. Reject an invalid plan, an absent root, or a root from another context/capture.
+2. Reject an absent target or a target outside this plan's reachable target
+   subgraph. A derived subplan rejects unreachable nodes; recursive paths may
+   make apparent ancestors or siblings reachable and therefore admissible.
+3. Consider only exact associations to the admitted target whose source is
+   structurally reachable from root.
+4. No association returns `ErrValuePlanAssociationNotFound` (wrappable).
+5. Multiple distinct source occurrences, or multiple associations for one source
+   and target, return an ambiguity error. An exact current plan association has
+   the same precedence as `ForOccurrence` for that source/target pair only; it
+   cannot suppress another reachable owner. A selected-body target queried from
+   the original source root remains ambiguous when both the root-with-selection
+   and the selected member associate with that target.
+6. A unique admitted source returns a handle in the original context/capture.
+   A subsequent `ForOccurrence` must recover the corresponding projection.
+
+No query resolves examples, invokes codecs, synthesizes values, changes selected
+union branches, or publishes a partially built plan. Raw mutable attributes
+never participate in query ownership.
+
+The plan stores the reverse association index once, shared by its subplans.
+The captured semantic graph owns a lazily initialized reverse structural-edge
+index. The index is derived only from immutable captured edges and published
+once with synchronization; concurrent reads return the same semantic answers.
+Traversal walks parents of candidate owners until it reaches the requested
+root. It does not walk unrelated descendant subtrees or enumerate all semantic
+nodes for every target. No transitive-closure table or cross-compilation cache
+is retained. Space is linear in captured edges and associations. Worst-case
+reachability can still visit the whole graph, especially dense recursive graphs;
+no constant-time reachability claim is made.
+
+`ValuePlanNode.MetaLast(key)` returns the last captured metadata string and its
+presence, with the same lookup behavior as `MetaExpr.Last`; strings are immutable.
+`ValuePlanNode.IsInlineHTTPBody()` answers the existing wrapper predicate from
+captured attributes without exporting a mutable pointer. Invalid handles return
+absent/false. `Attribute()` retains its owned-copy contract for callers that
+actually need a mutable graph. No borrowed `AttributeExpr` is exposed.
+
+HTTP member/branch searches use the shared query. The ordered alias-chain
+lookup in `associatedUnderlyingProjection` keeps its existing first-match
+behavior, excluding its starting root; it is not replaced by this exhaustive
+unique-owner query.
+
+HTTP example preparation derives child suppression from `MetaLast`; root
+suppression continues to use the explicit finalized attribute passed by its
+caller. Example selection, traversal order, scope strings and sampler/custom
+materializer calls remain identical. OpenAPI wrapper alignment uses the captured
+predicate. Byte-schema projection can keep `Attribute()` where it requires the
+full declaration; replacing that remaining path is deferred until it has an
+appropriate immutable schema query contract.
+
+### Equivalence and proof obligations
+
+All successful HTTP, JSON-RPC and OpenAPI bytes must remain exact, including
+hidden fields, selected bodies, examples, defaults, custom codecs, aliases,
+recursive declarations and independent documentation targets. Existing invalid
+association cases remain rejected with contextual diagnostics; the HTTP layer
+wraps shared query errors with the member/branch position.
+
+A bounded model must compare indexed reverse reachability to exhaustive forward
+reachability, including recursion, disconnected owners, multiple owners and
+same-pair ambiguity. Unsafe omission of scope filtering must produce a
+counterexample. Direct tests must establish foreign/context rejection, subplan
+restriction, selection association precedence, repeated-path deduplication,
+cycle termination, frozen metadata under caller mutation, and concurrent query
+publication. Width scaling must show that successful sibling queries do not
+allocate a whole-graph search per member. Generated output, allocation, peak RSS
+and CPU/elapsed time must be measured against the preceding stage.
 
 ## Artifact planning and rendering
 
@@ -208,3 +299,20 @@ direct and generated-code tests establish implementation behavior.
   outlier of 11.66 seconds; elapsed-time improvement is not established. All
   six output trees matched the baseline exactly. Width benchmarks at 8, 64 and
   256 fields reduced per-plan allocation by 58–62% when reusing a capture.
+
+- Immutable query stage against `af5e41179`: three alternating fresh-process
+  pairs on the same 63-artifact design, Go 1.27.3, no concurrent task builds.
+  Median allocation fell from 6,180,550,352 to 5,345,139,280 bytes (13.5%);
+  elapsed time from 3.80 to 3.36 seconds (11.6%); CPU from 7.93 to 7.09 seconds.
+  Peak RSS was 641,335,296 versus 647,610,368 bytes, essentially flat. All
+  output trees matched exactly. Indexed sibling-query benchmarks at widths
+  16/256/1024 allocated zero bytes per query; exhaustive reference traversal
+  allocated 10,062/167,759/753,188 bytes respectively.
+  The five representative designs were AsyncSessionSecurityDSL,
+  JSONRPCCollectionBodyDefaultsDSL, PayloadBodyInlineRecursiveUserDSL,
+  SelectedBodyDefaultsDSL and UnaryRPCsDSL. They cover async security, JSON-RPC
+  collections/defaults, recursive inline bodies, selected body defaults and
+  unary gRPC. Each matched base bytes across independent processes and compiled.
+  Direct tests cover rejected handles, ambiguity, constraints and concurrent
+  publication; the bounded [query model](../expr/tla/association_query/README.md)
+  compares indexed lookup with exhaustive reachability.

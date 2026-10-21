@@ -10,6 +10,7 @@ type (
 		selection    []uint64
 		association  *valuePlanAssociation
 		associations map[*valueOccurrenceNode][]*valuePlanAssociation
+		queryIndex   *valuePlanQueryIndex
 		// nodes indexes the complete captured root. Subplans leave it nil so
 		// membership remains restricted to their own reachable subtree.
 		nodes map[*valuePlanNode]bool

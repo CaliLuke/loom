@@ -24,6 +24,7 @@ type (
 		nodes        []*valueOccurrenceNode
 		declarations []*valueDeclarationNode
 		next         uint64
+		parentIndex  valueOccurrenceParentIndex
 	}
 
 	valueOccurrenceNode struct {

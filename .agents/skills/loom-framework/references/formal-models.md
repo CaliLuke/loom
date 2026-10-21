@@ -23,6 +23,11 @@ snapshot stability, context isolation and independent projection policies after
 caller mutation. It rejects live-target rereads, foreign capture admission and
 policy-cache conflation; Go tests retain the opaque-value/materialization boundary.
 
+The [association query model](../../../../expr/tla/association_query/README.md)
+checks inverse association lookup against exhaustive structural reachability,
+including cycles and pair-local precedence. It rejects omitted scope filtering;
+Go tests cover handle admission, immutable metadata and synchronized publication.
+
 ## Shared generated declarations
 
 The [declaration merge model](../../../../codegen/generator/tla/declaration_merge/README.md)

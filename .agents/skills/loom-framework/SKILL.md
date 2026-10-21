@@ -1098,6 +1098,12 @@ There is one DSL parser, one shared semantic IR, and one renderer.
   identities, not live provenance. HTTP final-layout schema, anchor and example
   plans share that target capture while keeping visibility and codec policies
   independent. See `codegen/COMPILATION.md` and `expr/tla/target_capture`.
+- Use `ValuePlan.OccurrenceForTarget` for unique semantic-owner queries; do not
+  reconstruct associations with backend tree searches. It scopes exact inverse
+  associations to structural reachability and retains pair-local precedence.
+  Ordered alias lookup has a different first-match contract. Query captured
+  scalar metadata with `MetaLast`/`IsInlineHTTPBody`; request `Attribute()` only
+  when an owned mutable graph is needed. See `expr/tla/association_query`.
 - Prepare builtin OpenAPI examples in `internal/representation` from retained
   `ValueContext` selection and synthesis results. Preserve ordered authored
   groups, metadata, explicit nulls, precision and selected union branches.

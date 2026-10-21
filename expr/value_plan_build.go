@@ -68,7 +68,7 @@ func (c *ValueContext) NewValuePlan(source ValueOccurrence, request ValuePlanReq
 		nodes[node] = true
 	}
 	return ValuePlan{context: c.identity, source: source, root: root, selection: selection,
-		association: association, associations: builder.assocs, nodes: nodes}, nil
+		association: association, associations: builder.assocs, nodes: nodes, queryIndex: &valuePlanQueryIndex{}}, nil
 }
 
 func validateValuePlanRequest(context *ValueContext, source ValueOccurrence, request ValuePlanRequest) error {

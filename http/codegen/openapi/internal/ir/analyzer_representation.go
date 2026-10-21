@@ -111,8 +111,7 @@ func representationRoot(attribute *expr.AttributeExpr, target *transportir.Value
 	// HTTP's inline body wrapper is intentionally absent from the schema graph.
 	// Its immediate child is paired here rather than guessed by structural hashes.
 	if attribute != nil && node.Valid() {
-		captured := node.Attribute()
-		if expr.UnwrapInlineHTTPBody(captured) != captured && expr.UnwrapInlineHTTPBody(attribute) == attribute {
+		if node.IsInlineHTTPBody() && expr.UnwrapInlineHTTPBody(attribute) == attribute {
 			node = node.Underlying()
 		}
 	}
