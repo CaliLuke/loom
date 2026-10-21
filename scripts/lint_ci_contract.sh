@@ -29,7 +29,12 @@ target_prerequisites() {
   awk -v target="$target" '
     $1 == target ":" {
       for (i = 2; i <= NF; i++) {
-        printf "%s%s", (i == 2 ? "" : " "), $i
+        # GNU Make adds .WAIT barriers for .NOTPARALLEL prerequisites.
+        # They control scheduling; they are not additional build targets.
+        if ($i != ".WAIT") {
+          printf "%s%s", separator, $i
+          separator = " "
+        }
       }
       print ""
       found = 1
@@ -40,18 +45,34 @@ target_prerequisites() {
         exit 1
       }
     }
-  ' "$MAKE_DATABASE"
+  ' "${2:-$MAKE_DATABASE}"
 }
 
 assert_prerequisites() {
   local target="$1"
   local expected="$2"
   local actual
-  actual="$(target_prerequisites "$target")" || fail "missing Make target $target"
+  actual="$(target_prerequisites "$target" "${3:-$MAKE_DATABASE}")" || fail "missing Make target $target"
   if [[ "$actual" != "$expected" ]]; then
     fail "Make target $target prerequisites are [$actual], want [$expected]"
   fi
 }
+
+PREREQUISITE_FIXTURE="$TMP_BASE/prerequisites.db"
+cat >"$PREREQUISITE_FIXTURE" <<'EOF'
+plain: first second
+serialized: .WAIT first .WAIT .WAIT second .WAIT
+barriers-only: .WAIT .WAIT
+EOF
+assert_prerequisites plain "first second" "$PREREQUISITE_FIXTURE"
+assert_prerequisites serialized "first second" "$PREREQUISITE_FIXTURE"
+assert_prerequisites barriers-only "" "$PREREQUISITE_FIXTURE"
+if (assert_prerequisites serialized "first second third" "$PREREQUISITE_FIXTURE") >/dev/null 2>&1; then
+  fail "prerequisite parser ignored a missing build target"
+fi
+if target_prerequisites missing "$PREREQUISITE_FIXTURE" >/dev/null; then
+  fail "prerequisite parser accepted a missing Make target"
+fi
 
 assert_prerequisites all "lint test integration-test"
 assert_prerequisites ci "depend all coverage-ratchet"
