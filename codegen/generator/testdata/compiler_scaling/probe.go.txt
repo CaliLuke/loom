@@ -1,0 +1,43 @@
+package main
+
+import (
+	"fmt"
+	"os"
+	"runtime"
+	"runtime/pprof"
+	"time"
+
+	_ "example.com/scaling/design"
+	"github.com/CaliLuke/loom/codegen/generator"
+	"github.com/CaliLuke/loom/eval"
+	"github.com/CaliLuke/loom/expr"
+)
+
+func main() {
+	start := time.Now()
+	if err := expr.RegisterDefaultRoots(); err != nil {
+		panic(err)
+	}
+	if err := eval.RunDSL(); err != nil {
+		panic(err)
+	}
+	outputs, err := generator.Generate(".", "gen", "example.com/scaling/design", false)
+	if err != nil {
+		panic(err)
+	}
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	if _, err := fmt.Fprintf(os.Stderr, "MEASURE files=%d elapsed=%s total_alloc=%d heap_alloc=%d heap_inuse=%d num_gc=%d\n", len(outputs), time.Since(start), m.TotalAlloc, m.HeapAlloc, m.HeapInuse, m.NumGC); err != nil {
+		panic(err)
+	}
+	f, err := os.Create(os.Args[1])
+	if err != nil {
+		panic(err)
+	}
+	if err := pprof.Lookup("allocs").WriteTo(f, 0); err != nil {
+		panic(err)
+	}
+	if err := f.Close(); err != nil {
+		panic(err)
+	}
+}

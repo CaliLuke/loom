@@ -1,0 +1,62 @@
+package design
+
+import (
+	"fmt"
+	"os"
+	"strconv"
+
+	. "github.com/CaliLuke/loom/dsl"
+	"github.com/CaliLuke/loom/expr"
+)
+
+func parameter(name string, fallback int) int {
+	value := os.Getenv(name)
+	if value == "" {
+		return fallback
+	}
+	result, err := strconv.Atoi(value)
+	if err != nil || result < 1 {
+		panic("invalid scaling parameter: " + name)
+	}
+	return result
+}
+
+var methods = parameter("SCALING_METHODS", 4)
+var width = parameter("SCALING_WIDTH", 16)
+var unique = parameter("SCALING_TYPES", 1)
+var recursive = os.Getenv("SCALING_RECURSIVE") == "1"
+var declarations = make([]expr.UserType, unique)
+
+var _ = API("scaling", func() {
+	Server("scaling", func() {
+		Services("scaling")
+		Host("localhost", func() {
+			URI("http://localhost:8080")
+		})
+	})
+})
+
+func init() {
+	for index := range declarations {
+		declarations[index] = Type(fmt.Sprintf("Record%d", index), func() {
+			for field := range width {
+				Attribute(fmt.Sprintf("field%d", field), String)
+			}
+			if recursive {
+				Attribute("next", declarations[index])
+			}
+		})
+	}
+	Service("scaling", func() {
+		for index := range methods {
+			Method(fmt.Sprintf("method%d", index), func() {
+				Payload(declarations[index%unique])
+				Result(declarations[index%unique])
+				HTTP(func() {
+					POST(fmt.Sprintf("/method%d", index))
+					Response(StatusOK)
+				})
+			})
+		}
+	})
+}
