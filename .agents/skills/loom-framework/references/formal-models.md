@@ -43,6 +43,11 @@ checks bounded dispatch, joining, stable error precedence and reference release.
 Completion-order reporting is its negative control. Per-file independence,
 terminating callbacks and stable filesystem state are explicit assumptions.
 
+The [HTTP normalization model](../../../../http/codegen/internal/transportir/tla/normalization/README.md)
+compares frozen-input lowering with repeated subtree capture. Both preserve the
+modeled predicates, but recapture violates the analysis-work budget. Go tests
+cover actual alias/recursive graph correspondence beyond the chain model.
+
 ## Shared generated declarations
 
 The [declaration merge model](../../../../codegen/generator/tla/declaration_merge/README.md)

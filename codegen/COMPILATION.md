@@ -241,6 +241,42 @@ GC tests keep the context alive while dropping owners; identity, scope, concurre
 codec-panic and subplan tests check behavior beyond the model. Weak pointers are
 observations in tests only.
 
+## Normalization input ownership
+
+HTTP transport normalization captures its detached input once before changing
+that copy. Lowering carries the corresponding immutable occurrence through named
+declarations, object members, map keys/values and array elements. Effective
+constraints come from this input snapshot; the mutable output cannot redefine
+its own semantic input. Shared declarations keep the existing type-ID recursion
+rule while each edge keeps local defaults, validation and nullability.
+
+There is no cache across calls. A later call observes later caller mutations;
+failed capture publishes no normalized output. Missing captured positions or
+mismatched object members are internal errors. Canonically named types, result
+types, first-class unions, inherited examples and physical alias flattening keep
+their existing rules. Clone behavior and the finalized-input precondition remain.
+
+The [normalization pass model](../http/codegen/internal/transportir/tla/normalization/README.md)
+compares one capture with repeated subtree capture. The depth allocation
+regression and shared/recursive declaration controls check the Go implementation.
+This removes redundant input analysis; it does not bound arbitrary constraint
+solving or all other compiler passes.
+
+On the measured real-project design, normalization capture calls fell from 19,080
+recursive captures to 1,172 pass-input captures; captured node visits fell from
+156,230 to 45,492. These are diagnostic counts, separate from latency/RSS runs.
+At nested depths 16/64/256 the pass allocates 382/1,406/5,452 objects; the previous
+pass allocated 2,216/27,912 at depths 16/64. The regression checks growth rather
+than absolute timing or a machine-specific allocation ceiling.
+
+Three alternating fresh-process pairs against the bounded-renderer stage on the
+same 63-artifact project and Go 1.27.3 reduced median allocation from
+3,763,719,512 to 3,506,363,120 bytes (6.8%), RSS from 666,959,872 to 646,627,328
+bytes (3.0%), elapsed time from 2.86 to 2.46 seconds (14.0%) and CPU from 5.24
+to 4.84 seconds. No task builds ran during this window; other machine activity
+remained. All output trees matched exactly. The same five representative designs
+also matched twice across processes and their generated code compiled.
+
 ## Artifact planning and rendering
 
 Planning establishes paths, write intent, removals, warnings and same-path

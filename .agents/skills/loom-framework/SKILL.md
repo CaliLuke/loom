@@ -1102,6 +1102,12 @@ There is one DSL parser, one shared semantic IR, and one renderer.
   example records. Different sampling policies require distinct synthesis scopes;
   sharing occurrences must not change documentation examples or suppression.
   See `codegen/service/SEMANTICS.md` and its bounded ownership model.
+- HTTP normalization owns one detached mutable output and one immutable input
+  capture. Carry corresponding occurrences through lowering and query their
+  effective constraints; never recapture each output subtree or cache mutable
+  inputs across calls. Preserve edge-local overrides alongside named-declaration
+  recursion stopping. Keep the transportir normalization model, depth-allocation
+  regression and shared/recursive alias controls aligned.
 - Target capture is distinct from projection policy. `ValuePlanRequest.Target`
   captures mutable state now; `TargetOccurrence` reuses an immutable capture in
   the same context. Never supply both or cache mutable attributes by pointer.
