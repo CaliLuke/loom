@@ -36,7 +36,9 @@ func NewResponseNegotiationPolicy(mediaTypes ...string) (ResponseNegotiationPoli
 	normalized := make([]string, 0, len(mediaTypes))
 	for _, value := range mediaTypes {
 		mediaType, _, err := mime.ParseMediaType(value)
-		if err != nil || mediaType == "" || strings.Contains(mediaType, "*") {
+		// ParseMediaType also accepts bare Content-Disposition tokens. The
+		// matching policy requires a concrete type/subtype pair.
+		if err != nil || !strings.Contains(mediaType, "/") || strings.Contains(mediaType, "*") {
 			return ResponseNegotiationPolicy{}, fmt.Errorf("response media type %q must be concrete", value)
 		}
 		if _, ok := seen[mediaType]; ok {

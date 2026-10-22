@@ -367,10 +367,12 @@ func TestResponseNegotiationPolicyCombinesAcceptFieldLines(t *testing.T) {
 }
 
 func TestNewResponseNegotiationPolicyRejectsInvalidMediaTypes(t *testing.T) {
-	tests := [][]string{nil, {""}, {"not a media type"}, {"application/*"}}
+	tests := [][]string{nil, {""}, {"not a media type"}, {"application/*"}, {"application"}, {"application; charset=utf-8"}, {"application/json", "text"}}
 	for _, mediaTypes := range tests {
-		_, err := NewResponseNegotiationPolicy(mediaTypes...)
-		require.Error(t, err)
+		t.Run(strings.Join(mediaTypes, ","), func(t *testing.T) {
+			_, err := NewResponseNegotiationPolicy(mediaTypes...)
+			require.Error(t, err)
+		})
 	}
 }
 
