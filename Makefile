@@ -33,7 +33,7 @@ PROTOC_GEN_GO_GRPC_VERSION?=v1.6.2
 PROTOC_BIN=protoc
 PROTOC_DEST=$(GOBIN_DIR)/$(PROTOC_BIN)
 
-.PHONY: all all-tests ci ci-local clean coverage-baseline coverage-ratchet depend fmt install-hooks lint lint-docs lint-filesize lint-gofmt lint-json-v2 lint-legacy-middleware lint-namescope lint-test-sources lint-toolchain test test-race test-pulse-redis test-testdata-compile integration-test integration-test-fast generated-code-quality openapi-contract value-contract-proof value-contract-conformance build-loom build-loom-cached loom-local loom-remote loom-status release release-promote
+.PHONY: all all-tests ci ci-local clean coverage-baseline coverage-ratchet depend fmt install-hooks lint lint-docs lint-filesize lint-gofmt lint-json-v2 lint-legacy-middleware lint-namescope lint-test-sources lint-toolchain test test-ci test-race test-pulse-redis test-testdata-compile integration-test integration-test-fast generated-code-quality openapi-contract value-contract-proof value-contract-conformance build-loom build-loom-cached loom-local loom-remote loom-status release release-promote
 .NOTPARALLEL: release ci-local
 
 # Only list test and build dependencies
@@ -46,7 +46,9 @@ all: lint test integration-test
 
 all-tests: lint test integration-test
 
-ci: depend all coverage-ratchet
+# test-ci combines the full unit suite and the scoped coverage ratchet. Running
+# all + coverage-ratchet would execute the expensive generator suites twice.
+ci: depend lint test-ci integration-test
 
 # Hermetic targets must never reach a real Redis server: the pulse tests flush
 # the server named by LOOM_PULSE_REDIS_ADDR. Only test-pulse-redis passes it on.
@@ -59,7 +61,7 @@ unexport LOOM_PULSE_REDIS_ADDR
 # rsync, and network access are also required by the external contract gates.
 # Formal verification is opt-in design work and must not enter this dependency tree.
 # The source mode is intentionally inherited from the worktree or LOOM_DIR.
-ci-local: all coverage-ratchet test-race openapi-contract generated-code-quality test-testdata-compile
+ci-local: lint test-ci integration-test test-race openapi-contract generated-code-quality test-testdata-compile
 
 # Install protoc
 PROTOC_VERSION=36.2
@@ -165,6 +167,16 @@ endif
 
 coverage-ratchet:
 	go run ./scripts/coveragecheck -test-timeout=$(LOOM_TEST_TIMEOUT)
+
+# Every root test runs exactly once. Protected consumers retain their scoped
+# coverage instrumentation; all remaining packages contribute ordinary coverage.
+# The aggregate cover.out is published only after tests and ratchets pass.
+test-ci:
+ifneq ($(GOOS),windows)
+	PATH="$(GOBIN_DIR):$$PATH" go run ./scripts/coveragecheck -suite -coverprofile=cover.out -test-timeout=$(LOOM_TEST_TIMEOUT)
+else
+	go run ./scripts/coveragecheck -suite -coverprofile=cover.out -test-timeout=$(LOOM_TEST_TIMEOUT)
+endif
 
 # Rewrite the checked-in floors from the current consumer-aware profile. Review
 # every reduction and document why the protected boundary lost coverage.

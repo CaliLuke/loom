@@ -75,11 +75,16 @@ if target_prerequisites missing "$PREREQUISITE_FIXTURE" >/dev/null; then
 fi
 
 assert_prerequisites all "lint test integration-test"
-assert_prerequisites ci "depend all coverage-ratchet"
-assert_prerequisites ci-local "all coverage-ratchet test-race openapi-contract generated-code-quality test-testdata-compile"
+assert_prerequisites ci "depend lint test-ci integration-test"
+assert_prerequisites ci-local "lint test-ci integration-test test-race openapi-contract generated-code-quality test-testdata-compile"
 assert_prerequisites value-contract-conformance "value-contract-proof"
 assert_prerequisites release ""
 assert_prerequisites release-promote ""
+
+suite_recipe="$(make --no-print-directory -C "$ROOT" -n test-ci LOOM_TEST_TIMEOUT=41m)"
+if ! grep -Fq 'go run ./scripts/coveragecheck -suite -coverprofile=cover.out -test-timeout=41m' <<<"$suite_recipe"; then
+  fail "test-ci must run the complete suite and scoped ratchet together"
+fi
 
 conformance_recipe="$(make --no-print-directory -C "$ROOT" -n value-contract-conformance)"
 proof_line="$(grep -nFx 'bash ./scripts/check_value_contract_proof.sh' <<<"$conformance_recipe" | cut -d: -f1)"
@@ -102,10 +107,12 @@ workflow_targets="$({
   sed -nE 's/^[[:space:]]*run:[[:space:]]*make[[:space:]]+([^[:space:]#]+).*$/\1/p' "$WORKFLOW"
 } | LC_ALL=C sort -u)"
 expected_workflow_targets="$(printf '%s\n' \
-  ci \
   depend \
   generated-code-quality \
+  integration-test \
+  lint \
   openapi-contract \
+  test-ci \
   test-pulse-redis \
   test-testdata-compile \
   test-race \
@@ -115,10 +122,9 @@ if [[ "$workflow_targets" != "$expected_workflow_targets" ]]; then
 fi
 
 # Every workflow gate must also run in ci-local, except the ones listed here.
-# ci is covered by ci-local's all and coverage-ratchet, and depend installs
-# tools. test-pulse-redis needs Docker, which pre-push must not require (see
+# depend installs tools. test-pulse-redis needs Docker, which pre-push must not require (see
 # the ci-local comment in the Makefile).
-ci_local_exceptions=" ci depend test-pulse-redis "
+ci_local_exceptions=" depend test-pulse-redis "
 ci_local_prerequisites=" $(target_prerequisites ci-local) "
 for target in $workflow_targets; do
   if [[ "$ci_local_exceptions" == *" $target "* ]]; then

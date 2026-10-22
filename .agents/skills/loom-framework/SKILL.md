@@ -2732,6 +2732,7 @@ go fmt ./...
 make lint
 make test
 make coverage-ratchet         # protected consumer-aware boundaries
+make test-ci                  # full root suite + scoped ratchet, without duplicate tests
 make openapi-contract          # OpenAPI work
 make generated-code-quality    # generated Go/output work
 make test-testdata-compile     # all exported design fixtures: gen, example, build, vet
@@ -2746,6 +2747,15 @@ OpenAPI pipeline. `make coverage-baseline` rewrites them from the current
 consumer-aware profile. Treat any reduction as an explicit reviewed contract
 change and document its reason; aggregate coverage remains an inspection
 artifact, not the ratchet.
+
+`make ci` and `make ci-local` use `test-ci` instead of running `test` followed
+by `coverage-ratchet`. The coverage runner expands the configured consumer set
+and the complete root-module inventory, runs each package once, and checks the
+floors using only the configured consumers. Remaining packages cannot inflate
+the ratchet. It publishes the combined `cover.out` only after both groups and
+the coverage floors pass. Standalone `test` and `coverage-ratchet` remain useful
+for local iteration; do not chain them in CI. Race/shuffle, generated-design,
+contract and integration tiers retain their separate checks.
 
 ## Local and Remote Source Modes
 

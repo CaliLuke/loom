@@ -50,9 +50,20 @@ func main() {
 	configPath := flag.String("config", "coverage/baselines.json", "path to the checked-in coverage baseline")
 	update := flag.Bool("update", false, "replace each baseline with the current measured coverage")
 	testTimeout := flag.String("test-timeout", "", "go test -timeout for the coverage run; empty keeps the go test default")
+	suite := flag.Bool("suite", false, "run every root-module test once, enforce coverage, and write the aggregate profile")
+	profilePath := flag.String("coverprofile", "cover.out", "aggregate profile written by -suite after all checks pass")
 	flag.Parse()
 
-	if err := run(*configPath, *update, *testTimeout); err != nil {
+	var err error
+	switch {
+	case *suite && *update:
+		err = errors.New("-suite and -update cannot be combined; update the scoped baseline separately")
+	case *suite:
+		err = runSuite(*configPath, *testTimeout, *profilePath)
+	default:
+		err = run(*configPath, *update, *testTimeout)
+	}
+	if err != nil {
 		fmt.Fprintln(os.Stderr, "coverage ratchet:", err)
 		os.Exit(1)
 	}
@@ -104,10 +115,7 @@ func collectCoverage(config baselineConfig, testTimeout string) (blocks map[stri
 		}
 	}()
 
-	command := exec.Command("go", coverageTestArgs(config, profilePath, testTimeout)...)
-	command.Stdout = os.Stdout
-	command.Stderr = os.Stderr
-	if err := command.Run(); err != nil {
+	if err := runCoverage(config, profilePath, testTimeout); err != nil {
 		return nil, fmt.Errorf("collect consumer-aware coverage: %w", err)
 	}
 
@@ -127,13 +135,22 @@ func coverageTestArgs(config baselineConfig, profilePath, testTimeout string) []
 		"test",
 		"-count=1",
 		"-covermode=count",
-		"-coverpkg="+strings.Join(config.CoverPackages, ","),
-		"-coverprofile="+profilePath,
 	)
+	if len(config.CoverPackages) > 0 {
+		args = append(args, "-coverpkg="+strings.Join(config.CoverPackages, ","))
+	}
+	args = append(args, "-coverprofile="+profilePath)
 	if testTimeout != "" {
 		args = append(args, "-timeout="+testTimeout)
 	}
 	return append(args, config.TestPackages...)
+}
+
+func runCoverage(config baselineConfig, profilePath, testTimeout string) error {
+	command := exec.Command("go", coverageTestArgs(config, profilePath, testTimeout)...)
+	command.Stdout = os.Stdout
+	command.Stderr = os.Stderr
+	return command.Run()
 }
 
 func measureBoundaries(config baselineConfig, blocks map[string]profileBlock) (map[string]measurement, error) {
