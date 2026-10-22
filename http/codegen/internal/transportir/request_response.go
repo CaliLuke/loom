@@ -359,14 +359,24 @@ func normalizeHTTPAttribute(attr *expr.AttributeExpr) *expr.AttributeExpr {
 		return nil
 	}
 	cloned := expr.DupAtt(attr)
-	return normalizeHTTPAttributeRecursive(cloned, make(map[string]struct{}))
-}
-
-func normalizeHTTPAttributeRecursive(attr *expr.AttributeExpr, seen map[string]struct{}) *expr.AttributeExpr {
-	constraints, err := expr.EffectiveConstraintsFor(attr)
+	// Capture the input contract once before lowering mutates the owned copy.
+	// Re-reading constraints from each output node recaptures whole subtrees.
+	occurrence, err := expr.NewValueContext().NewOccurrence(cloned)
 	if err != nil {
 		panic(fmt.Sprintf("invalid HTTP attribute constraints: %v", err))
 	}
+	return normalizeHTTPAttributeRecursive(cloned, occurrence, make(map[string]struct{}))
+}
+
+func normalizeHTTPAttributeRecursive(
+	attr *expr.AttributeExpr,
+	occurrence expr.ValueOccurrence,
+	seen map[string]struct{},
+) *expr.AttributeExpr {
+	if occurrence == (expr.ValueOccurrence{}) {
+		panic("invalid HTTP normalization: missing captured occurrence")
+	}
+	constraints := occurrence.EffectiveConstraints()
 	defaultValue, hasDefault := constraints.Default()
 	switch actual := attr.Type.(type) {
 	case expr.UserType:
@@ -391,21 +401,28 @@ func normalizeHTTPAttributeRecursive(attr *expr.AttributeExpr, seen map[string]s
 			return attr
 		}
 		seen[actual.ID()] = struct{}{}
-		actual.SetAttribute(normalizeHTTPAttributeRecursive(actual.Attribute(), seen))
+		actual.SetAttribute(normalizeHTTPAttributeRecursive(actual.Attribute(), occurrence.Underlying(), seen))
 		if flattened {
 			attr.Type = actual.Attribute().Type
 		}
 	case *expr.Array:
-		actual.ElemType = normalizeHTTPAttributeRecursive(actual.ElemType, seen)
+		actual.ElemType = normalizeHTTPAttributeRecursive(actual.ElemType, occurrence.Element(), seen)
 	case *expr.Map:
-		actual.KeyType = normalizeHTTPAttributeRecursive(actual.KeyType, seen)
-		actual.ElemType = normalizeHTTPAttributeRecursive(actual.ElemType, seen)
+		actual.KeyType = normalizeHTTPAttributeRecursive(actual.KeyType, occurrence.Key(), seen)
+		actual.ElemType = normalizeHTTPAttributeRecursive(actual.ElemType, occurrence.Element(), seen)
 	case *expr.Object:
+		members := occurrence.Members()
+		if len(members) != len(*actual) {
+			panic("invalid HTTP normalization: captured object shape differs")
+		}
 		object := make(expr.Object, len(*actual))
 		for i, named := range *actual {
+			if members[i].Name != named.Name {
+				panic("invalid HTTP normalization: captured object member differs")
+			}
 			object[i] = &expr.NamedAttributeExpr{
 				Name:      named.Name,
-				Attribute: normalizeHTTPAttributeRecursive(named.Attribute, seen),
+				Attribute: normalizeHTTPAttributeRecursive(named.Attribute, members[i].Occurrence, seen),
 			}
 		}
 		attr.Type = &object

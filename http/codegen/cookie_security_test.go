@@ -312,7 +312,7 @@ func renderAllGeneratedFileCode(t *testing.T, files []*codegen.File) string {
 
 func renderOpenAPIJSON(
 	t *testing.T,
-	build func(*expr.RootExpr) ([]*codegen.File, error),
+	build func(*expr.RootExpr, ...openapiv3.Option) ([]*codegen.File, error),
 	root *expr.RootExpr,
 ) []byte {
 	t.Helper()

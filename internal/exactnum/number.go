@@ -15,9 +15,16 @@ import (
 
 // Number is an immutable finite number, sign*C*2^E2*5^E5. The coefficient is
 // positive and has no factors of two or five. Exponents have arbitrary magnitude.
-// Its zero value is zero. Copies share private immutable storage safely.
+// Native-sized canonical components are stored inline; larger components use
+// private immutable storage. Its zero value is zero and copies are safe.
 type Number struct {
-	sign      int
+	coefficient          uint64
+	exponent2, exponent5 int32
+	sign                 int8
+	large                *largeNumber
+}
+
+type largeNumber struct {
 	c, e2, e5 *big.Int
 }
 
@@ -45,12 +52,15 @@ func ParseDSL(source string) (Number, error) {
 
 // FromInt64 preserves an integer exactly.
 func FromInt64(value int64) Number {
-	return canonical(big.NewInt(value), new(big.Int), new(big.Int))
+	if value < 0 {
+		return compactNumber(-1, uint64(-(value+1))+1)
+	}
+	return compactNumber(1, uint64(value))
 }
 
 // FromUint64 preserves an unsigned integer exactly.
 func FromUint64(value uint64) Number {
-	return canonical(new(big.Int).SetUint64(value), new(big.Int), new(big.Int))
+	return compactNumber(1, value)
 }
 
 // FromInteger copies an arbitrary-size integer into immutable numeric storage.
@@ -64,7 +74,7 @@ func FromFloat64(value float64) (Number, error) {
 	if math.IsNaN(value) || math.IsInf(value, 0) {
 		return Number{}, fmt.Errorf("nonfinite numeric value %v", value)
 	}
-	return parse(strconv.FormatFloat(value, 'x', -1, 64)), nil
+	return compactFloat(value), nil
 }
 
 // FromScalar reads the exact value of an already admitted Go numeric scalar,
@@ -89,12 +99,18 @@ func FromScalar(value any) (Number, bool) {
 
 // Sign returns -1, 0 or 1 according to the sign of n.
 func (n Number) Sign() int {
-	return n.sign
+	return int(n.sign)
 }
 
 // IsInt reports whether n is mathematically integral without expanding powers.
 func (n Number) IsInt() bool {
-	return n.sign == 0 || n.e2.Sign() >= 0 && n.e5.Sign() >= 0
+	if n.sign == 0 {
+		return true
+	}
+	if n.large != nil {
+		return n.large.e2.Sign() >= 0 && n.large.e5.Sign() >= 0
+	}
+	return n.exponent2 >= 0 && n.exponent5 >= 0
 }
 
 // Key returns a canonical exact identity without expanding exponent magnitudes.
@@ -103,7 +119,10 @@ func (n Number) Key() string {
 	if n.sign == 0 {
 		return "0"
 	}
-	return strconv.Itoa(n.sign) + ":" + n.c.String() + ":" + n.e2.String() + ":" + n.e5.String()
+	if n.large == nil {
+		return strconv.Itoa(int(n.sign)) + ":" + strconv.FormatUint(n.coefficient, 10) + ":" + strconv.FormatInt(int64(n.exponent2), 10) + ":" + strconv.FormatInt(int64(n.exponent5), 10)
+	}
+	return strconv.Itoa(int(n.sign)) + ":" + n.large.c.String() + ":" + n.large.e2.String() + ":" + n.large.e5.String()
 }
 
 // String returns a canonical exact JSON numeric token. A binary-radix input
@@ -112,15 +131,16 @@ func (n Number) String() string {
 	if n.sign == 0 {
 		return "0"
 	}
-	exponent := new(big.Int).Set(n.e2)
-	if n.e5.Cmp(exponent) < 0 {
-		exponent.Set(n.e5)
+	c, e2, e5 := n.parts()
+	exponent := new(big.Int).Set(e2)
+	if e5.Cmp(exponent) < 0 {
+		exponent.Set(e5)
 	}
-	coefficient := new(big.Int).Set(n.c)
+	coefficient := new(big.Int).Set(c)
 	for _, factor := range []struct {
 		base     int64
 		exponent *big.Int
-	}{{2, n.e2}, {5, n.e5}} {
+	}{{2, e2}, {5, e5}} {
 		difference := new(big.Int).Sub(factor.exponent, exponent)
 		coefficient.Mul(coefficient, new(big.Int).Exp(big.NewInt(factor.base), difference, nil))
 	}
@@ -160,8 +180,9 @@ func (n Number) MarshalJSONTo(encoder *jsontext.Encoder) error {
 }
 
 func canonical(coefficient, exponent2, exponent5 *big.Int) Number {
-	n := Number{sign: coefficient.Sign(), c: new(big.Int).Abs(coefficient), e2: new(big.Int).Set(exponent2), e5: new(big.Int).Set(exponent5)}
-	if n.sign == 0 {
+	sign := int8(coefficient.Sign())
+	n := &largeNumber{c: new(big.Int).Abs(coefficient), e2: new(big.Int).Set(exponent2), e5: new(big.Int).Set(exponent5)}
+	if sign == 0 {
 		return Number{}
 	}
 	zeros := n.c.TrailingZeroBits()
@@ -181,7 +202,7 @@ func canonical(coefficient, exponent2, exponent5 *big.Int) Number {
 			n.e5.Add(n.e5, new(big.Int).Lsh(big.NewInt(1), uint(index)))
 		}
 	}
-	return n
+	return canonicalStorage(sign, n)
 }
 
 // parse consumes a spelling already admitted by a source adapter.

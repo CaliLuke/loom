@@ -144,6 +144,35 @@ the live destination. The CLI launcher and design module dependency should be
 updated together because their private helper protocol now carries these
 artifact records. The public CLI still prints one installed path per line.
 
+All artifact paths must name local files below the output directory. Distinct
+paths that collide under case folding, or make one file the directory ancestor
+of another, fail before rendering. Exact same-path contributions still merge in
+order. For `gen`, `gen/loom.json` and its case variants are reserved for Loom's
+manifest. Removal paths must also stay below the output directory.
+
+`generator.Generate` accepts optional resource settings:
+
+```go
+artifacts, err := generator.Generate(output, "gen", designPackage, debug,
+    generator.WithRenderWorkers(2))
+```
+
+The default is at most four simultaneous file renders, further limited by
+`GOMAXPROCS`. An override must be positive; repeated overrides use the last value.
+The setting affects rendering only. CLI generation uses the default. A rendering
+failure stops new dispatch, waits for started renders, and reports the earliest
+failing artifact in plan order. Independent per-file effects and stable
+filesystem state are required for results to be independent of worker count.
+Custom sections and finalizers must finish normally; Loom cannot interrupt an
+arbitrary callback. CLI staging still prevents installation of a failed run.
+
+Generated-file plugins retain their existing whole-collection rewrite phase.
+That phase, shared analysis and the largest individual file can still determine
+peak memory; limiting render workers is not a total memory limit. Debug output
+includes cumulative allocation and GC counters plus current allocated/reserved
+heap. Allocated heap includes uncollected garbage and is not a reachable-heap or
+RSS measurement. Normal generation does not force garbage collection.
+
 For an existing `//go:generate` or script that intentionally uses `go run`, add
 the command package—not only the root module—before invoking it:
 

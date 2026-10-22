@@ -53,7 +53,7 @@ func mappedSSECodecs(target *expr.AttributeExpr, context *codegen.AttributeConte
 	if field == nil || CustomCodec(field) != "" {
 		return nil
 	}
-	mapped := expr.NewMappedAttributeExpr(parent)
+	mapped := expr.NewObjectFields(parent)
 	if context.FieldPresence(mapped, name, field) != codegen.NativePresence {
 		return nil
 	}

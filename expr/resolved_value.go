@@ -13,9 +13,6 @@ type (
 		mu          sync.Mutex
 		synthesisMu sync.Mutex
 		examples    map[*ExampleExpr]*valueSourceData
-		resolved    map[valueResolutionKey]ValueResult
-		synthesized map[*valueOccurrenceNode]ValueResult
-		projected   map[valueProjectionKey]*valueProjectionSlot
 	}
 
 	// ValueIdentity is a comparable opaque identity within a generation. Its zero
@@ -103,6 +100,9 @@ type (
 	}
 
 	valueSourceData struct {
+		// resolutions is guarded by the owning context mutex. A source owns its
+		// memo so temporary supplied values are not retained by the context.
+		resolutions  map[valueResolutionKey]ValueResult
 		context      *valueContextIdentity
 		snapshot     valueSourceSnapshot
 		explicitNull bool
@@ -128,7 +128,6 @@ type (
 
 	valueResolutionKey struct {
 		occurrence *valueOccurrenceNode
-		source     *valueSourceData
 		role       ValueRole
 	}
 )
@@ -186,11 +185,8 @@ const (
 // NewValueContext creates a generation-scoped semantic owner with no global cache.
 func NewValueContext() *ValueContext {
 	return &ValueContext{
-		identity:    &valueContextIdentity{marker: 1},
-		examples:    make(map[*ExampleExpr]*valueSourceData),
-		resolved:    make(map[valueResolutionKey]ValueResult),
-		synthesized: make(map[*valueOccurrenceNode]ValueResult),
-		projected:   make(map[valueProjectionKey]*valueProjectionSlot),
+		identity: &valueContextIdentity{marker: 1},
+		examples: make(map[*ExampleExpr]*valueSourceData),
 	}
 }
 

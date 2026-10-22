@@ -72,3 +72,9 @@ func TestServiceValueDataStreamsAndErrors(t *testing.T) {
 		})
 	}
 }
+
+func newValueData(context *expr.ValueContext, attribute *expr.AttributeExpr, generator *expr.ExampleGenerator) *ValueData {
+	value := captureValueData(context, attribute)
+	selectValueExample(value, attribute, generator)
+	return value
+}

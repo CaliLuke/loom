@@ -140,7 +140,7 @@ func DocumentTarget(source *service.ValueData, target *expr.AttributeExpr, selec
 	value.Documentary = true
 	if !schemaOnly && value.Error == nil && value.Source != nil {
 		value.Plan, value.Error = value.Source.Context.NewValuePlan(value.Source.Occurrence, expr.ValuePlanRequest{
-			Target: target, Selection: value.Selection, Codec: expr.ValueCodecJSON, Use: expr.ValuePlanDocumentation,
+			TargetOccurrence: value.ExampleOccurrence, Selection: value.Selection, Codec: expr.ValueCodecJSON, Use: expr.ValuePlanDocumentation,
 		})
 	}
 	return value
@@ -170,7 +170,7 @@ func independentDocumentTarget(source *service.ValueData, target *expr.Attribute
 			data.Example = context.Synthesize(selection, nil)
 		}
 		value.Plan, value.Error = context.NewValuePlan(occurrence, expr.ValuePlanRequest{
-			Target: target, Codec: expr.ValueCodecJSON, Use: expr.ValuePlanDocumentation,
+			TargetOccurrence: occurrence, Codec: expr.ValueCodecJSON, Use: expr.ValuePlanDocumentation,
 		})
 	}
 	return value

@@ -58,7 +58,7 @@ func renderObjectValidation(buf *bytes.Buffer, first *bool, att *expr.AttributeE
 	if isUT {
 		put = ut
 	}
-	mapped := expr.NewMappedAttributeExpr(att)
+	mapped := expr.NewObjectFields(att)
 	parentRequired := parentRequiredValidationFields(att, attCtx)
 	messageScope, isMessage := attCtx.Scope.(messageFieldScope)
 	for _, nat := range *(expr.AsObject(att.Type)) {

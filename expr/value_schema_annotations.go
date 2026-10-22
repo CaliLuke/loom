@@ -127,7 +127,7 @@ func (c *ValueContext) checkDeclaredEnumAnnotation(occurrence ValueOccurrence, r
 	if err != nil {
 		return err
 	}
-	plan := ValuePlan{context: c.identity, source: occurrence, root: enumRootPlan(root, false)}
+	plan := ValuePlan{context: c.identity, source: occurrence, root: enumRootPlan(root, false), projections: &valueProjectionMemo{}}
 	result := c.ResolveDeclaredShape(occurrence, c.SupplyValue(ValueInput{Raw: raw, ExplicitNull: raw == nil, Origin: "declared schema enum"}))
 	_, err = c.schemaAnnotationValue(result, plan)
 	return err

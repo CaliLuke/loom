@@ -30,7 +30,7 @@ func TestSchemaPreparationDoesNotSelectOrSynthesize(t *testing.T) {
 	})
 	root.API.ExampleGenerator = expr.NewRandom("schema-no-synthesis")
 	control := expr.NewRandom("schema-no-synthesis")
-	prepared, err := PrepareService(root.API.HTTP.Services[0], nil)
+	prepared, err := PrepareService(root.API.HTTP.Services[0], nil, nil)
 	require.NoError(t, err)
 	require.Equal(t, control.Int(), root.API.ExampleGenerator.Int())
 	target := prepared.Endpoints[0].Request.BodyValue
@@ -41,7 +41,7 @@ func TestSchemaPreparationDoesNotSelectOrSynthesize(t *testing.T) {
 	require.Equal(t, expr.ValueCodecJSON, fields[0].Node.Codec())
 	require.Equal(t, expr.ValueCodecCustom, fields[1].Node.Codec())
 	semantic := service.NewServicesData(root).Get("values")
-	emitter, err := PrepareService(root.API.HTTP.Services[0], semantic)
+	emitter, err := PrepareService(root.API.HTTP.Services[0], semantic, nil)
 	require.NoError(t, err)
 	paired := emitter.Endpoints[0].Request.BodyValue
 	require.Same(t, semantic.Method("store").PayloadValue, paired.Source)
@@ -73,7 +73,7 @@ func TestSchemaPreparationMappedLocationAncestry(t *testing.T) {
 			})
 		})
 	})
-	prepared, err := PrepareService(root.API.HTTP.Services[0], nil)
+	prepared, err := PrepareService(root.API.HTTP.Services[0], nil, nil)
 	require.NoError(t, err)
 	location := prepared.Endpoints[0].Request.QueryParams[0].Value
 	require.NoError(t, location.Error)
@@ -83,7 +83,7 @@ func TestSchemaPreparationMappedLocationAncestry(t *testing.T) {
 func TestPrepareEndpointExamplesSkipsSecurityParameters(t *testing.T) {
 	root := codegen.RunDSL(t, testdata.AsyncSessionSecurityDSL)
 	httpService := root.API.HTTP.Services[0]
-	prepared, err := PrepareService(httpService, nil)
+	prepared, err := PrepareService(httpService, nil, nil)
 	require.NoError(t, err)
 	require.NoError(t, PrepareServiceExamples(prepared, httpService, root.API.ExampleGenerator))
 
@@ -122,7 +122,7 @@ func TestPreparedSelectedBodyExamplesUseSelectedAnchorPlan(t *testing.T) {
 		})
 	})
 	service := root.API.HTTP.Services[0]
-	prepared, err := PrepareService(service, nil)
+	prepared, err := PrepareService(service, nil, nil)
 	require.NoError(t, err)
 	require.NoError(t, PrepareServiceExamples(prepared, service, root.API.ExampleGenerator))
 	require.NoError(t, PrepareEndpointExamples(prepared.Endpoints[0], root.API.ExampleGenerator))
@@ -153,7 +153,7 @@ func TestPreparedSelectedBodyRepresentativeKeepsWholeAnchorPlan(t *testing.T) {
 		})
 	})
 	httpService := root.API.HTTP.Services[0]
-	prepared, err := PrepareService(httpService, nil)
+	prepared, err := PrepareService(httpService, nil, nil)
 	require.NoError(t, err)
 	require.NoError(t, PrepareServiceExamples(prepared, httpService, root.API.ExampleGenerator))
 	require.NoError(t, PrepareEndpointExamples(prepared.Endpoints[0], root.API.ExampleGenerator))
@@ -174,7 +174,7 @@ func TestPreparedSelectedBodyRepresentativeKeepsWholeAnchorPlan(t *testing.T) {
 func TestPreparedInlineBodyWrapperReusesStructuralSource(t *testing.T) {
 	root := codegen.RunDSL(t, testdata.PayloadBodyInlineObjectDSL)
 	httpService := root.API.HTTP.Services[0]
-	prepared, err := PrepareService(httpService, nil)
+	prepared, err := PrepareService(httpService, nil, nil)
 	require.NoError(t, err)
 	target := prepared.Endpoints[0].Request.BodyValue
 	require.True(t, target.Plan.Root().UnderlyingReusesSource())
@@ -201,7 +201,7 @@ func TestBuildValuePlanRebindsPreparedExamplesToRebuiltNodes(t *testing.T) {
 		})
 	})
 	httpService := root.API.HTTP.Services[0]
-	prepared, err := PrepareService(httpService, nil)
+	prepared, err := PrepareService(httpService, nil, nil)
 	require.NoError(t, err)
 	require.NoError(t, PrepareServiceExamples(prepared, httpService, root.API.ExampleGenerator))
 	require.NoError(t, PrepareEndpointExamples(prepared.Endpoints[0], root.API.ExampleGenerator))
@@ -250,7 +250,7 @@ func TestNamedJSONQueryValueUsesSelectedCodec(t *testing.T) {
 			})
 		})
 	})
-	prepared, err := PrepareService(root.API.HTTP.Services[0], nil)
+	prepared, err := PrepareService(root.API.HTTP.Services[0], nil, nil)
 	require.NoError(t, err)
 	parameters := prepared.Endpoints[0].Request.QueryParams
 	require.Len(t, parameters, 2)

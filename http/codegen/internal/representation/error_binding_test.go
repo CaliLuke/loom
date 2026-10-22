@@ -21,14 +21,15 @@ func TestEffectiveErrorBinding(t *testing.T) {
 		{"API mapping shadows local", "api", "method", "api"},
 		{"service mapping shadows local", "service", "method", "service"},
 	} {
-		for _, emitter := range []bool{false, true} {
-			mode := "schema"
-			if emitter {
-				mode = "emitter"
-			}
+		for _, mode := range []string{"schema", "emitter", "shared"} {
+			emitter := mode == "emitter"
 			t.Run(test.name+"/"+mode, func(t *testing.T) {
 				root := codegen.RunDSL(t, effectiveErrorDSL(test.mapping, test.local))
 				var semantic *service.Data
+				var owner *service.SemanticData
+				if mode == "shared" {
+					owner = service.NewSemanticData(root)
+				}
 				var existing *service.ValueData
 				if emitter {
 					semantic = service.NewServicesData(root).Get("errors")
@@ -37,7 +38,7 @@ func TestEffectiveErrorBinding(t *testing.T) {
 				root.API.ExampleGenerator = expr.NewRandom("error-capture")
 				control := expr.NewRandom("error-capture")
 				registered := len(*expr.GeneratedResultTypes)
-				prepared, err := PrepareService(root.API.HTTP.Services[0], semantic)
+				prepared, err := PrepareService(root.API.HTTP.Services[0], semantic, owner)
 				require.NoError(t, err)
 				require.Equal(t, control.Int(), root.API.ExampleGenerator.Int())
 				require.Len(t, *expr.GeneratedResultTypes, registered)

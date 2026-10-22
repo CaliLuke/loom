@@ -33,7 +33,7 @@ func TestComponentAnnotationAuthoredByteAliasBindings(t *testing.T) {
 			if test.neutral {
 				analyzeComponentTypes(analyzer, root.Types, root.ResultTypes)
 			}
-			prepared, err := representation.PrepareService(root.API.HTTP.Services[0], nil)
+			prepared, err := representation.PrepareService(root.API.HTTP.Services[0], nil, nil)
 			require.NoError(t, err)
 			for _, endpoint := range prepared.Endpoints {
 				analyzeEndpointBodies(analyzer, endpoint)

@@ -20,7 +20,7 @@ const (
 )
 
 // Files returns the configured OpenAPI specification files.
-func Files(root *expr.RootExpr) ([]*codegen.File, error) {
+func Files(root *expr.RootExpr, options ...Option) ([]*codegen.File, error) {
 	if err := validateTagMetadata(root); err != nil {
 		return nil, err
 	}
@@ -28,7 +28,7 @@ func Files(root *expr.RootExpr) ([]*codegen.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	spec, warnings, err := newForVersion(root, target)
+	spec, warnings, err := newForVersion(root, target, options...)
 	if err != nil {
 		return nil, err
 	}

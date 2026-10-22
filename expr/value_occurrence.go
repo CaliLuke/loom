@@ -24,13 +24,19 @@ type (
 		nodes        []*valueOccurrenceNode
 		declarations []*valueDeclarationNode
 		next         uint64
+		parentIndex  valueOccurrenceParentIndex
+		// synthesis is guarded by the context synthesis mutex.
+		synthesis map[valueSynthesisKey]ValueResult
 	}
 
 	valueOccurrenceNode struct {
-		id                uint64
-		declarationID     string
-		ownerName         string
-		origin            *AttributeExpr
+		id            uint64
+		declarationID string
+		ownerName     string
+		origin        *AttributeExpr
+		// semanticOrigin is normalized during capture. origin remains an exact
+		// location token for emitter policies, never a live provenance query.
+		semanticOrigin    *AttributeExpr
 		sourceBound       bool
 		attribute         *AttributeExpr
 		declaration       *valueDeclarationNode
@@ -184,7 +190,7 @@ func (b *valueOccurrenceBuilder) occurrence(source *AttributeExpr) (*valueOccurr
 		attribute.DefaultValue = nil
 		attribute.UserExamples = nil
 	}
-	node := &valueOccurrenceNode{id: b.identity(), origin: source, sourceBound: source.valueSourceBound, attribute: attribute,
+	node := &valueOccurrenceNode{id: b.identity(), origin: source, semanticOrigin: valueSemanticOrigin(source), sourceBound: source.valueSourceBound, attribute: attribute,
 		declarationID: valueSourceDeclarationID(source)}
 	if _, named := source.Type.(UserType); !named || source.constraintLocal != nil {
 		node.ownerName = source.compositionName

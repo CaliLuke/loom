@@ -302,16 +302,20 @@ func (a *AttributeContext) IsPrimitivePointer(name string, att *expr.AttributeEx
 }
 
 // FieldPresence returns the physical presence representation for an object
-// field in this context.
-func (a *AttributeContext) FieldPresence(parent *expr.MappedAttributeExpr, name string, attribute *expr.AttributeExpr) PresenceKind {
+// field in this context. ObjectFields supplies a frozen pass snapshot; mutable
+// mappings supply current facts. A nil builtin provider means no parent.
+func (a *AttributeContext) FieldPresence(parent expr.FieldFactsProvider, name string, attribute *expr.AttributeExpr) PresenceKind {
 	if isAnyPresenceAttribute(attribute) && !expr.IsNullable(attribute) {
 		return NativePresence
 	}
 	if expr.AllowsNull(attribute) {
 		return NullablePresence
 	}
-	if a.JSONPresence && parent != nil && !parent.IsRequiredNoDefault(name) {
-		return OptionalPresence
+	if a.JSONPresence && parent != nil {
+		facts := parent.FieldFacts(name)
+		if facts.ParentPresent && (!facts.Required || facts.HasDefault) {
+			return OptionalPresence
+		}
 	}
 	return NativePresence
 }

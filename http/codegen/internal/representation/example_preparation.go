@@ -49,14 +49,14 @@ func prepareValueExample(target *transportir.ValueTarget, attribute *expr.Attrib
 	if target == nil || target.Anchor == nil || target.Anchor.Example.Outcome() != 0 {
 		return
 	}
-	prepareValueData(target.Anchor, attribute, generator)
+	prepareValueData(target.Anchor, suppressGeneratedExample(attribute), generator)
 }
 
-func prepareValueData(data *service.ValueData, attribute *expr.AttributeExpr, generator *expr.ExampleGenerator) {
+func prepareValueData(data *service.ValueData, suppressGenerated bool, generator *expr.ExampleGenerator) {
 	if data == nil || data.Example.Outcome() != 0 {
 		return
 	}
-	policy := expr.ExamplePolicy{Reachable: true, SuppressGenerated: suppressGeneratedExample(attribute)}
+	policy := expr.ExamplePolicy{Reachable: true, SuppressGenerated: suppressGenerated, SynthesisScope: data.SynthesisScope}
 	selection := data.Context.SelectExample(data.Occurrence, policy)
 	if source, found := selection.Source(); found {
 		data.Example = data.Context.Resolve(data.Occurrence, source, expr.ValueRoleExample)
@@ -69,8 +69,12 @@ func suppressGeneratedExample(attribute *expr.AttributeExpr) bool {
 	if attribute == nil {
 		return false
 	}
+	return suppressGeneratedExampleMetadata(attribute.Meta.Last)
+}
+
+func suppressGeneratedExampleMetadata(last func(string) (string, bool)) bool {
 	for _, key := range []string{"openapi:generate", "openapi:example"} {
-		if value, found := attribute.Meta.Last(key); found && value == "false" {
+		if value, found := last(key); found && value == "false" {
 			return true
 		}
 	}
@@ -94,13 +98,13 @@ func PrepareStandaloneExamples(
 	}
 	data := &service.ValueData{Context: context, Occurrence: occurrence}
 	schema, err := context.NewValuePlan(occurrence, expr.ValuePlanRequest{
-		Target: attribute, Codec: expr.ValueCodecJSON, Use: expr.ValuePlanSchema,
+		TargetOccurrence: occurrence, Codec: expr.ValueCodecJSON, Use: expr.ValuePlanSchema,
 	})
 	if err != nil {
 		return nil, err
 	}
-	documentation, err := context.NewValuePlan(occurrence, DocumentationPlanRequest(expr.ValuePlanRequest{
-		Target: attribute,
+	documentation, err := context.NewValuePlan(occurrence, DocumentationPlanRequest(attribute, expr.ValuePlanRequest{
+		TargetOccurrence: occurrence,
 	}))
 	if err != nil {
 		return nil, err
@@ -157,7 +161,7 @@ func PrepareTargetExamples(
 	}
 	target.ExampleSets = make(map[expr.ValuePlanNode]*transportir.ValueExampleSet)
 	target.Annotations = make(map[expr.ValuePlanNode]expr.JSONSchemaAnnotations)
-	if err := prepareTargetExamplePosition(target, position, attribute, generator,
+	if err := prepareTargetExamplePosition(target, position, suppressGeneratedExample(attribute), generator,
 		make(map[expr.ValuePlanNode]bool), nil); err != nil {
 		return err
 	}
@@ -183,7 +187,7 @@ type targetExamplePosition struct {
 func prepareTargetExamplePosition(
 	target *transportir.ValueTarget,
 	position targetExamplePosition,
-	attribute *expr.AttributeExpr,
+	suppressGenerated bool,
 	generator *expr.ExampleGenerator,
 	visited map[expr.ValuePlanNode]bool,
 	path []string,
@@ -202,7 +206,7 @@ func prepareTargetExamplePosition(
 		return err
 	}
 	target.Annotations[position.schema] = annotations
-	set, err := prepareTargetExampleSet(target, position, attribute,
+	set, err := prepareTargetExampleSet(target, position, suppressGenerated,
 		examplegen.ForScope(generator, append([]string{"occurrence"}, path...)...))
 	if err != nil {
 		return err
@@ -216,7 +220,7 @@ func prepareTargetExamplePosition(
 			return nextErr
 		}
 		next.schema = schemaUnderlying
-		return prepareTargetExamplePosition(target, next, schemaUnderlying.Attribute(), generator,
+		return prepareTargetExamplePosition(target, next, suppressGeneratedExampleMetadata(schemaUnderlying.MetaLast), generator,
 			visited, appendExamplePath(path, "underlying"))
 	}
 	if err := prepareTargetExampleMembers(target, position, generator, visited, path); err != nil {
@@ -238,12 +242,12 @@ func prepareTargetExamplePosition(
 func prepareTargetExampleSet(
 	target *transportir.ValueTarget,
 	position targetExamplePosition,
-	attribute *expr.AttributeExpr,
+	suppressGenerated bool,
 	generator *expr.ExampleGenerator,
 ) (*transportir.ValueExampleSet, error) {
 	set := &transportir.ValueExampleSet{Prepared: true}
 	selection := target.Source.Context.SelectExample(position.example, expr.ExamplePolicy{
-		Reachable: true, SuppressGenerated: suppressGeneratedExample(attribute),
+		Reachable: true, SuppressGenerated: suppressGenerated,
 	})
 	entries := selection.Entries()
 	if len(entries) == 0 {
@@ -254,9 +258,9 @@ func prepareTargetExampleSet(
 				plan = target.AnchorPlan
 			}
 		} else {
-			data = &service.ValueData{Context: target.Source.Context, Occurrence: position.example}
+			data = &service.ValueData{Context: target.Source.Context, Occurrence: position.example, SynthesisScope: target.Source.SynthesisScope}
 		}
-		prepareValueData(data, attribute, generator)
+		prepareValueData(data, suppressGenerated, generator)
 		set.Representative = &transportir.ValueExample{Source: data, Plan: plan}
 		return set, nil
 	}
@@ -293,7 +297,7 @@ func targetExampleOwner(
 	}
 	if position.example.ID() != (expr.ValueIdentity{}) {
 		candidates = append(candidates, candidate{
-			&service.ValueData{Context: target.Source.Context, Occurrence: position.example}, position.exampleProjection,
+			&service.ValueData{Context: target.Source.Context, Occurrence: position.example, SynthesisScope: target.Source.SynthesisScope}, position.exampleProjection,
 		})
 	}
 	seen := make(map[expr.ValueIdentity]bool)
@@ -440,9 +444,9 @@ func targetExampleNamedChildBindings(
 			return expr.ValuePlanNode{}, expr.ValuePlanNode{}, expr.ValueOccurrence{}, expr.ValueOccurrence{},
 				fmt.Errorf("HTTP anchor plan has no target member %q", name)
 		}
-		example, err = associatedOccurrence(target.ExamplePlan, position.example, position.example.Members(), examplePlan)
+		example, err = target.ExamplePlan.OccurrenceForTarget(position.example, examplePlan)
 		if err == nil {
-			anchor, err = associatedOccurrence(target.AnchorPlan, position.anchor, position.anchor.Members(), anchorPlan)
+			anchor, err = target.AnchorPlan.OccurrenceForTarget(position.anchor, anchorPlan)
 		}
 	case "branch":
 		var found bool
@@ -456,9 +460,9 @@ func targetExampleNamedChildBindings(
 			return expr.ValuePlanNode{}, expr.ValuePlanNode{}, expr.ValueOccurrence{}, expr.ValueOccurrence{},
 				fmt.Errorf("HTTP anchor plan has no target branch %q", name)
 		}
-		example, err = associatedBranchOccurrence(target.ExamplePlan, position.example, position.example.Branches(), examplePlan)
+		example, err = target.ExamplePlan.OccurrenceForTarget(position.example, examplePlan)
 		if err == nil {
-			anchor, err = associatedBranchOccurrence(target.AnchorPlan, position.anchor, position.anchor.Branches(), anchorPlan)
+			anchor, err = target.AnchorPlan.OccurrenceForTarget(position.anchor, anchorPlan)
 		}
 	default:
 		return expr.ValuePlanNode{}, expr.ValuePlanNode{}, expr.ValueOccurrence{}, expr.ValueOccurrence{},
@@ -466,7 +470,7 @@ func targetExampleNamedChildBindings(
 	}
 	if err != nil {
 		return expr.ValuePlanNode{}, expr.ValuePlanNode{}, expr.ValueOccurrence{}, expr.ValueOccurrence{},
-			err
+			fmt.Errorf("HTTP example %s %q: %w", kind, name, err)
 	}
 	return examplePlan, anchorPlan, example, anchor, nil
 }
@@ -497,7 +501,7 @@ func prepareTargetExampleChild(
 		schema: schema, examplePlan: examplePlan, anchorPlan: anchorPlan,
 		exampleProjection: exampleProjection, anchorProjection: anchorProjection,
 		example: example, anchor: anchor,
-	}, schema.Attribute(), generator, visited, path)
+	}, suppressGeneratedExampleMetadata(schema.MetaLast), generator, visited, path)
 }
 
 func valuePlanMember(plan expr.ValuePlanNode, name string) (expr.ValuePlanNode, bool) {
@@ -520,74 +524,6 @@ func valuePlanBranch(plan expr.ValuePlanNode, tag string) (expr.ValuePlanNode, b
 
 func appendExamplePath(path []string, parts ...string) []string {
 	return append(append([]string(nil), path...), parts...)
-}
-
-func associatedOccurrence(
-	plan expr.ValuePlan,
-	root expr.ValueOccurrence,
-	candidates []expr.ValueMember,
-	target expr.ValuePlanNode,
-) (expr.ValueOccurrence, error) {
-	values := make([]expr.ValueOccurrence, 0, len(candidates))
-	for _, candidate := range candidates {
-		values = append(values, candidate.Occurrence)
-	}
-	return associatedDescendantOccurrence(plan, root, values, target, "member")
-}
-
-func associatedBranchOccurrence(
-	plan expr.ValuePlan,
-	root expr.ValueOccurrence,
-	candidates []expr.ValueBranch,
-	target expr.ValuePlanNode,
-) (expr.ValueOccurrence, error) {
-	values := make([]expr.ValueOccurrence, 0, len(candidates))
-	for _, candidate := range candidates {
-		values = append(values, candidate.Occurrence)
-	}
-	return associatedDescendantOccurrence(plan, root, values, target, "branch")
-}
-
-func associatedDescendantOccurrence(
-	plan expr.ValuePlan,
-	root expr.ValueOccurrence,
-	candidates []expr.ValueOccurrence,
-	target expr.ValuePlanNode,
-	kind string,
-) (expr.ValueOccurrence, error) {
-	queue := append(append([]expr.ValueOccurrence(nil), candidates...), root)
-	visited := make(map[expr.ValueIdentity]bool)
-	var found expr.ValueOccurrence
-	for len(queue) > 0 {
-		current := queue[0]
-		queue = queue[1:]
-		identity := current.ID()
-		if identity == (expr.ValueIdentity{}) || visited[identity] {
-			continue
-		}
-		visited[identity] = true
-		associated, err := plan.ForOccurrence(current, target)
-		if err == nil && associated.Root() == target {
-			if found.ID() != (expr.ValueIdentity{}) && found.ID() != identity {
-				return expr.ValueOccurrence{}, fmt.Errorf("HTTP example %s representation is ambiguous", kind)
-			}
-			found = current
-		}
-		if err != nil && !errors.Is(err, expr.ErrValuePlanAssociationNotFound) {
-			return expr.ValueOccurrence{}, err
-		}
-		queue = append(queue, current.Underlying(), current.Element(), current.Key())
-		for _, member := range current.Members() {
-			queue = append(queue, member.Occurrence)
-		}
-		for _, branch := range current.Branches() {
-			queue = append(queue, branch.Occurrence)
-		}
-	}
-	if found.ID() == (expr.ValueIdentity{}) {
-		return expr.ValueOccurrence{}, fmt.Errorf("HTTP example %s has no associated occurrence", kind)
-	}
-	return found, nil
 }
 
 func selectedValueOccurrence(root expr.ValueOccurrence, selection []string) (expr.ValueOccurrence, error) {

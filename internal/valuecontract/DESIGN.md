@@ -67,6 +67,13 @@ projection accepts only a resolved value plus a target-shape plan and returns a
 wire value plus an outcome. Exact Go signatures are an implementation detail;
 these responsibilities and outcomes are not optional.
 
+Builtin compilation captures these method occurrences once in
+`service.SemanticData` after preparation plugins. Backends own their naming and
+selection records. Synthesis is retained per occurrence and sampling-policy
+scope; authored resolution remains keyed by occurrence, source and role. See
+[service ownership](../../codegen/service/SEMANTICS.md) for the current boundary
+and remaining independent captures.
+
 The semantic authority is the **effective service occurrence after DSL
 finalization**, including method-local type copies and validation overrides.
 A component analyzed without a method has its own finalized type occurrence.

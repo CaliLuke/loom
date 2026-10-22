@@ -61,13 +61,13 @@ func (p ValuePlan) ForOccurrence(source ValueOccurrence, target ValuePlanNode) (
 	if target.node == nil {
 		return ValuePlan{}, fmt.Errorf("value plan target node is absent")
 	}
-	if !valuePlanContainsNode(p.root, target.node, make(map[*valuePlanNode]bool)) {
+	if !p.containsNode(target.node) {
 		return ValuePlan{}, fmt.Errorf("value plan target node does not belong to the plan")
 	}
 	if p.association != nil && source.node == p.association.source && target.node == p.association.root {
 		return ValuePlan{context: p.context, source: source, root: p.association.root,
 			selection: append([]uint64(nil), p.association.selection...), association: p.association,
-			associations: p.associations}, nil
+			associations: p.associations, queryIndex: p.queryIndex, projections: p.projections, nodes: p.nodes}, nil
 	}
 	var matched []*valuePlanAssociation
 	for _, association := range p.associations[source.node] {
@@ -82,9 +82,20 @@ func (p ValuePlan) ForOccurrence(source ValueOccurrence, target ValuePlanNode) (
 		return ValuePlan{}, fmt.Errorf("value plan has ambiguous representations for the occurrence and target")
 	}
 	association := matched[0]
+	var nodes map[*valuePlanNode]bool
+	if association.root == p.root {
+		nodes = p.nodes
+	}
 	return ValuePlan{context: p.context, source: source, root: association.root,
 		selection: append([]uint64(nil), association.selection...), association: association,
-		associations: p.associations}, nil
+		associations: p.associations, queryIndex: p.queryIndex, projections: p.projections, nodes: nodes}, nil
+}
+
+func (p ValuePlan) containsNode(target *valuePlanNode) bool {
+	if p.nodes != nil {
+		return p.nodes[target]
+	}
+	return valuePlanContainsNode(p.root, target, make(map[*valuePlanNode]bool))
 }
 
 func valuePlanContainsNode(root, target *valuePlanNode, visited map[*valuePlanNode]bool) bool {

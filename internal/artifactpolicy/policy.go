@@ -9,12 +9,16 @@ import (
 	"strings"
 )
 
-// Validate rejects create-only files in the regenerated gen tree, including
+// Validate requires local file paths below dir and rejects create-only files
+// in the regenerated gen tree, including
 // stable live directory aliases. Path is relative to dir. All case variants of
 // the top-level gen name are reserved on every filesystem. Existing ancestors
 // must remain stable between validation and installation; this does not defend
 // against a process swapping directories concurrently.
 func Validate(dir, path string, skipExist bool) error {
+	if !filepath.IsLocal(path) || filepath.Clean(path) == "." {
+		return fmt.Errorf("artifact path %s must be a local file below the output directory", path)
+	}
 	if !skipExist {
 		return nil
 	}

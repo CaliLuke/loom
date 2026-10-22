@@ -52,7 +52,7 @@ func TestResponseCodecAuthority(t *testing.T) {
 					})
 				})
 			})
-			prepared, err := PrepareService(root.API.HTTP.Services[0], nil)
+			prepared, err := PrepareService(root.API.HTTP.Services[0], nil, nil)
 			require.NoError(t, err)
 			endpoint := prepared.Endpoints[0]
 			require.Equal(t, expr.ValueCodecJSON, endpoint.Request.BodyValue.Codec, "client request encoding remains JSON")

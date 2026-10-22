@@ -35,7 +35,7 @@ func responseTagData(tag *expr.HTTPResponseTag, result *expr.AttributeExpr, view
 	}
 	literal := strconv.Quote(tag.Value)
 	data := &ResponseTagData{Field: name}
-	switch context.FieldPresence(expr.NewMappedAttributeExpr(result), expr.AttributeName(key), attribute) {
+	switch context.FieldPresence(expr.NewObjectFields(result), expr.AttributeName(key), attribute) {
 	case codegen.NullablePresence, codegen.OptionalPresence:
 		data.Match = "tag, ok := " + server + ".Value(); ok && tag == " + literal
 		data.Assignment = client + ".SetValue(" + literal + ")"

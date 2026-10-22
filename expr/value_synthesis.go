@@ -1,6 +1,11 @@
 package expr
 
 type (
+	valueSynthesisKey struct {
+		occurrence *valueOccurrenceNode
+		scope      string
+	}
+
 	valueSelectedInput struct {
 		occurrence ValueIdentity
 		branch     ValueIdentity
@@ -23,7 +28,7 @@ type (
 )
 
 // Synthesize attempts an example only for an absent, reachable selection.
-// Repeated calls for that occurrence return the same retained choice. Authored
+// Repeated calls for that occurrence and synthesis scope retain one choice. Authored
 // failures are never replaced, and LegacyValue uses this exact sampling attempt.
 func (c *ValueContext) Synthesize(selection ExampleSelection, generator *ExampleGenerator) ValueResult {
 	if c == nil || selection.occurrence.context != c.identity || selection.occurrence.node == nil {
@@ -35,10 +40,15 @@ func (c *ValueContext) Synthesize(selection ExampleSelection, generator *Example
 	if selection.state != ExampleAbsent || generator == nil || generator.Randomizer == nil {
 		return ValueResult{outcome: ValueSuppressed, role: ValueRoleExample}
 	}
+	key := valueSynthesisKey{selection.occurrence.node, selection.scope}
 	c.synthesisMu.Lock()
 	defer c.synthesisMu.Unlock()
-	if prior, found := c.synthesized[selection.occurrence.node]; found {
+	memo := selection.occurrence.graph
+	if prior, found := memo.synthesis[key]; found {
 		return prior
+	}
+	if memo.synthesis == nil {
+		memo.synthesis = make(map[valueSynthesisKey]ValueResult)
 	}
 	graph := valueSynthesisGraph{occurrence: selection.occurrence,
 		nodes: make(map[*valueOccurrenceNode]*AttributeExpr), declarations: make(map[*valueDeclarationNode]DataType)}
@@ -54,7 +64,7 @@ func (c *ValueContext) Synthesize(selection ExampleSelection, generator *Example
 	raw := attribute.Example(random)
 	if raw == nil {
 		result := ValueResult{outcome: ValueSuppressed, role: ValueRoleExample, synthesized: true}
-		c.synthesized[selection.occurrence.node] = result
+		memo.synthesis[key] = result
 		return result
 	}
 	source := c.SupplyValue(ValueInput{Raw: raw, Origin: "synthesized example"})
@@ -62,7 +72,7 @@ func (c *ValueContext) Synthesize(selection ExampleSelection, generator *Example
 	snapshot := valueSnapshotState{eraseSelections: true}
 	legacy := snapshot.snapshot(raw)
 	result.legacy, result.synthesized = &legacy, true
-	c.synthesized[selection.occurrence.node] = result
+	memo.synthesis[key] = result
 	return result
 }
 

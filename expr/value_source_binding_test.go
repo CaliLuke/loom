@@ -41,7 +41,11 @@ func TestValueSourceBindingCyclesStayInvalidAfterCopy(t *testing.T) {
 	require.Nil(t, valueSemanticOrigin(source))
 	copied := DupAtt(source)
 	require.Nil(t, valueSemanticOrigin(copied), "copying may not turn invalid semantic ancestry into declaration ancestry")
-	require.False(t, valueSameAncestry(copied, source), "two cyclic paths are not a valid shared origin")
+	context := NewValueContext()
+	occurrence, err := context.NewOccurrence(source)
+	require.NoError(t, err)
+	_, err = context.NewValuePlan(occurrence, ValuePlanRequest{Target: copied, Codec: ValueCodecJSON, Use: ValuePlanDocumentation})
+	require.ErrorContains(t, err, "ancestry", "two cyclic paths are not a valid shared origin")
 	stable := &AttributeExpr{Type: String}
 	bindValueSource(stable, stable)
 	require.Same(t, stable, valueSemanticOrigin(stable), "identity binding must not create a cycle")

@@ -89,12 +89,10 @@ func (a *AttributeExpr) IsPrimitivePointer(attName string, useDefault bool) bool
 	if att == nil {
 		return false
 	}
-	if !IsPrimitive(att.Type) {
+	if !primitivePointerEligible(att) {
 		return false
 	}
-	t := unalias(att.Type)
-	return t.Kind() != BytesKind && t.Kind() != AnyKind &&
-		!a.IsRequired(attName) && (!a.HasDefaultValue(attName) || !useDefault)
+	return !a.IsRequired(attName) && (!a.HasDefaultValue(attName) || !useDefault)
 }
 
 func unalias(dt DataType) DataType {

@@ -27,7 +27,7 @@ func TestBytesPreservesEntireBaselineAnnotationPath(t *testing.T) {
 				schemas = document.Components.Schemas
 			} else {
 				a := NewAnalyzer(root.API.ExampleGenerator, false)
-				prepared, err := representation.PrepareService(root.API.HTTP.Services[0], nil)
+				prepared, err := representation.PrepareService(root.API.HTTP.Services[0], nil, nil)
 				require.NoError(t, err)
 				require.NoError(t, representation.PrepareServiceExamples(
 					prepared, root.API.HTTP.Services[0], root.API.ExampleGenerator,

@@ -1086,6 +1086,62 @@ There is one DSL parser, one shared semantic IR, and one renderer.
   construction and check dynamic interface-key comparability before insertion.
   Preserve authored examples and representable recursive placeholders; never
   reject a valid custom key merely because no automatic example can be built.
+- Exact numeric meaning belongs to `internal/exactnum`. Native constants use
+  inline coefficient/exponent storage; promotion and checked reconstruction must
+  preserve keys, text, bounds and admitted values. Never round or wrap to retain
+  compact storage, or add a global constant cache. Keep independent arithmetic
+  oracles and `internal/exactnum/tla/compact` aligned with representation changes.
+- `generator.planArtifacts` owns lexical path/removal admission, ordered merge
+  and reserved-manifest rejection before effects. Its renderer clears only its
+  private references, bounds active jobs and joins started work on failure;
+  return the earliest failing plan index, never completion-order diagnostics.
+  Keep `codegen/generator/tla/render_scheduler` aligned with scheduler and callback
+  tests. Whole-file plugins remain a barrier; worker bounds are not byte bounds.
+- Read-only mapped field queries belong to `expr.ObjectFields`: capture scalar
+  facts once per stable object pass, preserve mapped order/selection and discard
+  no original policy claims. Never deep-copy descendants for required/default or
+  pointer queries. Mutable mappings keep fresh facts; do not cache their exposed
+  attributes. Raw and captured service layouts share one storage-policy owner.
+  Keep `expr/tla/field_facts` and query allocation/selection controls aligned.
+- Builtin compilation shares `service.SemanticData` after preparation plugins.
+  Keep captured method values independent of backend Go naming and mutable
+  example records. Different sampling policies require distinct synthesis scopes;
+  sharing occurrences must not change documentation examples or suppression.
+  See `codegen/service/SEMANTICS.md` and its bounded ownership model.
+- HTTP normalization owns one detached mutable output and one immutable input
+  capture. Carry corresponding occurrences through lowering and query their
+  effective constraints; never recapture each output subtree or cache mutable
+  inputs across calls. Preserve edge-local overrides alongside named-declaration
+  recursion stopping. Keep the transportir normalization model, depth-allocation
+  regression and shared/recursive alias controls aligned.
+- Target capture is distinct from projection policy. `ValuePlanRequest.Target`
+  captures mutable state now; `TargetOccurrence` reuses an immutable capture in
+  the same context. Never supply both or cache mutable attributes by pointer.
+  Normalize source ancestry during capture; policy pointer fields are location
+  identities, not live provenance. HTTP final-layout schema, anchor and example
+  plans share that target capture while keeping visibility and codec policies
+  independent. See `codegen/COMPILATION.md` and `expr/tla/target_capture`.
+- Use `ValuePlan.OccurrenceForTarget` for unique semantic-owner queries; do not
+  reconstruct associations with backend tree searches. It scopes exact inverse
+  associations to structural reachability and retains pair-local precedence.
+  Ordered alias lookup has a different first-match contract. Query captured
+  scalar metadata with `MetaLast`/`IsInlineHTTPBody`; request `Attribute()` only
+  when an owned mutable graph is needed. See `expr/tla/association_query`.
+- Semantic memo tables follow immutable key owners: source snapshots own
+  resolutions, capture graphs own synthesis, and plan graphs own projections.
+  The context synchronizes access without rooting every temporary owner. Plan
+  copies/subplans share pending publication and completed results; never evict
+  or replay custom codecs to reclaim storage. Authored-example provenance remains
+  context-owned. Keep `expr/tla/memo_lifetime` and GC/race/panic controls aligned;
+  reachability eligibility does not promise collection timing or lower peak RSS.
+- Checked OpenAPI fingerprints retain one semantic input capture and mandatory
+  representation admission. Traverse captured children; build independent plans
+  only for actual annotation values. Keep encoding copies separate from policy
+  origin tokens, and capture semantic overlays as new inputs. Do not bypass plan
+  admission, collapse ambiguous associations or merge custom codec attempts.
+  Preserve raw/checked hash bytes and the finalized-shape precondition. Keep
+  `http/codegen/openapi/internal/ir/tla/fingerprint_input` and recorded hashes,
+  codec-count and depth-growth controls aligned.
 - Prepare builtin OpenAPI examples in `internal/representation` from retained
   `ValueContext` selection and synthesis results. Preserve ordered authored
   groups, metadata, explicit nulls, precision and selected union branches.

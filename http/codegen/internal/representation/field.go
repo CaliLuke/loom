@@ -26,8 +26,9 @@ type (
 
 // ResolveField selects the field layout once for declaration and projection.
 // Callers restore registered named layouts before supplying occurrence flags.
-func ResolveField(parent *expr.MappedAttributeExpr, name string, attribute *expr.AttributeExpr, pointer, useDefault, jsonPresence bool) Field {
-	wireOptional := !parent.IsRequiredNoDefault(name)
+func ResolveField(parent *expr.ObjectFields, name string, attribute *expr.AttributeExpr, pointer, useDefault, jsonPresence bool) Field {
+	facts := parent.FieldFacts(name)
+	wireOptional := !facts.Required || facts.HasDefault
 	explicit := codegen.IsExplicitPresenceType(attribute)
 	layout := encodingmeta.FieldLayout{
 		WrapNullable: expr.AllowsNull(attribute) && !expr.IsNullable(attribute) && !expr.IsAny(attribute.Type),
@@ -36,11 +37,11 @@ func ResolveField(parent *expr.MappedAttributeExpr, name string, attribute *expr
 	switch {
 	case explicit, jsonPresence && wireOptional:
 	case expr.IsPrimitive(attribute.Type):
-		layout.Pointer = (pointer || parent.IsPrimitivePointer(name, useDefault)) && attribute.Type != expr.Bytes && !expr.IsAny(attribute.Type)
-	case expr.IsObject(attribute.Type), expr.IsUnion(attribute.Type) && !parent.IsRequired(name):
+		layout.Pointer = (pointer || facts.PrimitivePointer(useDefault)) && attribute.Type != expr.Bytes && !expr.IsAny(attribute.Type)
+	case expr.IsObject(attribute.Type), expr.IsUnion(attribute.Type) && !facts.Required:
 		layout.Pointer = true
 	}
-	optional := objectFieldOptional(parent, name, pointer, useDefault)
+	optional := objectFieldOptional(facts, pointer, useDefault)
 	normalize := wireOptional && (jsonPresence || explicit || expr.AllowsNull(attribute))
 	layout.JSON = encodingmeta.JSONFieldPolicy{
 		Storage:       attribute.JSONFieldStorage(layout.Pointer, explicit || layout.WrapNullable || layout.WrapOptional),
@@ -48,16 +49,16 @@ func ResolveField(parent *expr.MappedAttributeExpr, name string, attribute *expr
 		Presence:      normalize,
 		ForceOmission: isJSONRPCID(attribute),
 	}
-	return Field{Layout: layout, Encoding: FieldTags(attribute, parent.ElemName(name), optional, layout.JSON)}
+	return Field{Layout: layout, Encoding: FieldTags(attribute, facts.ElementName, optional, layout.JSON)}
 }
 
-func objectFieldOptional(parent *expr.MappedAttributeExpr, name string, pointer, useDefault bool) bool {
+func objectFieldOptional(facts expr.ObjectFieldFacts, pointer, useDefault bool) bool {
 	switch {
 	case pointer:
 		return true
 	case useDefault:
-		return !parent.IsRequired(name) && !parent.HasDefaultValue(name)
+		return !facts.Required && !facts.HasDefault
 	default:
-		return !parent.IsRequired(name)
+		return !facts.Required
 	}
 }

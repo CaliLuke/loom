@@ -83,7 +83,7 @@ func analyzeServiceBodies(a *Analyzer, api *expr.APIExpr, bodies *BodyTypes) {
 		if !openapi.MustGenerate(svc.Meta) || !openapi.MustGenerate(svc.ServiceExpr.Meta) {
 			continue
 		}
-		serviceIR, err := representation.PrepareService(svc, nil)
+		serviceIR, err := representation.PrepareService(svc, nil, a.semantic)
 		if err != nil {
 			panic(err)
 		}

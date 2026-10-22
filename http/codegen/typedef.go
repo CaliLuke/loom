@@ -109,18 +109,17 @@ func goBodyTypeRef(scope *codegen.NameScope, attribute *expr.AttributeExpr, cont
 }
 
 func goObjectTypeDef(scope *codegen.NameScope, att *expr.AttributeExpr, actual *expr.Object, ptr, useDefault, jsonPresence bool) string {
-	_ = actual
 	lines := []string{"struct {"}
-	ma := expr.NewMappedAttributeExpr(att)
-	codegen.WalkMappedAttr(ma, func(name, elem string, _ bool, at *expr.AttributeExpr) error { // nolint: errcheck
-		lines = append(lines, goObjectFieldDef(scope, ma, name, elem, at, ptr, useDefault, jsonPresence))
-		return nil
-	})
+	ma := expr.NewObjectFields(att)
+	for name, selection := range ma.Fields() {
+		at := (*actual)[selection.Index].Attribute
+		lines = append(lines, goObjectFieldDef(scope, ma, name, at, ptr, useDefault, jsonPresence))
+	}
 	lines = append(lines, "}")
 	return strings.Join(lines, "\n")
 }
 
-func goObjectFieldDef(scope *codegen.NameScope, ma *expr.MappedAttributeExpr, name, _ string, att *expr.AttributeExpr, ptr, useDefault, jsonPresence bool) string {
+func goObjectFieldDef(scope *codegen.NameScope, ma *expr.ObjectFields, name string, att *expr.AttributeExpr, ptr, useDefault, jsonPresence bool) string {
 	fieldName := codegen.GoifyAtt(att, name, true)
 	typeDef := goTypeDef(scope, att, ptr, useDefault, jsonPresence)
 	field := representation.ResolveField(ma, name, att, ptr, useDefault, jsonPresence)

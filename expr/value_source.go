@@ -10,6 +10,10 @@ type (
 		Reachable bool
 		// SuppressGenerated disables synthesis when no authored source exists.
 		SuppressGenerated bool
+		// SynthesisScope separates consumers with different sampling policies.
+		// The empty scope retains one choice per occurrence. Equal scopes share
+		// that choice; scopes do not affect authored source resolution.
+		SynthesisScope string
 	}
 
 	// ExampleState describes source selection without resolving or generating data.
@@ -18,6 +22,7 @@ type (
 	// ExampleSelection preserves the source and occurrence chosen before resolution.
 	// Only an absent selection is eligible for synthesis.
 	ExampleSelection struct {
+		scope      string
 		state      ExampleState
 		occurrence ValueOccurrence
 		source     ValueSource
@@ -52,7 +57,7 @@ var errValueSourceOwnership = errors.New("example source is not owned by its sem
 // group, using local/reference/base/type precedence. It never resolves,
 // synthesizes or invokes custom materialization.
 func (c *ValueContext) SelectExample(occurrence ValueOccurrence, policy ExamplePolicy) ExampleSelection {
-	selection := ExampleSelection{state: ExampleExcluded, occurrence: occurrence}
+	selection := ExampleSelection{state: ExampleExcluded, occurrence: occurrence, scope: policy.SynthesisScope}
 	if c == nil || occurrence.context != c.identity || occurrence.node == nil || !policy.Reachable {
 		return selection
 	}

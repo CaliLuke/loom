@@ -18,7 +18,7 @@ var generatorLoader = generators
 func generators(cmd string) ([]genfunc, error) {
 	switch cmd {
 	case "gen":
-		return []genfunc{Service, Transport, OpenAPI}, nil
+		return []genfunc{generationFiles}, nil
 	case "example":
 		return []genfunc{Example}, nil
 	case "test-scaffold":

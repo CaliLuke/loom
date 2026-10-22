@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
-	"sync"
 	"time"
 
 	"golang.org/x/tools/go/packages"
@@ -25,8 +24,13 @@ import (
 // its write intent. designPackage is the canonical import path of the evaluated
 // design that owns the output. Callers installing staged output must apply
 // SkipExist to the live destination rather than treating every rendered path
-// as replaceable.
-func Generate(dir, cmd, designPackage string, debug bool) (outputs []codegen.Artifact, err1 error) {
+// as replaceable. Options configure per-run resource use; invalid options fail
+// before design loading or generation effects.
+func Generate(dir, cmd, designPackage string, debug bool, options ...GenerateOption) (outputs []codegen.Artifact, err1 error) {
+	config, err := generationConfiguration(options)
+	if err != nil {
+		return nil, wrapStageError("options", "", err)
+	}
 	startGenerate := time.Now()
 	registry := codegen.DefaultRegistrySnapshot()
 
@@ -68,7 +72,7 @@ func Generate(dir, cmd, designPackage string, debug bool) (outputs []codegen.Art
 	if err != nil {
 		return nil, err
 	}
-	outputs, err = renderGeneratedFiles(dir, cmd, designPackage, designDigest, genfiles, debug)
+	outputs, err = renderGeneratedFiles(dir, cmd, designPackage, designDigest, genfiles, debug, config.workers)
 	if err != nil {
 		return nil, err
 	}
@@ -79,33 +83,16 @@ func Generate(dir, cmd, designPackage string, debug bool) (outputs []codegen.Art
 
 // renderGeneratedFiles admits and merges output before installing files and
 // applying removals. Admission must precede all rendering side effects.
-func renderGeneratedFiles(dir, cmd, designPackage, designDigest string, genfiles []*codegen.File, debug bool) ([]codegen.Artifact, error) {
-	if err := normalizeFilePolicies(dir, genfiles); err != nil {
-		return nil, wrapStageError("file-policies", "", err)
-	}
-	removePaths := collectRemovePaths(genfiles)
-
-	// 7. Merge files that target the same path to avoid overwriting content when
-	// multiple generators (or services) emit sections for the same file.
-	{
-		start := time.Now()
-		genfiles = mergeFilesByPath(genfiles)
-		debugStage(debug, "merge-files", start, "files=%d", len(genfiles))
-	}
-	if err := emitWarnings(genfiles); err != nil {
-		return nil, wrapStageError("emit-warnings", "", err)
-	}
-
-	// 8. Emit loom.json generation manifest (gen command only).
-	if cmd == "gen" {
-		genfiles = append(genfiles, codegen.ManifestFile(designPackage, designDigest))
-	}
-
-	written, err := writeFiles(dir, genfiles, debug)
+func renderGeneratedFiles(dir, cmd, designPackage, designDigest string, genfiles []*codegen.File, debug bool, workers int) ([]codegen.Artifact, error) {
+	plan, err := planArtifacts(dir, cmd, designPackage, designDigest, genfiles, debug)
 	if err != nil {
 		return nil, err
 	}
-	if err := removeGeneratedPaths(dir, removePaths, written); err != nil {
+	written, err := plan.render(dir, workers, debug)
+	if err != nil {
+		return nil, err
+	}
+	if err := removeGeneratedPaths(dir, plan.removals, written); err != nil {
 		return nil, wrapStageError("remove-files", "", err)
 	}
 
@@ -256,83 +243,6 @@ func runPostGenerationPlugins(
 	return files, nil
 }
 
-type fileRenderWorkItem struct {
-	index int
-	file  *codegen.File
-}
-
-type fileRenderResult struct {
-	index         int
-	filename      string
-	skipExist     bool
-	requestedPath string
-	duration      time.Duration
-	err           error
-}
-
-func writeFiles(dir string, genfiles []*codegen.File, debug bool) (map[string]codegen.Artifact, error) {
-	start := time.Now()
-	numWorkers := runtime.NumCPU()
-
-	workChan := make(chan fileRenderWorkItem, len(genfiles))
-	resultChan := make(chan fileRenderResult, len(genfiles))
-
-	var wg sync.WaitGroup
-	for range numWorkers {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for work := range workChan {
-				renderStart := time.Now()
-				filename, err := work.file.Render(dir)
-				resultChan <- fileRenderResult{
-					index:         work.index,
-					filename:      filename,
-					skipExist:     work.file.SkipExist,
-					requestedPath: work.file.Path,
-					duration:      time.Since(renderStart),
-					err:           err,
-				}
-			}
-		}()
-	}
-
-	for i, file := range genfiles {
-		workChan <- fileRenderWorkItem{index: i, file: file}
-	}
-	close(workChan)
-
-	go func() {
-		wg.Wait()
-		close(resultChan)
-	}()
-
-	written := make(map[string]codegen.Artifact)
-	firstErr := collectWriteResults(written, resultChan)
-	if firstErr != nil {
-		return nil, firstErr
-	}
-	debugStage(debug, "write-files", start, "files=%d workers=%d", len(written), numWorkers)
-	return written, nil
-}
-
-func collectWriteResults(written map[string]codegen.Artifact, resultChan <-chan fileRenderResult) error {
-	var firstErr error
-	for res := range resultChan {
-		if res.err != nil && firstErr == nil {
-			path := res.requestedPath
-			if res.filename != "" {
-				path = res.filename
-			}
-			firstErr = wrapStageError("write-files", path, res.err)
-		}
-		if res.filename != "" {
-			written[res.filename] = codegen.Artifact{Path: res.filename, SkipExist: res.skipExist}
-		}
-	}
-	return firstErr
-}
-
 func collectRemovePaths(files []*codegen.File) []string {
 	paths := make(map[string]struct{})
 	for _, file := range files {
@@ -458,7 +368,7 @@ func emitWarnings(files []*codegen.File) error {
 // services contribute sections to the same file (e.g., shared user types with
 // union value methods).
 func mergeFilesByPath(files []*codegen.File) []*codegen.File {
-	if len(files) <= 1 {
+	if len(files) == 1 && files[0] != nil {
 		return files
 	}
 
@@ -619,7 +529,9 @@ func debugStage(debug bool, stage string, start time.Time, format string, args .
 	if format != "" {
 		msg = " " + fmt.Sprintf(format, args...)
 	}
-	fmt.Fprintf(os.Stderr, "[loom-debug] stage=%s duration=%s%s\n", stage, time.Since(start), msg)
+	var memory runtime.MemStats
+	runtime.ReadMemStats(&memory)
+	fmt.Fprintf(os.Stderr, "[loom-debug] stage=%s duration=%s total_alloc=%d heap_alloc=%d heap_sys=%d num_gc=%d%s\n", stage, time.Since(start), memory.TotalAlloc, memory.HeapAlloc, memory.HeapSys, memory.NumGC, msg)
 }
 
 // normalizeFilePolicies resolves aliases before parallel rendering and refuses

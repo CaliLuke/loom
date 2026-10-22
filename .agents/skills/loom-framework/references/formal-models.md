@@ -11,6 +11,53 @@ stated predicates under its hypotheses; it does not establish handwritten Go
 refinement, correct plan extraction, arbitrary codec behavior or generated-code
 correctness. Keep proved, tested, bounded-checked and assumed claims distinct.
 
+## Compilation value ownership
+
+The [service semantic ownership model](../../../../codegen/service/tla/semantic_ownership/README.md)
+compares duplicate captures, shared mutable selection, and synthesis-cache policy
+collisions. Its corrected bounded model shares semantic ownership while isolating
+backend records and sampling scopes; it does not establish memory bounds.
+
+The [target capture model](../../../../expr/tla/target_capture/README.md) checks
+snapshot stability, context isolation and independent projection policies after
+caller mutation. It rejects live-target rereads, foreign capture admission and
+policy-cache conflation; Go tests retain the opaque-value/materialization boundary.
+
+The [association query model](../../../../expr/tla/association_query/README.md)
+checks inverse association lookup against exhaustive structural reachability,
+including cycles and pair-local precedence. It rejects omitted scope filtering;
+Go tests cover handle admission, immutable metadata and synchronized publication.
+
+The [compact exact-number model](../../../../internal/exactnum/tla/compact/README.md)
+checks normalized meaning and checked native reconstruction, with wraparound as
+its negative control. Independent Go oracles cover IEEE decoding, promotion and
+storage-independent identity; the bounded model does not prove those operations.
+
+The [semantic memo lifetime model](../../../../expr/tla/memo_lifetime/README.md)
+checks owner-local retention, active-call lifetime and pending publication, with
+compilation-global retention and early-release counterexamples. Go GC and race
+controls check the concrete roots and callback behavior outside model assumptions.
+
+The [artifact scheduler model](../../../../codegen/generator/tla/render_scheduler/README.md)
+checks bounded dispatch, joining, stable error precedence and reference release.
+Completion-order reporting is its negative control. Per-file independence,
+terminating callbacks and stable filesystem state are explicit assumptions.
+
+The [HTTP normalization model](../../../../http/codegen/internal/transportir/tla/normalization/README.md)
+compares frozen-input lowering with repeated subtree capture. Both preserve the
+modeled predicates, but recapture violates the analysis-work budget. Go tests
+cover actual alias/recursive graph correspondence beyond the chain model.
+
+The [checked fingerprint input model](../../../../http/codegen/openapi/internal/ir/tla/fingerprint_input/README.md)
+checks retained semantic input, policy-origin correspondence, representation
+admission and capture work under reordered traversal. It does not prove Go plan
+validation or custom materialization; recorded hashes and effect controls do.
+
+The [scalar field facts model](../../../../expr/tla/field_facts/README.md) checks
+snapshot meaning and absence of repeated descendant copying. Borrowed mutation
+and per-query copying are negative controls; concrete mapped/default semantics
+and collection eligibility are implementation-test obligations.
+
 ## Shared generated declarations
 
 The [declaration merge model](../../../../codegen/generator/tla/declaration_merge/README.md)

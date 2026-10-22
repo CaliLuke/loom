@@ -11,10 +11,10 @@ import (
 
 // PrepareService captures transport representation ownership before either Go
 // emission or schema registration. An emitter supplies its existing semantic
-// service data. A standalone schema caller supplies nil: only source occurrences
-// are captured, without service generation, example selection or synthesis.
+// service data. A schema caller supplies a semantic owner, or nil to capture
+// standalone occurrences without service generation or example selection.
 // Go naming remains a separate operation on the emitter's owned transport graph.
-func PrepareService(source *expr.HTTPServiceExpr, semantic *service.Data) (*transportir.Service, error) {
+func PrepareService(source *expr.HTTPServiceExpr, semantic *service.Data, owner *service.SemanticData) (*transportir.Service, error) {
 	prepared := transportir.BuildService(source)
 	if prepared == nil {
 		return nil, nil
@@ -23,9 +23,12 @@ func PrepareService(source *expr.HTTPServiceExpr, semantic *service.Data) (*tran
 	for _, endpoint := range prepared.Endpoints {
 		sourceMethod := source.ServiceExpr.Method(endpoint.MethodName)
 		var method *service.MethodData
-		if semantic != nil {
+		switch {
+		case semantic != nil:
 			method = semantic.Method(endpoint.MethodName)
-		} else {
+		case owner != nil:
+			method = owner.Method(sourceMethod)
+		default:
 			var err error
 			method, err = captureMethod(context, sourceMethod)
 			if err != nil {
