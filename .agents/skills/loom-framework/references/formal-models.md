@@ -53,6 +53,11 @@ checks retained semantic input, policy-origin correspondence, representation
 admission and capture work under reordered traversal. It does not prove Go plan
 validation or custom materialization; recorded hashes and effect controls do.
 
+The [scalar field facts model](../../../../expr/tla/field_facts/README.md) checks
+snapshot meaning and absence of repeated descendant copying. Borrowed mutation
+and per-query copying are negative controls; concrete mapped/default semantics
+and collection eligibility are implementation-test obligations.
+
 ## Shared generated declarations
 
 The [declaration merge model](../../../../codegen/generator/tla/declaration_merge/README.md)

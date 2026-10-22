@@ -36,6 +36,7 @@ type (
 		IsMinLength  bool
 		RequiredName string
 		RequiredAttr *expr.AttributeExpr
+		Fields       *expr.ObjectFields
 	}
 
 	unionValidationCase struct {
@@ -271,8 +272,13 @@ func appendValidationLength(res *[]string, value *int, render func(*int) string)
 }
 
 func appendRequiredValidations(res *[]string, att *expr.AttributeExpr, validation *expr.ValidationExpr, attCtx *AttributeContext, data validationRenderData) {
+	required := generatedRequiredValidationFrom(att, validation, attCtx)
+	if len(required) == 0 {
+		return
+	}
 	obj := expr.AsObject(att.Type)
-	for _, r := range generatedRequiredValidationFrom(att, validation, attCtx) {
+	data.Fields = expr.NewObjectFields(att)
+	for _, r := range required {
 		data.RequiredName = r
 		data.RequiredAttr = obj.Attribute(r)
 		appendRenderedValidation(res, renderRequiredValidation(data))
@@ -391,8 +397,7 @@ func renderRequiredValidation(data validationRenderData) string {
 	}
 	name := expr.AttributeName(data.RequiredName)
 	missing := "\n\terr = loom.MergeErrors(err, loom.MissingFieldError(" + quoteString(name) + ", " + validationContextExpr(data.AttributeCtx, data.Context) + "))\n}"
-	mapped := expr.NewMappedAttributeExpr(data.Attribute)
-	presence := data.AttributeCtx.FieldPresence(mapped, name, data.RequiredAttr)
+	presence := data.AttributeCtx.FieldPresence(data.Fields, name, data.RequiredAttr)
 	if presence == OptionalPresence || presence == NullablePresence {
 		return "if !" + data.Target + "." + field + ".Present() {" + missing
 	}

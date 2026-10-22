@@ -355,6 +355,45 @@ bound, not a byte bound. Deterministic outcomes across worker counts assume stab
 filesystem state and independent per-file effects; arbitrary callbacks cannot be
 interrupted. See the [scheduler model](generator/tla/render_scheduler/README.md).
 
+## Scalar field analysis
+
+Read-only field queries consume expr.ObjectFields, a pass-owned snapshot of
+immediate object fields. It records required/default presence, native primitive
+pointer eligibility, transport names and the winning original field index/key.
+It retains no attributes or raw defaults and never copies unrelated descendants.
+Requiredness resolves once per object; individual field lookup does not allocate.
+The existing AllRequired resolver still has its own normalization cost.
+
+Exact keys collapse at their first position with their last attribute before
+logical names collapse by that same rule. Fields retain mapped behavior, including
+qualified names and dangling required names. An iterator exposes scalar selections
+in that order. The consuming pass owns a stable input graph and reads its selected
+child; subsequent input mutation requires new facts. Actual mutable mappings keep
+fresh queries and explicit Map overrides. No pointer-keyed cache is introduced.
+
+AttributeContext.FieldPresence consumes the narrow FieldFactsProvider query.
+Existing mapped callers remain valid; builtin nil providers preserve absent-parent
+behavior. Validation and HTTP layout share frozen facts instead of asking a deep
+mutable copy to answer scalar questions. Raw ServiceFieldLayout and captured
+ObjectFieldFacts.ServiceLayout share one native storage policy, preserving exact
+raw keys versus mapped interpretation and lazy primitive-pointer queries.
+
+The [field facts model](../expr/tla/field_facts/README.md) contrasts immutable
+snapshots with borrowed mutable facts and repeated descendant copying. Direct
+parity, selection-order, mutation, nil, recursive-release and allocation checks
+cover the concrete semantics. Eight required-field checks previously allocated
+1,177 versus 13,201 objects when an unrelated descendant widened from 16 to 512
+fields; the snapshot path allocates 59 in both cases.
+
+Five alternating fresh-process pairs against the checked-fingerprint stage on
+the same 63-artifact design reduced median allocated bytes from 3,364,621,472
+to 3,065,041,760 (8.9%) and peak RSS from 660,848,640 to 626,802,688 bytes
+(5.2%). Median elapsed time was 2.61 versus 2.47 seconds and
+CPU 4.87 versus 4.40 seconds. No task builds ran in this window;
+other machine activity remained. Small elapsed differences do not establish a
+general speed improvement. All real-project output trees matched exactly; the same
+five representative designs matched twice across processes and compiled.
+
 ## Reuse, effects and failure
 
 In-process reuse belongs to the capture/analysis owner. Persistent reuse is

@@ -142,7 +142,7 @@ func (b *httpValuePlanBuilder) walk(attribute *expr.AttributeExpr, context *code
 	return nil
 }
 
-func emittedHTTPFieldPolicy(parent *expr.AttributeExpr, mapped *expr.MappedAttributeExpr, field *expr.NamedAttributeExpr, context *codegen.AttributeContext) (expr.ValueFieldPolicy, error) {
+func emittedHTTPFieldPolicy(parent *expr.AttributeExpr, mapped *expr.ObjectFields, field *expr.NamedAttributeExpr, context *codegen.AttributeContext) (expr.ValueFieldPolicy, error) {
 	name := expr.AttributeName(field.Name)
 	resolved := ResolveField(mapped, name, field.Attribute, context.Pointer, context.UseDefault, context.JSONPresence)
 	tags, err := emittedFieldTags(resolved.Encoding, field.Name)
@@ -179,7 +179,7 @@ func emittedHTTPFieldPolicy(parent *expr.AttributeExpr, mapped *expr.MappedAttri
 	}
 	return expr.ValueFieldPolicy{
 		Parent: parent, Target: field.Attribute, Name: field.Name, WireName: wireName,
-		Visible: parts[0] != "-", Required: mapped.IsRequired(name), Presence: presence, NumericKind: numeric,
+		Visible: parts[0] != "-", Required: mapped.FieldFacts(name).Required, Presence: presence, NumericKind: numeric,
 	}, nil
 }
 
@@ -204,7 +204,7 @@ func (b *httpValuePlanBuilder) object(attribute *expr.AttributeExpr, actual *exp
 			PreserveAdditional: false,
 		})
 	}
-	mapped := expr.NewMappedAttributeExpr(attribute)
+	mapped := expr.NewObjectFields(attribute)
 	for _, field := range *actual {
 		policy, err := emittedHTTPFieldPolicy(attribute, mapped, field, context)
 		if err != nil {

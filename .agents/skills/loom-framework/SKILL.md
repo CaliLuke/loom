@@ -1097,6 +1097,12 @@ There is one DSL parser, one shared semantic IR, and one renderer.
   return the earliest failing plan index, never completion-order diagnostics.
   Keep `codegen/generator/tla/render_scheduler` aligned with scheduler and callback
   tests. Whole-file plugins remain a barrier; worker bounds are not byte bounds.
+- Read-only mapped field queries belong to `expr.ObjectFields`: capture scalar
+  facts once per stable object pass, preserve mapped order/selection and discard
+  no original policy claims. Never deep-copy descendants for required/default or
+  pointer queries. Mutable mappings keep fresh facts; do not cache their exposed
+  attributes. Raw and captured service layouts share one storage-policy owner.
+  Keep `expr/tla/field_facts` and query allocation/selection controls aligned.
 - Builtin compilation shares `service.SemanticData` after preparation plugins.
   Keep captured method values independent of backend Go naming and mutable
   example records. Different sampling policies require distinct synthesis scopes;

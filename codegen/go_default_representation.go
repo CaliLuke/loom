@@ -48,6 +48,23 @@ func (a *AttributeContext) DefaultValue(att *expr.AttributeExpr, value any) (Def
 	return DefaultValueCode{Expression: expression, ErrorAware: renderer.errorAware}, err
 }
 
+func defaultFieldLiteral(child, selected *expr.AttributeExpr, facts expr.ObjectFieldFacts, context *AttributeContext, presence PresenceKind, literal string) string {
+	switch presence {
+	case OptionalPresence:
+		ref := presenceValueTypeRef(child, context)
+		if expr.IsObject(child.Type) {
+			literal = "*(" + literal + ")"
+		}
+		return "loom.OptionalValue[" + ref + "](" + literal + ")"
+	case NativePresence:
+		if expr.IsPrimitive(child.Type) && expr.IsPrimitive(selected.Type) && facts.ServiceLayout(selected, context.Pointer, context.UseDefault).Pointer {
+			ref := context.Scope.Ref(child, context.Pkg(child))
+			return "func() *" + ref + " {\n v := " + ref + "(" + literal + ")\n return &v\n}()"
+		}
+	}
+	return literal
+}
+
 func (r *defaultRenderer) render(att *expr.AttributeExpr, occurrence expr.ValueOccurrence, value expr.ResolvedValue, context *AttributeContext, path string) (string, error) {
 	if meta, _ := GetMetaType(att); meta != "" || isRawJSONValue(att) && !expr.IsNullable(att) {
 		source, ok := value.SourceValue()
@@ -157,7 +174,7 @@ func (r *defaultRenderer) object(att *expr.AttributeExpr, occurrence expr.ValueO
 	for _, member := range occurrence.Members() {
 		members[member.ID] = member
 	}
-	mapped := expr.NewMappedAttributeExpr(att)
+	mapped := expr.NewObjectFields(att)
 	fields := make([]string, 0, len(value.Fields()))
 	for _, field := range value.Fields() {
 		member, known := members[field.Member]
@@ -166,10 +183,13 @@ func (r *defaultRenderer) object(att *expr.AttributeExpr, occurrence expr.ValueO
 		}
 		child := expr.AsObject(att.Type).Attribute(member.Name)
 		name := expr.AttributeName(member.Name)
+		facts := mapped.FieldFacts(name)
+		winner := (*expr.AsObject(att.Type))[facts.Index]
 		childValue := field.Value
 		expanded := false
 		if childValue.Presence() == expr.ValueAbsent {
-			raw := mapped.GetDefault(name)
+			// Query the mapped winner without copying its default or descendants.
+			raw := (&expr.AttributeExpr{Type: &expr.Object{winner}}).GetDefault(winner.Name)
 			if raw == nil || !context.UseDefault || context.Pointer {
 				continue
 			}
@@ -192,19 +212,7 @@ func (r *defaultRenderer) object(att *expr.AttributeExpr, occurrence expr.ValueO
 		if err != nil {
 			return "", err
 		}
-		switch context.FieldPresence(mapped, name, child) {
-		case OptionalPresence:
-			ref := presenceValueTypeRef(child, context)
-			if expr.IsObject(child.Type) {
-				literal = "*(" + literal + ")"
-			}
-			literal = "loom.OptionalValue[" + ref + "](" + literal + ")"
-		case NativePresence:
-			if expr.IsPrimitive(child.Type) && context.IsPrimitivePointer(name, mapped.AttributeExpr) {
-				ref := context.Scope.Ref(child, context.Pkg(child))
-				literal = "func() *" + ref + " {\n v := " + ref + "(" + literal + ")\n return &v\n}()"
-			}
-		}
+		literal = defaultFieldLiteral(child, winner.Attribute, facts, context, context.FieldPresence(mapped, name, child), literal)
 		fields = append(fields, context.Scope.Field(child, name, true)+": "+literal)
 	}
 	ref := context.Scope.Name(att, context.Pkg(att), context.Pointer, context.UseDefault)
