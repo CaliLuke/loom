@@ -25,7 +25,8 @@ per root; backend names and synthesis domains remain separate.
 Its declaration table is local to that capture. `NewValuePlan` accepts either a
 mutable target to capture or an existing immutable target occurrence. HTTP schema,
 service-anchor and target-example plans share the finalized target capture. Generated sections retain backend data until rendering;
-the renderer queues every file and uses the host CPU count for concurrency.
+the renderer admits a private artifact plan and bounds active work independently
+of the total artifact count.
 
 The existing generated-file plugin API can inspect and replace the entire file
 collection. That is an explicit whole-compilation barrier. Its arbitrary Go
@@ -257,12 +258,22 @@ Current plugins retain their documented preparation and file-rewrite behavior.
 Their whole-file barrier must be reported honestly in resource measurements.
 A planned-artifact extension contract must define declared dependencies, ordering,
 ownership and mutation scope before claiming streaming or incremental behavior.
-Declaration-store admission (including atomic recursive-group publication),
-deterministic error selection together with cancellation, and the extension API
-need stage-specific contract refinement and review before implementation. They
-are architectural direction here, not completed designs. No hidden adapter may
+Declaration-store admission (including atomic recursive-group publication) and
+a phased extension API remain architectural directions requiring their own
+contract refinement, integration evidence and review. No hidden adapter may
 claim purity for an opaque callback. Changes to plugin
 contracts require an inventory of actual integrations and a concrete migration.
+
+The admitted plan rejects nonlocal destinations, case-folded collisions,
+file/descendant conflicts and reserved manifest paths before render effects.
+Exact same-path contributions still compose in their original order. Its private
+pending slice relinquishes each file on dispatch; completed jobs return only
+metadata. Failure drops unstarted references and joins active callbacks. It never
+clears sections owned by callers or plugins. The default is min(4, GOMAXPROCS),
+with a positive per-invocation `WithRenderWorkers` override. This is an active-file
+bound, not a byte bound. Deterministic outcomes across worker counts assume stable
+filesystem state and independent per-file effects; arbitrary callbacks cannot be
+interrupted. See the [scheduler model](generator/tla/render_scheduler/README.md).
 
 ## Reuse, effects and failure
 
@@ -277,8 +288,8 @@ remain unchanged. Invalid artifact paths and policy conflicts fail before
 rendering effects. Render failures retain contextual diagnostics. Direct
 `generator.Generate` calls can leave partial output, including a rendered
 manifest; they do not provide a transaction. The CLI stages that output and must
-not install any of it on failure. The eventual cancellation contract must stop
-queued work and join owned workers before returning. Arbitrary plugin side
+not install any of it on failure. The scheduler stops new dispatch after the first observed failure and joins
+started workers before returning the earliest failing plan index. Arbitrary plugin side
 effects remain plugin-owned.
 
 ## Exact constant representation
@@ -395,3 +406,14 @@ direct and generated-code tests establish implementation behavior.
   removes a retention root; Go's collection timing and other live phases still
   determine peak memory. The 63 real-project artifacts and the same five fixture
   designs remained byte-identical across independent processes and compiled.
+
+- Bounded artifact scheduling: three alternating fresh-process runs per setting
+  on the 63-artifact project compared one, two and four workers. Median elapsed
+  times were 3.44, 2.74 and 2.71 seconds; peak RSS 641,777,664, 614,481,920 and
+  619,610,112 bytes. Allocations remained about 3.763 GB. Four is the measured
+  default tradeoff, not a universal optimum. Against the preceding lifetime
+  stage (2.64 seconds, 634,421,248 bytes), four workers were 2.7% slower and used
+  2.3% less peak RSS in this run; these small differences do not establish a
+  general speed or memory benefit. Bounded active work, deterministic errors and
+  prompt release are the contract improvements. All 63 outputs and the same
+  five representative designs were byte-identical and compiled.

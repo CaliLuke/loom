@@ -102,8 +102,8 @@ func TestGenerateManifestFingerprintsDesignBeforeGeneratorsMutateIt(t *testing.T
 }
 
 // TestGenerateParallelManyFiles verifies that parallel file writing correctly
-// handles multiple files (more than runtime.NumCPU()) to exercise the worker
-// pool distribution. This ensures all workers process files and all files are
+// handles more files than the default worker bound to exercise dispatch.
+// This ensures all files are
 // written correctly.
 func TestGenerateParallelManyFiles(t *testing.T) {
 	t.Cleanup(func() { generatorLoader = generators })
@@ -164,7 +164,7 @@ func TestGenerateParallelWithMerge(t *testing.T) {
 	t.Cleanup(func() { generatorLoader = generators })
 
 	// Three generators: first two merge to same path, third is separate.
-	// This exercises both merging and parallel writing with NumCPU workers.
+	// This exercises both merging and bounded parallel writing.
 	generatorLoader = func(cmd string) ([]genfunc, error) {
 		return []genfunc{
 			func(genpkg string, roots []eval.Root) ([]*codegen.File, error) {
@@ -232,8 +232,7 @@ func TestGenerateParallelWithMerge(t *testing.T) {
 }
 
 // TestGenerateParallelErrorHandling verifies that when file rendering fails
-// in the parallel worker pool, the first error is captured and returned while
-// other workers continue processing.
+// during parallel rendering, an error is returned after started workers finish.
 func TestGenerateParallelErrorHandling(t *testing.T) {
 	t.Cleanup(func() { generatorLoader = generators })
 

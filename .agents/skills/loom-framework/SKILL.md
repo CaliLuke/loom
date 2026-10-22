@@ -1091,6 +1091,12 @@ There is one DSL parser, one shared semantic IR, and one renderer.
   preserve keys, text, bounds and admitted values. Never round or wrap to retain
   compact storage, or add a global constant cache. Keep independent arithmetic
   oracles and `internal/exactnum/tla/compact` aligned with representation changes.
+- `generator.planArtifacts` owns lexical path/removal admission, ordered merge
+  and reserved-manifest rejection before effects. Its renderer clears only its
+  private references, bounds active jobs and joins started work on failure;
+  return the earliest failing plan index, never completion-order diagnostics.
+  Keep `codegen/generator/tla/render_scheduler` aligned with scheduler and callback
+  tests. Whole-file plugins remain a barrier; worker bounds are not byte bounds.
 - Builtin compilation shares `service.SemanticData` after preparation plugins.
   Keep captured method values independent of backend Go naming and mutable
   example records. Different sampling policies require distinct synthesis scopes;

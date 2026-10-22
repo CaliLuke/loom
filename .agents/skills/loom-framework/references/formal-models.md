@@ -38,6 +38,11 @@ checks owner-local retention, active-call lifetime and pending publication, with
 compilation-global retention and early-release counterexamples. Go GC and race
 controls check the concrete roots and callback behavior outside model assumptions.
 
+The [artifact scheduler model](../../../../codegen/generator/tla/render_scheduler/README.md)
+checks bounded dispatch, joining, stable error precedence and reference release.
+Completion-order reporting is its negative control. Per-file independence,
+terminating callbacks and stable filesystem state are explicit assumptions.
+
 ## Shared generated declarations
 
 The [declaration merge model](../../../../codegen/generator/tla/declaration_merge/README.md)
