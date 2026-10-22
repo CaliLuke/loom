@@ -76,7 +76,7 @@ fi
 
 assert_prerequisites all "lint test integration-test"
 assert_prerequisites ci "depend all coverage-ratchet"
-assert_prerequisites ci-local "all coverage-ratchet test-race openapi-contract generated-code-quality test-testdata-compile value-contract-conformance"
+assert_prerequisites ci-local "all coverage-ratchet test-race openapi-contract generated-code-quality test-testdata-compile"
 assert_prerequisites value-contract-conformance "value-contract-proof"
 assert_prerequisites release ""
 assert_prerequisites release-promote ""
@@ -109,7 +109,6 @@ expected_workflow_targets="$(printf '%s\n' \
   test-pulse-redis \
   test-testdata-compile \
   test-race \
-  value-contract-conformance \
   | LC_ALL=C sort)"
 if [[ "$workflow_targets" != "$expected_workflow_targets" ]]; then
   fail "workflow Make targets are [$workflow_targets], want [$expected_workflow_targets]"

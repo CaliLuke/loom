@@ -56,10 +56,10 @@ unexport LOOM_PULSE_REDIS_ADDR
 # except the pulse-redis job: it needs Docker, which pre-push must not
 # require. Run `make test-pulse-redis` for it.
 # Run `make depend` once to install the pinned Go tools. Node.js, npm/npx,
-# rsync, the pinned Lean toolchain, and network access are also required by
-# the external contract gates.
+# rsync, and network access are also required by the external contract gates.
+# Formal verification is opt-in design work and must not enter this dependency tree.
 # The source mode is intentionally inherited from the worktree or LOOM_DIR.
-ci-local: all coverage-ratchet test-race openapi-contract generated-code-quality test-testdata-compile value-contract-conformance
+ci-local: all coverage-ratchet test-race openapi-contract generated-code-quality test-testdata-compile
 
 # Install protoc
 PROTOC_VERSION=36.2
@@ -252,7 +252,7 @@ ifneq ($(GOOS),windows)
 	PATH="$(GOBIN_DIR):$$PATH" LOOM_OPENAPI_CONTRACT=1 go test -count=1 -run '^TestBaselineByteProjectionRenderedConstraints$$' ./http/codegen/openapi/internal/ir
 endif
 
-# Lean is a pinned contributor dependency; this gate must fail if unavailable.
+# Opt-in design verification. Only explicit callers need the pinned Lean toolchain.
 value-contract-proof:
 	bash ./scripts/check_value_contract_proof.sh
 	LOOM_VALUE_PROOF_TEST=1 go test ./scripts -run '^TestValueContractProof' -count=1 -timeout=30m

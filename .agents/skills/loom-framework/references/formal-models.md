@@ -5,6 +5,11 @@ for the exact checker command, toolchain, configuration, expected counterexample
 assumptions and implementation tests. Those files own run details and results;
 this index does not duplicate changing state counts or theorem totals.
 
+Formal verification is explicit, opt-in design work. As required by `AGENTS.md`,
+do not add proof tools or proof-dependent conformance to default builds/tests,
+commit or push hooks, CI workflows (including advisory jobs), or release gates.
+Keep implementation regression tests in the normal validation paths.
+
 Models complement direct, rendered, generated-build and runtime tests. A bounded
 TLC run checks only its configured state space. A Lean theorem establishes its
 stated predicates under its hypotheses; it does not establish handwritten Go

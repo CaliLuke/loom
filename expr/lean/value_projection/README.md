@@ -77,8 +77,9 @@ acceptance, including the 934-design retained comparison and its negative
 controls, passed before #571 was committed and pushed as `1955dbc5`. The
 [correspondence ledger](correspondence.md) records the exercised boundaries;
 these checks do not certify arbitrary generated Go.
-The gate targets the candidate `Proofs` entry point. #570 wires the same
-registered-corpus proof/conformance gate into local checks and CI.
+The explicit design check targets the candidate `Proofs` entry point. #570
+originally wired it into local checks and CI; it is now opt-in only, as required
+by the repository's formal-verification policy in `AGENTS.md`.
 #574 delivered byte-alias length and schema lowering in `9e6b9121`; its
 [production evidence](../../../internal/valuecontract/BYTE_SCHEMA.md) records
 the generated comparisons and remaining representation boundaries. General
@@ -345,7 +346,11 @@ Candidate controls are grouped by responsibility:
 Keep the rejected behavior and the corrected behavior distinguishable. A witness
 can establish a defect without establishing its repair.
 
-## Run the audited gate
+## Run the opt-in design checks
+
+These commands are for explicit design verification. They are not prerequisites
+for building, testing, committing, pushing or releasing Loom, and must not be
+added to CI workflows.
 
 Lean **4.34.1** is pinned in [`lean-toolchain`](lean-toolchain). It includes
 `lake` and `leanchecker`; no proof-library or generated-service dependency is
@@ -400,7 +405,7 @@ theorem, a custom axiom behind an intermediate theorem, or a missing required
 theorem. The real gate must reject each. Enabled mode fails if Lean is absent;
 ordinary Go test success does not claim to have run Lean.
 
-The mandatory production gate is:
+The opt-in implementation/model conformance command is:
 
 ```sh
 make value-contract-conformance
@@ -410,7 +415,7 @@ It runs the proof dependency, builds `value_contract_reference` from the proved
 functions, runs enabled differential tests and verifies both Go test events and
 a fresh JSON report. Report counts are executed assertion groups, not corpus
 input counts. Missing tools, failed/skipped tests, empty reports and absent owner
-coverage fail the gate. CI uses the same target and pinned toolchain. Unsupported
+coverage fail this explicit check. Unsupported
 DSL translations fail explicitly in adapter controls; they are not silently
 skipped or counted as differential coverage. Each consumer migration must extend
 the registered corpus before relying on a newly translated contract.

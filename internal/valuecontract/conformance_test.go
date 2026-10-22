@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestLeanConformance is the mandatory external-reference entry point used by
-// the Make/CI gate. Ordinary Go tests retain the adapter and rejection controls.
+// TestLeanConformance is the external-reference entry point used by the opt-in
+// design-conformance target. Ordinary Go tests retain adapter and rejection controls.
 func TestLeanConformance(t *testing.T) {
 	if os.Getenv("LOOM_VALUE_CONFORMANCE") != "1" {
 		t.Skip("set LOOM_VALUE_CONFORMANCE=1 and LOOM_LEAN_REFERENCE to run the Lean reference")
