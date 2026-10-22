@@ -251,14 +251,12 @@ func (a *Analyzer) ClaimExplicitName(name, fingerprint string) string {
 // checked enum projections retained by prepared attribute declarations.
 func (a *Analyzer) FingerprintAttribute(att *expr.AttributeExpr) string {
 	encoder := newCanonicalSchemaEncoder()
-	encoder.enums = func(attribute *expr.AttributeExpr) [][]any {
-		annotations, err := standaloneSchemaValueAnnotations(attribute)
-		if err != nil && a.err == nil {
-			a.err = fmt.Errorf("fingerprint OpenAPI schema values: %w", err)
-		}
-		return schemaAnnotationEnums(annotations.Enums)
+	encoder.checked = &schemaFingerprintAnalysis{context: expr.NewValueContext()}
+	fingerprint := encoder.fingerprint(att, a.closeObjects)
+	if encoder.checked.err != nil && a.err == nil {
+		a.err = fmt.Errorf("fingerprint OpenAPI schema values: %w", encoder.checked.err)
 	}
-	return encoder.fingerprint(att, a.closeObjects)
+	return fingerprint
 }
 
 func mergeStreamingBodyNote(req, streaming *Schema) *Schema {

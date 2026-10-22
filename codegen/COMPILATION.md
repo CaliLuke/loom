@@ -277,6 +277,50 @@ to 4.84 seconds. No task builds ran during this window; other machine activity
 remained. All output trees matched exactly. The same five representative designs
 also matched twice across processes and their generated code compiled.
 
+## Checked fingerprint inputs
+
+Canonical OpenAPI fingerprinting carries a captured semantic position alongside
+its encoding attribute. Each finalized input receives one capture and mandatory
+whole-input documentation-plan admission, including when it has no annotations.
+This preserves rejection of duplicate emitted JSON names and other representation
+conflicts. Structural visits reuse captured children. Actual defaults and enum
+clauses still receive independent projection plans and fresh source identities;
+sharing analysis never authorizes replaying or suppressing custom materializers.
+
+A copied alias with only a title change keeps the original captured policy-origin
+attribute. A changed validation/nullability overlay and a synthetic bytes-base
+wrapper are new semantic inputs with fresh capture/admission. Do not attach
+policies built from a copied parent pointer to its original capture. This pass
+does not use `ForOccurrence` to bypass ambiguous shared-declaration associations.
+Raw fingerprints used for seeds and union sorting retain their existing encoding.
+Valid checked fingerprints retain their version, bytes and component names.
+
+Nil roots retain the existing nil fingerprint without effects. A capture, plan or
+annotation error retains the first analyzer error and stops further checked
+annotation effects. Structural encoding still returns a full-length error-path
+hash for existing callers; the analyzer must reject the resulting document.
+The existing finalized-shape precondition remains for malformed nil members and
+broken named declarations. Invalid-input failure ordering can become earlier.
+There is no cross-call mutable-pointer cache.
+
+The [checked fingerprint model](../http/codegen/openapi/internal/ir/tla/fingerprint_input/README.md)
+compares retained input with redundant analysis, stale derived semantics, copied
+policy origins and skipped representation admission. Recorded fingerprint and
+codec-count tests check concrete equivalence beyond those abstractions. Ordinary
+structural traversal needs one capture/admission; actual annotation shapes and
+new semantic overlays still incur their own planning work.
+
+An initial three-pair comparison reduced allocations but showed a wall-time
+regression with nearly flat CPU. Inspection found extra per-object bookkeeping
+in the raw encoder; its depth benchmark now retains the original allocation
+counts. A five-pair follow-up on the same design, with no task builds, allocated
+3,506,527,688 versus 3,364,539,368 bytes (4.0% less). Median RSS was 640,401,408
+versus 628,588,544 bytes (1.8% less), elapsed 2.91 versus 2.52 seconds (13.4%
+less), and CPU 5.18 versus 4.85 seconds (6.4% less). Every output tree matched.
+The earlier wall regression did not persist; these measurements do not isolate
+how much the raw-path correction versus machine variation contributed. The
+five representative designs also matched across processes and compiled.
+
 ## Artifact planning and rendering
 
 Planning establishes paths, write intent, removals, warnings and same-path

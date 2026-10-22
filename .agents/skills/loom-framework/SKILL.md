@@ -1128,6 +1128,14 @@ There is one DSL parser, one shared semantic IR, and one renderer.
   or replay custom codecs to reclaim storage. Authored-example provenance remains
   context-owned. Keep `expr/tla/memo_lifetime` and GC/race/panic controls aligned;
   reachability eligibility does not promise collection timing or lower peak RSS.
+- Checked OpenAPI fingerprints retain one semantic input capture and mandatory
+  representation admission. Traverse captured children; build independent plans
+  only for actual annotation values. Keep encoding copies separate from policy
+  origin tokens, and capture semantic overlays as new inputs. Do not bypass plan
+  admission, collapse ambiguous associations or merge custom codec attempts.
+  Preserve raw/checked hash bytes and the finalized-shape precondition. Keep
+  `http/codegen/openapi/internal/ir/tla/fingerprint_input` and recorded hashes,
+  codec-count and depth-growth controls aligned.
 - Prepare builtin OpenAPI examples in `internal/representation` from retained
   `ValueContext` selection and synthesis results. Preserve ordered authored
   groups, metadata, explicit nulls, precision and selected union branches.
