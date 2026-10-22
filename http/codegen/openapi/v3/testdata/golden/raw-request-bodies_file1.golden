@@ -8,6 +8,113 @@ servers:
       url: http://localhost:80
       description: Default server for test api
 paths:
+    /choice:
+        post:
+            tags:
+                - raw_upload
+            summary: typed_choice raw_upload
+            operationId: raw_upload.typed_choice
+            responses:
+                "200":
+                    description: OK response.
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                example:
+                                    type: String
+                                    value: Voluptatem vero.
+                                oneOf:
+                                    - $ref: '#/components/schemas/RawUploadChoiceRawUploadManifestEnvelope'
+                                    - $ref: '#/components/schemas/RawUploadChoiceStringEnvelope'
+                                discriminator:
+                                    propertyName: type
+                                    mapping:
+                                        RawUploadManifest: '#/components/schemas/RawUploadChoiceRawUploadManifestEnvelope'
+                                        String: '#/components/schemas/RawUploadChoiceStringEnvelope'
+                            example:
+                                type: String
+                                value: Voluptatem vero.
+            security: []
+    /exchange:
+        post:
+            tags:
+                - raw_upload
+            summary: exchange raw_upload
+            operationId: raw_upload.exchange
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            example: Neque omnis illum id sed.
+                            oneOf:
+                                - example:
+                                    name: Consequatur quam.
+                                    size: 569645239990550720
+                                  $ref: '#/components/schemas/RawUploadManifest'
+                                - type: string
+                                  example: Nam alias voluptas delectus.
+                        example: Neque omnis illum id sed.
+            responses:
+                "200":
+                    description: OK response.
+                    content:
+                        application/json:
+                            schema:
+                                example:
+                                    - choice:
+                                        type: String
+                                        value: Non eos aut.
+                                    - choice:
+                                        type: String
+                                        value: Non eos aut.
+                                    - choice:
+                                        type: String
+                                        value: Non eos aut.
+                                oneOf:
+                                    - example:
+                                        - choice:
+                                            type: RawUploadManifest
+                                            value:
+                                                name: Quam tenetur id omnis accusantium.
+                                                size: 3100183855936877164
+                                        - choice:
+                                            type: RawUploadManifest
+                                            value:
+                                                name: Quam tenetur id omnis accusantium.
+                                                size: 3100183855936877164
+                                        - choice:
+                                            type: RawUploadManifest
+                                            value:
+                                                name: Quam tenetur id omnis accusantium.
+                                                size: 3100183855936877164
+                                        - choice:
+                                            type: RawUploadManifest
+                                            value:
+                                                name: Quam tenetur id omnis accusantium.
+                                                size: 3100183855936877164
+                                      $ref: '#/components/schemas/RawUploadItems'
+                                    - example:
+                                        results:
+                                            - choice:
+                                                type: String
+                                                value: Omnis maiores mollitia et et est necessitatibus.
+                                            - choice:
+                                                type: String
+                                                value: Omnis maiores mollitia et et est necessitatibus.
+                                      $ref: '#/components/schemas/RawUploadPage'
+                            example:
+                                - choice:
+                                    type: String
+                                    value: Non eos aut.
+                                - choice:
+                                    type: String
+                                    value: Non eos aut.
+                                - choice:
+                                    type: String
+                                    value: Non eos aut.
+            security: []
     /imports:
         post:
             tags:
@@ -99,6 +206,70 @@ paths:
                 - upload_key: []
 components:
     schemas:
+        RawUploadChoice:
+            type: object
+            example:
+                type: String
+                value: Sint rerum facilis maiores.
+            oneOf:
+                - $ref: '#/components/schemas/RawUploadChoiceRawUploadManifestEnvelope'
+                - $ref: '#/components/schemas/RawUploadChoiceStringEnvelope'
+            discriminator:
+                propertyName: type
+                mapping:
+                    RawUploadManifest: '#/components/schemas/RawUploadChoiceRawUploadManifestEnvelope'
+                    String: '#/components/schemas/RawUploadChoiceStringEnvelope'
+        RawUploadChoiceRawUploadManifestEnvelope:
+            type: object
+            properties:
+                type:
+                    type: string
+                    enum:
+                        - RawUploadManifest
+                value:
+                    example:
+                        name: Expedita quae illo provident.
+                        size: 1974262441509041867
+                    $ref: '#/components/schemas/RawUploadManifest'
+            description: Synthetic wrapper for union variant "RawUploadManifest".
+            required:
+                - type
+                - value
+        RawUploadChoiceStringEnvelope:
+            type: object
+            properties:
+                type:
+                    type: string
+                    enum:
+                        - String
+                value:
+                    type: string
+                    example: Et qui.
+            description: Synthetic wrapper for union variant "String".
+            required:
+                - type
+                - value
+        RawUploadItem:
+            type: object
+            properties:
+                choice:
+                    $ref: '#/components/schemas/RawUploadChoice'
+            required:
+                - choice
+        RawUploadItems:
+            type: array
+            items:
+                $ref: '#/components/schemas/RawUploadItem'
+            example:
+                - choice:
+                    type: String
+                    value: Ducimus aspernatur.
+                - choice:
+                    type: String
+                    value: Ducimus aspernatur.
+                - choice:
+                    type: String
+                    value: Ducimus aspernatur.
         RawUploadManifest:
             type: object
             properties:
@@ -115,6 +286,25 @@ components:
             required:
                 - name
                 - size
+        RawUploadPage:
+            type: object
+            properties:
+                results:
+                    $ref: '#/components/schemas/RawUploadItems'
+            example:
+                results:
+                    - choice:
+                        type: RawUploadManifest
+                        value:
+                            name: Sit rerum tempore animi alias.
+                            size: 1042549988806284555
+                    - choice:
+                        type: RawUploadManifest
+                        value:
+                            name: Sit rerum tempore animi alias.
+                            size: 1042549988806284555
+            required:
+                - results
     responses:
         NoContentResponse:
             description: No Content response.

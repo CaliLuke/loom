@@ -6,6 +6,108 @@
       }
     },
     "schemas": {
+      "RawUploadChoice": {
+        "discriminator": {
+          "mapping": {
+            "RawUploadManifest": "#/components/schemas/RawUploadChoiceRawUploadManifestEnvelope",
+            "String": "#/components/schemas/RawUploadChoiceStringEnvelope"
+          },
+          "propertyName": "type"
+        },
+        "example": {
+          "type": "String",
+          "value": "Sint rerum facilis maiores."
+        },
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/RawUploadChoiceRawUploadManifestEnvelope"
+          },
+          {
+            "$ref": "#/components/schemas/RawUploadChoiceStringEnvelope"
+          }
+        ],
+        "type": "object"
+      },
+      "RawUploadChoiceRawUploadManifestEnvelope": {
+        "description": "Synthetic wrapper for union variant \"RawUploadManifest\".",
+        "properties": {
+          "type": {
+            "enum": [
+              "RawUploadManifest"
+            ],
+            "type": "string"
+          },
+          "value": {
+            "$ref": "#/components/schemas/RawUploadManifest",
+            "example": {
+              "name": "Expedita quae illo provident.",
+              "size": 1974262441509041867
+            }
+          }
+        },
+        "required": [
+          "type",
+          "value"
+        ],
+        "type": "object"
+      },
+      "RawUploadChoiceStringEnvelope": {
+        "description": "Synthetic wrapper for union variant \"String\".",
+        "properties": {
+          "type": {
+            "enum": [
+              "String"
+            ],
+            "type": "string"
+          },
+          "value": {
+            "example": "Et qui.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "value"
+        ],
+        "type": "object"
+      },
+      "RawUploadItem": {
+        "properties": {
+          "choice": {
+            "$ref": "#/components/schemas/RawUploadChoice"
+          }
+        },
+        "required": [
+          "choice"
+        ],
+        "type": "object"
+      },
+      "RawUploadItems": {
+        "example": [
+          {
+            "choice": {
+              "type": "String",
+              "value": "Ducimus aspernatur."
+            }
+          },
+          {
+            "choice": {
+              "type": "String",
+              "value": "Ducimus aspernatur."
+            }
+          },
+          {
+            "choice": {
+              "type": "String",
+              "value": "Ducimus aspernatur."
+            }
+          }
+        ],
+        "items": {
+          "$ref": "#/components/schemas/RawUploadItem"
+        },
+        "type": "array"
+      },
       "RawUploadManifest": {
         "example": {
           "name": "Doloribus velit facilis.",
@@ -27,6 +129,39 @@
           "size"
         ],
         "type": "object"
+      },
+      "RawUploadPage": {
+        "example": {
+          "results": [
+            {
+              "choice": {
+                "type": "RawUploadManifest",
+                "value": {
+                  "name": "Sit rerum tempore animi alias.",
+                  "size": 1042549988806284555
+                }
+              }
+            },
+            {
+              "choice": {
+                "type": "RawUploadManifest",
+                "value": {
+                  "name": "Sit rerum tempore animi alias.",
+                  "size": 1042549988806284555
+                }
+              }
+            }
+          ]
+        },
+        "properties": {
+          "results": {
+            "$ref": "#/components/schemas/RawUploadItems"
+          }
+        },
+        "required": [
+          "results"
+        ],
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -44,6 +179,198 @@
   "jsonSchemaDialect": "https://spec.openapis.org/oas/3.1/dialect/base",
   "openapi": "3.2.0",
   "paths": {
+    "/choice": {
+      "post": {
+        "operationId": "raw_upload.typed_choice",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "type": "String",
+                  "value": "Voluptatem vero."
+                },
+                "schema": {
+                  "discriminator": {
+                    "mapping": {
+                      "RawUploadManifest": "#/components/schemas/RawUploadChoiceRawUploadManifestEnvelope",
+                      "String": "#/components/schemas/RawUploadChoiceStringEnvelope"
+                    },
+                    "propertyName": "type"
+                  },
+                  "example": {
+                    "type": "String",
+                    "value": "Voluptatem vero."
+                  },
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/RawUploadChoiceRawUploadManifestEnvelope"
+                    },
+                    {
+                      "$ref": "#/components/schemas/RawUploadChoiceStringEnvelope"
+                    }
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK response."
+          }
+        },
+        "security": [],
+        "summary": "typed_choice raw_upload",
+        "tags": [
+          "raw_upload"
+        ]
+      }
+    },
+    "/exchange": {
+      "post": {
+        "operationId": "raw_upload.exchange",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": "Neque omnis illum id sed.",
+              "schema": {
+                "example": "Neque omnis illum id sed.",
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/RawUploadManifest",
+                    "example": {
+                      "name": "Consequatur quam.",
+                      "size": 569645239990550720
+                    }
+                  },
+                  {
+                    "example": "Nam alias voluptas delectus.",
+                    "type": "string"
+                  }
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": [
+                  {
+                    "choice": {
+                      "type": "String",
+                      "value": "Non eos aut."
+                    }
+                  },
+                  {
+                    "choice": {
+                      "type": "String",
+                      "value": "Non eos aut."
+                    }
+                  },
+                  {
+                    "choice": {
+                      "type": "String",
+                      "value": "Non eos aut."
+                    }
+                  }
+                ],
+                "schema": {
+                  "example": [
+                    {
+                      "choice": {
+                        "type": "String",
+                        "value": "Non eos aut."
+                      }
+                    },
+                    {
+                      "choice": {
+                        "type": "String",
+                        "value": "Non eos aut."
+                      }
+                    },
+                    {
+                      "choice": {
+                        "type": "String",
+                        "value": "Non eos aut."
+                      }
+                    }
+                  ],
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/RawUploadItems",
+                      "example": [
+                        {
+                          "choice": {
+                            "type": "RawUploadManifest",
+                            "value": {
+                              "name": "Quam tenetur id omnis accusantium.",
+                              "size": 3100183855936877164
+                            }
+                          }
+                        },
+                        {
+                          "choice": {
+                            "type": "RawUploadManifest",
+                            "value": {
+                              "name": "Quam tenetur id omnis accusantium.",
+                              "size": 3100183855936877164
+                            }
+                          }
+                        },
+                        {
+                          "choice": {
+                            "type": "RawUploadManifest",
+                            "value": {
+                              "name": "Quam tenetur id omnis accusantium.",
+                              "size": 3100183855936877164
+                            }
+                          }
+                        },
+                        {
+                          "choice": {
+                            "type": "RawUploadManifest",
+                            "value": {
+                              "name": "Quam tenetur id omnis accusantium.",
+                              "size": 3100183855936877164
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "$ref": "#/components/schemas/RawUploadPage",
+                      "example": {
+                        "results": [
+                          {
+                            "choice": {
+                              "type": "String",
+                              "value": "Omnis maiores mollitia et et est necessitatibus."
+                            }
+                          },
+                          {
+                            "choice": {
+                              "type": "String",
+                              "value": "Omnis maiores mollitia et et est necessitatibus."
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "OK response."
+          }
+        },
+        "security": [],
+        "summary": "exchange raw_upload",
+        "tags": [
+          "raw_upload"
+        ]
+      }
+    },
     "/imports": {
       "post": {
         "operationId": "raw_upload.upload_text",

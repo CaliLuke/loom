@@ -42,7 +42,7 @@ Repeat with each other configuration and a separate temporary metadir.
 
 `AttributeName` supplies logical names; `UnionVariantTag` owns occurrence metadata,
 named-type metadata and fallback-name precedence. `eval.RunDSL` runs DSL bodies
-and preparation before expression validation, then finalization. `AttributeExpr.validateChildTypes` calls `validateUnionBranchIdentities` for
+and preparation before expression validation, then finalization. `attributeValidator.validateChildTypes` calls `validateUnionBranchIdentities` for
 tagged and untagged unions. Preparation resolves branch types before this check
 evaluates inherited tags.
 `valueOccurrenceBuilder.union` keeps its independent effective-tag integrity

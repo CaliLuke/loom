@@ -9,15 +9,27 @@ import (
 	"github.com/CaliLuke/loom/eval"
 )
 
+// attributeValidator keeps schema-only visits separate from runtime admission.
+// A documentation occurrence must not mark a shared codec contract as checked.
+type attributeValidator struct {
+	schemaOnly bool
+	seen       map[*AttributeExpr]bool
+}
+
 // Validate tests whether the attribute required fields exist.  Since attributes
 // are unaware of their context, additional context information can be provided
 // to be used in error messages.  The parent definition context is automatically
 // added to error messages.
 func (a *AttributeExpr) Validate(ctx string, parent eval.Expression) *eval.ValidationErrors {
-	if validated[a] {
+	validator := attributeValidator{seen: validated}
+	return validator.validate(a, ctx, parent)
+}
+
+func (v *attributeValidator) validate(a *AttributeExpr, ctx string, parent eval.Expression) *eval.ValidationErrors {
+	if v.seen[a] {
 		return nil
 	}
-	validated[a] = true
+	v.seen[a] = true
 	verr := new(eval.ValidationErrors)
 	if err := a.resolveTypeRef(); err != nil {
 		verr.Add(parent, "%s", err.Error())
@@ -39,7 +51,7 @@ func (a *AttributeExpr) Validate(ctx string, parent eval.Expression) *eval.Valid
 	verr.Merge(a.validatePresence(ctx, parent))
 	verr.Merge(a.validateStructTagKeys(ctx, parent))
 	verr.Merge(validateStructMeta(ctx, a.Meta, parent))
-	verr.Merge(a.validateChildTypes(ctx, parent))
+	verr.Merge(v.validateChildTypes(a, ctx, parent))
 	verr.Merge(a.validateViewReference(ctx, parent))
 
 	return verr
@@ -287,30 +299,32 @@ func (a *AttributeExpr) validatePkgPath(pkgPath string, t DataType) *eval.Valida
 	return nil
 }
 
-func (a *AttributeExpr) validateChildTypes(ctx string, parent eval.Expression) *eval.ValidationErrors {
+func (v *attributeValidator) validateChildTypes(a *AttributeExpr, ctx string, parent eval.Expression) *eval.ValidationErrors {
 	verr := new(eval.ValidationErrors)
 	if o := AsObject(a.Type); o != nil {
-		verr.Merge(a.validateObjectChildren(ctx, parent, o))
+		verr.Merge(v.validateObjectChildren(a, ctx, parent, o))
 		return verr
 	}
 	if ar := AsArray(a.Type); ar != nil {
-		verr.Merge(ar.ElemType.Validate(appendValidationContext(ctx, "[]"), a))
+		verr.Merge(v.validate(ar.ElemType, appendValidationContext(ctx, "[]"), a))
 		return verr
 	}
 	if mapping := AsMap(a.Type); mapping != nil {
-		verr.Merge(mapping.KeyType.Validate(appendValidationContext(ctx, "[key]"), a))
-		verr.Merge(mapping.ElemType.Validate(appendValidationContext(ctx, "[value]"), a))
+		verr.Merge(v.validate(mapping.KeyType, appendValidationContext(ctx, "[key]"), a))
+		verr.Merge(v.validate(mapping.ElemType, appendValidationContext(ctx, "[value]"), a))
 		return verr
 	}
 	if u := AsUnion(a.Type); u != nil {
 		verr.Merge(validateUnionBranchIdentities(u, ctx, parent))
 		if u.Untagged {
-			verr.Merge(validateUntaggedBranches(u, ctx, parent))
+			if !v.schemaOnly {
+				verr.Merge(validateUntaggedBranches(u, ctx, parent))
+			}
 		} else {
 			verr.Merge(validateUnionWireKeys(ctx, parent, u))
 		}
 		for _, ut := range u.Values {
-			verr.Merge(ut.Attribute.Validate(appendValidationContext(ctx, "<"+ut.Name+">"), parent))
+			verr.Merge(v.validate(ut.Attribute, appendValidationContext(ctx, "<"+ut.Name+">"), parent))
 		}
 		if hasInlineUnionCycle(u) {
 			verr.Add(parent, "%srecursive OneOf branch cycle in %q is not supported; place the recursive reference inside an object field", ctx, u.Name())
@@ -359,7 +373,7 @@ func attributeJSONTag(attribute *AttributeExpr) (string, bool) {
 // the service types, which name a field declared as "n:m" after its attribute
 // name "n". HTTPEndpointExpr.validateBodyElementNames checks the element names
 // that HTTP and JSON-RPC bodies use.
-func (a *AttributeExpr) validateObjectChildren(ctx string, parent eval.Expression, obj *Object) *eval.ValidationErrors {
+func (v *attributeValidator) validateObjectChildren(a *AttributeExpr, ctx string, parent eval.Expression, obj *Object) *eval.ValidationErrors {
 	verr := new(eval.ValidationErrors)
 	for _, name := range a.AllRequired() {
 		if a.Find(name) == nil {
@@ -375,7 +389,7 @@ func (a *AttributeExpr) validateObjectChildren(ctx string, parent eval.Expressio
 	for _, nat := range *obj {
 		verr.Merge(a.validatePkgPath(pkgPath, nat.Attribute.Type))
 		fieldCtx := appendValidationContext(ctx, nat.Name)
-		verr.Merge(nat.Attribute.Validate(fieldCtx, parent))
+		verr.Merge(v.validate(nat.Attribute, fieldCtx, parent))
 		name := AttributeName(nat.Name)
 		wireName := JSONFieldName(name, nat.Attribute)
 		if wireName == "-" {

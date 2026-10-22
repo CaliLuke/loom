@@ -457,7 +457,7 @@ func (e *HTTPEndpointExpr) validateRequestBodyOptions(verr *eval.ValidationError
 }
 
 func (e *HTTPEndpointExpr) validateOpenAPIRequestBody(verr *eval.ValidationErrors) {
-	verr.Merge(e.OpenAPIRequestBody.Validate("HTTP OpenAPI request body", e))
+	verr.Merge(e.OpenAPIRequestBody.validateSchema("HTTP OpenAPI request body", e))
 	if !e.SkipRequestBodyEncodeDecode {
 		verr.Add(e, "OpenAPIRequestBody requires SkipRequestBodyEncodeDecode.")
 	}

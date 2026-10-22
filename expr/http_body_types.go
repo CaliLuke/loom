@@ -242,19 +242,6 @@ func httpResponseBody(a *HTTPEndpointExpr, resp *HTTPResponseExpr) *AttributeExp
 	return buildHTTPResponseBody(name, a.MethodExpr.Result, resp, a.Service)
 }
 
-// httpOpenAPIResponseBody returns the documentation-only HTTP response body for
-// the given endpoint and response, if any.
-func httpOpenAPIResponseBody(a *HTTPEndpointExpr, resp *HTTPResponseExpr) *AttributeExpr {
-	if resp.OpenAPIBody == nil {
-		return nil
-	}
-	name := concat(a.Name(), "OpenAPI", "Response", "Body")
-	if len(a.Responses) > 1 {
-		name = concat(a.Name(), http.StatusText(resp.StatusCode), "OpenAPI", "Response", "Body")
-	}
-	return explicitHTTPResponseBody(resp.OpenAPIBody, name, "ResponseBody", a.Service)
-}
-
 // httpErrorResponseBody returns an attribute describing the response body of a
 // given error. If the DSL defines a body explicitly via the Body function then
 // the corresponding attribute is returned. Otherwise the attribute is computed
@@ -344,8 +331,7 @@ func responseBodyObject(attr *AttributeExpr, resp *HTTPResponseExpr) *MappedAttr
 	return body
 }
 
-// explicitHTTPResponseBody preserves authored presence for runtime and documented
-// responses. An object with no fields still has a body; only Empty denotes none.
+// explicitHTTPResponseBody preserves authored presence for runtime responses. An object with no fields still has a body; only Empty denotes none.
 func explicitHTTPResponseBody(body *AttributeExpr, name, suffix string, svc *HTTPServiceExpr) *AttributeExpr {
 	if body.Type == Empty {
 		return body

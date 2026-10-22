@@ -674,6 +674,13 @@ generated handler sets this static header before it streams the body.
 encoding. Raw body modes are HTTP-only. You cannot combine them with gRPC or
 streaming payload or result methods.
 
+Documentation bodies can describe untagged scalar/object unions and nested
+unions, for example `OpenAPIBody(OneOf(String, Manifest), Untagged)`. The same
+schema works with `OpenAPIRequestBody`. These modifiers are local to the body;
+sharing a named type with a typed method does not change that method's codec.
+The application remains responsible for producing or consuming the documented
+raw bytes. Runtime untagged union restrictions still apply to typed methods.
+
 Use `FileResponse` for seekable downloads that need standard range and
 conditional request behavior. It is HTTP-only and accepts explicit `GET` and
 `HEAD` routes; Loom does not synthesize a `HEAD` route.

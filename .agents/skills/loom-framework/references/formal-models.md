@@ -16,6 +16,10 @@ stated predicates under its hypotheses; it does not establish handwritten Go
 refinement, correct plan extraction, arbitrary codec behavior or generated-code
 correctness. Keep proved, tested, bounded-checked and assumed claims distinct.
 
+The [documentation schema admission model](../../../../expr/tla/documentation_schema/README.md)
+separates valid documentation schemas from unsupported generated codecs and
+checks that validation visits cannot leak between those contexts.
+
 ## Compilation value ownership
 
 The [service semantic ownership model](../../../../codegen/service/tla/semantic_ownership/README.md)

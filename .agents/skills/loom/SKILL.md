@@ -1047,6 +1047,12 @@ clients and servers after upgrading to adopt typed Tag binding.
   stream. Declare `ContentType(...)` on the response. The generated server
   applies that static media type before it streams the body. Use
   `OpenAPIBody(...)` only to document the schema.
+- Documentation body modifiers are local to their occurrence. Use
+  `OpenAPIBody(OneOf(String, Document), Untagged)` or the equivalent
+  `OpenAPIRequestBody` call for untagged scalar/object or nested union schemas.
+  Shared named runtime types keep their codecs. Apply `Untagged` at the body,
+  not on a named type that violates runtime branch rules; nested unions retain
+  their authored representation. Regenerate OpenAPI to adopt this support.
 - String-backed path, query, header, and cookie fields with
   `Meta("struct:field:type", ...)` decode through `encoding.TextUnmarshaler`.
   CLI flags accept raw text through the same parser; omitted optional fields

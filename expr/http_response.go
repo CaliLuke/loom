@@ -340,7 +340,7 @@ func (r *HTTPResponseExpr) validateBodyAndLinks(e *HTTPEndpointExpr, resultType 
 		}
 	}
 	if r.OpenAPIBody != nil {
-		verr.Merge(r.OpenAPIBody.Validate("HTTP response OpenAPI body", r))
+		verr.Merge(r.OpenAPIBody.validateSchema("HTTP response OpenAPI body", r))
 	}
 	if len(r.Links) > 0 {
 		seen := make(map[string]struct{}, len(r.Links))
@@ -410,7 +410,7 @@ func (r *HTTPResponseExpr) Finalize(a *HTTPEndpointExpr, svcAtt *AttributeExpr) 
 		r.finalizeBody(a, svcAtt)
 	}
 	if r.OpenAPIBody != nil {
-		r.finalizeOpenAPIBody(a)
+		r.OpenAPIBody.finalizeSchema()
 	}
 	initAttr(r.Headers, svcAtt)
 	initResponseCookies(r.Cookies, svcAtt)
@@ -511,11 +511,6 @@ func ensureValidation(att *AttributeExpr) *ValidationExpr {
 		att.Validation = &ValidationExpr{}
 	}
 	return att.Validation
-}
-
-func (r *HTTPResponseExpr) finalizeOpenAPIBody(a *HTTPEndpointExpr) {
-	r.OpenAPIBody = httpOpenAPIResponseBody(a, r)
-	r.OpenAPIBody.Finalize()
 }
 
 // Dup creates a copy of the response expression.

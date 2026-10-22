@@ -71,7 +71,10 @@ func Body(args ...any) {
 // the generated OpenAPI contract only and does not change runtime transport
 // encode/decode behavior.
 //
-// OpenAPIBody accepts the same arguments as Body.
+// OpenAPIBody accepts the same arguments as Body, plus direct data types.
+// Its schema modifiers affect only this documentation occurrence. Untagged
+// unions may contain scalar, collection, object, or nested union branches;
+// the generated runtime codec restrictions do not apply to documentation.
 func OpenAPIBody(args ...any) {
 	body(args, true)
 }
@@ -86,7 +89,9 @@ func OpenAPIBody(args ...any) {
 // The body argument may be a payload attribute name, data type, or user type.
 // The contentType argument is the request media type, and required controls the
 // OpenAPI requestBody.required value. An optional DSL function may set schema
-// details such as Description, Example, Format, or Meta.
+// details such as Description, Example, Format, Meta, or Untagged. Modifiers
+// affect only this documentation occurrence. Untagged unions admit scalar and
+// nested branches without enabling generated codecs for those shapes.
 //
 // Example:
 //
@@ -231,13 +236,16 @@ func resolveBodyAttribute(args []any, ref *expr.AttributeExpr, kind string, open
 		attr, ok := resolveNamedBodyAttribute(ref, kind, a)
 		return attr, fn, ok
 	case expr.UserType:
+		if openAPIOnly {
+			a = expr.Dup(a).(expr.UserType)
+		}
 		return &expr.AttributeExpr{Type: a}, fn, true
 	case expr.DataType:
 		if !openAPIOnly {
 			eval.InvalidArgError("attribute name, user type or DSL", a)
 			return nil, nil, false
 		}
-		return &expr.AttributeExpr{Type: a}, fn, true
+		return &expr.AttributeExpr{Type: expr.Dup(a)}, fn, true
 	case func():
 		if ref == nil {
 			if !openAPIOnly {

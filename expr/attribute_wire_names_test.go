@@ -29,7 +29,7 @@ func TestObjectValidationNamesSuffixedKeysByAttribute(t *testing.T) {
 				object = append(object, &NamedAttributeExpr{Name: name, Attribute: &AttributeExpr{Type: String}})
 			}
 			attribute := &AttributeExpr{Type: &object}
-			verr := attribute.validateObjectChildren("", attribute, &object)
+			verr := attribute.Validate("", attribute)
 			if c.want == "" {
 				assert.Empty(t, verr.Errors)
 				return
@@ -65,7 +65,7 @@ func TestUntaggedBranchValidationNamesSuffixedKeysByAttribute(t *testing.T) {
 				Untagged: true,
 				Values:   []*NamedAttributeExpr{{Name: "Branch", Attribute: &AttributeExpr{Type: branch}}},
 			}}
-			verr := union.validateChildTypes("", union)
+			verr := union.Validate("", union)
 			if c.want == "" {
 				assert.Empty(t, verr.Errors)
 				return

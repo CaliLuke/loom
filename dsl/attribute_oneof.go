@@ -60,6 +60,8 @@ func OneOf(arg any, args ...any) expr.DataType {
 // branch must be a concrete named object or array containing primitives, named
 // objects, or arrays of these shapes. Encoding and decoding require the same
 // unique branch in both the JSON schema and the generated Go representation.
+// In OpenAPIBody and OpenAPIRequestBody, Untagged describes only the schema:
+// scalar and nested union branches are allowed, and runtime types are unchanged.
 func Untagged() {
 	attribute, ok := eval.Current().(*expr.AttributeExpr)
 	if !ok {

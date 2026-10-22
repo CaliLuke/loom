@@ -42,6 +42,18 @@ var RawRequestBodyOpenAPIDSL = func() {
 		Required("name", "size")
 	})
 
+	choice := Type("RawUploadChoice", OneOf(String, manifest))
+	item := Type("RawUploadItem", func() {
+		Attribute("choice", choice)
+		Required("choice")
+	})
+	items := Type("RawUploadItems", ArrayOf(item))
+	page := Type("RawUploadPage", func() {
+		Attribute("results", items)
+		Required("results")
+	})
+	result := Type("RawUploadResult", OneOf(items, page))
+
 	Service("raw_upload", func() {
 		Method("upload_binary", func() {
 			Security(uploadKey)
@@ -89,6 +101,28 @@ var RawRequestBodyOpenAPIDSL = func() {
 				})
 			})
 		})
+		Method("exchange", func() {
+			NoSecurity()
+			HTTP(func() {
+				POST("/exchange")
+				SkipRequestBodyEncodeDecode()
+				OpenAPIRequestBody(choice, "application/json", true, Untagged)
+				SkipResponseBodyEncodeDecode()
+				Response(StatusOK, func() {
+					ContentType("application/json")
+					OpenAPIBody(result, Untagged)
+				})
+			})
+		})
+		Method("typed_choice", func() {
+			NoSecurity()
+			Result(choice)
+			HTTP(func() {
+				POST("/choice")
+				SkipRequestBodyEncodeDecode()
+			})
+		})
+
 	})
 }
 

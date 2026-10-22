@@ -269,7 +269,7 @@ func TestObjectValidationRejectsDesignWireNameCollisions(t *testing.T) {
 	}
 	attribute := &AttributeExpr{Type: object}
 
-	verr := attribute.validateObjectChildren("", attribute, object)
+	verr := attribute.Validate("", attribute)
 	require.ErrorContains(t, verr, "conflicts with another design field name")
 }
 

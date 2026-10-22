@@ -2203,8 +2203,13 @@ filter, and serialization rules belong here.
   do not infer body presence from direct or inherited field counts. Constructor
   legality and response presence are separate obligations; keep the imported
   headerless, selected and inherited empty-object wire/spec controls aligned.
-- `expr.explicitHTTPResponseBody` prepares both runtime and documentation-only
-  response shapes. Preserve authored zero-field objects; only the `Empty` sentinel
+- `expr.explicitHTTPResponseBody` prepares runtime response shapes.
+  Documentation bodies own a copied schema graph and finalize it directly;
+  they must not acquire runtime wrappers or forced canonical component names.
+  `attributeValidator` separates schema visits from runtime codec admission.
+  Schema validation preserves contract constraints while omitting generated
+  untagged codec shape restrictions; never share its visited cache with runtime
+  validation. Keep the documentation-schema model and raw-body specimen aligned. Preserve authored zero-field objects; only the `Empty` sentinel
   means no explicit body. Field-count inference belongs to the separate inferred
   body projection. Response plans, codecs and OpenAPI consume the prepared shape;
   never compensate for discarded presence in individual generators. Keep the

@@ -1119,6 +1119,19 @@ form, multipart, optional JSON body, and non-raw request modes.
 same request schema for multiple media types. Loom does not decode these
 formats. The service must inspect the content type and decode the raw stream.
 
+Documentation-only bodies accept scalar/object unions and branches containing
+nested unions. For example, `OpenAPIBody(OneOf(String, Document), Untagged)`
+publishes a `oneOf` without a discriminator envelope. The equivalent request
+form is `OpenAPIRequestBody(OneOf(String, Document), "application/json", true, Untagged)`.
+A modifier applies only to that body occurrence, even when its argument is a
+shared named type. Nested unions retain their own authored tagged or untagged
+representation. Required fields, constraints, and branch identities are still
+validated. Generated runtime untagged codecs retain their narrower branch rules;
+a named type declared with `Untagged()` must still satisfy those rules. Apply
+`Untagged` on the documentation body to describe a broader raw wire contract.
+Regenerate OpenAPI artifacts to adopt this support; raw stream handling remains
+application-owned.
+
 `Link(...)` inside an HTTP `Response(...)` publishes OpenAPI response links.
 Use `LinkOperation(...)` or `LinkOperationRef(...)` to identify the target
 operation, `LinkParam(...)` to map link parameters from runtime expressions,

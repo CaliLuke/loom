@@ -42,7 +42,7 @@ func (e *HTTPEndpointExpr) finalizeTransportBodies() {
 	}
 	e.Body.Finalize()
 	if e.OpenAPIRequestBody != nil {
-		e.OpenAPIRequestBody.Finalize()
+		e.OpenAPIRequestBody.finalizeSchema()
 	}
 
 	e.StreamingBody = httpStreamingBody(e)
