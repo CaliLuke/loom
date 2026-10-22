@@ -13,10 +13,11 @@ func TestExpectedFailureStages(t *testing.T) {
 	}{
 		{"DSL", "dsl", "gen", "stage eval.RunDSL: invalid field", true},
 		{"DSL context", "dsl", "gen", "stage eval.Context.Errors: invalid field", true},
-		{"analysis", "openapi-analysis", "gen", "stage generator.Generate: stage generate-initial-files path generator[2]: OpenAPI invalid field", true},
+		{"analysis", "openapi-analysis", "gen", "stage generator.Generate: stage generate-initial-files path generator[0]: OpenAPI invalid field", true},
 		{"wrong stage", "dsl", "gen", "stage generator.Generate: invalid field", false},
 		{"wrong generator", "openapi-analysis", "gen", "stage generator.Generate: stage generate-initial-files path generator[1]: OpenAPI invalid field", false},
-		{"panic", "openapi-analysis", "gen", "panic: stage generator.Generate: stage generate-initial-files path generator[2]: OpenAPI invalid field", false},
+		{"old generator position", "openapi-analysis", "gen", "stage generator.Generate: stage generate-initial-files path generator[2]: OpenAPI invalid field", false},
+		{"panic", "openapi-analysis", "gen", "panic: stage generator.Generate: stage generate-initial-files path generator[0]: OpenAPI invalid field", false},
 		{"missing diagnostic", "dsl", "gen", "stage eval.RunDSL: another error", false},
 		{"wrong phase", "dsl", "build", "stage eval.RunDSL: invalid field", false},
 		{"unexpected pass", "dsl", "", "", false},

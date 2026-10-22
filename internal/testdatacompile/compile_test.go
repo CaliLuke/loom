@@ -192,7 +192,8 @@ func checkExpectedFailure(want expectation, got observation) error {
 	case "dsl":
 		stage = `stage eval\.(Context\.Errors|RunDSL)`
 	case "openapi-analysis":
-		stage = `stage generator\.Generate: stage generate-initial-files path generator\[2\]: OpenAPI `
+		// The shared compilation owner invokes OpenAPI within generator[0].
+		stage = `stage generator\.Generate: stage generate-initial-files path generator\[0\]: OpenAPI `
 	default:
 		return fmt.Errorf("unknown rejection stage %q", want.Stage)
 	}
