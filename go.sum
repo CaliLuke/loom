@@ -6,8 +6,8 @@ github.com/CaliLuke/go-redis/v9 v9.23.1-0.20261014134601-1073297e76ea h1:oRvCGHz
 github.com/CaliLuke/go-redis/v9 v9.23.1-0.20261014134601-1073297e76ea/go.mod h1:Uvij0aiDtA9pejtqMT84jqWSTEE+OYsph2DRDybsGhs=
 github.com/CaliLuke/go-sse v0.11.1-0.20261008010800-b29b33ae1a1e h1:8ikgsAY/zoRUd/7kLCrBjEVTKxNc99TA647E+Jcke8k=
 github.com/CaliLuke/go-sse v0.11.1-0.20261008010800-b29b33ae1a1e/go.mod h1:lXdhhI7K/QSTmuy5OiNyu32AQ/bUZ8aE8wj8taCn3QE=
-github.com/CaliLuke/libopenapi v0.41.7-0.20261014145029-7886f0170cc4 h1:KG8QSbAtOfHv2JatFv9XsqI673y6tNPMWmpc0VN59y4=
-github.com/CaliLuke/libopenapi v0.41.7-0.20261014145029-7886f0170cc4/go.mod h1:gEQ2ydf5xr92Ql+uRl54gig6N/DAc/zuIrfZNqtFqPA=
+github.com/CaliLuke/libopenapi v0.41.7-0.20261027210921-2be7e43876e4 h1:jjWSq4NE8CaUYrcyjk6LOHAF4XPtE9leE2SBxG2QvEU=
+github.com/CaliLuke/libopenapi v0.41.7-0.20261027210921-2be7e43876e4/go.mod h1:gwO2O8c0HMdLsSTyW7d/c0C6iJVrH0a5UcOV9GTQCxo=
 github.com/CaliLuke/selvedge v0.7.0 h1:9scL+JWLODAOie5C6vHKkkSvknyLWglUQT5c2Ij6YM8=
 github.com/CaliLuke/selvedge v0.7.0/go.mod h1:WMOxrwKeto/YPgLNhH9mxvduVEiWlVKDGLkm2uAUZw8=
 github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERoyfY=

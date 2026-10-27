@@ -103,3 +103,29 @@ The published dependency correction is commit
 an ordinary dependency without replacements and passed the six public model
 shape tests under race detection. The shared owner remains in that dependency;
 Loom adds the importer regression and dependency pin, with no source flattening.
+
+## Upstream release recheck
+
+On 2026-10-27, upstream v0.41.8 still rejected the four aliased/merged component
+container shapes in `TestImportedYAMLComponentIndex`; the explicit control passed.
+The standalone public-API reproduction is
+[libopenapi #672](https://github.com/pb33f/libopenapi/issues/672).
+[PR #673](https://github.com/pb33f/libopenapi/pull/673) ports the correction to v0.41.8.
+The immutable model-building repair is released, but the effective index repair
+remains necessary. The original publication above records the earlier source;
+the root `go.mod` owns the current exact dependency pin.
+
+All six model configurations were rerun with TLC 1.7.4 and Java 25.0.5.
+The raw/global controls still fail occurrence coverage, unguarded/mapping-only
+sequence controls still fail cycle exclusion, and both path-owned controls pass
+with seven distinct states. The model and its assumptions are unchanged.
+
+The v0.41.8-based correction was published as
+`github.com/CaliLuke/libopenapi v0.41.7-0.20261027210921-2be7e43876e4`.
+The pseudo-version prefix follows the fork's existing tag ancestry; `FORK.md`
+records the v0.41.8 source and upstream correction. Focused importer alias/merge,
+exact-number, encoded-reference and rejected-input checks pass, including the
+YAML checks under race detection. Ordinary and nullable imported designs compile;
+all 34 captured design/generated artifacts match the previous pin byte for byte.
+The nullable contract also passes independent-process regeneration. OpenAPI v3
+package tests and the released Vacuum/libopenapi contract suite pass.
