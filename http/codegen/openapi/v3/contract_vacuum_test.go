@@ -18,10 +18,10 @@ type contractVacuum struct {
 }
 
 const (
-	vacuumVersion = "v0.33.0"
-	// Remove this override when a released Vacuum includes the fix in
+	vacuumVersion = "v0.35.4"
+	// Remove this direct requirement when a released Vacuum includes the fix in
 	// https://github.com/pb33f/libopenapi/pull/656 and passes the enum controls.
-	vacuumLibopenAPIVersion = "v0.41.7-0.20261011180705-d696afb9dc03"
+	vacuumLibopenAPIVersion = "v0.41.8"
 )
 
 func installContractVacuum(t *testing.T) contractVacuum {
@@ -32,7 +32,7 @@ func installContractVacuum(t *testing.T) contractVacuum {
 	require.NoError(t, err)
 	_, err = testingx.RunCmd(dir, "go", "mod", "edit",
 		"-require=github.com/daveshanley/vacuum@"+vacuumVersion,
-		"-replace=github.com/pb33f/libopenapi=github.com/CaliLuke/libopenapi@"+vacuumLibopenAPIVersion)
+		"-require=github.com/pb33f/libopenapi@"+vacuumLibopenAPIVersion)
 	require.NoError(t, err)
 	// Installing without @version honors the isolated module's dependency pin.
 	_, err = testingx.RunCmd(dir, "go", "install", "-mod=mod", "github.com/daveshanley/vacuum")

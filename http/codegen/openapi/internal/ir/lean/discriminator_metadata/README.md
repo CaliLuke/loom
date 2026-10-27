@@ -29,7 +29,7 @@ the unchanged 3.2 feature specimen with
 the changed discriminator rules. Neither parser construction nor the known lint
 failure is treated as full 3.2 conformance certification.
 
-The active contract gate now uses Vacuum v0.33.0 and requires the full 3.2
+The active contract gate now uses Vacuum v0.35.4 and requires the full 3.2
 specimen to lint successfully after correcting its separate nested-encoding
 conflict. The historical Redocly results above remain evidence for the original
 change. See the framework skill's OpenAPI validation reference for current scope

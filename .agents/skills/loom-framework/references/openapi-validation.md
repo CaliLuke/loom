@@ -13,7 +13,7 @@ Use the existing suites and fixtures; do not default to the exported-design corp
 | Regex engine agreement | `ir/pattern_projection_test.go` compares Go regexp and unflagged Node ECMA matching on anchors, ASCII whitespace, literal classes/braces and quantified assertions. Unsupported syntax must return diagnostics. |
 | Discriminator semantics | `ir/discriminator_metadata_test.go` checks admission and URI references; v3 discriminator tests cover both targets, required controls, nested/reusable occurrences and fallback-only graph edges. The bounded Lean model records the cross-field rule, not URI or engine correctness. |
 | Independent-process determinism | `requireIndependentRegeneration` invokes a new CLI process and compares exact JSON/YAML bytes for the nullable import. Export fixture snapshots are likewise compared across separate generator processes. |
-| Structural conformance | Libopenapi parses rendered JSON/YAML. Vacuum v0.33.0 lints both formats for all 20 representative specimens, including the full 3.2 fixture. The gate requires success and verifies rejection of malformed documents; no crash is counted as a pass. |
+| Structural conformance | Libopenapi parses rendered JSON/YAML. Vacuum v0.35.4 lints both formats for the representative specimens, including the full 3.2 fixture. The gate requires success and verifies rejection of malformed documents; no crash is counted as a pass. |
 | Encoding admission | Shared IR rejects named `encoding` combined with positional `prefixEncoding` or `itemEncoding` at the same object. Direct metadata tests cover nested scopes and index aliases; rendered tests cover requests, successful responses and errors in both targets. |
 
 The existing `gojsonschema` dependency is used for the specimens' shared
@@ -32,16 +32,17 @@ external linting and process determinism explicit in the acceptance record.
 
 ## External lint gate
 
-`make openapi-contract` installs [Vacuum v0.33.0](https://github.com/daveshanley/vacuum/releases/tag/v0.33.0)
+`make openapi-contract` installs [Vacuum v0.35.4](https://github.com/daveshanley/vacuum/releases/tag/v0.35.4)
 into a temporary directory with the repository Go toolchain. An isolated module
-replaces its libopenapi dependency with
-`github.com/CaliLuke/libopenapi v0.41.7-0.20261011180705-d696afb9dc03`, the exact
-commit proposed in [libopenapi PR #656](https://github.com/pb33f/libopenapi/pull/656).
+requires released `github.com/pb33f/libopenapi v0.41.8`, which includes
+[libopenapi PR #656](https://github.com/pb33f/libopenapi/pull/656).
 This fixes enum value comparison for arrays, objects and numeric representations.
+Vacuum v0.35.4 itself selects v0.41.7, so the direct requirement is still needed;
+no fork or replacement directive is used.
 Both pins live in `v3/contract_vacuum_test.go`; this is a contributor tool, not a
-runtime dependency. Remove the override when a released Vacuum includes that
+runtime dependency. Remove the direct requirement when a released Vacuum includes that
 fix and passes the enum controls. Install without an `@version` suffix so Go
-honors the isolated module's dependency replacement.
+honors the isolated module's dependency requirement.
 `v3/testdata/vacuum.yaml` extends the recommended rules. API descriptions are
 optional in fixtures. The duplicate-enum rule is enabled; JSON Schema recommends
 unique enum elements but does not require them. Enum controls verify acceptance

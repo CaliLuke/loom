@@ -34,10 +34,13 @@ concurrency is needed.
 
 The reviewed report is [libopenapi #657](https://github.com/pb33f/libopenapi/issues/657),
 and the ownership repair is [PR #658](https://github.com/pb33f/libopenapi/pull/658).
-The framework adopts that repair through the ordinary module
-`github.com/CaliLuke/libopenapi`, pinned in the root `go.mod`. Its source is
-libopenapi v0.41.6 plus the reviewed immutable merge-view change, effective
-index/collection traversal correction, and mechanical module/self-import renaming.
+Upstream v0.41.8 includes that repair but still fails local component references
+supplied through aliases or merges, tracked in
+[libopenapi #672](https://github.com/pb33f/libopenapi/issues/672) and fixed by
+[PR #673](https://github.com/pb33f/libopenapi/pull/673).
+The framework uses the ordinary module `github.com/CaliLuke/libopenapi`, pinned
+in the root `go.mod`. Its source is libopenapi v0.41.8 plus the effective
+index/collection traversal correction and mechanical module/self-import renaming.
 Consumers need no `replace` directive. Component indexing and model construction
 read the same effective mappings; repeated aliases retain each semantic occurrence,
 while active-path mapping and sequence cycles terminate. The corresponding model
@@ -58,5 +61,6 @@ render/reload and alias/merge controls. Rename all importer and test imports
 together, update `go.mod`/`go.sum`, and verify a separate consuming module can
 fetch and compile without replacement directives. The importer is internal;
 this temporary module identity does not change the framework's public Go types.
-Vacuum is installed into an independent tool module and retains its separate
-pin for the enum fix in upstream PR #656; its Go types never cross this boundary.
+Vacuum is installed into an independent tool module with released libopenapi
+v0.41.8 for the enum fix in upstream PR #656; its Go types never cross this boundary.
+That tool no longer uses a fork or replacement directive.
