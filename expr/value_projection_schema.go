@@ -13,8 +13,8 @@ import (
 
 var valueBase64Language = regexp.MustCompile(`\A(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?\z`)
 
-// The body and enum gate are deliberately separate: returning from a body
-// branch must never bypass whole-array/object/map/union enum constraints.
+// The body and enum gate are deliberately separate: a successful non-null body
+// branch must still satisfy whole-array/object/map/union enum constraints.
 func schemaJSON(plan *valuePlanNode, wire jsontext.Value) (bool, error) {
 	if plan == nil {
 		return false, fmt.Errorf("missing JSON schema plan")
@@ -22,6 +22,11 @@ func schemaJSON(plan *valuePlanNode, wire jsontext.Value) (bool, error) {
 	matched, err := schemaJSONBody(plan, wire)
 	if err != nil || !matched {
 		return matched, err
+	}
+	// Nullable adds null to the complete value domain. Value predicates,
+	// including enums, constrain only the non-null branch of that domain.
+	if wire.Kind() == 'n' && IsNullable(plan.attribute) {
+		return true, nil
 	}
 	matched, err = schemaLocalRules(plan, wire)
 	if err != nil || !matched {

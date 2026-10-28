@@ -823,6 +823,9 @@ Correct the key design and regenerate instead of editing generated declarations.
   `encoding/json/jsontext.Value`. Do not use the legacy raw-message type.
 - Treat requiredness and nullability as independent. `Required("field")`
   requires presence; `Nullable()` allows a present field to contain JSON null.
+- `Nullable()` plus `Enum(...)` admits null and restricts concrete values to the
+  enum. Ordinary validators and untagged union codecs follow the same rule,
+  including inherited nullability. Upgrade Loom and regenerate to adopt the fix.
 - Generated nullable fields use `loom.Nullable[T]`. Its zero value is absent;
   use `loom.NullValue[T]()` for explicit null and `loom.NullableValue(value)`
   for a concrete value. Inspect it with `Present`, `IsNull`, and `Value`.

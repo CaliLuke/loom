@@ -100,6 +100,11 @@ Its zero value is absent. Construct the other states with
 `Present`, `IsNull`, and `Value`. A required nullable attribute still uses the
 wrapper so that generated validation can reject absence while accepting null.
 
+`Nullable()` also admits null when combined with `Enum`: the enum restricts
+concrete values, such as `"open"` and `"closed"`. Ordinary record validation and
+untagged union matching use this same rule, including inherited nullability.
+Upgrade Loom and regenerate services and transports to adopt the matching fix.
+
 | Contract | Absent JSON property | JSON `null` | Concrete JSON value | Generated service form |
 |---|---|---|---|---|
 | Required, non-null | Rejected | Rejected | Accepted | Native `T` |

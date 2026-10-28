@@ -124,6 +124,9 @@ func TestJSONShapePredicates(t *testing.T) {
 		{"exclusive bound", &JSONShape{Kind: "number", Rules: JSONShapeRules{ExclusiveMinimum: "1"}}, `1.1`, `1`},
 		{"conjoined enums", &JSONShape{Kind: "integer", Rules: JSONShapeRules{Enums: [][]jsontext.Value{{[]byte(`1`), []byte(`2`)}, {[]byte(`2`)}}}}, `2.0`, `1`},
 		{"nullable member", &JSONShape{Kind: "string", Nullable: true}, `null`, `3`},
+		{"nullable enum", &JSONShape{Kind: "string", Nullable: true, Rules: JSONShapeRules{Enums: [][]jsontext.Value{{[]byte(`"open"`)}}}}, `null`, `"other"`},
+		{"nullable enum alias", &JSONShape{Kind: "alias", Nullable: true, Child: &JSONShape{Kind: "string"}, Rules: JSONShapeRules{Enums: [][]jsontext.Value{{[]byte(`"open"`)}}}}, `null`, `"other"`},
+		{"nonnullable any enum", &JSONShape{Kind: "any", Rules: JSONShapeRules{Enums: [][]jsontext.Value{{[]byte(`"open"`)}}}}, `"open"`, `null`},
 		{"non-null elements", &JSONShape{Kind: "array", Child: &JSONShape{Kind: "string", Nullable: true}, NonNullableElements: true}, `["x"]`, `[null]`},
 		{"format", &JSONShape{Kind: "string", Rules: JSONShapeRules{Formats: []Format{FormatEmail}}}, `"user@example.com"`, `"invalid"`},
 		{"pattern", &JSONShape{Kind: "string", Rules: JSONShapeRules{Patterns: []string{"^a", "z$"}}}, `"az"`, `"ab"`},
@@ -144,7 +147,26 @@ func TestJSONShapePredicates(t *testing.T) {
 	} {
 		_, err := shape.Match([]byte(`[]`))
 		require.Error(t, err, "invalid configuration must fail even when wire does not match")
+		shape.Nullable = true
+		_, err = shape.Match([]byte(`null`))
+		require.Error(t, err, "nullable null must not bypass description validation")
 	}
+}
+
+func TestNullableEnumsRetainUnionAmbiguity(t *testing.T) {
+	branches := make([]JSONUnionBranch, 0, 2)
+	for _, member := range []jsontext.Value{[]byte(`"open"`), []byte(`"closed"`)} {
+		branches = append(branches, JSONUnionBranch{
+			Schema: &JSONShape{Kind: "object", Fields: []JSONShapeField{{Name: "status", Required: true, Shape: &JSONShape{
+				Kind: "string", Nullable: true, Rules: JSONShapeRules{Enums: [][]jsontext.Value{{member}}},
+			}}}},
+			Decode: func(jsontext.Value) (bool, error) {
+				return true, nil
+			},
+		})
+	}
+	_, err := MatchUntaggedJSON("Status", []byte(`{"status":null}`), branches)
+	require.ErrorContains(t, err, "matched 2 branches in schema")
 }
 
 func TestJSONShapeEvaluatorFailureIsFatal(t *testing.T) {

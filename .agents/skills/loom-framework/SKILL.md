@@ -75,6 +75,15 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- `expr.IsNullable` supplies effective nullability to prepared JSON schema
+  matching and lowered `JSONShape` descriptions. Nullable null bypasses value
+  predicates, including enums, while ordinary Any null still obeys its enum.
+  Inline JSON Schema and OpenAPI lift named occurrence refinements inside the
+  nullable value domain. Runtime descriptors validate before matching; null
+  never hides malformed descriptions or changes untagged union uniqueness.
+  Keep the nullable-enum model beside `pkg/tla/untagged_json` and schema/codec
+  agreement tests aligned.
+
 - Shared `recurseValidationCode` guards optional native array/map occurrences
   before their predicates. Nil is absence only there; required roots, elements
   and extracted Optional/Nullable values retain their concrete-value validation.

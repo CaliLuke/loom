@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/xeipuuv/gojsonschema"
 
 	openapiv3 "github.com/CaliLuke/loom/http/codegen/openapi/v3"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
@@ -45,6 +46,28 @@ func TestUntaggedArrayObjectContract(t *testing.T) {
 				}
 			}
 			require.True(t, found, "missing mixed array/object oneOf")
+			foundRecord := false
+			for name, raw := range schemas {
+				schema := raw.(map[string]any)
+				properties, ok := schema["properties"].(map[string]any)
+				if !ok || properties["status"] == nil {
+					continue
+				}
+				foundRecord = true
+				root := map[string]any{"components": spec["components"], "$ref": "#/components/schemas/" + name}
+				for _, value := range []struct {
+					wire string
+					want bool
+				}{
+					{`{"status":null}`, true}, {`{"status":"open"}`, true},
+					{`{"status":"closed"}`, false}, {`{"status":"other"}`, false}, {`{}`, false},
+				} {
+					result, err := gojsonschema.Validate(gojsonschema.NewGoLoader(root), gojsonschema.NewStringLoader(value.wire))
+					require.NoError(t, err)
+					require.Equal(t, value.want, result.Valid(), "%s: %s", name, value.wire)
+				}
+			}
+			require.True(t, foundRecord, "missing nullable enum record")
 			if os.Getenv("LOOM_OPENAPI_CONTRACT") != "" {
 				dir := t.TempDir()
 				path := filepath.Join(dir, "openapi.yaml")

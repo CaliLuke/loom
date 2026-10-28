@@ -149,7 +149,7 @@ func (s *JSONShape) match(wire jsontext.Value, depth int) (bool, error) {
 		return false, fmt.Errorf("invalid or cyclic JSON matching description")
 	}
 	if wire.Kind() == 'n' && s.Nullable {
-		return s.rules(wire, -1)
+		return true, nil
 	}
 	length := -1
 	switch s.Kind {
