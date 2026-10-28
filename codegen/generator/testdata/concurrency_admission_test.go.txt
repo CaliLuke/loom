@@ -17,6 +17,7 @@ import (
 	"github.com/CaliLuke/loom/admission"
 	loomhttp "github.com/CaliLuke/loom/http"
 	loom "github.com/CaliLuke/loom/pkg"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -77,8 +78,8 @@ func TestGeneratedAdmission(t *testing.T) {
 		defer cancel()
 		go func() {
 			result, err := endpoints.Run(ctx, &work.RunPayload{Key: "valid", Seconds: 1})
-			require.NoError(t, err)
-			require.Equal(t, "done", result)
+			assert.NoError(t, err)
+			assert.Equal(t, "done", result)
 		}()
 		synctest.Wait()
 		deadline, ok := ctx.Deadline()
@@ -133,7 +134,9 @@ func TestGeneratedChecksRepeatInsidePermit(t *testing.T) {
 		t.Run(mutation, func(t *testing.T) {
 			budget, err := admission.NewConcurrency(1)
 			require.NoError(t, err)
-			service := &testService{workService: workService{key: "valid"}}
+			finish := make(chan struct{})
+			close(finish)
+			service := &testService{workService: workService{key: "valid"}, finish: finish}
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			mutate := func(next loom.Endpoint) loom.Endpoint {

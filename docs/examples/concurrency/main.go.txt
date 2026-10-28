@@ -46,6 +46,7 @@ func main() {
 }
 
 func (*workService) Run(ctx context.Context, payload *work.RunPayload) (string, error) {
+	log.Print("work started; holding an admission permit")
 	timer := time.NewTimer(time.Duration(payload.Seconds) * time.Second)
 	defer timer.Stop()
 	select {

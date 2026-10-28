@@ -8,6 +8,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/admission"
@@ -100,7 +101,7 @@ func TestConcurrencyCancellationRetainsPermit(t *testing.T) {
 		})
 		go func() {
 			_, err := ep(ctx, nil)
-			require.ErrorIs(t, err, context.Canceled)
+			assert.ErrorIs(t, err, context.Canceled)
 		}()
 		synctest.Wait()
 		cancel()
@@ -142,7 +143,7 @@ func TestConcurrencySimultaneousCalls(t *testing.T) {
 				<-start
 				_, err := ep(context.Background(), nil)
 				if err != nil {
-					requireOverloaded(t, err)
+					assertOverloaded(t, err)
 				}
 			}()
 		}
@@ -164,7 +165,7 @@ func TestConcurrencyResizeRetainsActiveCalls(t *testing.T) {
 		start := func(i int) {
 			go func() {
 				_, err := ep(context.Background(), i)
-				require.NoError(t, err)
+				assert.NoError(t, err)
 			}()
 			synctest.Wait()
 		}
@@ -208,7 +209,7 @@ func TestConcurrencyUpdateCompletionAndCancellationRace(t *testing.T) {
 	})
 	workers.Go(func() {
 		_, err := ep(ctx, "held")
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	})
 	<-entered
 	require.Equal(t, 1, c.Snapshot().InFlight)
@@ -217,12 +218,12 @@ func TestConcurrencyUpdateCompletionAndCancellationRace(t *testing.T) {
 	for i := range 100 {
 		workers.Go(func() {
 			<-start
-			require.NoError(t, c.SetCapacity(i%4+1))
+			assert.NoError(t, c.SetCapacity(i%4+1))
 			_, err := ep(ctx, nil)
 			if err != nil && !errors.Is(err, context.Canceled) {
-				requireOverloaded(t, err)
+				assertOverloaded(t, err)
 			}
-			require.Error(t, c.SetCapacity(-1))
+			assert.Error(t, c.SetCapacity(-1))
 		})
 	}
 	workers.Go(func() {
@@ -249,4 +250,13 @@ func requireOverloaded(t *testing.T, err error) {
 	require.ErrorAs(t, err, &serviceError)
 	require.Equal(t, "overloaded", serviceError.Name)
 	require.True(t, serviceError.Temporary)
+}
+
+func assertOverloaded(t *testing.T, err error) {
+	t.Helper()
+	var serviceError *loom.ServiceError
+	if assert.ErrorAs(t, err, &serviceError) {
+		assert.Equal(t, "overloaded", serviceError.Name)
+		assert.True(t, serviceError.Temporary)
+	}
 }
