@@ -90,3 +90,84 @@ The model assumes the nullability query, JSON parser and enum evaluator; it does
 not prove arbitrary alias graphs, Go codecs or JSON Schema rendering. Those
 boundaries remain direct and generated-test obligations, and the original
 union uniqueness/transaction model remains separate.
+
+## Map field membership (#1041)
+
+`MapMembership.tla` checks universal value membership together with field
+presence, map nullability and entry-count minimums. It compares universal
+membership against an existential candidate: accepting any matching member
+incorrectly admits a mixed valid/invalid map and rejects the unconstrained empty
+map. Run TLC 1.7.4 with `MapChecked.cfg` and `MapExistential.cfg`, each with its
+own temporary `-metadir`, using the Java invocation above and `MapMembership.tla`.
+Checked passes 384 distinct states; existential fails `Agreement` after 297
+states. This is a capability extension; the negative candidate is a design
+alternative, not a previously shipped implementation.
+
+The bounded abstraction assumes correct per-value matching and counts at most
+one representative valid and invalid entry. It does not prove arbitrary
+recursion, JSON parsing, aliases, Go validation or schema rendering. The existing
+strict orchestration model still owns outer uniqueness, identity and transactional
+assignment. Map traversal must not weaken those obligations.
+
+Correspondence tests include `pkg/json_shape_map_test.go` (empty, invalid member,
+nullability, aliases, duplicates and recursive values),
+`expr/value_plan_json_shape_test.go` (prepared/lowered predicate agreement),
+`codegen/unionjson/union_test.go` (member policies beneath maps), and the existing
+HTTP/JSON-RPC generated fixtures (typed round trips and malformed values).
+The HTTP fixture additionally exercises named map validation, nested maps and
+arrays, recursive values, retained destinations and ambiguous map-bearing objects.
+OpenAPI 3.1/3.2 specimen checks retain value schemas and entry-count bounds.
+
+The before/after comparison uses base `c74af637189d1af43a5c352fb8ce0aee6af49225`
+and Go 1.27.3. All six `generationDeterminismDSLs` with the original fixture
+inputs remain byte-identical. With the extended map fixture, only
+`UntaggedArraysDSL` changes: service types/validators/descriptors; HTTP client
+and server body conversion helpers, validators and union descriptors; CLI
+examples; and OpenAPI JSON/YAML map components/properties/examples. Those are
+the intended differences. The five other designs remain exact-byte controls.
+Five process-isolated generations of the extended inputs agree byte for byte.
+No checked-in integration fixture declares `Untagged`; none needs regeneration.
+
+## Nested untagged unions (#1036)
+
+`NestedMembership.tla` models up to two rows, each with zero, one or two matching
+inner branches. `NestedChecked.cfg` requires exactly one match per row and passes
+42 states. `NestedAny.cfg` fails `Agreement` after 26 states because an ambiguous
+row would be admitted. Empty rows are accepted by universal membership; collection
+length constraints remain independent predicates.
+
+`NestedFailure.tla` models an inner failure while another outer branch is the
+unique schema and Go match. `NestedFailureChecked.cfg` distinguishes an ordinary
+contract mismatch from an unexpected failure and passes four states.
+`NestedFailureUnclassified.cfg` fails after three states: treating all inner errors
+as fatal blocks the valid alternative. These are design candidates for a new
+capability; the previous DSL rejected nested unions before code generation.
+The direct decoder regression nevertheless reproduces the unclassified error at
+the runtime seam before the implementation change.
+
+Run TLC 1.7.4 with the invocation above, each corresponding `.tla`/`.cfg` pair
+and a separate temporary `-metadir`. Both models assume accurate branch
+predicates and error classification. They do not prove Go codecs, arbitrary
+recursion, JSON syntax or policy extraction. Keep proof execution opt-in.
+
+`pkg/json_shape_union_test.go` covers exact-one nesting, empty and mixed arrays,
+map values, malformed descriptors, recursive objects and unconsumed cycles.
+`pkg/json_union_nested_test.go` covers wrapped mismatch classification, candidate
+order and unexpected error preservation. Prepared/lowered agreement and member
+policy projection are checked in `expr` and `codegen/unionjson`. The existing
+HTTP specimen adds nested arrays/maps, nullable unions, recursive members,
+ambiguous nested objects and the distinct valid outer alternative. JSON-RPC
+checks typed round trips and invalid-row error envelopes without service calls.
+
+Verification uses Go 1.27.3 and base
+`78236cdcad977f296c80d9eef9907f5f0d3b75ea`. The six existing determinism designs
+with unchanged inputs remain byte-identical. The extended `UntaggedArraysDSL`
+changes only its generated service/client/endpoints, HTTP routing and CLI files,
+body conversion helpers/validators/union descriptors, and OpenAPI JSON/YAML.
+Those changes add nested Entry alternatives, recursive Group members and the
+Fallback endpoint used to check candidate rejection under HTTP closed-object
+policy. The other five designs remain byte-identical. Five independent processes
+produce identical raw sections and rendered files. Generated HTTP and JSON-RPC
+modules compile and run; the 3.1/3.2 OpenAPI specimens pass parsing and pinned
+Vacuum lint. Direct projection/matching checks pass with the race detector.
+No checked-in integration fixture declares `Untagged`; none needs regeneration.

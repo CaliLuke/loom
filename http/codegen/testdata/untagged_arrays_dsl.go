@@ -23,10 +23,57 @@ var UntaggedArraysDSL = func() {
 		Required("name")
 		Meta("openapi:additionalProperties", "false")
 	})
+	group := Type("Group", func() {
+		Attribute("group", String)
+		Attribute("members", ArrayOf("Entry"))
+		Required("group")
+	})
+	entry := Type("Entry", OneOf(item, group), Untagged)
+	structured := Type("Structured", func() {
+		Attribute("row", entry)
+		Required("row")
+	})
+	extraRow := Type("ExtraRow", func() {
+		Attribute("group", String)
+		Attribute("extra", Boolean)
+		Required("group", "extra")
+	})
+	raw := Type("Raw", func() {
+		Attribute("row", extraRow)
+		Required("row")
+	})
+	fallback := Type("Fallback", OneOf(structured, raw), Untagged)
+	labels := Type("Labels", MapOf(String, String), func() {
+		MinLength(1)
+		MaxLength(2)
+		Elem(func() {
+			MinLength(2)
+		})
+	})
+	tree := Type("Tree", func() {
+		Attribute("name", String)
+		Attribute("children", MapOf(String, "Tree"))
+		Required("name")
+	})
 	items := Type("Items", ArrayOf(item))
 	page := Type("Page", func() {
 		Attribute("items", ArrayOf(item))
+		Attribute("entries", ArrayOf(entry))
+		Attribute("single", entry, Nullable)
+		Attribute("overlap", "Overlap")
+		Attribute("entry_lookup", MapOf(String, entry))
 		Attribute("total", Int)
+		Attribute("properties", MapOf(String, Any))
+		Attribute("labels", labels)
+		Attribute("lookup", MapOf(String, item))
+		Attribute("nested", MapOf(String, MapOf(String, ArrayOf(item))))
+		Attribute("tree", tree)
+		Attribute("nullable", MapOf(String, item), func() {
+			Nullable()
+			Elem(func() {
+				Nullable()
+			})
+		})
 		Required("total")
 	})
 	result := Type("Result", OneOf(items, page), func() {
@@ -49,9 +96,11 @@ var UntaggedArraysDSL = func() {
 	})
 	left := Type("Left", func() {
 		Attribute("value", String)
+		Attribute("mapping", MapOf(String, String))
 	})
 	right := Type("Right", func() {
 		Attribute("value", String)
+		Attribute("mapping", MapOf(String, String))
 	})
 	overlap := Type("Overlap", OneOf(left, right), func() {
 		Untagged()
@@ -67,6 +116,12 @@ var UntaggedArraysDSL = func() {
 		Untagged()
 	})
 	Service("listing", func() {
+		Method("fallback", func() {
+			Result(fallback)
+			HTTP(func() {
+				GET("/fallback")
+			})
+		})
 		Method("record", func() {
 			Result(recordOrPage)
 			HTTP(func() { GET("/record") })

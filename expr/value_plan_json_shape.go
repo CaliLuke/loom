@@ -18,7 +18,7 @@ func (p ValuePlan) MatchJSONSchema(wire jsontext.Value) (bool, error) {
 
 // JSONShape lowers the captured JSON representation into a detached matching
 // description for generated untagged codecs. It rejects opaque codecs and shapes
-// outside the supported object/array/primitive grammar. Enum values are projected
+// outside the supported object/array/map/untagged-union/primitive grammar. Enum values are projected
 // through this exact plan, retaining effective constraints and wire identity.
 func (p ValuePlan) JSONShape() (*loom.JSONShape, error) {
 	if p.root == nil || p.root.schemaOnly {
@@ -64,6 +64,12 @@ func lowerJSONShape(node *valuePlanNode, seen map[*valuePlanNode]*loom.JSONShape
 	case ArrayKind:
 		shape.Kind = "array"
 		shape.Child, err = lowerJSONShape(node.element, seen)
+	case MapKind:
+		shape.Kind = "map"
+		shape.Child, err = lowerJSONShape(node.element, seen)
+	case UnionKind:
+		shape.Kind = "union"
+		shape.Branches, err = lowerJSONShapeBranches(node, seen)
 	case ObjectKind:
 		shape.Kind = "object"
 		for _, field := range node.members {
@@ -80,6 +86,21 @@ func lowerJSONShape(node *valuePlanNode, seen map[*valuePlanNode]*loom.JSONShape
 		err = fmt.Errorf("JSON matching cannot lower %v", node.kind)
 	}
 	return shape, err
+}
+
+func lowerJSONShapeBranches(node *valuePlanNode, seen map[*valuePlanNode]*loom.JSONShape) ([]*loom.JSONShape, error) {
+	if !node.untagged {
+		return nil, fmt.Errorf("JSON matching cannot lower a tagged union")
+	}
+	branches := make([]*loom.JSONShape, 0, len(node.branches))
+	for _, branch := range node.branches {
+		child, err := lowerJSONShape(branch.node, seen)
+		if err != nil {
+			return nil, err
+		}
+		branches = append(branches, child)
+	}
+	return branches, nil
 }
 
 func jsonShapeBound(value *NumericBound) string {

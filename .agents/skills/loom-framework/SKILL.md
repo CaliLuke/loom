@@ -1412,6 +1412,18 @@ filter, and serialization rules belong here.
   branches remain unsupported. `expr.ValuePlan.JSONShape` lowers captured
   effective predicates. `codegen/unionjson` projects service or HTTP member
   layouts and renders typed adapters; `pkg.MatchUntaggedJSON` owns orchestration.
+  Runtime DSL branches additionally admit string-keyed map fields (#1041) and
+  nested untagged unions (#1036); import's narrower admission remains separate.
+  Lower nested alternatives into `JSONShape.Branches`, traverse their member
+  policies and preserve exact-one matching at every level. Only internal typed
+  union contract mismatches become ordinary failed decoder candidates; malformed
+  descriptions, evaluator errors and opaque codec failures stay fatal. Reject
+  descriptor cycles that revisit a wire value without consuming a member or
+  collection element, while retaining recursive object/collection compositions. Lower map values through
+  `JSONShape.Child`, preserve entry-count rules on named map occurrences, and
+  visit map values when projecting member spelling, visibility and closed-object
+  policy. Emit named map validators alongside object/array validators. Current
+  map schemas constrain values; do not add key-schema semantics here.
   Independently require unique schema and actual Go matches with the same identity
   in both directions. Do not use numeric widths as schema discriminators, select
   the first successful branch, or mutate a destination before matching succeeds.

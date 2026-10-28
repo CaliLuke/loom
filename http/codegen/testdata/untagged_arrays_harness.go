@@ -78,6 +78,9 @@ func TestServiceCodecs(t *testing.T) {
 	require.ErrorContains(t, err, "matched 2 branches in schema")
 	var overlapping svc.Overlap
 	require.ErrorContains(t, json.Unmarshal([]byte("{}"), &overlapping), "matched 2 branches in schema")
+ require.ErrorContains(t, json.Unmarshal([]byte("{\"mapping\":{\"key\":\"value\"}}"), &overlapping), "matched 2 branches in schema")
+ _, err = json.Marshal(svc.NewOverlapLeft(&svc.Left{Mapping: map[string]string{"key":"value"}}), json.Deterministic(true))
+ require.ErrorContains(t, err, "matched 2 branches in schema")
 
 }
 
@@ -96,13 +99,23 @@ func TestHTTPCodecs(t *testing.T) {
 		return nil, nil
 	}
 	mux := loomhttp.NewMuxer()
-	server.Mount(mux, server.New(&svc.Endpoints{Echo: echo, Optional: optional}, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil))
+	fallbackValue := svc.NewFallbackRaw(&svc.Raw{Row: &svc.ExtraRow{Group: "team", Extra: true}})
+ fallback := func(context.Context, any) (any, error) {
+  return &fallbackValue, nil
+ }
+	server.Mount(mux, server.New(&svc.Endpoints{Echo: echo, Optional: optional, Fallback: fallback}, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil))
 	host := httptest.NewServer(mux)
 	defer host.Close()
 	address, err := url.Parse(host.URL)
 	require.NoError(t, err)
 	c := client.NewClient(address.Scheme, address.Host, host.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
-	for _, wire := range []string{"[]", "[{\"name\":\"ok\"}]", "[{\"name\":\"ok\",\"label\":null}]", "[{\"name\":\"ok\",\"label\":\"open\"}]", "{\"total\":0}", "{\"total\":1,\"items\":[{\"name\":\"ok\",\"label\":null}]}"} {
+ // API-level closed objects reject the structured nested candidate while Raw
+ // remains the unique match. Both generated HTTP codecs must retain Raw.
+ fallbackResult, err := c.Fallback()(t.Context(), nil)
+ require.NoError(t, err)
+ require.Equal(t, &fallbackValue, fallbackResult)
+
+	for _, wire := range []string{"[]", "[{\"name\":\"ok\"}]", "[{\"name\":\"ok\",\"label\":null}]", "[{\"name\":\"ok\",\"label\":\"open\"}]", "{\"total\":0}", "{\"total\":1,\"items\":[{\"name\":\"ok\",\"label\":null}]}", "{\"total\":0,\"properties\":{}}", "{\"total\":1,\"properties\":{\"a\":[1,null,{\"nested\":true}]},\"labels\":{\"first\":\"ok\"},\"lookup\":{\"item\":{\"name\":\"ok\",\"label\":null}}}", "{\"total\":0,\"nested\":{\"outer\":{\"inner\":[{\"name\":\"ok\"}]}}}", "{\"total\":0,\"nullable\":null}", "{\"total\":0,\"nullable\":{\"a\":null,\"b\":{\"name\":\"ok\"}}}", "{\"total\":0,\"tree\":{\"name\":\"root\",\"children\":{\"leaf\":{\"name\":\"leaf\"}}}}", "{\"total\":0,\"entries\":[]}", "{\"total\":2,\"entries\":[{\"name\":\"ok\"},{\"group\":\"team\"}]}", "{\"total\":1,\"entries\":[{\"group\":\"team\",\"members\":[{\"name\":\"ok\"},{\"group\":\"nested\",\"members\":[]}]}]}", "{\"total\":0,\"single\":null}", "{\"total\":0,\"single\":{\"name\":\"ok\"}}", "{\"total\":0,\"entry_lookup\":{\"a\":{\"name\":\"ok\"},\"b\":{\"group\":\"team\"}}}"} {
 		payload, err := client.BuildEchoPayload(wire)
 		require.NoError(t, err)
 		result, err := c.Echo()(t.Context(), payload)
@@ -117,6 +130,25 @@ func TestHTTPCodecs(t *testing.T) {
 			{"", true, false}, {" \t\r\n", true, false}, {"{x}", false, false},
 			{"[", false, false}, {"null", false, false}, {"[null]", false, false},
 			{"{\"total\":0,\"extra\":1}", false, false},
+			{"{\"total\":1,\"entries\":[{}]}", false, false},
+			{"{\"total\":1,\"entries\":[{\"name\":\"ok\",\"group\":\"team\"}]}", false, false},
+			{"{\"total\":1,\"entries\":[null]}", false, false},
+			{"{\"total\":1,\"entries\":[{\"name\":\"x\"}]}", false, false},
+			{"{\"total\":1,\"entries\":[{\"group\":\"team\",\"members\":[{}]}]}", false, false},
+			{"{\"total\":0,\"single\":{}}", false, false},
+			{"{\"total\":0,\"entry_lookup\":{\"a\":{}}}", false, false},
+			{"{\"total\":0,\"overlap\":{}}", false, false},
+			{"{\"total\":0,\"properties\":null}", false, false},
+			{"{\"total\":0,\"properties\":[]}", false, false},
+			{"{\"total\":0,\"labels\":{}}", false, false},
+			{"{\"total\":0,\"labels\":{\"a\":\"ok\",\"b\":\"ok\",\"c\":\"ok\"}}", false, false},
+			{"{\"total\":0,\"labels\":{\"a\":\"x\"}}", false, false},
+			{"{\"total\":0,\"lookup\":{\"a\":{\"name\":\"ok\"},\"b\":{\"name\":\"x\"}}}", false, false},
+			{"{\"total\":0,\"lookup\":{\"a\":null}}", false, false},
+			{"{\"total\":0,\"lookup\":{\"a\":{\"name\":\"ok\",\"extra\":1}}}", false, false},
+			{"{\"total\":0,\"nested\":{\"outer\":{\"inner\":[{\"name\":\"x\"}]}}}", false, false},
+			{"{\"total\":0,\"tree\":{\"name\":\"root\",\"children\":{\"leaf\":{}}}}", false, false},
+			{"{\"total\":0,\"nullable\":{\"a\":{\"name\":\"x\"}}}", false, false},
 			{"[{\"name\":\"ok\",\"label\":\"other\"}]", false, false},
 			{"[{\"name\":\"x\"}]", false, false}, {"[]", false, true},
 		} {
@@ -176,5 +208,94 @@ func TestExactNumericUnionDescriptors(t *testing.T) {
   require.Error(t, json.Unmarshal([]byte(wire), &first), wire)
   require.Error(t, json.Unmarshal([]byte(wire), &second), wire)
  }
+}
+
+func TestMapFields(t *testing.T) {
+ for _, wire := range []string{"{\"total\":0,\"properties\":{}}",
+"{\"total\":1,\"properties\":{\"a\":[1,null,{\"nested\":true}]},\"labels\":{\"first\":\"ok\"},\"lookup\":{\"item\":{\"name\":\"ok\",\"label\":null}}}",
+"{\"total\":0,\"nested\":{\"outer\":{\"inner\":[{\"name\":\"ok\"}]}}}",
+"{\"total\":0,\"nullable\":null}",
+"{\"total\":0,\"nullable\":{\"a\":null,\"b\":{\"name\":\"ok\"}}}",
+"{\"total\":0,\"tree\":{\"name\":\"root\",\"children\":{\"leaf\":{\"name\":\"leaf\"}}}}"} {
+  var value svc.Result
+  require.NoError(t, json.Unmarshal([]byte(wire), &value), wire)
+  encoded, err := json.Marshal(value, json.Deterministic(true))
+  require.NoError(t, err, wire)
+  require.JSONEq(t, wire, string(encoded))
+  var decoded svc.Result
+  require.NoError(t, json.Unmarshal(encoded, &decoded))
+  require.Equal(t, value, decoded)
+ }
+ for _, wire := range []string{"{\"total\":0,\"properties\":null}",
+"{\"total\":0,\"properties\":[]}",
+"{\"total\":0,\"labels\":{}}",
+"{\"total\":0,\"labels\":{\"a\":\"ok\",\"b\":\"ok\",\"c\":\"ok\"}}",
+"{\"total\":0,\"labels\":{\"a\":\"x\"}}",
+"{\"total\":0,\"lookup\":{\"a\":{\"name\":\"ok\"},\"b\":{\"name\":\"x\"}}}",
+"{\"total\":0,\"lookup\":{\"a\":null}}",
+"{\"total\":0,\"lookup\":{\"a\":{\"name\":\"ok\",\"extra\":1}}}",
+"{\"total\":0,\"nested\":{\"outer\":{\"inner\":[{\"name\":\"x\"}]}}}",
+"{\"total\":0,\"tree\":{\"name\":\"root\",\"children\":{\"leaf\":{}}}}",
+"{\"total\":0,\"nullable\":{\"a\":{\"name\":\"x\"}}}"} {
+  original := svc.NewResultItems(nil)
+  value := original
+  require.Error(t, json.Unmarshal([]byte(wire), &value), wire)
+  require.Equal(t, original, value)
+ }
+ for _, wire := range []string{
+  "{\"total\":0,\"labels\":{}}",
+  "{\"total\":0,\"labels\":{\"a\":\"x\"}}",
+  "{\"total\":0,\"lookup\":{\"a\":null}}",
+  "{\"total\":0,\"lookup\":{\"a\":{\"name\":\"x\"}}}",
+  "{\"total\":0,\"nested\":{\"outer\":{\"inner\":[{\"name\":\"x\"}]}}}",
+ } {
+  var page svc.Page
+  require.NoError(t, json.Unmarshal([]byte(wire), &page), wire)
+  _, err := json.Marshal(svc.NewResultPage(&page), json.Deterministic(true))
+  require.Error(t, err, wire)
+ }
+}
+
+func TestNestedUnions(t *testing.T) {
+ for _, wire := range []string{"{\"total\":0,\"entries\":[]}",
+"{\"total\":2,\"entries\":[{\"name\":\"ok\"},{\"group\":\"team\"}]}",
+"{\"total\":1,\"entries\":[{\"group\":\"team\",\"members\":[{\"name\":\"ok\"},{\"group\":\"nested\",\"members\":[]}]}]}",
+"{\"total\":0,\"single\":null}",
+"{\"total\":0,\"single\":{\"name\":\"ok\"}}",
+"{\"total\":0,\"entry_lookup\":{\"a\":{\"name\":\"ok\"},\"b\":{\"group\":\"team\"}}}"} {
+  var value svc.Result
+  require.NoError(t, json.Unmarshal([]byte(wire), &value), wire)
+  encoded, err := json.Marshal(value, json.Deterministic(true))
+  require.NoError(t, err, wire)
+  require.JSONEq(t, wire, string(encoded))
+  var decoded svc.Result
+  require.NoError(t, json.Unmarshal(encoded, &decoded))
+  require.Equal(t, value, decoded)
+ }
+ for _, wire := range []string{"{\"total\":1,\"entries\":[{}]}",
+"{\"total\":1,\"entries\":[null]}",
+"{\"total\":1,\"entries\":[{\"name\":\"x\"}]}",
+"{\"total\":1,\"entries\":[{\"group\":\"team\",\"members\":[{}]}]}",
+"{\"total\":0,\"single\":{}}",
+"{\"total\":0,\"entry_lookup\":{\"a\":{}}}",
+"{\"total\":0,\"overlap\":{}}"} {
+  original := svc.NewResultItems(nil)
+  value := original
+  require.Error(t, json.Unmarshal([]byte(wire), &value), wire)
+  require.Equal(t, original, value)
+ }
+ // Group is open in the service schema; HTTP's API-level closed-object policy
+ // rejects this same extra-member input in the request matrix above.
+ var open svc.Result
+ require.NoError(t, json.Unmarshal([]byte("{\"total\":1,\"entries\":[{\"name\":\"ok\",\"group\":\"team\"}]}"), &open))
+
+ var page svc.Page
+ require.NoError(t, json.Unmarshal([]byte("{\"total\":1,\"entries\":[{\"name\":\"ok\"}]}"), &page))
+ item, ok := page.Entries[0].AsItem()
+ require.True(t, ok)
+ item.Name = "x"
+ _, err := json.Marshal(svc.NewResultPage(&page), json.Deterministic(true))
+ require.Error(t, err, "encoding must validate the selected nested branch")
+
 }
 `

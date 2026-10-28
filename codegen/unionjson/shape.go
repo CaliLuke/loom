@@ -21,6 +21,9 @@ func renderShape(b *strings.Builder, name string, root *loom.JSONShape) {
 		indexes[node] = len(nodes)
 		nodes = append(nodes, node)
 		visit(node.Child)
+		for _, branch := range node.Branches {
+			visit(branch)
+		}
 		for _, field := range node.Fields {
 			visit(field.Shape)
 		}
@@ -31,6 +34,13 @@ func renderShape(b *strings.Builder, name string, root *loom.JSONShape) {
 		fmt.Fprintf(b, "%sNodes[%d] = loom.JSONShape{Kind: %q, Nullable: %t, Closed: %t, NonNullableElements: %t,\n", name, index, node.Kind, node.Nullable, node.Closed, node.NonNullableElements)
 		if node.Child != nil {
 			fmt.Fprintf(b, "Child: &%sNodes[%d],\n", name, indexes[node.Child])
+		}
+		if len(node.Branches) > 0 {
+			b.WriteString("Branches: []*loom.JSONShape{\n")
+			for _, branch := range node.Branches {
+				fmt.Fprintf(b, "&%sNodes[%d],\n", name, indexes[branch])
+			}
+			b.WriteString("},\n")
 		}
 		if len(node.Fields) > 0 {
 			b.WriteString("Fields: []loom.JSONShapeField{\n")

@@ -279,7 +279,7 @@ func buildUntaggedUnionValidations(union *expr.Union, scope *codegen.NameScope, 
 	types := collectTypes(&expr.AttributeExpr{Type: union}, scope, make(map[string]struct{}), loc)
 	validations := make([]*unionValidationData, 0, len(types))
 	for _, data := range types {
-		if !expr.IsObject(data.Type) && !expr.IsArray(data.Type) {
+		if !expr.IsObject(data.Type) && !expr.IsArray(data.Type) && !expr.IsMap(data.Type) {
 			continue
 		}
 		ctx := typeContext(scope)
