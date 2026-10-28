@@ -86,11 +86,11 @@ reads. Specification extensions are patterns, not fixed fields.
 | Operation | `tags`, `summary`, `description`, `operationId`, `parameters`, `requestBody`, `responses`, `deprecated`, `security`, supported `x-*` | `externalDocs` | `callbacks`, `servers` |
 | Components | Supported schemas, parameters, request bodies, responses, headers, security schemes, and examples | None | Links, callbacks, path items, media types, and `x-*` component entries |
 | Parameter | Identity, location, requiredness, schema, description, supported style, equivalent `explode` defaults, `allowReserved`, named query-map JSON `content`, and supported `x-*` | `deprecated`, unsupported examples | Incompatible serialization or content |
-| Request Body | `description`, `required`, supported content, and supported `x-*` | None | direct `$ref` plans that cannot retain component identity |
+| Request Body | `description`, `required`, supported content, and supported `x-*` | None | unresolved, cyclic, or wrong-kind `$ref` plans |
 | Media Type | Supported schema, examples, and equivalent URL-encoded field encoding | OpenAPI 3.2 `description` | `itemSchema`, unsupported encoding fields, `prefixEncoding`, and `x-*` |
 | Responses | Concrete status-code entries | None | `default` and `x-*` |
-| Response | `summary`, `description`, supported headers and content, and supported `x-*` | None | Direct `$ref` plans and links |
-| Header | `description`, `required`, schema, `style: simple`, and `allowReserved` | `deprecated`, unsupported examples | Other serialization, content, direct `$ref`, and `x-*` |
+| Response | `summary`, `description`, supported headers and content, and supported `x-*` | None | Unresolved, cyclic, or wrong-kind `$ref` plans and links |
+| Header | `description`, `required`, schema, `style: simple`, and `allowReserved` | `deprecated`, unsupported examples | Other serialization, content, unresolved/cyclic/wrong-kind `$ref`, and `x-*` |
 | Security Scheme | API keys, HTTP basic, HTTP bearer, and supported OAuth 2.0 flows and scopes | None | OpenID Connect, bearer formats, device authorization |
 | Example | JSON-compatible inline, structured, and reusable component examples | Unrenderable examples | External values and incompatible value forms |
 
@@ -162,6 +162,17 @@ In OpenAPI 3.1 and 3.2, a parameter reference's `description` overrides the
 component description for that occurrence, including an explicitly empty
 string. Other occurrences retain the component description. Regeneration may
 use separate parameter components to preserve these effective descriptions.
+
+Reusable request bodies, responses, and headers retain their component names and
+forward alias references. In OpenAPI 3.1 and 3.2, Reference Object descriptions
+and summaries remain occurrence annotations, including explicitly empty strings;
+shared definitions are unchanged. Summaries have an effect only on target object
+kinds that support them. OpenAPI 3.0 ignores Reference Object siblings.
+
+Referenced definitions must fit the same media, schema, and header subset as
+inline objects. Unused definitions, cyclic aliases, unresolved references, and
+references to the wrong component kind remain blocking errors. Regenerate an
+imported design to obtain preserved component identities and annotation edges.
 
 An extension at an unsupported scope is a `vendor-extension` diagnostic. Strict
 import fails before it writes output. With `--allow-lossy`, the importer omits

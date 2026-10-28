@@ -551,7 +551,7 @@ func openAPIGrammarCoverage() []grammarObjectCoverage {
 			model: v3.RequestBody{},
 			groups: []grammarFieldGroup{
 				group(grammarPreserved, "analyzer.requestBody", "Description", "Content", "Required", "Extensions"),
-				group(grammarRejected, "request-body-reference planner diagnostic", "Reference"),
+				group(grammarConditional, "resolveReusableDocument and TestReusableTransportComponentRoundTrip", "Reference"),
 			},
 		},
 		{
@@ -577,7 +577,8 @@ func openAPIGrammarCoverage() []grammarObjectCoverage {
 			model: v3.Response{},
 			groups: []grammarFieldGroup{
 				group(grammarPreserved, "analyzer.response and TestImportPreservesExporterMetadataSymmetry", "Description", "Summary", "Headers", "Content", "Extensions"),
-				group(grammarRejected, "response reference and links diagnostics", "Reference", "Links"),
+				group(grammarConditional, "resolveReusableDocument", "Reference"),
+				group(grammarRejected, "response links diagnostic", "Links"),
 			},
 		},
 		{
@@ -587,7 +588,8 @@ func openAPIGrammarCoverage() []grammarObjectCoverage {
 				group(grammarPreserved, "analyzer.header", "Description", "Required", "Schema"),
 				group(grammarConditional, "analyzer.header and TestImportPreservesExporterMetadataSymmetry", "Style", "AllowReserved"),
 				group(grammarLossy, "header-deprecated and examples diagnostics", "Deprecated", "Example", "Examples"),
-				group(grammarRejected, "header reference, serialization, content, and extension diagnostics", "Reference", "AllowEmptyValue", "Explode", "Content", "Extensions"),
+				group(grammarConditional, "resolveReusableDocument", "Reference"),
+				group(grammarRejected, "header serialization, content, and extension diagnostics", "AllowEmptyValue", "Explode", "Content", "Extensions"),
 			},
 		},
 		{

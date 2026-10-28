@@ -407,11 +407,17 @@ func (a *analyzer) requestBody(source *v3.RequestBody, path string) RequestBody 
 	if source == nil {
 		return RequestBody{}
 	}
-	if reference := source.Reference; reference != "" {
-		return RequestBody{Ref: reference}
+	reference := source.Reference
+	var referenceNode *yaml.Node
+	if low := source.GoLow(); low != nil {
+		if reference == "" && low.IsReference() {
+			reference = low.GetReference()
+		}
+		referenceNode = low.GetReferenceNode()
 	}
-	if low := source.GoLow(); low != nil && low.IsReference() {
-		return RequestBody{Ref: low.GetReference()}
+	if reference != "" {
+		description, summary := a.referenceAnnotations(referenceNode)
+		return RequestBody{Ref: reference, ReferenceDescription: description, ReferenceSummary: summary}
 	}
 	contentTypes, schema, examples := a.requestContent(source.Content, path+"/content")
 	body := RequestBody{
@@ -427,11 +433,17 @@ func (a *analyzer) response(source *v3.Response, path string) Response {
 	if source == nil {
 		return Response{}
 	}
-	if reference := source.Reference; reference != "" {
-		return Response{Ref: reference}
+	reference := source.Reference
+	var referenceNode *yaml.Node
+	if low := source.GoLow(); low != nil {
+		if reference == "" && low.IsReference() {
+			reference = low.GetReference()
+		}
+		referenceNode = low.GetReferenceNode()
 	}
-	if low := source.GoLow(); low != nil && low.IsReference() {
-		return Response{Ref: low.GetReference()}
+	if reference != "" {
+		description, summary := a.referenceAnnotations(referenceNode)
+		return Response{Ref: reference, ReferenceDescription: description, ReferenceSummary: summary}
 	}
 	contentType, schema, examples := a.content(source.Content, path+"/content")
 	response := Response{
@@ -461,11 +473,17 @@ func (a *analyzer) header(source *v3.Header, path string) Header {
 	if source == nil {
 		return Header{}
 	}
-	if reference := source.Reference; reference != "" {
-		return Header{Ref: reference}
+	reference := source.Reference
+	var referenceNode *yaml.Node
+	if low := source.GoLow(); low != nil {
+		if reference == "" && low.IsReference() {
+			reference = low.GetReference()
+		}
+		referenceNode = low.GetReferenceNode()
 	}
-	if low := source.GoLow(); low != nil && low.IsReference() {
-		return Header{Ref: low.GetReference()}
+	if reference != "" {
+		description, summary := a.referenceAnnotations(referenceNode)
+		return Header{Ref: reference, ReferenceDescription: description, ReferenceSummary: summary}
 	}
 	header := Header{
 		Description: source.Description, Required: source.Required,

@@ -14,6 +14,8 @@ type (
 
 	// ResponseRef holds an inline response or an OpenAPI 3.1/3.2 Reference Object.
 	ResponseRef struct {
+		// Summary overrides the target summary, including an explicit empty string.
+		Summary *string
 		// Ref identifies the response component; when set it takes precedence over Value.
 		Ref string
 		// Description overrides the referenced description. Nil inherits it; a pointer
@@ -26,6 +28,11 @@ type (
 	// HeaderRef represents an OpenAPI reference to a Header object as defined in
 	// https://github.com/OAI/OpenAPI-Specification/blob/master/versions/3.0.3.md#referenceObject
 	HeaderRef struct {
+		// Description overrides the target description, including an explicit empty string.
+		Description *string
+		// Summary overrides the target summary when supported by the target object.
+		Summary *string
+
 		Ref   string
 		Value *Header
 	}
@@ -57,6 +64,11 @@ type (
 	// RequestBodyRef represents an OpenAPI reference to a RequestBody object as defined in
 	// https://github.com/OAI/OpenAPI-Specification/blob/master/versions/3.0.3.md#referenceObject
 	RequestBodyRef struct {
+		// Description overrides the target description, including an explicit empty string.
+		Description *string
+		// Summary overrides the target summary when supported by the target object.
+		Summary *string
+
 		Ref   string
 		Value *RequestBody
 	}
@@ -76,29 +88,23 @@ type (
 )
 
 func (r *ParameterRef) MarshalJSON() ([]byte, error)      { return marshalJSONRef(r.Ref, r.Value) }
-func (r *HeaderRef) MarshalJSON() ([]byte, error)         { return marshalJSONRef(r.Ref, r.Value) }
 func (r *CallbackRef) MarshalJSON() ([]byte, error)       { return marshalJSONRef(r.Ref, r.Value) }
 func (r *ExampleRef) MarshalJSON() ([]byte, error)        { return marshalJSONRef(r.Ref, r.Value) }
 func (r *LinkRef) MarshalJSON() ([]byte, error)           { return marshalJSONRef(r.Ref, r.Value) }
-func (r *RequestBodyRef) MarshalJSON() ([]byte, error)    { return marshalJSONRef(r.Ref, r.Value) }
 func (r *SecuritySchemeRef) MarshalJSON() ([]byte, error) { return marshalJSONRef(r.Ref, r.Value) }
 func (r *MediaTypeRef) MarshalJSON() ([]byte, error)      { return marshalJSONRef(r.Ref, r.Value) }
 
 func (r *ParameterRef) MarshalYAML() (any, error)      { return marshalYAMLRef(r.Ref, r.Value) }
-func (r *HeaderRef) MarshalYAML() (any, error)         { return marshalYAMLRef(r.Ref, r.Value) }
 func (r *CallbackRef) MarshalYAML() (any, error)       { return marshalYAMLRef(r.Ref, r.Value) }
 func (r *ExampleRef) MarshalYAML() (any, error)        { return marshalYAMLRef(r.Ref, r.Value) }
 func (r *LinkRef) MarshalYAML() (any, error)           { return marshalYAMLRef(r.Ref, r.Value) }
-func (r *RequestBodyRef) MarshalYAML() (any, error)    { return marshalYAMLRef(r.Ref, r.Value) }
 func (r *SecuritySchemeRef) MarshalYAML() (any, error) { return marshalYAMLRef(r.Ref, r.Value) }
 func (r *MediaTypeRef) MarshalYAML() (any, error)      { return marshalYAMLRef(r.Ref, r.Value) }
 
-func (r *ParameterRef) UnmarshalJSON(d []byte) error   { return unmarshalJSONRef(d, &r.Ref, &r.Value) }
-func (r *HeaderRef) UnmarshalJSON(d []byte) error      { return unmarshalJSONRef(d, &r.Ref, &r.Value) }
-func (r *CallbackRef) UnmarshalJSON(d []byte) error    { return unmarshalJSONRef(d, &r.Ref, &r.Value) }
-func (r *ExampleRef) UnmarshalJSON(d []byte) error     { return unmarshalJSONRef(d, &r.Ref, &r.Value) }
-func (r *LinkRef) UnmarshalJSON(d []byte) error        { return unmarshalJSONRef(d, &r.Ref, &r.Value) }
-func (r *RequestBodyRef) UnmarshalJSON(d []byte) error { return unmarshalJSONRef(d, &r.Ref, &r.Value) }
+func (r *ParameterRef) UnmarshalJSON(d []byte) error { return unmarshalJSONRef(d, &r.Ref, &r.Value) }
+func (r *CallbackRef) UnmarshalJSON(d []byte) error  { return unmarshalJSONRef(d, &r.Ref, &r.Value) }
+func (r *ExampleRef) UnmarshalJSON(d []byte) error   { return unmarshalJSONRef(d, &r.Ref, &r.Value) }
+func (r *LinkRef) UnmarshalJSON(d []byte) error      { return unmarshalJSONRef(d, &r.Ref, &r.Value) }
 func (r *SecuritySchemeRef) UnmarshalJSON(d []byte) error {
 	return unmarshalJSONRef(d, &r.Ref, &r.Value)
 }
@@ -109,9 +115,6 @@ func (r *MediaTypeRef) UnmarshalJSON(d []byte) error {
 func (r *ParameterRef) UnmarshalYAML(u func(any) error) error {
 	return unmarshalYAMLRef(u, &r.Ref, &r.Value)
 }
-func (r *HeaderRef) UnmarshalYAML(u func(any) error) error {
-	return unmarshalYAMLRef(u, &r.Ref, &r.Value)
-}
 func (r *CallbackRef) UnmarshalYAML(u func(any) error) error {
 	return unmarshalYAMLRef(u, &r.Ref, &r.Value)
 }
@@ -119,9 +122,6 @@ func (r *ExampleRef) UnmarshalYAML(u func(any) error) error {
 	return unmarshalYAMLRef(u, &r.Ref, &r.Value)
 }
 func (r *LinkRef) UnmarshalYAML(u func(any) error) error {
-	return unmarshalYAMLRef(u, &r.Ref, &r.Value)
-}
-func (r *RequestBodyRef) UnmarshalYAML(u func(any) error) error {
 	return unmarshalYAMLRef(u, &r.Ref, &r.Value)
 }
 func (r *SecuritySchemeRef) UnmarshalYAML(u func(any) error) error {

@@ -5,6 +5,7 @@ package openapiimport
 import (
 	"github.com/CaliLuke/loom/internal/exactnum"
 	"github.com/CaliLuke/loom/internal/httpencoding"
+	"github.com/CaliLuke/loom/internal/openapiref"
 )
 
 // Document is the normalized subset of an OpenAPI document understood by the
@@ -246,6 +247,11 @@ type Parameter struct {
 // RequestBody describes a request body. Ref is set instead of the remaining
 // fields for a component reference.
 type RequestBody struct {
+	// ReferenceDescription retains a present description override on Ref.
+	ReferenceDescription *string
+	// ReferenceSummary retains a present summary override on Ref.
+	ReferenceSummary *string
+	referenceChain   []openapiref.Object
 	// Ref is the authored local component reference, when retained as a reference.
 	Ref string
 	// Description is the request body description.
@@ -275,6 +281,11 @@ type StatusResponse struct {
 // Response describes an HTTP response. Ref is set instead of the remaining
 // fields for a component reference.
 type Response struct {
+	// ReferenceDescription retains a present description override on Ref.
+	ReferenceDescription *string
+	// ReferenceSummary retains a present summary override on Ref.
+	ReferenceSummary *string
+	referenceChain   []openapiref.Object
 	// Ref is the authored local component reference, when retained as a reference.
 	Ref string
 	// Description is the response description.
@@ -296,6 +307,11 @@ type Response struct {
 // Header describes a response header. Ref is set instead of the remaining
 // fields for a component reference.
 type Header struct {
+	// ReferenceDescription retains a present description override on Ref.
+	ReferenceDescription *string
+	// ReferenceSummary retains a present summary override on Ref.
+	ReferenceSummary *string
+	referenceChain   []openapiref.Object
 	// Ref is the authored local component reference, when retained as a reference.
 	Ref string
 	// Description is the response header description.

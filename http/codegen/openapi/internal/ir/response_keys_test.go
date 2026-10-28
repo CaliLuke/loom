@@ -41,7 +41,7 @@ func TestResponseKeysPreserveReferenceSiblingSemantics(t *testing.T) {
 			require.Equal(t, a.allocation, b.allocation, "historical naming erased these siblings")
 			require.NotEqual(t, a.semantic, b.semantic, "naming identity must not permit semantic sharing")
 			paths := responsePaths(left, right, false)
-			components := componentizeResponses(paths, schemas)
+			components := componentizeResponses(paths, schemas, nil)
 			require.Len(t, components, 2)
 			require.NotEqual(t, left.Ref, right.Ref)
 		})
@@ -94,7 +94,7 @@ func TestResponseAllocationIsIndependentOfMapInsertion(t *testing.T) {
 		a := responseSchemaValue(&Schema{Ref: "#/components/schemas/Shared", Example: "first"})
 		b := responseSchemaValue(&Schema{Ref: "#/components/schemas/Shared", Example: "second"})
 		paths := responsePaths(a, b, reverse)
-		return componentizeResponses(paths, map[string]*Schema{"Shared": {Type: "string"}}), paths
+		return componentizeResponses(paths, map[string]*Schema{"Shared": {Type: "string"}}, nil), paths
 	}
 	a, pathsA := build(false)
 	b, pathsB := build(true)

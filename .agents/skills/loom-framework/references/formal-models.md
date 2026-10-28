@@ -348,3 +348,7 @@ resolution and graph retention outside its Boolean assumptions.
 OAuth flow inventories: [independent defaults and overrides](../../../../expr/tla/oauth_flow_scopes/README.md), with a flattening counterexample and generated callback checks.
 
 Schema reference siblings: [conjunction and declaration storage](../../../../internal/openapiimport/tla/reference_siblings/README.md), with rejection, replacement, mutation and occurrence-storage counterexamples.
+
+The [reusable-reference model](../../../../internal/openapiimport/tla/reusable_references/README.md)
+checks component identity, occurrence overlays, immutable definitions and bounded
+forward-reference/cycle admission across request bodies, responses and headers.

@@ -72,7 +72,7 @@ func TestComponentizeResponsesReusesEquivalentPayloadResponsesAcrossSchemaAliase
 		},
 	}
 
-	componentizeDocument(doc)
+	require.NoError(t, componentizeDocument(doc))
 
 	require.Contains(t, doc.Components.Responses, "SharedShapeStatus200Response")
 	require.Equal(t, "#/components/responses/SharedShapeStatus200Response", doc.Paths["/one"].Operations["GET"].Responses["200"].Ref)
@@ -124,7 +124,7 @@ func TestComponentizeRequestBodiesUsesPublicSchemaNameWhenAvailable(t *testing.T
 		},
 	}
 
-	componentizeDocument(doc)
+	require.NoError(t, componentizeDocument(doc))
 
 	require.Contains(t, doc.Components.RequestBodies, "PayloadRequestBody")
 	require.Equal(t, "#/components/requestBodies/PayloadRequestBody", doc.Paths["/one"].Operations["POST"].RequestBody.Ref)
@@ -173,7 +173,7 @@ func TestComponentizeRequestBodiesUsesExplicitComponentNameWhenAvailable(t *test
 		},
 	}
 
-	componentizeDocument(doc)
+	require.NoError(t, componentizeDocument(doc))
 
 	require.Contains(t, doc.Components.RequestBodies, "SearchFiltersRequest")
 	require.Equal(t, "#/components/requestBodies/SearchFiltersRequest", doc.Paths["/one"].Operations["POST"].RequestBody.Ref)
@@ -205,7 +205,7 @@ func TestComponentizeRequestBodiesHoistsSingleUseExplicitComponentNameAndDescrip
 		},
 	}
 
-	componentizeDocument(doc)
+	require.NoError(t, componentizeDocument(doc))
 
 	require.Contains(t, doc.Components.RequestBodies, "SearchFiltersRequest")
 	require.Equal(t, "#/components/requestBodies/SearchFiltersRequest", doc.Paths["/search"].Operations["POST"].RequestBody.Ref)
@@ -238,7 +238,7 @@ func TestComponentizeParametersUsesExplicitComponentNameWhenAvailable(t *testing
 		},
 	}
 
-	componentizeDocument(doc)
+	require.NoError(t, componentizeDocument(doc))
 
 	require.Contains(t, doc.Components.Parameters, "WidgetIDParam")
 	require.Equal(t, "#/components/parameters/WidgetIDParam", doc.Paths["/one/{widgetID}"].Operations["GET"].Parameters[0].Ref)
@@ -261,7 +261,7 @@ func TestComponentizeParametersHoistsSingleUseExplicitComponentName(t *testing.T
 		},
 	}
 
-	componentizeDocument(doc)
+	require.NoError(t, componentizeDocument(doc))
 
 	require.Contains(t, doc.Components.Parameters, "WidgetIDParam")
 	require.Equal(t, "#/components/parameters/WidgetIDParam", doc.Paths["/widgets/{widgetID}"].Operations["GET"].Parameters[0].Ref)
@@ -303,7 +303,7 @@ func TestComponentizeExamplesUsesExplicitComponentNameWhenAvailable(t *testing.T
 		Components: &Components{},
 	}
 
-	componentizeDocument(doc)
+	require.NoError(t, componentizeDocument(doc))
 
 	require.Contains(t, doc.Components.Examples, "ArtifactThreadExample")
 	exampleRef := doc.Paths["/threads"].Operations["POST"].RequestBody.Value.Content["application/json"].Examples["artifact-thread"]
@@ -360,7 +360,7 @@ func TestComponentizeResponsesUsesPublicSchemaNameWhenAvailable(t *testing.T) {
 		},
 	}
 
-	componentizeDocument(doc)
+	require.NoError(t, componentizeDocument(doc))
 
 	require.Contains(t, doc.Components.Responses, "ResultStatus200Response")
 	require.Equal(t, "#/components/responses/ResultStatus200Response", doc.Paths["/one"].Operations["GET"].Responses["200"].Ref)
@@ -408,7 +408,7 @@ func TestComponentizeResponsesHoistsSingleUseExplicitComponentName(t *testing.T)
 		},
 	}
 
-	componentizeDocument(doc)
+	require.NoError(t, componentizeDocument(doc))
 
 	require.Contains(t, doc.Components.Responses, "ThreadResponse")
 	require.Equal(t, "#/components/responses/ThreadResponse", doc.Paths["/thread"].Operations["GET"].Responses["200"].Ref)
@@ -484,7 +484,7 @@ func TestComponentizeResponsesIncludesLinksInReuseHash(t *testing.T) {
 		},
 	}
 
-	componentizeDocument(doc)
+	require.NoError(t, componentizeDocument(doc))
 
 	require.Contains(t, doc.Components.Responses, "ResultStatus202Response")
 	require.Equal(t, "#/components/responses/ResultStatus202Response", doc.Paths["/one"].Operations["POST"].Responses["202"].Ref)
@@ -522,7 +522,7 @@ func assertSharedNoBodyResponseComponent(t *testing.T, method, status, descripti
 		},
 	}
 
-	componentizeDocument(doc)
+	require.NoError(t, componentizeDocument(doc))
 
 	require.Contains(t, doc.Components.Responses, componentName)
 	expectedRef := "#/components/responses/" + componentName

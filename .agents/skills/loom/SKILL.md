@@ -574,6 +574,12 @@ and receive a blocking diagnostic before a design is written. See
 [OpenAPI import coverage](../../../docs/openapi-import-coverage.md) for supported
 recursive shapes and limitations.
 
+Reusable request body, response, and header references retain component names,
+forward aliases, and OpenAPI 3.1/3.2 occurrence summary/description annotations,
+including empty strings. Shared definitions remain unchanged. Unused definitions,
+cycles and wrong-kind references still block strict import. Re-import and
+regenerate to adopt this support.
+
 OpenAPI 3.2 Media Type `description` requires `--allow-lossy`.
 `prefixEncoding` remains a strict import error.
 

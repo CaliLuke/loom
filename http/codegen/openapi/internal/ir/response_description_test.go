@@ -16,7 +16,7 @@ func TestResponseDescriptionsDoNotSplitComponents(t *testing.T) {
 			right.Value.Description = "second: Second failure.\n\nthird: Third failure."
 			original := *left.Value
 			paths := responseDescriptionPaths(left, right, status, status)
-			components := componentizeResponses(paths, nil)
+			components := componentizeResponses(paths, nil, nil)
 			require.Len(t, components, 1)
 			require.Equal(t, left.Ref, right.Ref)
 			require.Equal(t, original.Description, *left.Description)
@@ -26,7 +26,7 @@ func TestResponseDescriptionsDoNotSplitComponents(t *testing.T) {
 			require.Equal(t, original.Content, component.Content)
 			require.Nil(t, left.Value)
 			// Already referenced responses are not componentized again.
-			require.Empty(t, componentizeResponses(paths, nil))
+			require.Empty(t, componentizeResponses(paths, nil, nil))
 		})
 	}
 }
@@ -71,7 +71,7 @@ func TestResponseDescriptionSharingPreservesOtherDifferences(t *testing.T) {
 			right := responseSchemaValue(&Schema{Type: "string"})
 			right.Value.Description = "different description"
 			tc.change(right.Value)
-			components := componentizeResponses(responseDescriptionPaths(left, right, "400", "400"), nil)
+			components := componentizeResponses(responseDescriptionPaths(left, right, "400", "400"), nil, nil)
 			require.Len(t, components, 2)
 			require.NotEqual(t, left.Ref, right.Ref)
 		})
@@ -81,7 +81,7 @@ func TestResponseDescriptionSharingPreservesOtherDifferences(t *testing.T) {
 func TestResponseDescriptionsKeepStatusesSeparate(t *testing.T) {
 	left := responseSchemaValue(&Schema{Type: "string"})
 	right := responseSchemaValue(&Schema{Type: "string"})
-	components := componentizeResponses(responseDescriptionPaths(left, right, "400", "503"), nil)
+	components := componentizeResponses(responseDescriptionPaths(left, right, "400", "503"), nil, nil)
 	require.Len(t, components, 2)
 	require.NotEqual(t, left.Ref, right.Ref)
 }
@@ -92,7 +92,7 @@ func TestResponseDescriptionChangesKeepAutomaticName(t *testing.T) {
 		right := responseSchemaValue(&Schema{Ref: "#/components/schemas/Error"})
 		left.Value.ComponentName, right.Value.ComponentName = "", ""
 		left.Value.Description, right.Value.Description = description, "other: Other error."
-		components := componentizeResponses(responseDescriptionPaths(left, right, "503", "503"), nil)
+		components := componentizeResponses(responseDescriptionPaths(left, right, "503", "503"), nil, nil)
 		require.Len(t, components, 1)
 		return left.Ref, components["ServiceUnavailableError"].Value
 	}
@@ -108,7 +108,7 @@ func TestResponseDescriptionEmptyAndSingleUse(t *testing.T) {
 	right := responseSchemaValue(&Schema{Type: "string"})
 	left.Value.Description = ""
 	right.Value.Description = "OK response."
-	componentizeResponses(responsePaths(left, right, false), nil)
+	componentizeResponses(responsePaths(left, right, false), nil, nil)
 	require.NotNil(t, left.Description)
 	require.Empty(t, *left.Description)
 	require.Nil(t, right.Description)
@@ -116,7 +116,7 @@ func TestResponseDescriptionEmptyAndSingleUse(t *testing.T) {
 	single := responseSchemaValue(&Schema{Type: "string"})
 	single.Value.ComponentName = ""
 	paths := responsePaths(single, nil, false)
-	require.Empty(t, componentizeResponses(paths, nil))
+	require.Empty(t, componentizeResponses(paths, nil, nil))
 	require.NotNil(t, single.Value, "unnamed single-use responses stay inline")
 }
 
@@ -126,7 +126,7 @@ func TestResponseDescriptionOmissionPreservesFallback(t *testing.T) {
 	left.Value.OmitDescription, right.Value.OmitDescription = true, true
 	left.Value.Description, right.Value.Description = "first fallback", "second fallback"
 	original := left.Value
-	components := componentizeResponses(responsePaths(left, right, false), nil)
+	components := componentizeResponses(responsePaths(left, right, false), nil, nil)
 	require.Len(t, components, 2, "3.1 fallback descriptions remain part of omitted-description shapes")
 	require.Nil(t, left.Description)
 	require.Nil(t, right.Description)

@@ -30,15 +30,9 @@ func (r *renderer) openAPIRequestBody(body RequestBody, path string) error {
 	for index, contentType := range body.ContentTypes {
 		contentTypes[index] = strconv.Quote(contentType)
 	}
-	metadata, err := renderedExtensions("requestBody", body.Extensions)
+	metadata, err := requestBodyMetadata(body)
 	if err != nil {
 		return err
-	}
-	if body.Description != "" {
-		metadata = append(metadata, renderedMetadata{
-			name:  "openapi:description:requestBody",
-			value: body.Description,
-		})
 	}
 	needsBlock := (!object && r.hasSchemaBlock(schema)) || len(metadata) > 0
 	prefix := fmt.Sprintf(
@@ -119,29 +113,24 @@ func (r *renderer) payloadBody(body *renderedBody, path string) (bool, error) {
 	schema := schemaWithExamples(body.body.Schema, body.body.Examples)
 	if body.mode != requestBodyJSON {
 		if body.envelope {
-			metadata, err := renderedExtensions("requestBody", body.body.Extensions)
+			metadata, err := requestBodyMetadata(body.body)
 			if err != nil {
 				return false, err
 			}
-			if body.body.Description != "" {
-				metadata = append(metadata, renderedMetadata{name: "openapi:description:requestBody", value: body.body.Description})
-			}
 			return body.body.Required, r.attribute(body.field, schema, nil, path, metadata...)
 		}
-		if err := r.emitExtensions("requestBody", body.body.Extensions); err != nil {
+		metadata, err := requestBodyMetadata(body.body)
+		if err != nil {
 			return false, err
 		}
-		if body.body.Description != "" {
-			r.line("Meta(%q, %q)", "openapi:description:requestBody", body.body.Description)
+		for _, item := range metadata {
+			r.line("Meta(%q, %q)", item.name, item.value)
 		}
 		return false, r.renderRequestTransportBody(schema, path)
 	}
-	metadata, err := renderedExtensions("requestBody", body.body.Extensions)
+	metadata, err := requestBodyMetadata(body.body)
 	if err != nil {
 		return false, err
-	}
-	if body.body.Description != "" {
-		metadata = append(metadata, renderedMetadata{name: "openapi:description:requestBody", value: body.body.Description})
 	}
 	return body.body.Required, r.attribute(body.field, schema, nil, path, metadata...)
 }
@@ -194,12 +183,9 @@ func (r *renderer) renderRequestTransportMapPayload(body *renderedBody, path str
 	if object {
 		return fmt.Errorf("render OpenAPI design: %s dynamic form map resolved to object properties", path)
 	}
-	metadata, err := renderedExtensions("requestBody", body.body.Extensions)
+	metadata, err := requestBodyMetadata(body.body)
 	if err != nil {
 		return err
-	}
-	if body.body.Description != "" {
-		metadata = append(metadata, renderedMetadata{name: "openapi:description:requestBody", value: body.body.Description})
 	}
 	if !r.hasSchemaBlock(schema) && len(metadata) == 0 {
 		r.line("Payload(%s)", expression)

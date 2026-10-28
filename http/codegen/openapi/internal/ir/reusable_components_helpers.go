@@ -78,6 +78,7 @@ func componentizeReusableRefs[U any, V any, R any](
 	setRef func(R, string),
 	newRef func(*V) R,
 	shouldForce func(componentUsage[V, R]) bool,
+	reserved map[string]bool,
 ) map[string]R {
 	if len(usages) == 0 {
 		return nil
@@ -99,6 +100,9 @@ func componentizeReusableRefs[U any, V any, R any](
 	components := make(map[string]R)
 	namesByHash := make(map[string]string)
 	hashesByName := make(map[string]string)
+	for name := range reserved {
+		hashesByName[name] = "reserved"
+	}
 	for _, usage := range mapped {
 		value := valueOf(usage.ref)
 		hash, err := hashReusableValue(value)

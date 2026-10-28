@@ -75,6 +75,14 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- Reusable OpenAPI body, response, and header references share one typed importer
+  walk. Resolve onto occurrence copies before planning; keep component identity
+  and annotation edges separate from baseline values. The IR allocates authored
+  identities before inferred components and reserves their names. Versioned
+  serializers preserve absent versus explicitly empty reference annotations.
+  Keep the reusable-reference model and cross-kind round-trip tests aligned.
+
+
 - OpenAPI import normalizes reference assertions with the target's carrier
   context, retaining separate reference identity and local constraints. Persist
   rejected intersections for planner and renderer admission. Normalize effective
