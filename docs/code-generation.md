@@ -459,8 +459,8 @@ own `deprecated` keyword. It never
 downgrades contract-affecting diagnostics such as servers, security,
 extensions, callbacks, links, custom serialization, media encodings, or
 unsupported schema composition and structural keywords. The documented
-`allOf` flattening and inline array-item promotion are explicit lossy
-exceptions. Without `--skip-unrenderable`, other diagnostics prevent output.
+inline array-item promotion is an explicit lossy exception. Supported reference
+and object intersections preserve their `allOf` contributors. Without `--skip-unrenderable`, other diagnostics prevent output.
 With that flag, the importer omits each affected
 operation. The document-level omissions use the separate behavior above.
 

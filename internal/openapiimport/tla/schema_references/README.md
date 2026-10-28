@@ -138,3 +138,8 @@ model into a proof of arbitrary-size SCC implementation or all DSL constructors.
 Keep the constructor classification and occurrence paths aligned with renderer
 changes. Bounded generation and external lint results are recorded in the owning
 readiness document. Temporary outputs are removed after final independent review.
+
+The historical flattening warning above was removed by the reference-sibling
+work. Current mixed inheritance preserves an allOf reference plus the composed
+object. See [reference siblings](../reference_siblings/README.md) for the
+identity/conjunction model; the initializer model here remains unchanged.

@@ -5,6 +5,7 @@ package openapiimport
 import (
 	"github.com/CaliLuke/loom/internal/exactnum"
 	"github.com/CaliLuke/loom/internal/httpencoding"
+	"github.com/CaliLuke/loom/internal/openapiref"
 )
 
 // Document is the normalized subset of an OpenAPI document understood by the
@@ -92,8 +93,6 @@ type SecurityScheme struct {
 	OAuth2MetadataURL string
 	// OAuthFlows contains supported OAuth2 flows in specification order.
 	OAuthFlows []OAuthFlow
-	// Scopes contains the shared OAuth2 scope definitions.
-	Scopes []SecurityScope
 	// Extensions contains scheme-level vendor extensions.
 	Extensions map[string]any
 }
@@ -108,6 +107,8 @@ type OAuthFlow struct {
 	TokenURL string
 	// RefreshURL is the optional flow refresh endpoint.
 	RefreshURL string
+	// Scopes contains this flow's exact scope names and descriptions.
+	Scopes []SecurityScope
 }
 
 // SecurityScope is one OAuth2 scope definition.
@@ -246,6 +247,11 @@ type Parameter struct {
 // RequestBody describes a request body. Ref is set instead of the remaining
 // fields for a component reference.
 type RequestBody struct {
+	// ReferenceDescription retains a present description override on Ref.
+	ReferenceDescription *string
+	// ReferenceSummary retains a present summary override on Ref.
+	ReferenceSummary *string
+	referenceChain   []openapiref.Object
 	// Ref is the authored local component reference, when retained as a reference.
 	Ref string
 	// Description is the request body description.
@@ -275,6 +281,11 @@ type StatusResponse struct {
 // Response describes an HTTP response. Ref is set instead of the remaining
 // fields for a component reference.
 type Response struct {
+	// ReferenceDescription retains a present description override on Ref.
+	ReferenceDescription *string
+	// ReferenceSummary retains a present summary override on Ref.
+	ReferenceSummary *string
+	referenceChain   []openapiref.Object
 	// Ref is the authored local component reference, when retained as a reference.
 	Ref string
 	// Description is the response description.
@@ -296,6 +307,11 @@ type Response struct {
 // Header describes a response header. Ref is set instead of the remaining
 // fields for a component reference.
 type Header struct {
+	// ReferenceDescription retains a present description override on Ref.
+	ReferenceDescription *string
+	// ReferenceSummary retains a present summary override on Ref.
+	ReferenceSummary *string
+	referenceChain   []openapiref.Object
 	// Ref is the authored local component reference, when retained as a reference.
 	Ref string
 	// Description is the response header description.
@@ -311,8 +327,8 @@ type Header struct {
 }
 
 // Schema is the normalized JSON Schema subset expressible by the first import
-// phase. Ref may be accompanied by constraints authored beside a supported
-// single-reference allOf wrapper.
+// phase. Ref may be accompanied by supported assertions and annotations
+// authored beside $ref or a single-reference allOf wrapper.
 type Schema struct {
 	// Ref is the authored local schema component reference.
 	Ref string
@@ -385,6 +401,9 @@ type Schema struct {
 	Examples []Example
 	// Extensions contains schema-level vendor extensions.
 	Extensions             map[string]any
+	referenceError         *Diagnostic
+	referenceSiblings      bool
+	inheritedFormat        bool
 	unsupportedComposition bool
 	valueDomainKeyword     string
 	valueDomainError       *Diagnostic

@@ -977,9 +977,9 @@ func TestRenderRejectsUnrepresentableModels(t *testing.T) {
 		{name: "unresolved schema reference", edit: func(d *Document) {
 			d.Operations[0].Responses[0].Response.Schema = schemaRef("Missing")
 		}, want: `schema reference "#/components/schemas/Missing" does not resolve`},
-		{name: "wrong reference kind", edit: func(d *Document) {
+		{name: "unresolved request body reference", edit: func(d *Document) {
 			d.Operations[0].RequestBody = &RequestBody{Ref: "#/components/requestBodies/Body"}
-		}, want: "request body references are not renderable"},
+		}, want: `requestBodies reference "#/components/requestBodies/Body" does not resolve`},
 		{name: "mixed object and map", edit: func(d *Document) {
 			d.Components.Schemas[0].Schema = &Schema{
 				Type: "object", Properties: []NamedProperty{{Name: "id", Schema: &Schema{Type: "string"}}},
@@ -998,7 +998,7 @@ func TestRenderRejectsUnrepresentableModels(t *testing.T) {
 		}, want: `boolean format "custom" is not renderable`},
 		{name: "response reference", edit: func(d *Document) {
 			d.Operations[0].Responses[0].Response = Response{Ref: "#/components/responses/OK"}
-		}, want: "response references are not renderable"},
+		}, want: `responses reference "#/components/responses/OK" does not resolve`},
 	}
 
 	for _, test := range tests {

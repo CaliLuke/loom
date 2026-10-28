@@ -51,6 +51,7 @@ type (
 	}
 
 	responseNameAllocator struct {
+		authored         map[string]bool
 		counts           map[string]int
 		historical       map[string]responseHistoricalSlot
 		reserved         map[string]bool
@@ -68,18 +69,23 @@ type (
 	}
 )
 
-func componentizeDocument(doc *Document) {
+func componentizeDocument(doc *Document) error {
 	if doc == nil {
-		return
+		return nil
 	}
 	if doc.Components == nil {
 		doc.Components = &Components{}
 	}
 	doc.Components.Examples = componentizeExamples(doc.Paths)
-	doc.Components.Headers = componentizeHeaders(doc.Paths)
-	doc.Components.RequestBodies = componentizeRequestBodies(doc.Paths, doc.Components.Schemas)
-	doc.Components.Responses = componentizeResponses(doc.Paths, doc.Components.Schemas)
+	headers, bodies, responses, err := authoredReusableComponents(doc.Paths)
+	if err != nil {
+		return err
+	}
+	doc.Components.Headers = mergeReusableComponents(headers, componentizeHeaders(doc.Paths, reservedReusableNames(headers)))
+	doc.Components.RequestBodies = mergeReusableComponents(bodies, componentizeRequestBodies(doc.Paths, doc.Components.Schemas, reservedReusableNames(bodies)))
+	doc.Components.Responses = mergeReusableComponents(responses, componentizeResponses(doc.Paths, doc.Components.Schemas, reservedReusableNames(responses)))
 	doc.Components.Parameters = componentizeParameters(doc.Paths)
+	return nil
 }
 
 func componentizeParameters(paths map[string]*PathItem) map[string]*ParameterRef {
@@ -146,10 +152,11 @@ func componentizeExamples(paths map[string]*PathItem) map[string]*ExampleRef {
 			example := valueOfExampleRef(usage.ref)
 			return example != nil && strings.TrimSpace(example.ComponentName) != ""
 		},
+		nil,
 	)
 }
 
-func componentizeHeaders(paths map[string]*PathItem) map[string]*HeaderRef {
+func componentizeHeaders(paths map[string]*PathItem, reserved map[string]bool) map[string]*HeaderRef {
 	usages := collectHeaderUsages(paths)
 	return componentizeReusableRefs(
 		usages,
@@ -168,10 +175,11 @@ func componentizeHeaders(paths map[string]*PathItem) map[string]*HeaderRef {
 		},
 		func(value *Header) *HeaderRef { return &HeaderRef{Value: value} },
 		func(componentUsage[Header, *HeaderRef]) bool { return false },
+		reserved,
 	)
 }
 
-func componentizeRequestBodies(paths map[string]*PathItem, schemas map[string]*Schema) map[string]*RequestBodyRef {
+func componentizeRequestBodies(paths map[string]*PathItem, schemas map[string]*Schema, reserved map[string]bool) map[string]*RequestBodyRef {
 	usages := collectRequestBodyUsages(paths)
 	return componentizeReusableRefs(
 		usages,
@@ -196,12 +204,13 @@ func componentizeRequestBodies(paths map[string]*PathItem, schemas map[string]*S
 		func(usage componentUsage[RequestBody, *RequestBodyRef]) bool {
 			return shouldForceComponentizeRequestBody(requestBodyValue(usage.ref))
 		},
+		reserved,
 	)
 }
 
-func componentizeResponses(paths map[string]*PathItem, schemas map[string]*Schema) map[string]*ResponseRef {
+func componentizeResponses(paths map[string]*PathItem, schemas map[string]*Schema, reserved map[string]bool) map[string]*ResponseRef {
 	uses := collectResponseComponentUses(paths, schemas)
-	allocator := newResponseNameAllocator(uses)
+	allocator := newResponseNameAllocator(uses, reserved)
 	components := make(map[string]*ResponseRef)
 	for _, use := range uses {
 		if !use.forced && allocator.counts[use.keys.semantic] < 2 {
@@ -251,8 +260,9 @@ func collectResponseComponentUses(paths map[string]*PathItem, schemas map[string
 	return uses
 }
 
-func newResponseNameAllocator(uses []responseComponentUse) *responseNameAllocator {
+func newResponseNameAllocator(uses []responseComponentUse, reserved map[string]bool) *responseNameAllocator {
 	a := &responseNameAllocator{
+		authored:         reserved,
 		counts:           make(map[string]int),
 		historical:       make(map[string]responseHistoricalSlot),
 		reserved:         make(map[string]bool),
@@ -267,6 +277,9 @@ func newResponseNameAllocator(uses []responseComponentUse) *responseNameAllocato
 		if use.forced {
 			a.reserved[use.base] = true
 		}
+	}
+	for name := range reserved {
+		a.reserved[name] = true
 	}
 	a.reserveHistorical(uses)
 	return a
@@ -482,6 +495,9 @@ func (a *responseNameAllocator) reserveHistorical(uses []responseComponentUse) {
 		counts[use.keys.allocation]++
 	}
 	hashesByName := make(map[string]string)
+	for name := range a.authored {
+		hashesByName[name] = "reserved"
+	}
 	for _, use := range uses {
 		if !use.forced && counts[use.keys.allocation] < 2 {
 			continue

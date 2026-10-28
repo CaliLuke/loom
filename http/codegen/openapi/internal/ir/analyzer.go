@@ -218,6 +218,7 @@ func (a *Analyzer) analyzeSchema(attr *expr.AttributeExpr, context string, noref
 
 	s, note := a.analyzeInlineType(attr, context)
 	a.applySchemaAttributeDetails(s, attr, note, context)
+	s = a.analyzeCompositionReferences(s, attr, context)
 	if expr.IsNullable(attr) {
 		a.applyNullableSchema(s)
 	}

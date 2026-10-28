@@ -48,7 +48,7 @@ func TestOpenAPIOperationSecurityRequirements(t *testing.T) {
 		require.Empty(t, security.([]any))
 	})
 
-	t.Run("HTTP bearer requirements do not publish scopes", func(t *testing.T) {
+	t.Run("HTTP bearer requirements publish application roles", func(t *testing.T) {
 		root := RunHTTPDSL(t, scopedBearerOperationDSL)
 
 		spec := renderOpenAPIJSON(t, openapiv3.Files, root)
@@ -58,7 +58,7 @@ func TestOpenAPIOperationSecurityRequirements(t *testing.T) {
 		security, ok := op["security"].([]any)
 		require.True(t, ok)
 		require.Len(t, security, 1)
-		require.Equal(t, map[string]any{"jwt": []any{}}, security[0])
+		require.Equal(t, map[string]any{"jwt": []any{"api:read"}}, security[0])
 	})
 
 	t.Run("service session security applies to secured meal planner operations only", func(t *testing.T) {

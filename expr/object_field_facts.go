@@ -10,6 +10,9 @@ type (
 		ParentPresent bool
 		// Required records normalized requiredness, including dangling names.
 		Required bool
+		// LayoutRequired records requiredness on the type that declares the field,
+		// before requirements added by a named occurrence. It owns field storage.
+		LayoutRequired bool
 		// HasDefault records selected default presence without materializing it.
 		HasDefault bool
 		// NativePrimitive records eligibility for native primitive pointer storage.
@@ -94,13 +97,19 @@ func NewObjectFields(attribute *AttributeExpr) *ObjectFields {
 		facts.Required = true
 		result.fields[name] = facts
 	}
+	for _, required := range fieldLayoutDeclaration(attribute).AllRequired() {
+		name := AttributeName(required)
+		facts := result.FieldFacts(name)
+		facts.LayoutRequired = true
+		result.fields[name] = facts
+	}
 	return result
 }
 
 // PrimitivePointer reports whether an optional primitive uses pointer storage
 // under the selected default policy. Transport-wide pointer flags are separate.
 func (f ObjectFieldFacts) PrimitivePointer(useDefault bool) bool {
-	return f.NativePrimitive && !f.Required && (!f.HasDefault || !useDefault)
+	return f.NativePrimitive && !f.LayoutRequired && (!f.HasDefault || !useDefault)
 }
 
 // FieldFacts returns captured facts by logical name. Unknown names retain parent
@@ -137,7 +146,7 @@ func (ma *MappedAttributeExpr) FieldFacts(name string) ObjectFieldFacts {
 	if ma == nil {
 		return ObjectFieldFacts{Index: -1}
 	}
-	facts := ObjectFieldFacts{ParentPresent: true, Required: ma.IsRequired(name), Index: -1}
+	facts := ObjectFieldFacts{ParentPresent: true, Required: ma.IsRequired(name), LayoutRequired: ma.IsRequired(name), Index: -1}
 	for index, field := range *AsObject(ma.Type) {
 		if field.Name != name {
 			continue
@@ -160,4 +169,17 @@ func primitivePointerEligible(attribute *AttributeExpr) bool {
 	}
 	kind := unalias(attribute.Type).Kind()
 	return kind != BytesKind && kind != AnyKind
+}
+
+func fieldLayoutDeclaration(attribute *AttributeExpr) *AttributeExpr {
+	seen := make(map[UserType]bool)
+	for attribute != nil {
+		named, ok := attribute.Type.(UserType)
+		if !ok || seen[named] {
+			return attribute
+		}
+		seen[named] = true
+		attribute = named.Attribute()
+	}
+	return nil
 }

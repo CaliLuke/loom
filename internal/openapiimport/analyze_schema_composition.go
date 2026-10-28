@@ -2,6 +2,7 @@ package openapiimport
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/CaliLuke/libopenapi/datamodel/high/base"
 	"github.com/CaliLuke/libopenapi/orderedmap"
@@ -142,7 +143,7 @@ func (a *analyzer) schemaAllOf(schema *Schema, source *base.Schema, path string)
 	}
 	if len(source.AllOf) == 1 && !hasUnsupportedSingleReferenceAllOfSiblings(source) {
 		proxy := source.AllOf[0]
-		if proxy != nil && proxy.IsReference() {
+		if proxy != nil && proxy.IsReference() && !proxy.IsTransformedRefWithSiblings() {
 			ref := proxy.GetReference()
 			if _, err := openapiref.Name(ref, "#/components/schemas/"); err == nil {
 				schema.Ref = ref
@@ -156,41 +157,38 @@ func (a *analyzer) schemaAllOf(schema *Schema, source *base.Schema, path string)
 	if len(source.AllOf) != 2 || hasDirectAllOfSchemaShape(source) {
 		return false
 	}
-	var baseSchema, inlineSchema *Schema
+	var reference *base.SchemaProxy
+	var inline *base.Schema
+	inlinePath := path
 	for index, proxy := range source.AllOf {
 		if proxy == nil {
 			return false
 		}
-		partPath := fmt.Sprintf("%s/allOf/%d", path, index)
 		if proxy.IsReference() {
-			ref := proxy.GetReference()
-			if _, err := openapiref.Name(ref, "#/components/schemas/"); err != nil || baseSchema != nil {
+			if proxy.IsTransformedRefWithSiblings() {
 				return false
 			}
-			baseSchema = &Schema{Ref: ref}
+			if _, err := openapiref.Name(proxy.GetReference(), "#/components/schemas/"); err != nil || reference != nil {
+				return false
+			}
+			reference = proxy
 			continue
 		}
-		if inlineSchema != nil {
+		if inline != nil {
 			return false
 		}
-		inlineSchema = a.schema(proxy, partPath)
+		inline = proxy.Schema()
+		inlinePath = fmt.Sprintf("%s/allOf/%d", path, index)
+		a.schemaUnknownKeywordDiagnostics(proxy, inlinePath)
 	}
-	if baseSchema == nil || inlineSchema == nil || inlineSchema.Type != "object" || len(inlineSchema.Bases) > 0 {
+	if reference == nil || inline == nil || !slices.Equal(inline.Type, []string{"object"}) {
 		return false
 	}
-	schema.Type = "object"
-	schema.Bases = []*Schema{baseSchema}
-	schema.Properties = inlineSchema.Properties
-	schema.Required = inlineSchema.Required
-	schema.AdditionalProperties = inlineSchema.AdditionalProperties
-	if schema.Description == "" {
-		schema.Description = inlineSchema.Description
+	target := referenceSchemaShape(reference, make(map[*base.Schema]bool))
+	if target == nil {
+		return false
 	}
-	a.unsupported(
-		"schema-allof-flattened",
-		path+"/allOf",
-		"object inheritance is rendered with Extend and regenerated OpenAPI flattens the composition",
-	)
+	*schema = *a.schemaObjectReference(inline, target, reference.GetReference(), inlinePath)
 	return true
 }
 

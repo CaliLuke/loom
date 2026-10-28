@@ -62,12 +62,12 @@ scoped secured overrides, blocked inheritance, strict rejection, the empty
 subset and actual generated authentication. Valid inherited root requirements
 remain covered by the existing partial-import tests.
 
-Scopes are intentionally outside this physical grouping model. The existing
-Loom requirement has one scope list applied to every scheme; OpenAPI carries one
-list per scheme. A generated counterexample records that disagreement and direct
-import tests demand explicit unsupported diagnostics for differing per-scheme
-lists. Do not infer scope unions, scope intersections or a public policy from
-this model. Header parsing, presence/default semantics, generated identifiers,
+Per-scheme names are outside this physical grouping model. The shared model in
+`expr/tla/security_requirements` now checks that independent scope/role lists
+preserve AND, OR and anonymous alternatives. Import retains those arrays;
+`security_credentials_import_test.go` checks generated role denial and unequal
+OAuth requirements. Invalid OAuth scopes still reject, including during partial
+import. Header parsing, presence/default semantics, generated identifiers,
 custom mappings, arbitrary graph size, repeated query values and malformed
 credentials remain concrete-test obligations. Raw Authorization conflicts and
 Basic/Bearer conjunctions remain under the existing expr admission model.

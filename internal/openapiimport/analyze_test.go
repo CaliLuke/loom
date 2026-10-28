@@ -588,12 +588,12 @@ components:
 	require.NoError(t, err)
 	requireDiagnosticCode(t, diagnostics, "duplicate-parameter")
 	requireDiagnosticCode(t, diagnostics, "parameter-reference")
-	requireDiagnosticCode(t, diagnostics, "request-body-reference")
-	requireDiagnosticCode(t, diagnostics, "response-reference")
-	requireDiagnosticCode(t, diagnostics, "header-reference")
+	for _, diagnostic := range diagnostics {
+		require.NotContains(t, []string{"request-body-reference", "response-reference", "header-reference"}, diagnostic.Code)
+	}
 }
 
-func TestAnalyzeRejectsUnrenderableComponentKinds(t *testing.T) {
+func TestAnalyzeRejectsUnusedReusableComponents(t *testing.T) {
 	source := []byte(`openapi: 3.1.1
 info: {title: Component kinds, version: "1"}
 paths:

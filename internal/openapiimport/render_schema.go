@@ -273,31 +273,22 @@ func (r *renderer) schemaBlock(schema *Schema, path string, errorType bool, desc
 	if err := r.objectFieldAttributes(schema, path, errorType); err != nil {
 		return err
 	}
-	if len(schema.Required) > 0 {
-		properties := make(map[string]struct{}, len(schema.Properties))
-		for _, property := range schema.Properties {
-			properties[property.Name] = struct{}{}
-		}
-		for _, name := range schema.Required {
-			if _, ok := properties[name]; !ok {
-				return fmt.Errorf("render OpenAPI design: %s required property %q is not defined", path, name)
-			}
-		}
-		r.quotedCall("Required", schema.Required)
-	}
 	return r.schemaAttributeBlock(schema, path, description)
 }
 
 func (r *renderer) schemaAttributeBlock(schema *Schema, path string, description *string) error {
+	if err := r.schemaRequired(schema, path); err != nil {
+		return err
+	}
 	r.untaggedValidation(schema)
 	r.referenceOverlayMetadata(schema)
 	if err := r.schemaAnnotations(schema, description); err != nil {
 		return err
 	}
-	if schema.Format == "" && (schema.Type == "integer" || schema.Type == "number") {
+	if !schema.inheritedFormat && schema.Format == "" && (schema.Type == "integer" || schema.Type == "number") {
 		r.line("Meta(%q, %q)", "openapi:format", "")
 	}
-	if schema.Type == "string" {
+	if schema.Type == "string" && !schema.inheritedFormat {
 		representation := stringRepresentation(schema.Format)
 		if representation.raw {
 			r.line("Meta(%q, %q)", "openapi:format", schema.Format)
@@ -368,7 +359,8 @@ func (r *renderer) untaggedValidation(schema *Schema) {
 }
 
 func (r *renderer) referenceOverlayMetadata(schema *Schema) {
-	if schema.Ref != "" && !schema.Nullable && r.hasSchemaBlock(schema) {
+	if schema.referenceSiblings && len(schema.Bases) > 0 ||
+		schema.Ref != "" && !schema.referenceSiblings && !schema.Nullable && r.hasSchemaBlock(schema) {
 		r.line("Meta(%q, %q)", "openapi:allOf:reference", "true")
 	}
 }
@@ -419,13 +411,13 @@ func (r *renderer) hasSchemaBlock(schema *Schema) bool {
 		schema.AdditionalProperties != nil && schema.AdditionalProperties.Allowed != nil && !*schema.AdditionalProperties.Allowed {
 		return true
 	}
-	if schema.Type == "string" {
+	if schema.Type == "string" && !schema.inheritedFormat {
 		representation := stringRepresentation(schema.Format)
 		if representation.raw || representation.formatName != "" {
 			return true
 		}
 	}
-	if schema.Format == "" && (schema.Type == "integer" || schema.Type == "number") {
+	if !schema.inheritedFormat && schema.Format == "" && (schema.Type == "integer" || schema.Type == "number") {
 		return true
 	}
 	return schema.Nullable || schema.Deprecated || schema.ReadOnly || schema.WriteOnly || schema.Default != nil || len(schema.Examples) > 0 ||

@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/CaliLuke/libopenapi/datamodel/high/base"
+	"github.com/CaliLuke/libopenapi/utils"
 	"github.com/pb33f/go-yaml"
 
 	"github.com/CaliLuke/loom/internal/exactnum"
@@ -174,12 +176,35 @@ func yamlMergeSources(node *yaml.Node) ([]*yaml.Node, error) {
 	return []*yaml.Node{node}, nil
 }
 
-func (a *analyzer) schemaNumericBounds(schema *Schema, path string) {
+func (a *analyzer) schemaNumericBounds(schema *Schema, authored *base.Schema, path string) {
+	var nodes map[string]*yaml.Node
+	if low := authored.GoLow(); low != nil {
+		nodes = map[string]*yaml.Node{
+			"minimum":          low.Minimum.ValueNode,
+			"maximum":          low.Maximum.ValueNode,
+			"exclusiveMinimum": low.ExclusiveMinimum.ValueNode,
+			"exclusiveMaximum": low.ExclusiveMaximum.ValueNode,
+		}
+		// A non-finite carrier conversion can leave a low-level numeric field
+		// empty. Its authored keyword still owns a token and must be diagnosed.
+		root := utils.ResolveMergeNodes(low.RootNode)
+		if root != nil && root.Kind == yaml.MappingNode {
+			for index := 0; index+1 < len(root.Content); index += 2 {
+				name := root.Content[index].Value
+				if node, selected := nodes[name]; selected && node == nil {
+					nodes[name] = root.Content[index+1]
+				}
+			}
+		}
+	}
 	for _, endpoint := range []struct {
 		name  string
 		value **exactnum.Number
 	}{{"minimum", &schema.Minimum}, {"maximum", &schema.Maximum}, {"exclusiveMinimum", &schema.ExclusiveMinimum}, {"exclusiveMaximum", &schema.ExclusiveMaximum}} {
 		source, present := a.numbers[path+"/"+endpoint.name]
+		if nodes != nil {
+			source, present = a.nodeNumericSource(nodes[endpoint.name])
+		}
 		if !present {
 			continue
 		}

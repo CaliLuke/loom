@@ -18,6 +18,7 @@ const (
 
 // documentPlan is the render-ready result of applying the importer subset.
 type documentPlan struct {
+	document     *Document
 	operations   []operationPlan
 	diagnostics  Diagnostics
 	schemas      map[string]NamedSchema
@@ -32,10 +33,13 @@ func planDocument(document *Document) documentPlan {
 	if document == nil {
 		return documentPlan{diagnostics: Diagnostics{{Code: "document", Path: "#", Message: "document is nil"}}}
 	}
+	resolved, diagnostics := resolveReusableDocument(document)
+	document = resolved
 	planner := documentPlanner{
-		document: document,
-		schemas:  make(map[string]NamedSchema, len(document.Components.Schemas)),
-		used:     make(map[string]struct{}),
+		diagnostics: diagnostics,
+		document:    document,
+		schemas:     make(map[string]NamedSchema, len(document.Components.Schemas)),
+		used:        make(map[string]struct{}),
 	}
 	planner.index()
 	if document.SecurityDefined {
@@ -63,15 +67,6 @@ func planDocument(document *Document) documentPlan {
 			planner.unsupported("unused-component-parameter", path, "unreferenced parameter components cannot be rendered faithfully")
 		}
 	}
-	for _, named := range document.Components.RequestBodies {
-		planner.unsupported("component-request-body", "#/components/requestBodies/"+escapeJSONPointer(named.Name), "reusable request body components are not in the strict import subset")
-	}
-	for _, named := range document.Components.Responses {
-		planner.unsupported("component-response", "#/components/responses/"+escapeJSONPointer(named.Name), "reusable response components are not in the strict import subset")
-	}
-	for _, named := range document.Components.Headers {
-		planner.unsupported("component-header", "#/components/headers/"+escapeJSONPointer(named.Name), "reusable header components are not in the strict import subset")
-	}
 	if len(planner.diagnostics) > 0 {
 		return documentPlan{diagnostics: planner.diagnostics.sorted()}
 	}
@@ -82,7 +77,7 @@ func planDocument(document *Document) documentPlan {
 // Error clones depend on final operation names; reference occurrences depend on
 // those clones, so neither can be independently rediscovered during rendering.
 func (p *documentPlanner) renderPlan() documentPlan {
-	plan := documentPlan{}
+	plan := documentPlan{document: p.document}
 	operationRenderer := renderer{document: p.document, schemas: p.schemas}
 	for index := range p.document.Operations {
 		operation, err := operationRenderer.planOperation(&p.document.Operations[index], fmt.Sprintf("#/operations/%d", index))
@@ -225,7 +220,7 @@ func (p *documentPlanner) requestBody(body *RequestBody, path string) {
 		return
 	}
 	if body.Ref != "" {
-		p.unsupported("request-body-reference", path, "request body references are not renderable")
+		// resolveReusableDocument already reported this unresolved occurrence.
 		return
 	}
 	if len(body.ContentTypes) == 0 {
@@ -259,7 +254,7 @@ func (p *documentPlanner) requestBody(body *RequestBody, path string) {
 
 func (p *documentPlanner) response(response Response, path string, allowNonJSON bool) {
 	if response.Ref != "" {
-		p.unsupported("response-reference", path, "response references are not renderable")
+		// resolveReusableDocument already reported this unresolved occurrence.
 		return
 	}
 	p.content(response.ContentType, response.Schema, path, allowNonJSON, responseObjectRole(response, allowNonJSON))
@@ -269,7 +264,7 @@ func (p *documentPlanner) response(response Response, path string, allowNonJSON 
 			p.unsupported("wire-name", headerPath, "response header names containing ':' are not renderable")
 		}
 		if named.Header.Ref != "" {
-			p.unsupported("header-reference", headerPath, "header references are not renderable")
+			// Reference resolution owns this diagnostic.
 			continue
 		}
 		if named.Header.Schema == nil {
@@ -442,13 +437,11 @@ func (p *documentPlanner) schemaAdmission(schema *Schema, path string, role obje
 		p.unsupported("schema-object-constructor", path, "inline object requires a named type in this constructor; analyze source schemas before rendering")
 		admitted = false
 	}
-	if diagnostic := schema.valueDomainError; diagnostic != nil {
-		p.unsupported(diagnostic.Code, diagnostic.Path, diagnostic.Message)
-		return false
-	}
-	if diagnostic := schema.patternError; diagnostic != nil {
-		p.unsupported(diagnostic.Code, diagnostic.Path, diagnostic.Message)
-		return false
+	for _, diagnostic := range []*Diagnostic{schema.valueDomainError, schema.referenceError, schema.patternError} {
+		if diagnostic != nil {
+			p.unsupported(diagnostic.Code, diagnostic.Path, diagnostic.Message)
+			return false
+		}
 	}
 	if schema.Boolean != nil && (!*schema.Boolean || strings.HasPrefix(p.document.OpenAPIVersion, "3.0.")) {
 		p.unsupported("schema-boolean", path, "only true boolean schemas in OpenAPI 3.1 and 3.2 are in the strict import subset")

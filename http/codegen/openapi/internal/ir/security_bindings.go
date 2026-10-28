@@ -147,10 +147,7 @@ func (bindings *securityBindings) requirements(requirements []*expr.SecurityExpr
 			if scheme.Kind == expr.NoKind {
 				continue
 			}
-			scopes := []string{}
-			if scheme.Kind == expr.OAuth2Kind {
-				scopes = append(scopes, requirement.RequiredScopes(scheme)...)
-			}
+			scopes := append([]string{}, requirement.RequiredScopes(scheme)...)
 			result[i][bindings.names[securityBindingFor(scheme)]] = scopes
 		}
 	}

@@ -86,12 +86,12 @@ reads. Specification extensions are patterns, not fixed fields.
 | Operation | `tags`, `summary`, `description`, `operationId`, `parameters`, `requestBody`, `responses`, `deprecated`, `security`, supported `x-*` | `externalDocs` | `callbacks`, `servers` |
 | Components | Supported schemas, parameters, request bodies, responses, headers, security schemes, and examples | None | Links, callbacks, path items, media types, and `x-*` component entries |
 | Parameter | Identity, location, requiredness, schema, description, supported style, equivalent `explode` defaults, `allowReserved`, named query-map JSON `content`, and supported `x-*` | `deprecated`, unsupported examples | Incompatible serialization or content |
-| Request Body | `description`, `required`, supported content, and supported `x-*` | None | direct `$ref` plans that cannot retain component identity |
+| Request Body | `description`, `required`, supported content, and supported `x-*` | None | unresolved, cyclic, or wrong-kind `$ref` plans |
 | Media Type | Supported schema, examples, and equivalent URL-encoded field encoding | OpenAPI 3.2 `description` | `itemSchema`, unsupported encoding fields, `prefixEncoding`, and `x-*` |
 | Responses | Concrete status-code entries | None | `default` and `x-*` |
-| Response | `summary`, `description`, supported headers and content, and supported `x-*` | None | Direct `$ref` plans and links |
-| Header | `description`, `required`, schema, `style: simple`, and `allowReserved` | `deprecated`, unsupported examples | Other serialization, content, direct `$ref`, and `x-*` |
-| Security Scheme | API keys, HTTP basic, HTTP bearer, and supported OAuth 2.0 flows and scopes | None | OpenID Connect, bearer formats, device authorization, and incompatible OAuth scope maps |
+| Response | `summary`, `description`, supported headers and content, and supported `x-*` | None | Unresolved, cyclic, or wrong-kind `$ref` plans and links |
+| Header | `description`, `required`, schema, `style: simple`, and `allowReserved` | `deprecated`, unsupported examples | Other serialization, content, unresolved/cyclic/wrong-kind `$ref`, and `x-*` |
+| Security Scheme | API keys, HTTP basic, HTTP bearer, and supported OAuth 2.0 flows and scopes | None | OpenID Connect, bearer formats, device authorization |
 | Example | JSON-compatible inline, structured, and reusable component examples | Unrenderable examples | External values and incompatible value forms |
 
 
@@ -106,16 +106,24 @@ in application code. Duplicate credentials no longer become unrelated request
 body fields.
 
 Each security requirement object is a conjunction; separate objects remain
-alternatives. Loom applies one scope list to every scheme in a conjunction, so
-import rejects different per-scheme lists rather than changing authentication.
-For example, `[{Bearer: []}, {OAuth: [read]}]` is supported, while
-`[{Bearer: [], OAuth: [read]}]` is not. Two OAuth schemes with the same required
-scopes and conjunctions with empty lists remain supported. This restriction also
-applies with `--allow-lossy`. Partial import skips operations that inherit an
-unsupported root requirement while retaining public or secured operations that
-explicitly override it. The retained design includes root security only when a
-retained operation inherits it; strict whole-document import still rejects the
-unsupported root declaration.
+alternatives. Import preserves each scheme's independent array, including empty
+arrays and overlapping OAuth scope inventories. For example,
+`[{Bearer: [admin], OAuth: [read]}]` requires both the application's `admin`
+role and the OAuth `read` scope. Import renders `ScopeFor` for OAuth scopes and
+`RoleFor` for non-OAuth role names. Roles have no protocol-defined inventory;
+unknown OAuth scopes still fail closed. Non-OAuth role arrays require OpenAPI
+3.1 or 3.2; OpenAPI 3.0 requires those arrays to be empty. Anonymous alternatives and explicit
+operation overrides remain distinct. Partial import skips operations that
+inherit an invalid root requirement while retaining public or secured overrides.
+The retained design includes root security only when a retained operation
+inherits it. `security_per_scheme_test.go` and the generated credential fixture
+cover per-scheme fidelity and runtime enforcement.
+
+OAuth flows retain their own scope names and descriptions, including disjoint,
+overlapping and empty inventories. Import emits a flow-local Scope block for
+each flow. Regeneration preserves the exact flow maps; requirement validation
+checks names across the effective inventories without assigning token grants.
+`security_flow_scopes_test.go` covers the imported and regenerated contract.
 
 Path and operation extensions use a documented allowlist. Unknown extensions
 at those supported scopes produce diagnostics. Document, schema, parameter,
@@ -154,6 +162,17 @@ In OpenAPI 3.1 and 3.2, a parameter reference's `description` overrides the
 component description for that occurrence, including an explicitly empty
 string. Other occurrences retain the component description. Regeneration may
 use separate parameter components to preserve these effective descriptions.
+
+Reusable request bodies, responses, and headers retain their component names and
+forward alias references. In OpenAPI 3.1 and 3.2, Reference Object descriptions
+and summaries remain occurrence annotations, including explicitly empty strings;
+shared definitions are unchanged. Summaries have an effect only on target object
+kinds that support them. OpenAPI 3.0 ignores Reference Object siblings.
+
+Referenced definitions must fit the same media, schema, and header subset as
+inline objects. Unused definitions, cyclic aliases, unresolved references, and
+references to the wrong component kind remain blocking errors. Regenerate an
+imported design to obtain preserved component identities and annotation edges.
 
 An extension at an unsupported scope is a `vendor-extension` diagnostic. Strict
 import fails before it writes output. With `--allow-lossy`, the importer omits
@@ -258,7 +277,8 @@ The following constructs are conditional:
 - A one-member `allOf` with a local reference is lossless. Numeric bounds and
   compatible scalar defaults are preserved on the reference occurrence; other
   contract siblings remain rejected.
-- A `$ref` plus inline-object `allOf` requires `--allow-lossy`.
+- A local `$ref` plus an inline object in `allOf` preserves the reference and
+  the object intersection. It does not require `--allow-lossy`.
 - An inline object used as array items requires `--allow-lossy`. Loom promotes
   it to a deterministic component.
 - A two-member `anyOf` with a bare `{type: null}` branch maps to `Nullable()`.
@@ -321,8 +341,24 @@ local definitions.
 Structured `const` values and schemas that combine `const` with `enum` are also
 rejected.
 
-A Schema Object with `$ref` siblings is rejected. Use a supported `allOf`
-shape when the sibling constraint must remain part of the contract.
+OpenAPI 3.1 and 3.2 Schema Objects can place supported scalar assertions,
+array length bounds, required property names and annotations beside a local
+`$ref`. Loom retains the reference and occurrence constraints independently:
+`{$ref: '#/components/schemas/Name', minLength: 2}` enforces both the Name
+contract and the extra minimum, without changing other uses of Name. Required
+names must exist in the referenced object. Regenerate imported designs to pick
+up corrected validation of optional fields required by a named occurrence.
+
+Object `properties` beside a reference refine the inherited fields and can add
+fields to an open object. Omitted property types use the inherited carrier.
+Regeneration retains the base reference in `allOf` alongside the composed
+object. A closed base cannot gain fields, and a closed sibling must declare all
+inherited property names; these checks prevent changing the accepted key set.
+
+Reference-level `items`, typed `additionalProperties`, arbitrary composition,
+type changes, removal of inherited nullability and changes to numeric carrier
+formats remain blocked. `--allow-lossy` cannot bypass these boundaries. OpenAPI
+3.0 direct reference siblings remain unsupported.
 
 OpenAPI 3.1 and 3.2 permit custom JSON Schema vocabularies. Loom rejects every
 unknown non-`x-*` schema keyword because it cannot prove that the keyword is

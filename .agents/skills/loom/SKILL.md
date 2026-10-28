@@ -601,11 +601,17 @@ and receive a blocking diagnostic before a design is written. See
 [OpenAPI import coverage](../../../docs/openapi-import-coverage.md) for supported
 recursive shapes and limitations.
 
+Reusable request body, response, and header references retain component names,
+forward aliases, and OpenAPI 3.1/3.2 occurrence summary/description annotations,
+including empty strings. Shared definitions remain unchanged. Unused definitions,
+cycles and wrong-kind references still block strict import. Re-import and
+regenerate to adopt this support.
+
 OpenAPI 3.2 Media Type `description` requires `--allow-lossy`.
 `prefixEncoding` remains a strict import error.
 
 If you explicitly accept omitting non-contract
-metadata, the documented `allOf` flattening and inline array-item promotion,
+metadata, the documented inline array-item promotion,
 unrecognized `format` values, or a parameter/header (not schema) `deprecated`
 flag the HTTP DSL cannot express per-parameter, add
 `--allow-lossy`; it warns on stderr for each omission but still refuses any
@@ -614,11 +620,12 @@ operations. It reports skipped operations and omitted root members separately.
 These root members include servers and unsupported info metadata. Tag metadata,
 response summaries, supported serialization, structured examples, and reusable
 examples import losslessly. API-key, HTTP basic, HTTP bearer, and supported
-OAuth 2.0 schemes also import losslessly. OAuth 2.0 flows must use the same
-scope map. Root and operation security requirements retain OAuth scopes and
+OAuth 2.0 schemes also import losslessly. OAuth 2.0 flows retain independent scope maps, including empty inventories.
+Author flow-local scopes in an optional final block on each flow constructor;
+no block inherits scheme-level scopes, while an empty block replaces them. Root and operation security requirements retain OAuth scopes and
 AND or alternative semantics. Schemes using the same wire credential share one
-payload field while retaining each authentication check. A conjunction whose
-schemes require different scope sets is rejected; equal scope sets and separate
+payload field while retaining each authentication check. Each scheme retains its own required names: OAuth scopes render with
+`ScopeFor`, and non-OAuth roles render with `RoleFor`. Empty lists and separate
 alternatives remain supported. Partial import omits unused root security when
 every retained operation explicitly overrides it. An anonymous `{}`
 alternative renders as `Security()` and an explicit operation `security: []`
@@ -1246,8 +1253,13 @@ projected onto each scheme's declared scopes, including Basic and API keys.
 Callbacks can use `scheme.Validate(grantedScopes)` directly: an unscoped key
 alongside a scoped JWT receives no JWT scopes. Shared scopes apply to each scheme
 that declares them; undeclared scopes fail design validation. Separate `Security`
-alternatives retain their own scope sets. Regenerate endpoints and OpenAPI to
-adopt this correction.
+alternatives retain their own scope sets. Inside Security, use
+`ScopeFor(oauth, "read")` to bind OAuth scopes to one scheme and
+`RoleFor(key, "admin")` for non-OAuth application roles. Both are additive to
+shared Scope declarations. Role names need no scheme inventory. Non-OAuth
+callbacks receive them in RequiredScopes and must validate application-owned
+grants; they are not extra wire credentials. Regenerate endpoints and OpenAPI;
+non-OAuth required names now export as role arrays.
 
 `CookieTransport(scheme, "", fn...)` is the transport-owned browser-cookie
 mode. It emits the security contract without synthesizing a payload field or
@@ -1671,6 +1683,13 @@ loom gen <module-import-path>/design
 loom example <module-import-path>/design
 loom vet <module-import-path>/design
 ```
+
+OpenAPI 3.1/3.2 imports preserve supported bounds, enums, required property
+names and annotations beside local schema references. These refine each use
+without changing the shared type. Object-property overlays preserve the base
+reference through `allOf`; they may refine inherited fields and add fields to
+open objects. Changes to the referenced type or nullability and general schema
+intersections remain blocked; see `docs/openapi-import-coverage.md`.
 
 ## Canonical Guides
 
