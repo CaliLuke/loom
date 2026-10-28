@@ -30,7 +30,7 @@ func TestNativePolicyAndTypedResults(t *testing.T) {
 			return "", errors.New("temporary object store failure")
 		}
 		return input.Key, nil
-	}, sv.ActivityOptions{StartToCloseTimeout: time.Second, RetryPolicy: retry.Fixed(2, time.Millisecond)}))
+	}, sv.ActivityOptions{RetryPolicy: retry.Fixed(2, time.Millisecond)}))
 	workflow := sv.DefineWorkflow("metadata.refresh", func(ctx *sv.WorkflowContext, input metadata) (string, error) {
 		future, err := activity.ExecuteAsync(context.Background(), activities.Scope(ctx), input, execution.ActivityOptions{})
 		if err != nil {
@@ -69,7 +69,7 @@ func TestNativePermanentErrorPolicy(t *testing.T) {
 	require.NoError(t, adapter.Register(activities, activity, func(context.Context, metadata) (string, error) {
 		attempts.Add(1)
 		return "", permanent
-	}, sv.ActivityOptions{StartToCloseTimeout: time.Second, RetryPolicy: policy}))
+	}, sv.ActivityOptions{RetryPolicy: policy}))
 	workflow := sv.DefineWorkflow("metadata.refresh", func(ctx *sv.WorkflowContext, input metadata) (string, error) {
 		return activity.Execute(context.Background(), activities.Scope(ctx), input, execution.ActivityOptions{})
 	})
@@ -79,13 +79,19 @@ func TestNativePermanentErrorPolicy(t *testing.T) {
 	require.NoError(t, err)
 	result, err := sv.WaitWorkflow[string](ctx, app, id)
 	require.NoError(t, err)
-	require.Error(t, result.Error)
+	require.ErrorContains(t, result.Error, permanent.Error())
 	require.EqualValues(t, 1, attempts.Load())
 }
 
-func newApp(t *testing.T) *sv.App {
+func newApp(t *testing.T, options ...sv.Option) *sv.App {
 	t.Helper()
-	return sv.NewApp(sv.WithDatabase("file:"+filepath.Join(t.TempDir(), "workflow.db")), sv.WithWaitPollInterval(time.Millisecond), sv.WithActivityPollInterval(time.Millisecond))
+	defaults := make([]sv.Option, 0, 3+len(options))
+	defaults = append(defaults,
+		sv.WithDatabase("file:"+filepath.Join(t.TempDir(), "workflow.db")),
+		sv.WithWaitPollInterval(time.Millisecond),
+		sv.WithActivityPollInterval(time.Millisecond),
+	)
+	return sv.NewApp(append(defaults, options...)...)
 }
 
 func startApp(t *testing.T, app *sv.App) context.Context {
