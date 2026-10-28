@@ -80,6 +80,11 @@ func Plan(source *expr.AttributeExpr, fieldName func(string) string, schema, clo
 			walk(array.ElemType)
 			return
 		}
+		if mapping := expr.AsMap(att.Type); mapping != nil {
+			walk(mapping.KeyType)
+			walk(mapping.ElemType)
+			return
+		}
 		if object := expr.AsObject(att.Type); object != nil {
 			if schema && closedObjects {
 				if att.Meta == nil {
@@ -88,23 +93,7 @@ func Plan(source *expr.AttributeExpr, fieldName func(string) string, schema, clo
 				att.Meta["openapi:additionalProperties"] = []string{"false"}
 			}
 			for _, field := range *object {
-				visible := true
-				if hidden, ok := field.Attribute.Meta.Last("openapi:generate"); schema && ok && hidden == "false" {
-					visible = false
-				}
-				var numeric expr.Kind
-				if expr.IsPrimitive(field.Attribute.Type) {
-					kind := field.Attribute.Type.Kind()
-					if kind >= expr.IntKind && kind <= expr.Float64Kind {
-						numeric = kind
-					}
-				}
-				request.Fields = append(request.Fields, expr.ValueFieldPolicy{
-					Parent: att, Target: field.Attribute, Name: field.Name,
-					WireName: expr.JSONFieldName(fieldName(field.Name), field.Attribute),
-					Visible:  visible, Required: att.IsRequired(field.Name),
-					Presence: expr.ValueFieldRetain, NumericKind: numeric,
-				})
+				request.Fields = append(request.Fields, matchingFieldPolicy(att, field, fieldName, schema))
 				walk(field.Attribute)
 			}
 		}
@@ -147,6 +136,26 @@ func (u *Union) Matcher() string {
 	}
 	fmt.Fprintf(&b, "}\nreturn %s{}, -1, fmt.Errorf(\"invalid untagged union match index\")\n}", u.Name)
 	return b.String()
+}
+
+func matchingFieldPolicy(parent *expr.AttributeExpr, field *expr.NamedAttributeExpr, fieldName func(string) string, schema bool) expr.ValueFieldPolicy {
+	visible := true
+	if hidden, ok := field.Attribute.Meta.Last("openapi:generate"); schema && ok && hidden == "false" {
+		visible = false
+	}
+	var numeric expr.Kind
+	if expr.IsPrimitive(field.Attribute.Type) {
+		kind := field.Attribute.Type.Kind()
+		if kind >= expr.IntKind && kind <= expr.Float64Kind {
+			numeric = kind
+		}
+	}
+	return expr.ValueFieldPolicy{
+		Parent: parent, Target: field.Attribute, Name: field.Name,
+		WireName: expr.JSONFieldName(fieldName(field.Name), field.Attribute),
+		Visible:  visible, Required: parent.IsRequired(field.Name),
+		Presence: expr.ValueFieldRetain, NumericKind: numeric,
+	}
 }
 
 func (u *Union) candidates(b *strings.Builder) {

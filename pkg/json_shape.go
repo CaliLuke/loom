@@ -16,11 +16,11 @@ type (
 	// DSL references, schema resolution, coercions, defaults, or branch selection.
 	// Callers must finish building the graph before sharing it and keep it immutable.
 	JSONShape struct {
-		// Kind is any, boolean, string, bytes, integer, number, object, array, or alias.
+		// Kind is any, boolean, string, bytes, integer, number, object, array, map, or alias.
 		Kind string
 		// Nullable admits explicit JSON null at this occurrence.
 		Nullable bool
-		// Child is the array element or underlying alias shape.
+		// Child is the array element, map value, or underlying alias shape.
 		Child *JSONShape
 		// Fields are the visible object members in declaration order.
 		Fields []JSONShapeField
@@ -46,7 +46,7 @@ type (
 		Minimum, Maximum string
 		// ExclusiveMinimum and ExclusiveMaximum are decimal exclusive bounds.
 		ExclusiveMinimum, ExclusiveMaximum string
-		// MinLength and MaxLength bound strings, decoded bytes, or arrays.
+		// MinLength and MaxLength bound strings, decoded bytes, arrays, or map entries.
 		MinLength, MaxLength *int
 		// Patterns are conjoined regular expressions.
 		Patterns []string
@@ -82,7 +82,7 @@ func (s *JSONShape) validate(seen map[*JSONShape]bool) error {
 	seen[s] = true
 	switch s.Kind {
 	case "any", "boolean", "string", "bytes", "integer", "number":
-	case "array", "alias":
+	case "array", "map", "alias":
 		if s.Kind == "alias" {
 			aliases := make(map[*JSONShape]bool)
 			for node := s; node != nil && node.Kind == "alias"; node = node.Child {
@@ -185,6 +185,8 @@ func (s *JSONShape) match(wire jsontext.Value, depth int) (bool, error) {
 		}
 	case "array":
 		return s.array(wire, depth)
+	case "map":
+		return s.mapping(wire, depth)
 	case "object":
 		matched, err := s.object(wire, depth)
 		if err != nil || !matched {
@@ -221,6 +223,23 @@ func (s *JSONShape) object(wire jsontext.Value, depth int) (bool, error) {
 	return !s.Closed || len(members) == 0, nil
 }
 
+func (s *JSONShape) mapping(wire jsontext.Value, depth int) (bool, error) {
+	if wire.Kind() != '{' {
+		return false, nil
+	}
+	var members map[string]jsontext.Value
+	if err := json.Unmarshal(wire, &members); err != nil {
+		return false, err
+	}
+	for _, child := range members {
+		matched, err := s.Child.match(child, depth+1)
+		if err != nil || !matched {
+			return matched, err
+		}
+	}
+	return s.rules(wire, len(members))
+}
+
 func (s *JSONShape) length(wire jsontext.Value) int {
 	underlying := s
 	for underlying != nil && underlying.Kind == "alias" {
@@ -228,6 +247,12 @@ func (s *JSONShape) length(wire jsontext.Value) int {
 	}
 	if underlying == nil {
 		return -1
+	}
+	if underlying.Kind == "map" && wire.Kind() == '{' {
+		var members map[string]jsontext.Value
+		if json.Unmarshal(wire, &members) == nil {
+			return len(members)
+		}
 	}
 	if wire.Kind() == '[' {
 		var values []jsontext.Value

@@ -78,6 +78,9 @@ func TestServiceCodecs(t *testing.T) {
 	require.ErrorContains(t, err, "matched 2 branches in schema")
 	var overlapping svc.Overlap
 	require.ErrorContains(t, json.Unmarshal([]byte("{}"), &overlapping), "matched 2 branches in schema")
+ require.ErrorContains(t, json.Unmarshal([]byte("{\"mapping\":{\"key\":\"value\"}}"), &overlapping), "matched 2 branches in schema")
+ _, err = json.Marshal(svc.NewOverlapLeft(&svc.Left{Mapping: map[string]string{"key":"value"}}), json.Deterministic(true))
+ require.ErrorContains(t, err, "matched 2 branches in schema")
 
 }
 
@@ -102,7 +105,7 @@ func TestHTTPCodecs(t *testing.T) {
 	address, err := url.Parse(host.URL)
 	require.NoError(t, err)
 	c := client.NewClient(address.Scheme, address.Host, host.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
-	for _, wire := range []string{"[]", "[{\"name\":\"ok\"}]", "[{\"name\":\"ok\",\"label\":null}]", "[{\"name\":\"ok\",\"label\":\"open\"}]", "{\"total\":0}", "{\"total\":1,\"items\":[{\"name\":\"ok\",\"label\":null}]}"} {
+	for _, wire := range []string{"[]", "[{\"name\":\"ok\"}]", "[{\"name\":\"ok\",\"label\":null}]", "[{\"name\":\"ok\",\"label\":\"open\"}]", "{\"total\":0}", "{\"total\":1,\"items\":[{\"name\":\"ok\",\"label\":null}]}", "{\"total\":0,\"properties\":{}}", "{\"total\":1,\"properties\":{\"a\":[1,null,{\"nested\":true}]},\"labels\":{\"first\":\"ok\"},\"lookup\":{\"item\":{\"name\":\"ok\",\"label\":null}}}", "{\"total\":0,\"nested\":{\"outer\":{\"inner\":[{\"name\":\"ok\"}]}}}", "{\"total\":0,\"nullable\":null}", "{\"total\":0,\"nullable\":{\"a\":null,\"b\":{\"name\":\"ok\"}}}", "{\"total\":0,\"tree\":{\"name\":\"root\",\"children\":{\"leaf\":{\"name\":\"leaf\"}}}}"} {
 		payload, err := client.BuildEchoPayload(wire)
 		require.NoError(t, err)
 		result, err := c.Echo()(t.Context(), payload)
@@ -117,6 +120,17 @@ func TestHTTPCodecs(t *testing.T) {
 			{"", true, false}, {" \t\r\n", true, false}, {"{x}", false, false},
 			{"[", false, false}, {"null", false, false}, {"[null]", false, false},
 			{"{\"total\":0,\"extra\":1}", false, false},
+			{"{\"total\":0,\"properties\":null}", false, false},
+			{"{\"total\":0,\"properties\":[]}", false, false},
+			{"{\"total\":0,\"labels\":{}}", false, false},
+			{"{\"total\":0,\"labels\":{\"a\":\"ok\",\"b\":\"ok\",\"c\":\"ok\"}}", false, false},
+			{"{\"total\":0,\"labels\":{\"a\":\"x\"}}", false, false},
+			{"{\"total\":0,\"lookup\":{\"a\":{\"name\":\"ok\"},\"b\":{\"name\":\"x\"}}}", false, false},
+			{"{\"total\":0,\"lookup\":{\"a\":null}}", false, false},
+			{"{\"total\":0,\"lookup\":{\"a\":{\"name\":\"ok\",\"extra\":1}}}", false, false},
+			{"{\"total\":0,\"nested\":{\"outer\":{\"inner\":[{\"name\":\"x\"}]}}}", false, false},
+			{"{\"total\":0,\"tree\":{\"name\":\"root\",\"children\":{\"leaf\":{}}}}", false, false},
+			{"{\"total\":0,\"nullable\":{\"a\":{\"name\":\"x\"}}}", false, false},
 			{"[{\"name\":\"ok\",\"label\":\"other\"}]", false, false},
 			{"[{\"name\":\"x\"}]", false, false}, {"[]", false, true},
 		} {
@@ -175,6 +189,52 @@ func TestExactNumericUnionDescriptors(t *testing.T) {
   var second svc.ReverseExactUnion
   require.Error(t, json.Unmarshal([]byte(wire), &first), wire)
   require.Error(t, json.Unmarshal([]byte(wire), &second), wire)
+ }
+}
+
+func TestMapFields(t *testing.T) {
+ for _, wire := range []string{"{\"total\":0,\"properties\":{}}",
+"{\"total\":1,\"properties\":{\"a\":[1,null,{\"nested\":true}]},\"labels\":{\"first\":\"ok\"},\"lookup\":{\"item\":{\"name\":\"ok\",\"label\":null}}}",
+"{\"total\":0,\"nested\":{\"outer\":{\"inner\":[{\"name\":\"ok\"}]}}}",
+"{\"total\":0,\"nullable\":null}",
+"{\"total\":0,\"nullable\":{\"a\":null,\"b\":{\"name\":\"ok\"}}}",
+"{\"total\":0,\"tree\":{\"name\":\"root\",\"children\":{\"leaf\":{\"name\":\"leaf\"}}}}"} {
+  var value svc.Result
+  require.NoError(t, json.Unmarshal([]byte(wire), &value), wire)
+  encoded, err := json.Marshal(value, json.Deterministic(true))
+  require.NoError(t, err, wire)
+  require.JSONEq(t, wire, string(encoded))
+  var decoded svc.Result
+  require.NoError(t, json.Unmarshal(encoded, &decoded))
+  require.Equal(t, value, decoded)
+ }
+ for _, wire := range []string{"{\"total\":0,\"properties\":null}",
+"{\"total\":0,\"properties\":[]}",
+"{\"total\":0,\"labels\":{}}",
+"{\"total\":0,\"labels\":{\"a\":\"ok\",\"b\":\"ok\",\"c\":\"ok\"}}",
+"{\"total\":0,\"labels\":{\"a\":\"x\"}}",
+"{\"total\":0,\"lookup\":{\"a\":{\"name\":\"ok\"},\"b\":{\"name\":\"x\"}}}",
+"{\"total\":0,\"lookup\":{\"a\":null}}",
+"{\"total\":0,\"lookup\":{\"a\":{\"name\":\"ok\",\"extra\":1}}}",
+"{\"total\":0,\"nested\":{\"outer\":{\"inner\":[{\"name\":\"x\"}]}}}",
+"{\"total\":0,\"tree\":{\"name\":\"root\",\"children\":{\"leaf\":{}}}}",
+"{\"total\":0,\"nullable\":{\"a\":{\"name\":\"x\"}}}"} {
+  original := svc.NewResultItems(nil)
+  value := original
+  require.Error(t, json.Unmarshal([]byte(wire), &value), wire)
+  require.Equal(t, original, value)
+ }
+ for _, wire := range []string{
+  "{\"total\":0,\"labels\":{}}",
+  "{\"total\":0,\"labels\":{\"a\":\"x\"}}",
+  "{\"total\":0,\"lookup\":{\"a\":null}}",
+  "{\"total\":0,\"lookup\":{\"a\":{\"name\":\"x\"}}}",
+  "{\"total\":0,\"nested\":{\"outer\":{\"inner\":[{\"name\":\"x\"}]}}}",
+ } {
+  var page svc.Page
+  require.NoError(t, json.Unmarshal([]byte(wire), &page), wire)
+  _, err := json.Marshal(svc.NewResultPage(&page), json.Deterministic(true))
+  require.Error(t, err, wire)
  }
 }
 `

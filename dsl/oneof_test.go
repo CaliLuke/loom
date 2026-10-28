@@ -227,7 +227,7 @@ func TestUntaggedRejectsNestedBranchFields(t *testing.T) {
 	})
 
 	require.Error(t, err)
-	require.Contains(t, err.Error(), `untagged OneOf branch "NestedUntagged" field "child" must be primitive, a concrete named object type, or an array of either`)
+	require.Contains(t, err.Error(), `untagged OneOf branch "NestedUntagged" field "child" must be primitive, a concrete named object type, or arrays or string-keyed maps of these`)
 }
 
 func TestUntaggedAcceptsNamedObjectBranchFieldsAndArrays(t *testing.T) {

@@ -23,10 +23,33 @@ var UntaggedArraysDSL = func() {
 		Required("name")
 		Meta("openapi:additionalProperties", "false")
 	})
+	labels := Type("Labels", MapOf(String, String), func() {
+		MinLength(1)
+		MaxLength(2)
+		Elem(func() {
+			MinLength(2)
+		})
+	})
+	tree := Type("Tree", func() {
+		Attribute("name", String)
+		Attribute("children", MapOf(String, "Tree"))
+		Required("name")
+	})
 	items := Type("Items", ArrayOf(item))
 	page := Type("Page", func() {
 		Attribute("items", ArrayOf(item))
 		Attribute("total", Int)
+		Attribute("properties", MapOf(String, Any))
+		Attribute("labels", labels)
+		Attribute("lookup", MapOf(String, item))
+		Attribute("nested", MapOf(String, MapOf(String, ArrayOf(item))))
+		Attribute("tree", tree)
+		Attribute("nullable", MapOf(String, item), func() {
+			Nullable()
+			Elem(func() {
+				Nullable()
+			})
+		})
 		Required("total")
 	})
 	result := Type("Result", OneOf(items, page), func() {
@@ -49,9 +72,11 @@ var UntaggedArraysDSL = func() {
 	})
 	left := Type("Left", func() {
 		Attribute("value", String)
+		Attribute("mapping", MapOf(String, String))
 	})
 	right := Type("Right", func() {
 		Attribute("value", String)
+		Attribute("mapping", MapOf(String, String))
 	})
 	overlap := Type("Overlap", OneOf(left, right), func() {
 		Untagged()

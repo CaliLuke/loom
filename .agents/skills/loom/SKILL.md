@@ -927,7 +927,11 @@ together; these rules also cover JSON-RPC HTTP metadata, not gRPC metadata.
   and decoding require the same unique schema and Go branch; overlapping schemas
   fail even when Go numeric widths distinguish them. Nil slices encode as `[]`,
   which is ambiguous if multiple array branches admit empty arrays. Put nullability
-  on the enclosing union, not a branch. Opaque codecs and nested maps are rejected.
+  on the enclosing union, not a branch. Fields may contain string-keyed maps
+  with constrained primitive, named object, array or map values. Nullability and
+  entry-count bounds retain their declared meaning. Regenerate service and
+  transport code when adopting map fields. Map root branches, nested unions
+  and opaque codecs remain rejected.
 - Explicit discriminator tags control wire values independently of schema and
   Go type names.
 - Optional object unions generate as pointers; required unions remain values.

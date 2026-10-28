@@ -35,9 +35,28 @@ func validateUntaggedShape(att *AttributeExpr, ctx, branch string, parent eval.E
 	}
 	if array := AsArray(att.Type); array != nil {
 		if !isUntaggedBranchFieldType(array.ElemType.Type) {
-			errors.Add(parent, "%suntagged OneOf branch %q array elements must be primitive, a concrete named object type, or an array of either", ctx, branch)
+			errors.Add(parent, "%suntagged OneOf branch %q array elements must be primitive, a concrete named object type, or arrays or string-keyed maps of these", ctx, branch)
 		}
 		validateUntaggedShape(array.ElemType, ctx, branch, parent, errors, seen)
+		return
+	}
+	if mapping := AsMap(att.Type); mapping != nil {
+		key := mapping.KeyType.Type
+		for {
+			ut, named := key.(UserType)
+			if !named {
+				break
+			}
+			key = ut.Attribute().Type
+		}
+		if key != String {
+			errors.Add(parent, "%suntagged OneOf branch %q map keys must be strings", ctx, branch)
+		}
+		if !isUntaggedBranchFieldType(mapping.ElemType.Type) {
+			errors.Add(parent, "%suntagged OneOf branch %q map values must be primitive, a concrete named object type, or arrays or string-keyed maps of these", ctx, branch)
+		}
+		validateUntaggedShape(mapping.KeyType, ctx, branch, parent, errors, seen)
+		validateUntaggedShape(mapping.ElemType, ctx, branch, parent, errors, seen)
 		return
 	}
 	object := AsObject(att.Type)
@@ -50,7 +69,7 @@ func validateUntaggedShape(att *AttributeExpr, ctx, branch string, parent eval.E
 	names := make(map[string]bool)
 	for _, field := range *object {
 		if !isUntaggedBranchFieldType(field.Attribute.Type) {
-			errors.Add(parent, "%suntagged OneOf branch %q field %q must be primitive, a concrete named object type, or an array of either", ctx, branch, field.Name)
+			errors.Add(parent, "%suntagged OneOf branch %q field %q must be primitive, a concrete named object type, or arrays or string-keyed maps of these", ctx, branch, field.Name)
 		}
 		name := JSONFieldName(AttributeName(field.Name), field.Attribute)
 		switch {

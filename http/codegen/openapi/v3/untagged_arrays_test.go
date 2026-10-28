@@ -68,6 +68,47 @@ func TestUntaggedArrayObjectContract(t *testing.T) {
 				}
 			}
 			require.True(t, foundRecord, "missing nullable enum record")
+			foundMap := false
+			for name, raw := range schemas {
+				schema := raw.(map[string]any)
+				properties, ok := schema["properties"].(map[string]any)
+				if !ok || properties["lookup"] == nil {
+					continue
+				}
+				foundMap = true
+				lookup := properties["lookup"].(map[string]any)
+				require.Equal(t, "object", lookup["type"])
+				require.IsType(t, map[string]any{}, lookup["additionalProperties"])
+				root := map[string]any{"components": spec["components"], "$ref": "#/components/schemas/" + name}
+				for _, value := range []struct {
+					wire string
+					want bool
+				}{
+					{"{\"total\":0,\"properties\":{}}", true},
+					{"{\"total\":1,\"properties\":{\"a\":[1,null,{\"nested\":true}]},\"labels\":{\"first\":\"ok\"},\"lookup\":{\"item\":{\"name\":\"ok\",\"label\":null}}}", true},
+					{"{\"total\":0,\"nested\":{\"outer\":{\"inner\":[{\"name\":\"ok\"}]}}}", true},
+					{"{\"total\":0,\"nullable\":null}", true},
+					{"{\"total\":0,\"nullable\":{\"a\":null,\"b\":{\"name\":\"ok\"}}}", true},
+					{"{\"total\":0,\"tree\":{\"name\":\"root\",\"children\":{\"leaf\":{\"name\":\"leaf\"}}}}", true},
+					{"{\"total\":0,\"properties\":null}", false},
+					{"{\"total\":0,\"properties\":[]}", false},
+					{"{\"total\":0,\"labels\":{}}", false},
+					{"{\"total\":0,\"labels\":{\"a\":\"ok\",\"b\":\"ok\",\"c\":\"ok\"}}", false},
+					{"{\"total\":0,\"labels\":{\"a\":\"x\"}}", false},
+					{"{\"total\":0,\"lookup\":{\"a\":{\"name\":\"ok\"},\"b\":{\"name\":\"x\"}}}", false},
+					{"{\"total\":0,\"lookup\":{\"a\":null}}", false},
+					{"{\"total\":0,\"lookup\":{\"a\":{\"name\":\"ok\",\"extra\":1}}}", false},
+					{"{\"total\":0,\"nested\":{\"outer\":{\"inner\":[{\"name\":\"x\"}]}}}", false},
+					{"{\"total\":0,\"tree\":{\"name\":\"root\",\"children\":{\"leaf\":{}}}}", false},
+					{"{\"total\":0,\"nullable\":{\"a\":{\"name\":\"x\"}}}", false},
+				} {
+					result, err := gojsonschema.Validate(gojsonschema.NewGoLoader(root), gojsonschema.NewStringLoader(value.wire))
+					require.NoError(t, err)
+					require.Equal(t, value.want, result.Valid(), "%s: %s", name, value.wire)
+				}
+			}
+			require.True(t, foundMap, "missing map-valued page")
+
 			if os.Getenv("LOOM_OPENAPI_CONTRACT") != "" {
 				dir := t.TempDir()
 				path := filepath.Join(dir, "openapi.yaml")

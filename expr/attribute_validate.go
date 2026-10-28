@@ -338,7 +338,10 @@ func isUntaggedBranchFieldType(dataType DataType) bool {
 		return true
 	}
 	if userType, named := dataType.(UserType); named {
-		return !IsAlias(userType) && (IsObject(userType) || IsArray(userType))
+		return !IsAlias(userType) && (IsObject(userType) || IsArray(userType) || IsMap(userType))
+	}
+	if mapping := AsMap(dataType); mapping != nil {
+		return isUntaggedBranchFieldType(mapping.ElemType.Type)
 	}
 	array := AsArray(dataType)
 	return array != nil && isUntaggedBranchFieldType(array.ElemType.Type)

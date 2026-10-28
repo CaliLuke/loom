@@ -343,3 +343,30 @@ func makeOptionalObjectUnionForFormTest() *expr.Union {
 		},
 	}
 }
+
+func TestUntaggedUnionEmitsNamedMapValidation(t *testing.T) {
+	root := expr.RunDSL(t, func() {
+		labels := dsl.Type("Labels", dsl.MapOf(dsl.String, dsl.String), func() {
+			dsl.MinLength(1)
+		})
+		page := dsl.Type("Page", func() {
+			dsl.Attribute("labels", labels)
+		})
+		items := dsl.Type("Items", dsl.ArrayOf(dsl.String))
+		dsl.Service("maps", func() {
+			dsl.Method("read", func() {
+				dsl.Result(dsl.OneOf(page, items), dsl.Untagged)
+			})
+		})
+	})
+	data := NewServicesData(root).Get("maps")
+	require.Len(t, data.unions, 1)
+	names := make(map[string]bool)
+	for _, validation := range data.unions[0].validations {
+		names[validation.data.Name] = true
+		if validation.data.Name == "ValidateLabels" {
+			require.Contains(t, validation.data.Validate, "len(result)")
+		}
+	}
+	require.True(t, names["ValidateLabels"])
+}

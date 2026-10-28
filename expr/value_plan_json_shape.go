@@ -18,7 +18,7 @@ func (p ValuePlan) MatchJSONSchema(wire jsontext.Value) (bool, error) {
 
 // JSONShape lowers the captured JSON representation into a detached matching
 // description for generated untagged codecs. It rejects opaque codecs and shapes
-// outside the supported object/array/primitive grammar. Enum values are projected
+// outside the supported object/array/map/primitive grammar. Enum values are projected
 // through this exact plan, retaining effective constraints and wire identity.
 func (p ValuePlan) JSONShape() (*loom.JSONShape, error) {
 	if p.root == nil || p.root.schemaOnly {
@@ -63,6 +63,9 @@ func lowerJSONShape(node *valuePlanNode, seen map[*valuePlanNode]*loom.JSONShape
 		shape.Kind = "number"
 	case ArrayKind:
 		shape.Kind = "array"
+		shape.Child, err = lowerJSONShape(node.element, seen)
+	case MapKind:
+		shape.Kind = "map"
 		shape.Child, err = lowerJSONShape(node.element, seen)
 	case ObjectKind:
 		shape.Kind = "object"

@@ -20,6 +20,12 @@ func TestJSONRPCUntaggedArrayObject(t *testing.T) {
 		items := Type("Items", ArrayOf(String))
 		page := Type("Page", func() {
 			Attribute("total", Int)
+			Attribute("labels", MapOf(String, String), func() {
+				MinLength(1)
+				Elem(func() {
+					MinLength(2)
+				})
+			})
 			Attribute("status", String, func() {
 				Nullable()
 				Enum("open", "closed")
@@ -74,13 +80,18 @@ func TestJSONRPCArrayObject(t *testing.T) {
 	host := httptest.NewServer(mux)
 	defer host.Close()
 	c := client.NewClient("http", strings.TrimPrefix(host.URL, "http://"), host.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
-	for _, wire := range []string{"[]", "[\"ok\"]", "{\"total\":0}", "{\"total\":0,\"status\":null}", "{\"total\":0,\"status\":\"open\"}"} {
+	for _, wire := range []string{"[]", "[\"ok\"]", "{\"total\":0}", "{\"total\":0,\"status\":null}", "{\"total\":0,\"status\":\"open\"}", "{\"total\":0,\"labels\":{\"a\":\"ok\"}}"} {
 		var payload svc.Choice
 		require.NoError(t, json.Unmarshal([]byte(wire), &payload))
 		result, err := c.Echo()(t.Context(), &payload)
 		require.NoError(t, err)
 		require.Equal(t, &payload, result)
 	}
+ for _, wire := range []string{"{\"total\":0,\"labels\":{}}", "{\"total\":0,\"labels\":{\"a\":\"x\"}}", "{\"total\":0,\"labels\":{\"a\":null}}"} {
+  var value svc.Choice
+  require.Error(t, json.Unmarshal([]byte(wire), &value))
+ }
+
 	var invalid svc.Choice
 	require.Error(t, json.Unmarshal([]byte("{\"total\":0,\"status\":\"other\"}"), &invalid))
 }

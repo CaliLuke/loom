@@ -59,7 +59,7 @@ func TestUntaggedRejectsUnsupportedNestedShapes(t *testing.T) {
 				})
 			})
 		})
-		require.ErrorContains(t, err, `field "mapping" must be primitive`)
+		require.ErrorContains(t, err, `map keys must be strings`)
 	}
 }
 
