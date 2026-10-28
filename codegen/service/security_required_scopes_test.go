@@ -20,6 +20,7 @@ func TestEndpointRequiredScopeOwnership(t *testing.T) {
 		method string
 		want   map[string][][]string
 	}{
+		{"flow", map[string][][]string{"oauth": {{"machine"}}}},
 		{"isolated", map[string][][]string{"oauth": {{"shared"}}, "second": {{"oauth"}}, "key": {{"admin"}}}},
 		{"compound", map[string][][]string{"scope_basic": {{"shared", "basic"}}, "key": {{"shared", "key"}}, "scope_jwt": {{"shared", "read"}}, "oauth": {{"shared", "oauth"}}}},
 		{"alternative", map[string][][]string{"scope_jwt": {{"read"}, {"write"}}, "unscoped": {{}, {}}}},

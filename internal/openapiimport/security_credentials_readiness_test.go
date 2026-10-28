@@ -184,7 +184,7 @@ func TestSecurityCredentialRoles(t *testing.T) {
 		},
 		Components: Components{SecuritySchemes: []SecurityScheme{
 			{Name: "JWT", GoName: "JWT", Type: "http", Scheme: "bearer"},
-			{Name: "OAuth", GoName: "OAuth", Type: "oauth2", Scopes: []SecurityScope{{Name: "read"}}},
+			{Name: "OAuth", GoName: "OAuth", Type: "oauth2", OAuthFlows: []OAuthFlow{{Kind: "clientCredentials", TokenURL: "https://example.com/token", Scopes: []SecurityScope{{Name: "read"}}}}},
 		}},
 	}
 	before, err := json.Marshal(document, json.Deterministic(true))

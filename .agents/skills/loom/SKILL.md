@@ -587,8 +587,9 @@ operations. It reports skipped operations and omitted root members separately.
 These root members include servers and unsupported info metadata. Tag metadata,
 response summaries, supported serialization, structured examples, and reusable
 examples import losslessly. API-key, HTTP basic, HTTP bearer, and supported
-OAuth 2.0 schemes also import losslessly. OAuth 2.0 flows must use the same
-scope map. Root and operation security requirements retain OAuth scopes and
+OAuth 2.0 schemes also import losslessly. OAuth 2.0 flows retain independent scope maps, including empty inventories.
+Author flow-local scopes in an optional final block on each flow constructor;
+no block inherits scheme-level scopes, while an empty block replaces them. Root and operation security requirements retain OAuth scopes and
 AND or alternative semantics. Schemes using the same wire credential share one
 payload field while retaining each authentication check. Each scheme retains its own required names: OAuth scopes render with
 `ScopeFor`, and non-OAuth roles render with `RoleFor`. Empty lists and separate

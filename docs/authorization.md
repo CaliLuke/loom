@@ -116,6 +116,15 @@ OAuth callbacks continue receiving declared OAuth scopes in the same field.
 ScopeFor on non-OAuth schemes, RoleFor on OAuth schemes, unknown selected
 schemes and unknown OAuth scopes are rejected.
 
+OAuth flow constructors accept an optional final block of `Scope(name, description)`
+declarations. A flow without a block inherits the scheme-level scopes. A supplied
+block replaces those defaults; `func() {}` declares an empty inventory. Different
+flows may use disjoint names or different descriptions for the same name.
+Requirements may reference names available in any effective flow. The generated
+OAuth callback receives each flow's inventory in `Flows`; `Scopes` lists the
+available names across flows. Neither inventory grants access: the application
+validates the token, its issuer and flow, and its actual granted scopes.
+
 Regenerate endpoints and OpenAPI after upgrading. OpenAPI now exports required
 non-OAuth names as role arrays, including requirements authored with shared
 `Scope`. Existing credential wire formats and the callbacks' validation rule

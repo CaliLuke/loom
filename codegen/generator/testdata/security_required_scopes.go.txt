@@ -23,6 +23,8 @@ func TestScopeCallbacks(t *testing.T) {
 		wantCalls    []string
 		wantError    bool
 	}{
+		{"machine scope", "flow", map[string][]string{"oauth": {"machine"}}, []string{"oauth"}, false},
+		{"machine scope missing", "flow", map[string][]string{"oauth": {"oauth"}}, []string{"oauth"}, true},
 		{"isolated valid", "isolated", map[string][]string{"oauth": {"shared"}, "second": {"oauth"}, "key": {"admin"}}, []string{"oauth", "second", "key"}, false},
 		{"isolated missing role", "isolated", map[string][]string{"oauth": {"shared"}, "second": {"oauth"}}, []string{"oauth", "second", "key"}, true},
 		{"isolated wrong scheme grant", "isolated", map[string][]string{"oauth": {"oauth"}, "second": {"shared"}, "key": {"admin"}}, []string{"oauth"}, true},
@@ -58,10 +60,26 @@ func TestScopeCallbacks(t *testing.T) {
 			}
 			oauth := func(ctx context.Context, _ string, s *security.OAuth2Scheme) (context.Context, error) {
 				check(s.Name, s.Scopes, s.RequiredScopes)
+				if s.Name == "oauth" {
+					require.Len(t, s.Flows, 3)
+					require.Equal(t, map[string]string{"oauth": "User consent", "shared": "User grant"}, s.Flows[0].Scopes)
+					require.Equal(t, map[string]string{"machine": "Machine grant", "shared": "Machine permission"}, s.Flows[1].Scopes)
+					require.NotNil(t, s.Flows[2].Scopes)
+					require.Empty(t, s.Flows[2].Scopes)
+				}
+				if s.Name == "second" {
+					require.Len(t, s.Flows, 2)
+					require.Equal(t, map[string]string{"oauth": "no description", "shared": "no description"}, s.Flows[0].Scopes)
+					require.NotNil(t, s.Flows[1].Scopes)
+					require.Empty(t, s.Flows[1].Scopes)
+				}
 				return ctx, s.Validate(tc.grants[strings.TrimPrefix(s.Name, "scope_")])
 			}
 			var err error
 			switch tc.method {
+			case "flow":
+				endpoint := scopes.NewFlowEndpoint(svc, oauth)
+				_, err = endpoint(context.Background(), &scopes.FlowPayload{Token: "token"})
 			case "isolated":
 				endpoint := scopes.NewIsolatedEndpoint(svc, oauth, key)
 				_, err = endpoint(context.Background(), &scopes.IsolatedPayload{Token: "token", Key: "key"})
@@ -99,5 +117,10 @@ func (s *scopeService) Alternative(context.Context, *scopes.AlternativePayload) 
 
 func (s *scopeService) Isolated(context.Context, *scopes.IsolatedPayload) error {
 	s.calls = append(s.calls, "isolated")
+	return nil
+}
+
+func (s *scopeService) Flow(context.Context, *scopes.FlowPayload) error {
+	s.calls = append(s.calls, "flow")
 	return nil
 }

@@ -98,13 +98,12 @@ func (a *analyzer) securityScheme(
 			return SecurityScheme{}, false
 		}
 	case "oauth2":
-		flows, scopes, ok := a.oauthFlows(source.Flows, path+"/flows")
+		flows, ok := a.oauthFlows(source.Flows, path+"/flows")
 		if !ok || source.Scheme != "" || source.BearerFormat != "" || source.In != "" || source.Name != "" || source.OpenIdConnectUrl != "" {
 			a.unsupported("security-scheme", path, "OAuth2 scheme contains fields outside the strict import subset")
 			return SecurityScheme{}, false
 		}
 		scheme.OAuthFlows = flows
-		scheme.Scopes = scopes
 	default:
 		a.unsupported("security-scheme", path, fmt.Sprintf("security scheme type %q is not in the strict import subset", source.Type))
 		return SecurityScheme{}, false
@@ -149,18 +148,18 @@ func (a *analyzer) supportedHTTPScheme(source *v3.SecurityScheme, path string) b
 	return true
 }
 
-func (a *analyzer) oauthFlows(source *v3.OAuthFlows, path string) ([]OAuthFlow, []SecurityScope, bool) {
+func (a *analyzer) oauthFlows(source *v3.OAuthFlows, path string) ([]OAuthFlow, bool) {
 	if source == nil {
 		a.unsupported("security-scheme", path, "OAuth2 security scheme must define flows")
-		return nil, nil, false
+		return nil, false
 	}
 	if source.Device != nil || oauthDeviceAuthorizationPresent(source) {
 		a.unsupported("security-scheme", path+"/deviceAuthorization", "OAuth device authorization import is blocked until the parser exposes the official field")
-		return nil, nil, false
+		return nil, false
 	}
 	if orderedmap.Len(source.Extensions) > 0 {
 		a.unsupported("security-scheme", path, "OAuth flow-container extensions are not in the strict import subset")
-		return nil, nil, false
+		return nil, false
 	}
 	types := []struct {
 		kind string
@@ -172,7 +171,6 @@ func (a *analyzer) oauthFlows(source *v3.OAuthFlows, path string) ([]OAuthFlow, 
 		{kind: "clientCredentials", flow: source.ClientCredentials},
 	}
 	var result []OAuthFlow
-	var sharedScopes []SecurityScope
 	for _, candidate := range types {
 		if candidate.flow == nil {
 			continue
@@ -180,28 +178,23 @@ func (a *analyzer) oauthFlows(source *v3.OAuthFlows, path string) ([]OAuthFlow, 
 		flowPath := path + "/" + candidate.kind
 		if orderedmap.Len(candidate.flow.Extensions) > 0 {
 			a.unsupported("security-scheme", flowPath, "OAuth flow extensions are not in the strict import subset")
-			return nil, nil, false
+			return nil, false
 		}
 		if !a.validOAuthFlow(candidate.kind, candidate.flow, flowPath) {
-			return nil, nil, false
+			return nil, false
 		}
-		scopes := oauthScopes(candidate.flow.Scopes)
-		if sharedScopes == nil {
-			sharedScopes = scopes
-		} else if !equalSecurityScopes(sharedScopes, scopes) {
-			a.unsupported("security-scheme", flowPath+"/scopes", "all OAuth flows must define the same scopes for Loom to preserve them")
-			return nil, nil, false
-		}
+
 		result = append(result, OAuthFlow{
 			Kind: candidate.kind, AuthorizationURL: candidate.flow.AuthorizationUrl,
 			TokenURL: candidate.flow.TokenUrl, RefreshURL: candidate.flow.RefreshUrl,
+			Scopes: oauthScopes(candidate.flow.Scopes),
 		})
 	}
 	if len(result) == 0 {
 		a.unsupported("security-scheme", path, "OAuth2 security scheme must define at least one supported flow")
-		return nil, nil, false
+		return nil, false
 	}
-	return result, sharedScopes, true
+	return result, true
 }
 
 func oauthDeviceAuthorizationPresent(flows *v3.OAuthFlows) bool {
@@ -249,18 +242,6 @@ func (a *analyzer) validOAuthFlow(kind string, flow *v3.OAuthFlow, path string) 
 	return true
 }
 
-func equalSecurityScopes(left, right []SecurityScope) bool {
-	if len(left) != len(right) {
-		return false
-	}
-	for index := range left {
-		if left[index] != right[index] {
-			return false
-		}
-	}
-	return true
-}
-
 func (a *analyzer) securityRequirements(source []*base.SecurityRequirement, path string, components Components) SecurityRequirements {
 	requirements := make(SecurityRequirements, 0, len(source))
 	for index, sourceRequirement := range source {
@@ -290,10 +271,12 @@ func (a *analyzer) securityRequirements(source []*base.SecurityRequirement, path
 	return requirements
 }
 
-func securityScopeDefined(scopes []SecurityScope, name string) bool {
-	for _, scope := range scopes {
-		if scope.Name == name {
-			return true
+func securityScopeDefined(scheme SecurityScheme, name string) bool {
+	for _, flow := range scheme.OAuthFlows {
+		for _, scope := range flow.Scopes {
+			if scope.Name == name {
+				return true
+			}
 		}
 	}
 	return false
@@ -338,19 +321,20 @@ func (r *renderer) securityScheme(scheme SecurityScheme) error {
 	for _, flow := range scheme.OAuthFlows {
 		switch flow.Kind {
 		case "authorizationCode":
-			r.line("AuthorizationCodeFlow(%q, %q, %q)", flow.AuthorizationURL, flow.TokenURL, flow.RefreshURL)
+			r.open("AuthorizationCodeFlow(%q, %q, %q, func()", flow.AuthorizationURL, flow.TokenURL, flow.RefreshURL)
 		case "implicit":
-			r.line("ImplicitFlow(%q, %q)", flow.AuthorizationURL, flow.RefreshURL)
+			r.open("ImplicitFlow(%q, %q, func()", flow.AuthorizationURL, flow.RefreshURL)
 		case "password":
-			r.line("PasswordFlow(%q, %q)", flow.TokenURL, flow.RefreshURL)
+			r.open("PasswordFlow(%q, %q, func()", flow.TokenURL, flow.RefreshURL)
 		case "clientCredentials":
-			r.line("ClientCredentialsFlow(%q, %q)", flow.TokenURL, flow.RefreshURL)
+			r.open("ClientCredentialsFlow(%q, %q, func()", flow.TokenURL, flow.RefreshURL)
 		default:
 			return fmt.Errorf("render OpenAPI design: security scheme %q has unsupported OAuth flow %q", scheme.Name, flow.Kind)
 		}
-	}
-	for _, scope := range scheme.Scopes {
-		r.line("Scope(%q, %q)", scope.Name, scope.Description)
+		for _, scope := range flow.Scopes {
+			r.line("Scope(%q, %q)", scope.Name, scope.Description)
+		}
+		r.close()
 	}
 	if err := r.emitExtensions("", scheme.Extensions); err != nil {
 		return err
@@ -421,7 +405,7 @@ func validateSecurityRequirement(requirement SecurityRequirement, components Com
 			continue
 		}
 		for _, scope := range reference.Scopes {
-			if !securityScopeDefined(scheme.Scopes, scope) {
+			if !securityScopeDefined(*scheme, scope) {
 				return fmt.Errorf("OAuth scope %q is not defined by scheme %q", scope, reference.Name)
 			}
 		}

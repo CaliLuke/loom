@@ -60,7 +60,8 @@ type (
 	OAuth2Scheme struct {
 		// Name is the scheme name defined in the design.
 		Name string
-		// Scopes holds a list of scopes for the scheme.
+		// Scopes lists distinct available names across the effective flow inventories.
+		// It describes availability, not grants held by an authenticated token.
 		Scopes []string
 		// RequiredScopes holds a list of scopes which are required
 		// by the scheme. It is a subset of Scopes field.
@@ -79,6 +80,10 @@ type (
 		TokenURL string
 		// RefreshURL to be used for obtaining refresh token.
 		RefreshURL string
+		// Scopes retains this flow's scope names and descriptions. Nil uses
+		// the enclosing scheme's shared Scopes names; a nonnil empty map
+		// declares an empty inventory. Inventories do not grant permissions.
+		Scopes map[string]string
 	}
 
 	// AuthBasicFunc is the function type that implements the basic auth

@@ -194,10 +194,8 @@ func requirementHasScope(r *SecurityExpr, scope string) bool {
 		if !schemeSupportsScopes(s) {
 			continue
 		}
-		for _, se := range s.Scopes {
-			if se.Name == scope {
-				return true
-			}
+		if slices.Contains(s.ScopeNames(), scope) {
+			return true
 		}
 	}
 	return false

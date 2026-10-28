@@ -348,6 +348,14 @@ consumer validation.
   non-OAuth role arrays. Keep expr/tla/security_requirements and the generated
   credential regressions aligned; role assignment remains application-owned.
 
+- `expr.SchemeExpr.FlowScopes` owns effective OAuth inventories: nil inherits
+  scheme defaults, nonnil empty replaces them. ScopeNames projects available
+  names only for requirements and callback discovery. Import, OpenAPI export
+  and generated OAuthFlow maps retain each flow's names and descriptions. When
+  any flow overrides defaults, resolve every runtime flow explicitly so the
+  available-name union cannot leak into inherited inventories. Keep the bounded
+  model in expr/tla/oauth_flow_scopes aligned; token grants remain app-owned.
+
 - `service.assignClientMembers` owns the service Client receiver: reserve all
   authored methods, record synthetic mixed-stream method names, then allocate
   endpoint fields. Rendering consumes these records; constructor arguments and

@@ -1776,6 +1776,15 @@ application-owned grants with `scheme.Validate(grantedNames)`. Roles are not
 extra credentials exchanged on the wire. Regenerate transports and OpenAPI;
 required non-OAuth names are now emitted as OpenAPI role arrays.
 
+OAuth flow constructors accept an optional final block of `Scope(name, description)`
+declarations. A flow without a block inherits the scheme-level scopes. A supplied
+block replaces those defaults; `func() {}` declares an empty inventory. Different
+flows may use disjoint names or different descriptions for the same name.
+Requirements may reference names available in any effective flow. The generated
+OAuth callback receives each flow's inventory in `Flows`; `Scopes` lists the
+available names across flows. Neither inventory grants access: the application
+validates the token, its issuer and flow, and its actual granted scopes.
+
 Each separate `Security(...)` call adds an OR alternative. `Security()` with no
 scheme adds an anonymous alternative, so callers may satisfy the endpoint
 without credentials while the other alternatives remain available. This maps

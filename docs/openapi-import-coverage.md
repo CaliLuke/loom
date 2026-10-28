@@ -91,7 +91,7 @@ reads. Specification extensions are patterns, not fixed fields.
 | Responses | Concrete status-code entries | None | `default` and `x-*` |
 | Response | `summary`, `description`, supported headers and content, and supported `x-*` | None | Direct `$ref` plans and links |
 | Header | `description`, `required`, schema, `style: simple`, and `allowReserved` | `deprecated`, unsupported examples | Other serialization, content, direct `$ref`, and `x-*` |
-| Security Scheme | API keys, HTTP basic, HTTP bearer, and supported OAuth 2.0 flows and scopes | None | OpenID Connect, bearer formats, device authorization, and incompatible OAuth scope maps |
+| Security Scheme | API keys, HTTP basic, HTTP bearer, and supported OAuth 2.0 flows and scopes | None | OpenID Connect, bearer formats, device authorization |
 | Example | JSON-compatible inline, structured, and reusable component examples | Unrenderable examples | External values and incompatible value forms |
 
 
@@ -118,6 +118,12 @@ inherit an invalid root requirement while retaining public or secured overrides.
 The retained design includes root security only when a retained operation
 inherits it. `security_per_scheme_test.go` and the generated credential fixture
 cover per-scheme fidelity and runtime enforcement.
+
+OAuth flows retain their own scope names and descriptions, including disjoint,
+overlapping and empty inventories. Import emits a flow-local Scope block for
+each flow. Regeneration preserves the exact flow maps; requirement validation
+checks names across the effective inventories without assigning token grants.
+`security_flow_scopes_test.go` covers the imported and regenerated contract.
 
 Path and operation extensions use a documented allowlist. Unknown extensions
 at those supported scopes produce diagnostics. Document, schema, parameter,

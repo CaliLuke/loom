@@ -92,8 +92,6 @@ type SecurityScheme struct {
 	OAuth2MetadataURL string
 	// OAuthFlows contains supported OAuth2 flows in specification order.
 	OAuthFlows []OAuthFlow
-	// Scopes contains the shared OAuth2 scope definitions.
-	Scopes []SecurityScope
 	// Extensions contains scheme-level vendor extensions.
 	Extensions map[string]any
 }
@@ -108,6 +106,8 @@ type OAuthFlow struct {
 	TokenURL string
 	// RefreshURL is the optional flow refresh endpoint.
 	RefreshURL string
+	// Scopes contains this flow's exact scope names and descriptions.
+	Scopes []SecurityScope
 }
 
 // SecurityScope is one OAuth2 scope definition.

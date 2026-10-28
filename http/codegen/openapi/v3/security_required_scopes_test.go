@@ -47,6 +47,10 @@ func TestRenderedPerSchemeRequirements(t *testing.T) {
 			spec := decodeOpenAPIJSON(t, artifacts.JSON)
 			operation := spec["paths"].(map[string]any)["/isolated"].(map[string]any)["get"].(map[string]any)
 			require.Equal(t, []any{map[string]any{"oauth": []any{"shared"}, "second": []any{"oauth"}, "key": []any{"admin"}}}, operation["security"])
+			flows := spec["components"].(map[string]any)["securitySchemes"].(map[string]any)["oauth"].(map[string]any)["flows"].(map[string]any)
+			require.Equal(t, map[string]any{"oauth": "User consent", "shared": "User grant"}, flows["authorizationCode"].(map[string]any)["scopes"])
+			require.Equal(t, map[string]any{"machine": "Machine grant", "shared": "Machine permission"}, flows["clientCredentials"].(map[string]any)["scopes"])
+			require.Empty(t, flows["implicit"].(map[string]any)["scopes"])
 			if os.Getenv("LOOM_OPENAPI_CONTRACT") != "" {
 				path := filepath.Join(t.TempDir(), "openapi.yaml")
 				require.NoError(t, os.WriteFile(path, artifacts.YAML, 0o600))

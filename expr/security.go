@@ -114,7 +114,7 @@ type (
 		// Name refers to a header or parameter name, based on In's
 		// value.
 		Name string
-		// Scopes lists the Basic, APIKey, JWT or OAuth2 scopes.
+		// Scopes lists Basic, APIKey or JWT scopes, or default OAuth2 flow scopes.
 		Scopes []*ScopeExpr
 		// Flows determine the oauth2 flows supported by this scheme.
 		Flows []*FlowExpr
@@ -136,6 +136,9 @@ type (
 		RefreshURL string
 		// DeviceAuthorizationURL starts a device authorization flow.
 		DeviceAuthorizationURL string
+		// Scopes is this flow's complete scope inventory. Nil inherits the
+		// scheme defaults; a nonnil empty slice declares no scopes.
+		Scopes []*ScopeExpr
 	}
 
 	// ScopeExpr defines a security scope.
@@ -285,9 +288,14 @@ func DupScheme(sch *SchemeExpr) *SchemeExpr {
 		Description: sch.Description,
 		In:          sch.In,
 		Name:        sch.Name,
-		Scopes:      sch.Scopes,
-		Flows:       sch.Flows,
+		Scopes:      dupScopeDeclarations(sch.Scopes),
+		Flows:       append([]*FlowExpr(nil), sch.Flows...),
 		Meta:        sch.Meta,
+	}
+	for i, flow := range sch.Flows {
+		copy := *flow
+		copy.Scopes = dupScopeDeclarations(flow.Scopes)
+		dup.Flows[i] = &copy
 	}
 	return &dup
 }

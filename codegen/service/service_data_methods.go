@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
@@ -413,7 +414,7 @@ func BuildSchemeData(s *expr.SchemeExpr, m *expr.MethodExpr) *SchemeData {
 	if !expr.IsObject(m.Payload.Type) {
 		return nil
 	}
-	scopes := schemeScopeNames(s)
+	scopes := s.ScopeNames()
 	switch s.Kind {
 	case expr.BasicAuthKind:
 		userAtt := expr.TaggedAttribute(m.Payload, "security:username")
@@ -445,21 +446,23 @@ func BuildSchemeData(s *expr.SchemeExpr, m *expr.MethodExpr) *SchemeData {
 		data := buildCredentialSchemeData(s, m, "security:accesstoken", scopes)
 		if data != nil {
 			data.Flows = s.Flows
+			if slices.ContainsFunc(s.Flows, func(flow *expr.FlowExpr) bool {
+				return flow.Scopes != nil
+			}) {
+				data.Flows = make([]*expr.FlowExpr, len(s.Flows))
+				for i, flow := range s.Flows {
+					copy := *flow
+					copy.Scopes = s.FlowScopes(flow)
+					if copy.Scopes == nil {
+						copy.Scopes = []*expr.ScopeExpr{}
+					}
+					data.Flows[i] = &copy
+				}
+			}
 		}
 		return data
 	}
 	return nil
-}
-
-func schemeScopeNames(s *expr.SchemeExpr) []string {
-	if len(s.Scopes) == 0 {
-		return nil
-	}
-	scopes := make([]string, len(s.Scopes))
-	for i, scope := range s.Scopes {
-		scopes[i] = scope.Name
-	}
-	return scopes
 }
 
 func buildCredentialSchemeData(s *expr.SchemeExpr, m *expr.MethodExpr, tag string, scopes []string) *SchemeData {

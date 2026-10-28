@@ -538,12 +538,13 @@ func buildSecurityScheme(se *expr.SchemeExpr) *SecurityScheme {
 }
 
 func buildOAuthFlows(se *expr.SchemeExpr) *OAuthFlows {
-	scopes := make(map[string]string, len(se.Scopes))
-	for _, scope := range se.Scopes {
-		scopes[scope.Name] = scope.Description
-	}
 	flows := new(OAuthFlows)
 	for _, flow := range se.Flows {
+		inventory := se.FlowScopes(flow)
+		scopes := make(map[string]string, len(inventory))
+		for _, scope := range inventory {
+			scopes[scope.Name] = scope.Description
+		}
 		assignOAuthFlow(flows, flow, scopes)
 	}
 	return flows

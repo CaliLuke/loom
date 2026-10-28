@@ -163,14 +163,16 @@ func matrixMethod(transport, path string, security func(), credentials ...string
 func SecurityPerSchemeDSL(transport string) func() {
 	return func() {
 		left := OAuth2Security("left", func() {
-			ClientCredentialsFlow("https://example.com/token", "")
-			Scope("read")
-			Scope("write")
+			ClientCredentialsFlow("https://example.com/token", "", func() {
+				Scope("read")
+				Scope("write")
+			})
 		})
 		right := OAuth2Security("right", func() {
-			ClientCredentialsFlow("https://example.com/token", "")
-			Scope("read")
-			Scope("write")
+			ClientCredentialsFlow("https://example.com/token", "", func() {
+				Scope("read")
+				Scope("write")
+			})
 		})
 		API("per_scheme", func() {
 			if transport == "jsonrpc" {
