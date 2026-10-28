@@ -1,0 +1,112 @@
+package main
+
+import (
+	"context"
+	"crypto/subtle"
+	"errors"
+	"log"
+	"net/http"
+	"os"
+	"time"
+
+	workserver "example.com/admission/gen/http/work/server"
+	"example.com/admission/gen/work"
+	"github.com/CaliLuke/loom/admission"
+	loomhttp "github.com/CaliLuke/loom/http"
+	"github.com/CaliLuke/loom/http/middleware"
+	loom "github.com/CaliLuke/loom/pkg"
+	"github.com/CaliLuke/loom/security"
+)
+
+type (
+	workService struct {
+		secret string
+	}
+	groupKey struct{}
+)
+
+func main() {
+	secret := os.Getenv("EXAMPLE_API_KEY")
+	if secret == "" {
+		log.Fatal("set EXAMPLE_API_KEY before starting the example")
+	}
+	global, err := admission.NewRate(admission.RatePolicy{PerSecond: 10, Burst: 20})
+	if err != nil {
+		log.Fatal(err)
+	}
+	groups := make(map[string]*admission.Rate, 2)
+	for _, name := range []string{"alpha", "beta"} {
+		groups[name], err = admission.NewRate(admission.RatePolicy{PerSecond: 1, Burst: 2})
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	early, err := admission.NewRateAdmission(func(ctx context.Context, _ string) (admission.RateDecision, error) {
+		return global.Allow(ctx)
+	}, time.Second)
+	if err != nil {
+		log.Fatal(err)
+	}
+	quota, err := admission.NewRateAdmission(func(ctx context.Context, key string) (admission.RateDecision, error) {
+		bucket, ok := groups[key]
+		if !ok {
+			return admission.RateDecision{}, errors.New("unknown quota group")
+		}
+		return bucket.Allow(ctx)
+	}, time.Second)
+	if err != nil {
+		log.Fatal(err)
+	}
+	service := &workService{secret: secret}
+	endpoints := work.NewEndpoints(service, service)
+	endpoints.Use(quota.Middleware(authenticatedGroup, quotaError))
+	mux := loomhttp.NewMuxer()
+	workserver.Mount(mux, workserver.New(endpoints, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil))
+	handler := middleware.RateLimit(early, func(*http.Request) (string, error) {
+		return "process", nil
+	})(mux)
+	server := &http.Server{Addr: "127.0.0.1:8080", Handler: handler, ReadHeaderTimeout: 5 * time.Second}
+	log.Print("listening on 127.0.0.1:8080 with early and authenticated local quotas")
+	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		log.Fatal(err)
+	}
+}
+
+// Run echoes an admitted request after the generated validation and access checks.
+func (*workService) Run(_ context.Context, payload *work.RunPayload) (string, error) {
+	return payload.Message, nil
+}
+
+// APIKeyAuth maps the example's two configured keys to a bounded trusted group.
+func (s *workService) APIKeyAuth(ctx context.Context, key string, _ *security.APIKeyScheme) (context.Context, error) {
+	for _, name := range []string{"alpha", "beta"} {
+		if subtle.ConstantTimeCompare([]byte(key), []byte(s.secret+"-"+name)) == 1 {
+			return context.WithValue(ctx, groupKey{}, name), nil
+		}
+	}
+	return nil, loom.PermanentError("unauthorized", "invalid API key")
+}
+
+// AuthorizeWorkRun grants the demo's work permission to authenticated groups.
+func (*workService) AuthorizeWorkRun(ctx context.Context) error {
+	if ctx.Value(groupKey{}) == nil {
+		return loom.PermanentError("forbidden", "work permission required")
+	}
+	return nil
+}
+
+func authenticatedGroup(ctx context.Context, _ any) (string, error) {
+	group, ok := ctx.Value(groupKey{}).(string)
+	if !ok || group == "" {
+		return "", errors.New("authenticated quota group missing")
+	}
+	return group, nil
+}
+
+func quotaError(decision admission.RateDecision) error {
+	err := &work.RateDenied{Message: "authenticated quota exhausted"}
+	if seconds := decision.RetryAfterSeconds(); seconds > 0 {
+		err.RetryAfter = &seconds
+	}
+	return err
+}

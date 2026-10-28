@@ -431,7 +431,8 @@ var _ = Service("users", func() {
 1. **Always use HTTPS in production**
 2. **Define security at API level** for consistent defaults
 3. **Use `NoSecurity()` explicitly** for public endpoints
-4. **Implement rate limiting** for API key authentication
+4. **Implement [rate admission](rate-limiting.md)** before expensive work and
+   authenticated quotas after identity is trusted
 5. **Use appropriate token expiration** for JWT tokens
 6. **Regularly rotate secrets and keys**
 7. **Log and monitor authentication failures**
@@ -440,6 +441,15 @@ var _ = Service("users", func() {
 ---
 
 ## Common Patterns
+
+### Bound active unary calls
+
+Use `admission.NewConcurrency` with generated endpoint middleware to bound active
+unary invocations in one process. Capacity can change without rebuilding the
+middleware; cancellation retains a permit until the invocation exits. Declare
+`overloaded` and map service saturation explicitly, for example to HTTP 503.
+See [concurrency admission](admission.md) for placement, observation and a runnable
+generated service. Request-rate quotas and streaming lifetimes are separate.
 
 ### Graceful Shutdown
 

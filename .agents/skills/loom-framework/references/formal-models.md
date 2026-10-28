@@ -20,6 +20,18 @@ The [documentation schema admission model](../../../../expr/tla/documentation_sc
 separates valid documentation schemas from unsupported generated codecs and
 checks that validation visits cannot leak between those contexts.
 
+## Unary admission
+
+The [concurrency model](../../../../admission/tla/concurrency/README.md) checks
+permit retention across cancellation and live capacity updates. It rejects
+release-on-cancellation and reset-on-resize candidates. Direct race tests cover
+Go exit paths; the generated example checks protected HTTP/gRPC admission.
+
+The [rate policy model](../../../../admission/tla/rate/README.md) checks quota
+conservation and coherent rate/burst updates. Direct tests cover fractional
+accounting and backend deadlines; generated HTTP checks cover early and
+authenticated quota placement. Group storage and distributed policy are external.
+
 ## Compilation value ownership
 
 The [service semantic ownership model](../../../../codegen/service/tla/semantic_ownership/README.md)

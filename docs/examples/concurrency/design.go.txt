@@ -1,0 +1,50 @@
+package design
+
+import . "github.com/CaliLuke/loom/dsl"
+
+var _ = API("capacity", func() {
+	Title("Unary admission example")
+})
+
+var key = APIKeySecurity("key")
+var run = Authorization("work.run", Empty)
+
+var _ = Service("work", func() {
+	StrictAuthorization()
+	Security(key)
+	HTTP(func() {
+		AuthErrorResponses()
+	})
+	Method("run", func() {
+		Payload(func() {
+			APIKey("key", "key", String)
+			Field(1, "seconds", Int, func() {
+				Minimum(1)
+				Maximum(30)
+			})
+			Required("key", "seconds")
+		})
+		Authorize(run)
+		Result(String)
+		Error("overloaded", func() {
+			Temporary()
+		})
+		Error("unauthorized")
+		Error("forbidden")
+		HTTP(func() {
+			POST("/work")
+			Header("key:X-API-Key")
+			Response(StatusOK)
+			Response("overloaded", StatusServiceUnavailable)
+		})
+		GRPC(func() {
+			Metadata(func() {
+				Attribute("key:x-api-key")
+			})
+			Response(CodeOK)
+			Response("overloaded", CodeUnavailable)
+			Response("unauthorized", CodeUnauthenticated)
+			Response("forbidden", CodePermissionDenied)
+		})
+	})
+})

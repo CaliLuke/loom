@@ -1,0 +1,71 @@
+package main
+
+import (
+	"context"
+	"crypto/subtle"
+	"errors"
+	"log"
+	"net/http"
+	"os"
+	"time"
+
+	workserver "example.com/admission/gen/http/work/server"
+	"example.com/admission/gen/work"
+	"github.com/CaliLuke/loom/admission"
+	loomhttp "github.com/CaliLuke/loom/http"
+	loom "github.com/CaliLuke/loom/pkg"
+	"github.com/CaliLuke/loom/security"
+)
+
+type (
+	workService struct {
+		key string
+	}
+	actorKey struct{}
+)
+
+func main() {
+	key := os.Getenv("EXAMPLE_API_KEY")
+	if key == "" {
+		log.Fatal("set EXAMPLE_API_KEY before starting the example")
+	}
+	budget, err := admission.NewConcurrency(2)
+	if err != nil {
+		log.Fatal(err)
+	}
+	service := &workService{key: key}
+	endpoints := work.NewEndpoints(service, service)
+	endpoints.Use(budget.Middleware)
+	mux := loomhttp.NewMuxer()
+	workserver.Mount(mux, workserver.New(endpoints, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil))
+	server := &http.Server{Addr: "127.0.0.1:8080", Handler: mux, ReadHeaderTimeout: 5 * time.Second}
+	log.Print("listening on 127.0.0.1:8080; local unary capacity is 2")
+	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		log.Fatal(err)
+	}
+}
+
+func (*workService) Run(ctx context.Context, payload *work.RunPayload) (string, error) {
+	timer := time.NewTimer(time.Duration(payload.Seconds) * time.Second)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return "", ctx.Err()
+	case <-timer.C:
+		return "finished", nil
+	}
+}
+
+func (s *workService) APIKeyAuth(ctx context.Context, key string, _ *security.APIKeyScheme) (context.Context, error) {
+	if subtle.ConstantTimeCompare([]byte(key), []byte(s.key)) != 1 {
+		return nil, loom.PermanentError("unauthorized", "invalid API key")
+	}
+	return context.WithValue(ctx, actorKey{}, true), nil
+}
+
+func (*workService) AuthorizeWorkRun(ctx context.Context) error {
+	if ctx.Value(actorKey{}) != true {
+		return loom.PermanentError("forbidden", "work permission required")
+	}
+	return nil
+}

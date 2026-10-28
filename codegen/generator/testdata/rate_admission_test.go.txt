@@ -1,0 +1,201 @@
+package main
+
+import (
+	"context"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+	"testing/synctest"
+	"time"
+
+	workserver "example.com/admission/gen/http/work/server"
+	"example.com/admission/gen/work"
+	"github.com/CaliLuke/loom/admission"
+	loomhttp "github.com/CaliLuke/loom/http"
+	"github.com/CaliLuke/loom/http/middleware"
+	loom "github.com/CaliLuke/loom/pkg"
+	"github.com/stretchr/testify/require"
+)
+
+type testService struct {
+	workService
+	calls, checks int
+	denied        bool
+}
+
+func (s *testService) Run(_ context.Context, payload *work.RunPayload) (string, error) {
+	s.calls++
+	return payload.Message, nil
+}
+
+func (s *testService) AuthorizeWorkRun(ctx context.Context) error {
+	s.checks++
+	if s.denied {
+		return loom.PermanentError("forbidden", "permission denied")
+	}
+	return s.workService.AuthorizeWorkRun(ctx)
+}
+
+func TestEarlyRateAdmission(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		early := newRate(t, 1, 1)
+		service := &testService{workService: workService{secret: "valid"}}
+		backendChecks := 0
+		handler := quotaHTTP(t, service, early, func(context.Context, string) (admission.RateDecision, error) {
+			backendChecks++
+			return admission.RateDecision{Allowed: true}, nil
+		})
+		response := quotaRequest(handler, "valid-alpha", "{\"message\":\"one\"}")
+		require.Equal(t, 200, response.Code, response.Body.String())
+		checks := service.checks
+		response = quotaRequest(handler, "bad-key", "{malformed")
+		require.Equal(t, 429, response.Code)
+		require.Equal(t, "1", response.Header().Get("Retry-After"))
+		require.Equal(t, checks, service.checks, "early rejection precedes authentication and decoding")
+		require.Equal(t, 1, backendChecks)
+		require.Equal(t, 1, service.calls)
+		require.NoError(t, early.SetPolicy(admission.RatePolicy{PerSecond: 2, Burst: 2}))
+		response = quotaRequest(handler, "valid-alpha", "{\"message\":\"two\"}")
+		require.Equal(t, 429, response.Code, "an increase must not refill spent allowance")
+		time.Sleep(500 * time.Millisecond)
+		response = quotaRequest(handler, "valid-alpha", "{\"message\":\"two\"}")
+		require.Equal(t, 200, response.Code, response.Body.String())
+		require.Equal(t, 2, service.calls)
+	})
+}
+
+func TestAuthenticatedRateAdmission(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		groups := map[string]*admission.Rate{"alpha": newRate(t, 1, 1), "beta": newRate(t, 1, 1)}
+		service := &testService{workService: workService{secret: "valid"}}
+		backendChecks := 0
+		handler := quotaHTTP(t, service, newRate(t, 100, 100), func(ctx context.Context, key string) (admission.RateDecision, error) {
+			backendChecks++
+			bucket, ok := groups[key]
+			require.True(t, ok, "only trusted bounded groups reach the backend")
+			return bucket.Allow(ctx)
+		})
+		for _, tc := range []struct {
+			key, body string
+			status    int
+		}{
+			{"valid-alpha", "{\"message\":\"\"}", 400},
+			{"invalid", "{\"message\":\"ok\"}", 401},
+		} {
+			response := quotaRequest(handler, tc.key, tc.body)
+			require.Equal(t, tc.status, response.Code, response.Body.String())
+		}
+		require.Zero(t, backendChecks)
+		response := quotaRequest(handler, "valid-alpha", "{\"message\":\"ok\"}")
+		require.Equal(t, 200, response.Code, response.Body.String())
+		response = quotaRequest(handler, "valid-alpha", "{\"message\":\"ok\"}")
+		require.Equal(t, 429, response.Code, response.Body.String())
+		require.Equal(t, "1", response.Header().Get("Retry-After"))
+		require.Contains(t, response.Body.String(), "authenticated quota exhausted")
+		response = quotaRequest(handler, "valid-beta", "{\"message\":\"ok\"}")
+		require.Equal(t, 200, response.Code, response.Body.String())
+		require.Equal(t, 2, service.calls)
+		checks := backendChecks
+		service.denied = true
+		response = quotaRequest(handler, "valid-alpha", "{\"message\":\"ok\"}")
+		require.Equal(t, 403, response.Code, response.Body.String())
+		require.Equal(t, checks, backendChecks, "authorization still precedes an exhausted quota")
+		service.denied = false
+		policy := admission.RatePolicy{PerSecond: 2, Burst: 4}
+		require.NoError(t, groups["alpha"].SetPolicy(policy))
+		response = quotaRequest(handler, "valid-alpha", "{\"message\":\"ok\"}")
+		require.Equal(t, 429, response.Code)
+		time.Sleep(500 * time.Millisecond)
+		response = quotaRequest(handler, "valid-alpha", "{\"message\":\"ok\"}")
+		require.Equal(t, 200, response.Code, response.Body.String())
+		require.NoError(t, groups["alpha"].SetPolicy(policy))
+		response = quotaRequest(handler, "valid-alpha", "{\"message\":\"ok\"}")
+		require.Equal(t, 429, response.Code)
+		require.Equal(t, 3, service.calls)
+	})
+}
+
+func TestRateBackendFailure(t *testing.T) {
+	for _, timeout := range []bool{false, true} {
+		synctest.Test(t, func(t *testing.T) {
+			service := &testService{workService: workService{secret: "valid"}}
+			handler := quotaHTTP(t, service, newRate(t, 100, 100), func(ctx context.Context, _ string) (admission.RateDecision, error) {
+				if timeout {
+					<-ctx.Done()
+					return admission.RateDecision{Allowed: true}, nil
+				}
+				return admission.RateDecision{}, errors.New("sensitive database and identity")
+			})
+			response := quotaRequest(handler, "valid-alpha", "{\"message\":\"ok\"}")
+			require.Equal(t, 503, response.Code, response.Body.String())
+			require.Contains(t, response.Body.String(), "rate_limit_unavailable")
+			require.NotContains(t, response.Body.String(), "sensitive")
+			require.Empty(t, response.Header().Get("Retry-After"))
+			require.Zero(t, service.calls)
+		})
+	}
+}
+
+func TestRateAdmissionRetainsProtectedRecheck(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		service := &testService{workService: workService{secret: "valid"}}
+		bucket := newRate(t, 1, 1)
+		handler := quotaHTTP(t, service, newRate(t, 100, 100), func(ctx context.Context, _ string) (admission.RateDecision, error) {
+			decision, err := bucket.Allow(ctx)
+			service.denied = true
+			return decision, err
+		})
+		response := quotaRequest(handler, "valid-alpha", "{\"message\":\"ok\"}")
+		require.Equal(t, 403, response.Code, response.Body.String())
+		require.Zero(t, service.calls)
+		decision, err := bucket.Allow(context.Background())
+		require.NoError(t, err)
+		require.False(t, decision.Allowed, "later rejection does not refund an accounted attempt")
+	})
+}
+
+func TestRateUnknownDelayOmitsHeader(t *testing.T) {
+	service := &testService{workService: workService{secret: "valid"}}
+	handler := quotaHTTP(t, service, newRate(t, 100, 100), func(context.Context, string) (admission.RateDecision, error) {
+		return admission.RateDecision{}, nil
+	})
+	response := quotaRequest(handler, "valid-alpha", "{\"message\":\"ok\"}")
+	require.Equal(t, 429, response.Code, response.Body.String())
+	require.Empty(t, response.Header().Get("Retry-After"))
+	require.Zero(t, service.calls)
+}
+
+func newRate(t *testing.T, perSecond float64, burst int) *admission.Rate {
+	t.Helper()
+	bucket, err := admission.NewRate(admission.RatePolicy{PerSecond: perSecond, Burst: burst})
+	require.NoError(t, err)
+	return bucket
+}
+
+func quotaHTTP(t *testing.T, service *testService, bucket *admission.Rate, check admission.RateCheck) http.Handler {
+	t.Helper()
+	quota, err := admission.NewRateAdmission(check, 10*time.Millisecond)
+	require.NoError(t, err)
+	early, err := admission.NewRateAdmission(func(ctx context.Context, _ string) (admission.RateDecision, error) {
+		return bucket.Allow(ctx)
+	}, 10*time.Millisecond)
+	require.NoError(t, err)
+	endpoints := work.NewEndpoints(service, service)
+	endpoints.Use(quota.Middleware(authenticatedGroup, quotaError))
+	mux := loomhttp.NewMuxer()
+	workserver.Mount(mux, workserver.New(endpoints, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil))
+	return middleware.RateLimit(early, func(*http.Request) (string, error) {
+		return "process", nil
+	})(mux)
+}
+
+func quotaRequest(handler http.Handler, key, body string) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(http.MethodPost, "/work", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-API-Key", key)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, req)
+	return response
+}
