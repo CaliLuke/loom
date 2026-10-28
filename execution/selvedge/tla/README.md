@@ -49,3 +49,42 @@ this model does not prove those backend properties. Native transaction admission
 is retained and tested in the consuming application rather than reimplemented
 in this adapter. The model is a design check, not a claim that the extracted
 implementation previously had a scope-rebinding defect.
+
+## Isolating retry-policy tests from attempt deadlines
+
+`PolicyTest.tla` checks the assumption behind exact invocation counts in the
+adapter's error-policy tests. A permanent handler result stops retries only if
+it wins the attempt outcome. An independent attempt deadline can expire first
+and legitimately cause another invocation. Delayed scheduling is nondeterministic
+in the model; it does not assume that a short handler runs promptly.
+
+```sh
+java -XX:+UseParallelGC -cp /path/to/tla2tools-1.7.4.jar tlc2.TLC \
+  -workers 1 -deadlock -metadir /tmp/policy-deadline \
+  -config policy-deadline.cfg PolicyTest.tla
+java -XX:+UseParallelGC -cp /path/to/tla2tools-1.7.4.jar tlc2.TLC \
+  -workers 1 -deadlock -metadir /tmp/policy-isolated \
+  -config policy-isolated.cfg PolicyTest.tla
+```
+
+The former one-second attempt deadline admits a counterexample to `SingleAttempt`:
+claim, expire, claim again, then return the permanent error. The isolated policy
+configuration has no attempt deadline and satisfies the invariant. A native
+adapter probe holding the first handler for 1.5 seconds reproduced two invocations
+with the old deadline, an expired first context and a final permanent error; the
+same probe without the deadline produced one invocation and no context error.
+
+`TestNativePermanentErrorPolicy` and `TestNativePolicyAndTypedResults` therefore
+test error policy without an unrelated attempt deadline. Their enclosing test
+context still bounds completion. `TestActivityTimeoutPolicy` separately tests
+native default and portable override deadlines by awaiting context cancellation,
+checking the typed timeout and the recorded policy; it makes no prompt-scheduling
+or exact invocation-count assertion. The options-merge test also omits an unrelated
+deadline. No runtime retry behavior changes.
+
+Bounds and assumptions: two attempts, one possible deadline expiry, permanent
+result commitment ends the activity. Native persistence, claim renewal, crashes,
+and workflow cancellation are outside this model; it isolates the test's invalid
+assumption rather than proving exactly-once backend execution. The controlled
+probe establishes a causal reproduction, not proof of the scheduler history in
+the original CI run. These model checks remain explicit, opt-in design tools.
