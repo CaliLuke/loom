@@ -5,8 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/CaliLuke/loom/expr"
 	"github.com/stretchr/testify/require"
+
+	"github.com/CaliLuke/loom/expr"
 )
 
 func TestRequiredFieldQueriesDoNotCopyDescendants(t *testing.T) {
@@ -83,4 +84,23 @@ func fieldFactsValidationAttribute(width int) *expr.AttributeExpr {
 	}
 	object.Set("unrelated", &expr.AttributeExpr{Type: nested})
 	return &expr.AttributeExpr{Type: object, Validation: &expr.ValidationExpr{Required: required}}
+}
+
+func TestReferenceRequirementPreservesDeclaredJSONStorage(t *testing.T) {
+	field := &expr.AttributeExpr{Type: expr.String}
+	declaration := &expr.UserTypeExpr{TypeName: "Value", UID: "Value", AttributeExpr: &expr.AttributeExpr{
+		Type: &expr.Object{{Name: "name", Attribute: field}},
+	}}
+	occurrence := &expr.AttributeExpr{Type: declaration, Validation: &expr.ValidationExpr{Required: []string{"name"}}}
+	for _, pointer := range []bool{false, true} {
+		context := NewAttributeContext(pointer, false, false, "", NewNameScope())
+		context.JSONPresence = true
+		facts := expr.NewObjectFields(occurrence)
+		require.True(t, facts.FieldFacts("name").Required)
+		require.Equal(t, OptionalPresence, context.FieldPresence(facts, "name", field))
+		code := ValidationCode(occurrence, nil, context, true, false, false, "body")
+		require.Contains(t, code, "!body.Name.Present()")
+		require.NotContains(t, code, "body.Name == nil")
+	}
+	require.False(t, declaration.IsRequired("name"))
 }

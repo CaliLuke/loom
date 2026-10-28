@@ -442,13 +442,11 @@ func (p *documentPlanner) schemaAdmission(schema *Schema, path string, role obje
 		p.unsupported("schema-object-constructor", path, "inline object requires a named type in this constructor; analyze source schemas before rendering")
 		admitted = false
 	}
-	if diagnostic := schema.valueDomainError; diagnostic != nil {
-		p.unsupported(diagnostic.Code, diagnostic.Path, diagnostic.Message)
-		return false
-	}
-	if diagnostic := schema.patternError; diagnostic != nil {
-		p.unsupported(diagnostic.Code, diagnostic.Path, diagnostic.Message)
-		return false
+	for _, diagnostic := range []*Diagnostic{schema.valueDomainError, schema.referenceError, schema.patternError} {
+		if diagnostic != nil {
+			p.unsupported(diagnostic.Code, diagnostic.Path, diagnostic.Message)
+			return false
+		}
 	}
 	if schema.Boolean != nil && (!*schema.Boolean || strings.HasPrefix(p.document.OpenAPIVersion, "3.0.")) {
 		p.unsupported("schema-boolean", path, "only true boolean schemas in OpenAPI 3.1 and 3.2 are in the strict import subset")

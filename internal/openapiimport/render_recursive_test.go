@@ -54,14 +54,7 @@ components:
     ` + tc.schemas + "\n")
 			doc, diagnostics, err := Analyze(source)
 			require.NoError(t, err)
-			if tc.name == "mixed_inheritance" {
-				require.Len(t, diagnostics, 1)
-				requireDiagnosticCode(t, diagnostics, "schema-allof-flattened")
-				fatal, _ := diagnostics.Classify(true)
-				require.Empty(t, fatal)
-			} else {
-				require.Empty(t, diagnostics)
-			}
+			require.Empty(t, diagnostics)
 			design, err := Render(doc, Options{PackageName: "design"})
 			require.NoError(t, err)
 			requireRenderedDesignEvaluates(t, design, 1)

@@ -50,3 +50,24 @@ func lintEffectiveCompositionArtifacts(t *testing.T, artifacts renderedOpenAPIAr
 		}
 	}
 }
+
+func TestReferenceCompositionOpenAPI(t *testing.T) {
+	artifacts := renderOpenAPIArtifacts(t, testdata.ReferenceCompositionDSL)
+	spec := decodeOpenAPIJSON(t, artifacts.JSON)
+	schema := requireComponentSchema(t, spec, "CompositionDerived")
+	branches, ok := schema["allOf"].([]any)
+	require.True(t, ok)
+	require.Len(t, branches, 2)
+	require.Equal(t, "#/components/schemas/CompositionBase", branches[0].(map[string]any)["$ref"])
+	properties := branches[1].(map[string]any)["properties"].(map[string]any)
+	require.Equal(t, float64(100), properties["count"].(map[string]any)["maximum"])
+	base := requireComponentSchema(t, spec, "CompositionBase")
+	require.NotContains(t, base["properties"].(map[string]any)["count"], "maximum")
+	for _, object := range []map[string]any{base["properties"].(map[string]any), properties} {
+		digest := object["digest"].(map[string]any)
+		require.Equal(t, "string", digest["type"])
+		require.Equal(t, "base64", digest["contentEncoding"])
+		require.Len(t, digest["anyOf"], 3)
+	}
+	lintEffectiveCompositionArtifacts(t, artifacts)
+}

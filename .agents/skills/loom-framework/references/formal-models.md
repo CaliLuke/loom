@@ -346,3 +346,5 @@ resolution and graph retention outside its Boolean assumptions.
 | JSON-RPC envelope ID source, presence and validation ordering | [Envelope ID admission](../../../../http/codegen/tla/jsonrpc_id_admission/README.md); params-first and late-handler counterexamples, shared carrier/CLI validation and mounted unary/SSE/WebSocket controls |
 
 OAuth flow inventories: [independent defaults and overrides](../../../../expr/tla/oauth_flow_scopes/README.md), with a flattening counterexample and generated callback checks.
+
+Schema reference siblings: [conjunction and declaration storage](../../../../internal/openapiimport/tla/reference_siblings/README.md), with rejection, replacement, mutation and occurrence-storage counterexamples.

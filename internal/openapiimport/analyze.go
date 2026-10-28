@@ -63,17 +63,19 @@ func analyzeSelectedDocument(source []byte, selection Selection) (*Document, Dia
 	if err != nil {
 		return nil, nil, SelectionReport{}, fmt.Errorf("inspect numeric source: %w", err)
 	}
+	positions := numericSourcePositions(parsed.GetSpecInfo().RootNode, numbers)
 	model, err := parsed.BuildV3Model()
 	if err != nil {
 		return nil, nil, SelectionReport{}, fmt.Errorf("build OpenAPI %s model: %w", version, err)
 	}
 	analyzer := analyzer{
-		diagnostics: diagnostics,
-		selection:   selection,
-		examples:    make(map[string]Example),
-		schemas:     make(map[string]*Schema),
-		version:     version,
-		numbers:     numbers,
+		diagnostics:      diagnostics,
+		selection:        selection,
+		examples:         make(map[string]Example),
+		schemas:          make(map[string]*Schema),
+		version:          version,
+		numbers:          numbers,
+		numericPositions: positions,
 	}
 	document := analyzer.document(&model.Model)
 	if selection.Active() {
@@ -84,13 +86,14 @@ func analyzeSelectedDocument(source []byte, selection Selection) (*Document, Dia
 }
 
 type analyzer struct {
-	diagnostics Diagnostics
-	selection   Selection
-	report      SelectionReport
-	examples    map[string]Example
-	schemas     map[string]*Schema
-	version     string
-	numbers     map[string]numericSource
+	diagnostics      Diagnostics
+	selection        Selection
+	report           SelectionReport
+	examples         map[string]Example
+	schemas          map[string]*Schema
+	version          string
+	numbers          map[string]numericSource
+	numericPositions map[numericPosition]numericSource
 }
 
 var concreteHTTPStatus = regexp.MustCompile(`^[1-5][0-9]{2}$`)
@@ -527,14 +530,7 @@ func (a *analyzer) schema(proxy *base.SchemaProxy, path string) *Schema {
 	}
 	a.schemaUnknownKeywordDiagnostics(proxy, path)
 	if proxy.IsReference() {
-		if proxy.IsTransformedRefWithSiblings() {
-			a.unsupported(
-				"schema-reference-siblings",
-				path,
-				"schema $ref siblings are not in the strict import subset; wrap the reference in a supported allOf shape",
-			)
-		}
-		return &Schema{Ref: proxy.GetReference()}
+		return a.schemaReference(proxy, path)
 	}
 	if node := semanticSchemaNode(proxy); node != nil && node.Kind == yaml.ScalarNode && node.Tag == "!!bool" {
 		var value bool
@@ -549,9 +545,13 @@ func (a *analyzer) schema(proxy *base.SchemaProxy, path string) *Schema {
 		a.unsupported("empty-schema", path, "schema could not be resolved")
 		return &Schema{}
 	}
+	return a.schemaSource(source, path)
+}
+
+func (a *analyzer) schemaSource(source *base.Schema, path string) *Schema {
 	schema := newNormalizedSchema(source)
 	a.schemaPattern(schema, path)
-	a.schemaNumericBounds(schema, path)
+	a.schemaNumericBounds(schema, source, path)
 	supportedNullableComposition := a.schemaNullableAnyOf(schema, source, path)
 	supportedNullableOneOf := schemaNullableReferenceOneOf(schema, source)
 	supportedUntaggedOneOf := false

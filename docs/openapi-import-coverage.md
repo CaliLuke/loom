@@ -266,7 +266,8 @@ The following constructs are conditional:
 - A one-member `allOf` with a local reference is lossless. Numeric bounds and
   compatible scalar defaults are preserved on the reference occurrence; other
   contract siblings remain rejected.
-- A `$ref` plus inline-object `allOf` requires `--allow-lossy`.
+- A local `$ref` plus an inline object in `allOf` preserves the reference and
+  the object intersection. It does not require `--allow-lossy`.
 - An inline object used as array items requires `--allow-lossy`. Loom promotes
   it to a deterministic component.
 - A two-member `anyOf` with a bare `{type: null}` branch maps to `Nullable()`.
@@ -329,8 +330,24 @@ local definitions.
 Structured `const` values and schemas that combine `const` with `enum` are also
 rejected.
 
-A Schema Object with `$ref` siblings is rejected. Use a supported `allOf`
-shape when the sibling constraint must remain part of the contract.
+OpenAPI 3.1 and 3.2 Schema Objects can place supported scalar assertions,
+array length bounds, required property names and annotations beside a local
+`$ref`. Loom retains the reference and occurrence constraints independently:
+`{$ref: '#/components/schemas/Name', minLength: 2}` enforces both the Name
+contract and the extra minimum, without changing other uses of Name. Required
+names must exist in the referenced object. Regenerate imported designs to pick
+up corrected validation of optional fields required by a named occurrence.
+
+Object `properties` beside a reference refine the inherited fields and can add
+fields to an open object. Omitted property types use the inherited carrier.
+Regeneration retains the base reference in `allOf` alongside the composed
+object. A closed base cannot gain fields, and a closed sibling must declare all
+inherited property names; these checks prevent changing the accepted key set.
+
+Reference-level `items`, typed `additionalProperties`, arbitrary composition,
+type changes, removal of inherited nullability and changes to numeric carrier
+formats remain blocked. `--allow-lossy` cannot bypass these boundaries. OpenAPI
+3.0 direct reference siblings remain unsupported.
 
 OpenAPI 3.1 and 3.2 permit custom JSON Schema vocabularies. Loom rejects every
 unknown non-`x-*` schema keyword because it cannot prove that the keyword is

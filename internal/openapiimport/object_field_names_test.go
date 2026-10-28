@@ -79,7 +79,7 @@ components:
 `)
 	document, diagnostics, err := Analyze(source)
 	require.NoError(t, err)
-	requireDiagnosticCode(t, diagnostics, "schema-allof-flattened")
+	require.Empty(t, diagnostics)
 	rendered, err := Render(document, Options{})
 	require.NoError(t, err)
 	requireRenderedDesignGenerates(t, rendered)
@@ -133,7 +133,14 @@ func TestImportedObjectFieldFamilyGenerates(t *testing.T) {
 		{"Derived", []string{"type", "error", "@type", "type2"}},
 		{"Failure", []string{"type", "error", "@type", "errorField", "errorField2", "loomErrorName", "@loomErrorName"}},
 	} {
-		properties := schemas[tc.name].(map[string]any)["properties"].(map[string]any)
+		schema := schemas[tc.name].(map[string]any)
+		if tc.name == "Derived" || tc.name == "Failure" {
+			branches := schema["allOf"].([]any)
+			require.Len(t, branches, 2)
+			require.Equal(t, "#/components/schemas/Base", branches[0].(map[string]any)["$ref"])
+			schema = branches[1].(map[string]any)
+		}
+		properties := schema["properties"].(map[string]any)
 		require.ElementsMatch(t, tc.keys, objectPropertyKeys(properties))
 	}
 }

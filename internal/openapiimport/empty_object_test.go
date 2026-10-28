@@ -296,8 +296,7 @@ components:
 `)
 	document, diagnostics, err := Analyze(source)
 	require.NoError(t, err)
-	require.Len(t, diagnostics, 1)
-	require.Equal(t, "schema-allof-flattened", diagnostics[0].Code)
+	require.Empty(t, diagnostics)
 	var operation *Operation
 	for i := range document.Operations {
 		if document.Operations[i].Path == "/value" {
@@ -330,6 +329,11 @@ components:
 		schema := response["content"].(map[string]any)["application/json"].(map[string]any)["schema"].(map[string]any)
 		if ref, ok := schema["$ref"].(string); ok {
 			schema = referencedSchema(t, contract, ref)
+		}
+		if path == "/inherited" {
+			branches := schema["allOf"].([]any)
+			require.Equal(t, "#/components/schemas/Closed", branches[0].(map[string]any)["$ref"])
+			schema = branches[1].(map[string]any)
 		}
 		require.Equal(t, "object", schema["type"])
 		if path != "/inherited" {

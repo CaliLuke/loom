@@ -578,7 +578,7 @@ OpenAPI 3.2 Media Type `description` requires `--allow-lossy`.
 `prefixEncoding` remains a strict import error.
 
 If you explicitly accept omitting non-contract
-metadata, the documented `allOf` flattening and inline array-item promotion,
+metadata, the documented inline array-item promotion,
 unrecognized `format` values, or a parameter/header (not schema) `deprecated`
 flag the HTTP DSL cannot express per-parameter, add
 `--allow-lossy`; it warns on stderr for each omission but still refuses any
@@ -1643,6 +1643,13 @@ loom gen <module-import-path>/design
 loom example <module-import-path>/design
 loom vet <module-import-path>/design
 ```
+
+OpenAPI 3.1/3.2 imports preserve supported bounds, enums, required property
+names and annotations beside local schema references. These refine each use
+without changing the shared type. Object-property overlays preserve the base
+reference through `allOf`; they may refine inherited fields and add fields to
+open objects. Changes to the referenced type or nullability and general schema
+intersections remain blocked; see `docs/openapi-import-coverage.md`.
 
 ## Canonical Guides
 

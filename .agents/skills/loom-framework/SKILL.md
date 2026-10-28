@@ -75,6 +75,18 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- OpenAPI import normalizes reference assertions with the target's carrier
+  context, retaining separate reference identity and local constraints. Persist
+  rejected intersections for planner and renderer admission. Normalize effective
+  target nullability through membership before supplying carrier context.
+  Object overlays use Extend; CompositionBases retains declaration identity for
+  the OpenAPI allOf reference marker, while the composed shape owns physical
+  fields. Preserve closed-object key sets and do not remove inherited nullability.
+  Object field facts
+  distinguish semantic Required from LayoutRequired on the physical declaration;
+  named occurrence requirements validate the existing carrier. Keep the
+  reference-sibling model and generated required-field regression aligned.
+
 - `expr.IsNullable` supplies effective nullability to prepared JSON schema
   matching and lowered `JSONShape` descriptions. Nullable null bypasses value
   predicates, including enums, while ordinary Any null still obeys its enum.

@@ -311,8 +311,8 @@ type Header struct {
 }
 
 // Schema is the normalized JSON Schema subset expressible by the first import
-// phase. Ref may be accompanied by constraints authored beside a supported
-// single-reference allOf wrapper.
+// phase. Ref may be accompanied by supported assertions and annotations
+// authored beside $ref or a single-reference allOf wrapper.
 type Schema struct {
 	// Ref is the authored local schema component reference.
 	Ref string
@@ -385,6 +385,9 @@ type Schema struct {
 	Examples []Example
 	// Extensions contains schema-level vendor extensions.
 	Extensions             map[string]any
+	referenceError         *Diagnostic
+	referenceSiblings      bool
+	inheritedFormat        bool
 	unsupportedComposition bool
 	valueDomainKeyword     string
 	valueDomainError       *Diagnostic

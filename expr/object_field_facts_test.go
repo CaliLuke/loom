@@ -84,8 +84,8 @@ func TestObjectFieldFactsDuplicateSelection(t *testing.T) {
 		order = append(order, name)
 	}
 	require.Equal(t, []string{"n", "other"}, order)
-	require.Equal(t, ObjectFieldFacts{ParentPresent: true, Required: true, HasDefault: true, NativePrimitive: true, ElementName: "second:tail", OriginalKey: "n", Index: 3}, facts.FieldFacts("n"))
-	require.Equal(t, ObjectFieldFacts{ParentPresent: true, Required: true, Index: -1}, facts.FieldFacts("missing"))
+	require.Equal(t, ObjectFieldFacts{ParentPresent: true, Required: true, LayoutRequired: true, HasDefault: true, NativePrimitive: true, ElementName: "second:tail", OriginalKey: "n", Index: 3}, facts.FieldFacts("n"))
+	require.Equal(t, ObjectFieldFacts{ParentPresent: true, Required: true, LayoutRequired: true, Index: -1}, facts.FieldFacts("missing"))
 }
 
 func TestObjectFieldFactsSnapshotAndMutableQueries(t *testing.T) {
@@ -166,4 +166,23 @@ func TestObjectFieldFactsRepeatedExactKeys(t *testing.T) {
 		order = append(order, name)
 	}
 	require.Equal(t, []string{"n"}, order)
+}
+
+func TestObjectFieldFactsNamedOccurrenceStorage(t *testing.T) {
+	for _, required := range []bool{false, true} {
+		field := &AttributeExpr{Type: String}
+		decl := &AttributeExpr{Type: &Object{{Name: "name", Attribute: field}}}
+		if required {
+			decl.Validation = &ValidationExpr{Required: []string{"name"}}
+		}
+		named := &UserTypeExpr{TypeName: "Value", AttributeExpr: decl}
+		alias := &UserTypeExpr{TypeName: "Alias", AttributeExpr: &AttributeExpr{Type: named}}
+		occurrence := &AttributeExpr{Type: alias, Validation: &ValidationExpr{Required: []string{"name"}}}
+		facts := NewObjectFields(occurrence).FieldFacts("name")
+		require.True(t, facts.Required)
+		require.Equal(t, required, facts.LayoutRequired)
+		require.Equal(t, !required, facts.PrimitivePointer(false))
+		require.Equal(t, ServiceFieldLayout(decl, "name", field, false, true), facts.ServiceLayout(field, false, true))
+		require.Equal(t, ServiceFieldLayout(decl, "name", field, false, true), ServiceFieldLayout(occurrence, "name", field, false, true))
+	}
 }

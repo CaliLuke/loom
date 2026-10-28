@@ -125,7 +125,6 @@ components:
 
 	document, diagnostics, err := Analyze(source)
 	require.NoError(t, err)
-	requireDiagnosticCode(t, diagnostics, "schema-allof-flattened")
 	requireDiagnosticCode(t, diagnostics, "schema-inline-array-item-promoted")
 	fatal, warnings := diagnostics.Classify(true)
 	require.Empty(t, fatal)
@@ -140,7 +139,9 @@ components:
 	operation := operationFromImportedSpec(t, contract, "/users", "get")
 	items := operation["responses"].(map[string]any)["200"].(map[string]any)["content"].(map[string]any)["application/json"].(map[string]any)["schema"].(map[string]any)["items"].(map[string]any)
 	itemSchema := referencedSchema(t, contract, items["$ref"].(string))
-	properties := itemSchema["properties"].(map[string]any)
+	branches := itemSchema["allOf"].([]any)
+	require.Equal(t, "#/components/schemas/UserLite", branches[0].(map[string]any)["$ref"])
+	properties := branches[1].(map[string]any)["properties"].(map[string]any)
 	require.Contains(t, properties, "id")
 	require.Contains(t, properties, "role")
 }

@@ -409,7 +409,7 @@ paths:
 	}
 }
 
-func TestSchemaReferenceSiblingsAreExplicitlyRejected(t *testing.T) {
+func TestSchemaReferenceSiblingsArePreserved(t *testing.T) {
 	source := []byte(`openapi: 3.1.1
 info: {title: References, version: "1"}
 paths:
@@ -431,9 +431,7 @@ components:
 
 	_, diagnostics, err := Analyze(source)
 	require.NoError(t, err)
-	requireDiagnosticCode(t, diagnostics, "schema-reference-siblings")
-	fatal, _ := diagnostics.Classify(true)
-	require.NotEmpty(t, fatal)
+	require.Empty(t, diagnostics)
 }
 
 func TestUnknownSchemaVocabularyIsExplicitlyRejected(t *testing.T) {
