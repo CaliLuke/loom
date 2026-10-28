@@ -2,6 +2,8 @@ package expr
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/CaliLuke/loom/eval"
@@ -161,6 +163,28 @@ func (m *MethodExpr) validateRequirementScopes(r *SecurityExpr) *eval.Validation
 			continue
 		}
 		verr.Add(m, "security scope %q not found in any of the security schemes.", scope)
+	}
+	for _, name := range slices.Sorted(maps.Keys(r.SchemeRequirements)) {
+		names := r.SchemeRequirements[name]
+		var selected *SchemeExpr
+		for _, scheme := range r.Schemes {
+			if scheme.SchemeName == name {
+				selected = scheme
+				break
+			}
+		}
+		if selected == nil || selected.Kind == NoKind {
+			verr.Add(m, "security scheme %q is not in this requirement", name)
+			continue
+		}
+		if selected.Kind != OAuth2Kind {
+			continue
+		}
+		for _, scope := range names {
+			if !requirementHasScope(&SecurityExpr{Schemes: []*SchemeExpr{selected}}, scope) {
+				verr.Add(m, "security scope %q not found in scheme %q", scope, name)
+			}
+		}
 	}
 	return verr
 }

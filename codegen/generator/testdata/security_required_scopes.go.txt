@@ -23,6 +23,9 @@ func TestScopeCallbacks(t *testing.T) {
 		wantCalls    []string
 		wantError    bool
 	}{
+		{"isolated valid", "isolated", map[string][]string{"oauth": {"shared"}, "second": {"oauth"}, "key": {"admin"}}, []string{"oauth", "second", "key"}, false},
+		{"isolated missing role", "isolated", map[string][]string{"oauth": {"shared"}, "second": {"oauth"}}, []string{"oauth", "second", "key"}, true},
+		{"isolated wrong scheme grant", "isolated", map[string][]string{"oauth": {"oauth"}, "second": {"shared"}, "key": {"admin"}}, []string{"oauth"}, true},
 		{"compound valid", "compound", map[string][]string{"basic": {"shared", "basic"}, "key": {"shared", "key"}, "jwt": {"shared", "read"}, "oauth": {"shared", "oauth"}}, []string{"basic", "key", "jwt", "oauth"}, false},
 		{"compound missing", "compound", map[string][]string{"basic": {"basic"}}, []string{"basic"}, true},
 		{"first alternative", "alternative", map[string][]string{"jwt": {"read"}}, []string{"jwt", "unscoped"}, false},
@@ -35,6 +38,9 @@ func TestScopeCallbacks(t *testing.T) {
 			check := func(name string, declared, required []string) {
 				authCalls = append(authCalls, strings.TrimPrefix(name, "scope_"))
 				for _, scope := range required {
+					if tc.method == "isolated" && name == "key" {
+						continue
+					}
 					require.True(t, slices.Contains(declared, scope), "%s requires undeclared %s", name, scope)
 				}
 			}
@@ -56,6 +62,9 @@ func TestScopeCallbacks(t *testing.T) {
 			}
 			var err error
 			switch tc.method {
+			case "isolated":
+				endpoint := scopes.NewIsolatedEndpoint(svc, oauth, key)
+				_, err = endpoint(context.Background(), &scopes.IsolatedPayload{Token: "token", Key: "key"})
 			case "compound":
 				endpoint := scopes.NewCompoundEndpoint(svc, basic, key, jwt, oauth)
 				_, err = endpoint(context.Background(), &scopes.CompoundPayload{User: "user", Password: "pass", Key: "key", Token: "jwt", Access: "oauth"})
@@ -85,5 +94,10 @@ func (s *scopeService) Compound(context.Context, *scopes.CompoundPayload) error 
 
 func (s *scopeService) Alternative(context.Context, *scopes.AlternativePayload) error {
 	s.calls = append(s.calls, "alternative")
+	return nil
+}
+
+func (s *scopeService) Isolated(context.Context, *scopes.IsolatedPayload) error {
+	s.calls = append(s.calls, "isolated")
 	return nil
 }

@@ -22,7 +22,7 @@ func TestSecurityCredentialRootScopePartialImport(t *testing.T) {
 			fatal, _ := diagnostics.Classify(lossy)
 			require.NotEmpty(t, fatal, "strict import must reject unsupported root requirements")
 			_, err = Render(document, Options{})
-			require.ErrorContains(t, err, "use different scopes")
+			require.ErrorContains(t, err, "not defined by scheme")
 
 			partial, _, err := AnalyzePartial(source, Selection{}, lossy)
 			if err != nil {
@@ -31,8 +31,8 @@ func TestSecurityCredentialRootScopePartialImport(t *testing.T) {
 			}
 			require.Len(t, partial.Skipped, 1)
 			require.Equal(t, "/inherit", partial.Skipped[0].Path)
-			require.Len(t, partial.Skipped[0].Diagnostics, 1)
-			require.Equal(t, "#/security/0", partial.Skipped[0].Diagnostics[0].Path)
+			require.NotEmpty(t, partial.Skipped[0].Diagnostics)
+			require.Contains(t, partial.Skipped[0].Diagnostics[0].Path, "#/security/0")
 			require.Equal(t, "security-requirement", partial.Skipped[0].Diagnostics[0].Code)
 			require.Len(t, partial.Document.Operations, len(paths))
 			require.False(t, partial.Document.SecurityDefined)
@@ -44,9 +44,8 @@ func TestSecurityCredentialRootScopePartialImport(t *testing.T) {
 				} else {
 					require.Len(t, operation.Security, 1)
 					require.Len(t, operation.Security[0].Schemes, 2)
-					for _, scheme := range operation.Security[0].Schemes {
-						require.Equal(t, []string{"read"}, scheme.Scopes)
-					}
+					require.Equal(t, []string{"read"}, operation.Security[0].Schemes[0].Scopes)
+					require.Empty(t, operation.Security[0].Schemes[1].Scopes)
 				}
 			}
 			_, err = Render(partial.Document, Options{PackageName: "design"})
@@ -96,7 +95,7 @@ func partialCredentialSource(t *testing.T, retained []string) []byte {
 	require.NoError(t, err)
 	var input map[string]any
 	require.NoError(t, json.Unmarshal(source, &input))
-	input["security"] = []any{map[string]any{"Bearer": []any{}, "OAuth": []any{"read"}}}
+	input["security"] = []any{map[string]any{"Bearer": []any{}, "OAuth": []any{"unknown"}}}
 	paths := input["paths"].(map[string]any)
 	selected := map[string]any{"/inherit": paths["/inherit"]}
 	for _, path := range retained {

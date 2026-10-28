@@ -106,16 +106,18 @@ in application code. Duplicate credentials no longer become unrelated request
 body fields.
 
 Each security requirement object is a conjunction; separate objects remain
-alternatives. Loom applies one scope list to every scheme in a conjunction, so
-import rejects different per-scheme lists rather than changing authentication.
-For example, `[{Bearer: []}, {OAuth: [read]}]` is supported, while
-`[{Bearer: [], OAuth: [read]}]` is not. Two OAuth schemes with the same required
-scopes and conjunctions with empty lists remain supported. This restriction also
-applies with `--allow-lossy`. Partial import skips operations that inherit an
-unsupported root requirement while retaining public or secured operations that
-explicitly override it. The retained design includes root security only when a
-retained operation inherits it; strict whole-document import still rejects the
-unsupported root declaration.
+alternatives. Import preserves each scheme's independent array, including empty
+arrays and overlapping OAuth scope inventories. For example,
+`[{Bearer: [admin], OAuth: [read]}]` requires both the application's `admin`
+role and the OAuth `read` scope. Import renders `ScopeFor` for OAuth scopes and
+`RoleFor` for non-OAuth role names. Roles have no protocol-defined inventory;
+unknown OAuth scopes still fail closed. Non-OAuth role arrays require OpenAPI
+3.1 or 3.2; OpenAPI 3.0 requires those arrays to be empty. Anonymous alternatives and explicit
+operation overrides remain distinct. Partial import skips operations that
+inherit an invalid root requirement while retaining public or secured overrides.
+The retained design includes root security only when a retained operation
+inherits it. `security_per_scheme_test.go` and the generated credential fixture
+cover per-scheme fidelity and runtime enforcement.
 
 Path and operation extensions use a documented allowlist. Unknown extensions
 at those supported scopes produce diagnostics. Document, schema, parameter,

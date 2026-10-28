@@ -590,8 +590,8 @@ examples import losslessly. API-key, HTTP basic, HTTP bearer, and supported
 OAuth 2.0 schemes also import losslessly. OAuth 2.0 flows must use the same
 scope map. Root and operation security requirements retain OAuth scopes and
 AND or alternative semantics. Schemes using the same wire credential share one
-payload field while retaining each authentication check. A conjunction whose
-schemes require different scope sets is rejected; equal scope sets and separate
+payload field while retaining each authentication check. Each scheme retains its own required names: OAuth scopes render with
+`ScopeFor`, and non-OAuth roles render with `RoleFor`. Empty lists and separate
 alternatives remain supported. Partial import omits unused root security when
 every retained operation explicitly overrides it. An anonymous `{}`
 alternative renders as `Security()` and an explicit operation `security: []`
@@ -1212,8 +1212,13 @@ projected onto each scheme's declared scopes, including Basic and API keys.
 Callbacks can use `scheme.Validate(grantedScopes)` directly: an unscoped key
 alongside a scoped JWT receives no JWT scopes. Shared scopes apply to each scheme
 that declares them; undeclared scopes fail design validation. Separate `Security`
-alternatives retain their own scope sets. Regenerate endpoints and OpenAPI to
-adopt this correction.
+alternatives retain their own scope sets. Inside Security, use
+`ScopeFor(oauth, "read")` to bind OAuth scopes to one scheme and
+`RoleFor(key, "admin")` for non-OAuth application roles. Both are additive to
+shared Scope declarations. Role names need no scheme inventory. Non-OAuth
+callbacks receive them in RequiredScopes and must validate application-owned
+grants; they are not extra wire credentials. Regenerate endpoints and OpenAPI;
+non-OAuth required names now export as role arrays.
 
 `CookieTransport(scheme, "", fn...)` is the transport-owned browser-cookie
 mode. It emits the security contract without synthesizing a payload field or

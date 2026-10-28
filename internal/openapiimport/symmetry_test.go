@@ -171,7 +171,7 @@ components:
 		`ClientCredentialsFlow("https://auth.example.com/token", "")`,
 		`Scope("read", "Read access.")`,
 		`Security(ImportedOAuthSecurity, func() {`,
-		`Scope("read")`,
+		`ScopeFor(ImportedOAuthSecurity, "read")`,
 		`Username("basicUsername", String)`,
 		`Password("basicPassword", String)`,
 		`Token("bearerToken", String, func() {`,

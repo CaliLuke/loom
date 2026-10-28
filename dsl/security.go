@@ -236,7 +236,9 @@ func CookieName(name string) {
 // The requirement refers to one or more OAuth2Security, BasicAuthSecurity,
 // APIKeySecurity or JWTSecurity security scheme. Required scopes may be listed by
 // name in the Security DSL. Each scheme receives the required scopes that it
-// declares; scopes declared by no scheme are rejected. All the listed schemes
+// declares; scopes declared by no scheme are rejected. ScopeFor binds OAuth2
+// scopes to one scheme; RoleFor binds application roles to one non-OAuth scheme.
+// These explicit requirements add to the shared Scope requirements. All listed schemes
 // must be validated for the request to be authorized. Security may appear multiple times
 // in the same scope in which case the client may validate any one of the
 // requirements for the request to be authorized.

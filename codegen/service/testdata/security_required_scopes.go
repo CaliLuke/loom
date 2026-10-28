@@ -25,7 +25,28 @@ func SecurityRequiredScopesDSL() {
 		Scope("oauth")
 		Scope("shared")
 	})
+	second := OAuth2Security("second", func() {
+		ClientCredentialsFlow("https://example.com/token", "")
+		Scope("oauth")
+		Scope("shared")
+	})
 	Service("scopes", func() {
+		Method("isolated", func() {
+			Security(oauth, second, key, func() {
+				ScopeFor(oauth, "shared")
+				ScopeFor(second, "oauth")
+				RoleFor(key, "admin")
+			})
+			Payload(func() {
+				AccessToken("token")
+				APIKey("key", "key")
+				Required("token", "key")
+			})
+			HTTP(func() {
+				GET("/isolated")
+				Header("key:X-Key")
+			})
+		})
 		Method("compound", func() {
 			Security(basic, key, jwt, oauth, func() {
 				Scope("shared")

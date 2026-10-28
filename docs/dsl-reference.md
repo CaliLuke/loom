@@ -1765,6 +1765,17 @@ semantics and chain the context returned by each successful authorizer. Only the
 context from the requirement that ultimately succeeds reaches the service
 method.
 
+Within a requirement, `Scope("read")` applies to each scheme that declares that
+name. Use `ScopeFor(oauth, "read")` to require it from only one OAuth scheme,
+and `RoleFor(key, "admin")` to require an application role from one non-OAuth
+scheme. These calls add to shared Scope declarations and accept a scheme name
+or reference already listed in Security. Unknown OAuth scopes and references to
+schemes outside that requirement are rejected; role names need no inventory.
+Callbacks receive their own required names in `RequiredScopes` and validate
+application-owned grants with `scheme.Validate(grantedNames)`. Roles are not
+extra credentials exchanged on the wire. Regenerate transports and OpenAPI;
+required non-OAuth names are now emitted as OpenAPI role arrays.
+
 Each separate `Security(...)` call adds an OR alternative. `Security()` with no
 scheme adds an anonymous alternative, so callers may satisfy the endpoint
 without credentials while the other alternatives remain available. This maps

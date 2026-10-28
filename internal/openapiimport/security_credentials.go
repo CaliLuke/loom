@@ -46,7 +46,7 @@ func (r *renderer) securityParameters(operation *Operation, parameters []rendere
 	seen := make(map[string]bool)
 	slots := make(map[credentialSlot]int)
 	for requirementIndex, requirement := range requirements {
-		if _, err := securityRequirementScopes(requirement); err != nil {
+		if err := validateSecurityRequirement(requirement, r.document.Components, r.document.OpenAPIVersion); err != nil {
 			return nil, fmt.Errorf("render OpenAPI design: %s/%d: %w", path, requirementIndex, err)
 		}
 		for schemeIndex, reference := range requirement.Schemes {

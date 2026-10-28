@@ -48,9 +48,9 @@ func TestPartialCredentialAuthWire(t *testing.T) {
 	}{
 		{name: "public", path: "/public", calls: 1, status: 204},
 		{name: "scoped conjunction", path: "/oauth_roles", token: "token", calls: 1, status: 204,
-			auth: []string{"OAuth:token:[read]", "OAuthSecond:token:[read]"}},
+			auth: []string{"OAuth:token:[read]", "OAuthSecond:token:[]"}},
 		{name: "second role denies", path: "/oauth_roles", token: "token", denySecond: true,
-			auth: []string{"OAuth:token:[read]", "OAuthSecond:token:[read]"}},
+			auth: []string{"OAuth:token:[read]", "OAuthSecond:token:[]"}},
 		{name: "missing credential", path: "/oauth_roles", auth: []string{"OAuth::[read]"}},
 		{name: "inherited unsupported omitted", path: "/inherit", status: 404},
 	} {

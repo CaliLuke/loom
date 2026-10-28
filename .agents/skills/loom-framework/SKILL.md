@@ -340,7 +340,13 @@ consumer validation.
   IR consume this projection; keep required scopes on each requirement's fresh
   scheme data and preserve them through Dup. Globally deduplicated transport
   schemes do not own OR-branch authentication decisions. Keep union-based
-  unknown-scope admission and OpenAPI's protocol-specific scope-array rules.
+  unknown-scope admission. SchemeRequirements binds explicit names to scheme
+  identity: OAuth scopes must be declared; non-OAuth roles need no inventory.
+  ScopeFor and RoleFor add to shared Scope requirements. Deep-copy these arrays
+  on inheritance and include them in requirement identity. Import planning owns
+  normalized requirement validation; OpenAPI exports both OAuth scope arrays and
+  non-OAuth role arrays. Keep expr/tla/security_requirements and the generated
+  credential regressions aligned; role assignment remains application-owned.
 
 - `service.assignClientMembers` owns the service Client receiver: reserve all
   authored methods, record synthetic mixed-stream method names, then allocate

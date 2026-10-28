@@ -21,6 +21,7 @@ type implementation struct {
 	auth      []string
 	failJWT   bool
 	denyOAuth bool
+	denyRole bool
 }
 
 func (s *implementation) Either(context.Context, *svc.EitherPayload) error {
@@ -74,14 +75,17 @@ func (s *implementation) JWTAuth(ctx context.Context, token string, scheme *secu
 	if s.failJWT || token != "token" {
 		return ctx, fmt.Errorf("JWT denied")
 	}
-	return ctx, nil
+	if s.denyRole {
+		return ctx, scheme.Validate(nil)
+	}
+	return ctx, scheme.Validate([]string{"admin"})
 }
 func (s *implementation) OAuth2Auth(ctx context.Context, token string, scheme *security.OAuth2Scheme) (context.Context, error) {
 	s.auth = append(s.auth, fmt.Sprintf("%s:%s:%v", scheme.Name, token, scheme.RequiredScopes))
 	if s.denyOAuth || token != "token" {
 		return ctx, fmt.Errorf("OAuth denied")
 	}
-	return ctx, nil
+	return ctx, scheme.Validate([]string{"read"})
 }
 func (s *implementation) BasicAuth(ctx context.Context, user, pass string, scheme *security.BasicScheme) (context.Context, error) {
 	s.auth = append(s.auth, fmt.Sprintf("%s:%s:%s", scheme.Name, user, pass))
@@ -104,11 +108,11 @@ func TestImportedCredentialAuthWire(t *testing.T) {
 		{"basic", "either", "Basic dXNlcjpwYXNz", "", false, false, 1, []string{"Basic:user:pass"}},
 		{"JWT", "either", "Bearer token", "", false, false, 1, []string{"Basic::", "Bearer:token:[]"}},
 		{"OAuth fallback scopes", "either", "Bearer token", "", true, false, 1, []string{"Basic::", "Bearer:token:[]", "OAuth:token:[read]"}},
-		{"AND both", "both", "Bearer token", "", false, false, 1, []string{"Bearer:token:[]", "OAuth:token:[]"}},
-		{"AND denied", "both", "Bearer token", "", false, true, 0, []string{"Bearer:token:[]", "OAuth:token:[]"}},
+		{"AND both", "both", "Bearer token", "", false, false, 1, []string{"Bearer:token:[admin]", "OAuth:token:[read]"}},
+		{"AND denied", "both", "Bearer token", "", false, true, 0, []string{"Bearer:token:[admin]", "OAuth:token:[read]"}},
 		{"shared Basic roles", "basic_roles", "Basic dXNlcjpwYXNz", "", false, false, 1, []string{"Basic:user:pass", "BasicSecond:user:pass"}},
 		{"shared bearer roles", "bearer_roles", "Bearer token", "", false, false, 1, []string{"Bearer:token:[]", "BearerSecond:token:[]"}},
-		{"OAuth scopes", "oauth_roles", "Bearer token", "", false, false, 1, []string{"OAuth:token:[read]", "OAuthSecond:token:[read]"}},
+		{"OAuth scopes", "oauth_roles", "Bearer token", "", false, false, 1, []string{"OAuth:token:[read]", "OAuthSecond:token:[]"}},
 		{"inherited", "inherit", "Bearer token", "", false, false, 1, []string{"Bearer:token:[]"}},
 		{"public override", "public", "", "", false, false, 1, nil},
 		{"anonymous alternative", "optional", "", "", true, false, 1, []string{"Bearer::[]"}},
@@ -182,7 +186,7 @@ func TestImportedCredentialClientWire(t *testing.T) {
 	}{
 		{"either", &svc.EitherPayload{BasicUsername: &user, BasicPassword: &pass}, client.EncodeEitherRequest(nil), []string{"Basic:user:pass"}},
 		{"either", &svc.EitherPayload{BearerToken: &token}, client.EncodeEitherRequest(nil), []string{"Basic::", "Bearer:token:[]"}},
-		{"both", &svc.BothPayload{BearerToken: &token}, client.EncodeBothRequest(nil), []string{"Bearer:token:[]", "OAuth:token:[]"}},
+		{"both", &svc.BothPayload{BearerToken: &token}, client.EncodeBothRequest(nil), []string{"Bearer:token:[admin]", "OAuth:token:[read]"}},
 		{"keys", &svc.KeysPayload{OneCredential: &key}, client.EncodeKeysRequest(nil), []string{"One:key", "Two:key"}},
 	} {
 		t.Run(tc.path+tc.auth[0], func(t *testing.T) {
@@ -202,5 +206,21 @@ func TestImportedCredentialClientWire(t *testing.T) {
 				t.Errorf("auth=%v want=%v", s.auth, tc.auth)
 			}
 		})
+	}
+}
+
+func TestImportedMissingRole(t *testing.T) {
+	s := &implementation{denyRole: true}
+	mux := loomhttp.NewMuxer()
+	server.Mount(mux, server.New(svc.NewEndpoints(s), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil))
+	req := httptest.NewRequest(http.MethodGet, "/both", nil)
+	req.Header.Set("Authorization", "Bearer token")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if s.calls != 0 || rec.Code < 400 {
+		t.Errorf("missing role allowed invocation: calls=%d status=%d", s.calls, rec.Code)
+	}
+	if !reflect.DeepEqual(s.auth, []string{"Bearer:token:[admin]"}) {
+		t.Errorf("unexpected callbacks after role denial: %v", s.auth)
 	}
 }

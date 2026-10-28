@@ -100,8 +100,26 @@ that scheme, in requirement order. An unscoped API key combined with a JWT that
 declares `read` receives no required scopes; the JWT receives `read`. A scope
 declared by both schemes is required by both. Scopes declared by none are rejected
 in the design. Separate `Security` calls remain independent alternatives.
-Regenerate endpoints and OpenAPI after upgrading; callbacks can continue using
-`scheme.Validate(grantedScopes)` without filtering another scheme's scopes.
+Use `ScopeFor(oauth, "read")` inside `Security` when OAuth schemes have
+independent requirements, including overlapping scope inventories. Use
+`RoleFor(key, "admin")` for non-OAuth role names. Both calls add requirements only
+to their selected scheme; they add to any shared `Scope` declarations. Empty
+per-scheme lists require authentication without extra grants. A name required
+by one scheme never becomes required by another merely because both declare it.
+
+Role names have no protocol-defined inventory and are not exchanged on the
+wire. Basic, API-key and JWT callbacks receive these application permission
+names in `RequiredScopes`; `scheme.Validate(grantedNames)` requires all of them.
+The application obtains the granted names from its authenticated principal and
+must call `Validate` or enforce equivalent checks before returning success.
+OAuth callbacks continue receiving declared OAuth scopes in the same field.
+ScopeFor on non-OAuth schemes, RoleFor on OAuth schemes, unknown selected
+schemes and unknown OAuth scopes are rejected.
+
+Regenerate endpoints and OpenAPI after upgrading. OpenAPI now exports required
+non-OAuth names as role arrays, including requirements authored with shared
+`Scope`. Existing credential wire formats and the callbacks' validation rule
+are unchanged.
 
 `StrictAuthorization()` at API or service scope requires every method to declare
 `Authorize`, `AuthorizeBy`, or `NoAccessCheck`. Existing designs remain unchanged

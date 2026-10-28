@@ -277,16 +277,7 @@ func (a *analyzer) securityRequirements(source []*base.SecurityRequirement, path
 				a.unsupported("security-requirement", schemePath, fmt.Sprintf("security scheme %q is not a supported component", name))
 				continue
 			}
-			if scheme.Type != "oauth2" && len(scopes) > 0 {
-				a.unsupported("security-requirement", schemePath, "non-OAuth security requirement scopes must be empty")
-			}
-			if scheme.Type == "oauth2" {
-				for _, scope := range scopes {
-					if !securityScopeDefined(scheme.Scopes, scope) {
-						a.unsupported("security-requirement", schemePath, fmt.Sprintf("OAuth scope %q is not defined by scheme %q", scope, name))
-					}
-				}
-			}
+
 			normalizedScopes := append([]string(nil), scopes...)
 			sort.Strings(normalizedScopes)
 			requirement.Schemes = append(requirement.Schemes, SecurityRequirementScheme{
@@ -297,22 +288,6 @@ func (a *analyzer) securityRequirements(source []*base.SecurityRequirement, path
 		requirements = append(requirements, requirement)
 	}
 	return requirements
-}
-
-func equalStrings(left, right []string) bool {
-	if len(left) != len(right) {
-		return false
-	}
-	want := append([]string(nil), left...)
-	got := append([]string(nil), right...)
-	sort.Strings(want)
-	sort.Strings(got)
-	for index := range want {
-		if want[index] != got[index] {
-			return false
-		}
-	}
-	return true
 }
 
 func securityScopeDefined(scopes []SecurityScope, name string) bool {
@@ -392,8 +367,7 @@ func (r *renderer) securityRequirements(requirements SecurityRequirements) error
 			continue
 		}
 		arguments := make([]string, 0, len(requirement.Schemes))
-		scopes, err := securityRequirementScopes(requirement)
-		if err != nil {
+		if err := validateSecurityRequirement(requirement, r.document.Components, r.document.OpenAPIVersion); err != nil {
 			return fmt.Errorf("render OpenAPI design: %w", err)
 		}
 		for _, reference := range requirement.Schemes {
@@ -403,37 +377,61 @@ func (r *renderer) securityRequirements(requirements SecurityRequirements) error
 			}
 			arguments = append(arguments, scheme.GoName)
 		}
-		if len(scopes) == 0 {
+		hasNames := false
+		for _, reference := range requirement.Schemes {
+			hasNames = hasNames || len(reference.Scopes) > 0
+		}
+		if !hasNames {
 			r.line("Security(%s)", strings.Join(arguments, ", "))
 			continue
 		}
 		r.open("Security(%s, func()", strings.Join(arguments, ", "))
-		for _, scope := range scopes {
-			r.line("Scope(%q)", scope)
+		for _, reference := range requirement.Schemes {
+			scheme := securitySchemeByName(r.document.Components.SecuritySchemes, reference.Name)
+			call := "RoleFor"
+			if scheme.Type == "oauth2" {
+				call = "ScopeFor"
+			}
+			for _, name := range reference.Scopes {
+				r.line("%s(%s, %q)", call, scheme.GoName, name)
+			}
 		}
 		r.close()
 	}
 	return nil
 }
 
-// securityRequirementScopes admits only a source conjunction that one Loom
-// requirement scope list can express without changing any scheme's checks.
-func securityRequirementScopes(requirement SecurityRequirement) ([]string, error) {
-	if len(requirement.Schemes) == 0 {
-		return nil, nil
-	}
-	first := requirement.Schemes[0]
-	for _, reference := range requirement.Schemes[1:] {
-		if !equalStrings(first.Scopes, reference.Scopes) {
-			return nil, fmt.Errorf("security schemes %q and %q in one requirement use different scopes; Loom requires the same scopes for every scheme in a conjunction", first.Name, reference.Name)
+// validateSecurityRequirement also checks normalized documents supplied directly
+// to Render. Role names have no protocol-defined inventory.
+func validateSecurityRequirement(requirement SecurityRequirement, components Components, version string) error {
+	seen := make(map[string]bool)
+	for _, reference := range requirement.Schemes {
+		scheme := securitySchemeByName(components.SecuritySchemes, reference.Name)
+		if scheme == nil {
+			return fmt.Errorf("security scheme %q is not defined", reference.Name)
+		}
+		if seen[reference.Name] {
+			return fmt.Errorf("security scheme %q occurs twice in one requirement", reference.Name)
+		}
+		seen[reference.Name] = true
+		if scheme.Type != "oauth2" {
+			if strings.HasPrefix(version, "3.0.") && len(reference.Scopes) > 0 {
+				return fmt.Errorf("non-OAuth security requirement arrays must be empty in OpenAPI 3.0")
+			}
+			continue
+		}
+		for _, scope := range reference.Scopes {
+			if !securityScopeDefined(scheme.Scopes, scope) {
+				return fmt.Errorf("OAuth scope %q is not defined by scheme %q", scope, reference.Name)
+			}
 		}
 	}
-	return first.Scopes, nil
+	return nil
 }
 
 func (p *documentPlanner) securityRequirements(requirements SecurityRequirements, path string) {
 	for index, requirement := range requirements {
-		if _, err := securityRequirementScopes(requirement); err != nil {
+		if err := validateSecurityRequirement(requirement, p.document.Components, p.document.OpenAPIVersion); err != nil {
 			p.unsupported("security-requirement", fmt.Sprintf("%s/%d", path, index), err.Error())
 		}
 	}

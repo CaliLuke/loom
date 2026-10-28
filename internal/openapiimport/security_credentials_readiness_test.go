@@ -127,13 +127,14 @@ func TestSecurityCredentialReadinessScopeAdmission(t *testing.T) {
 		requirement string
 		unsupported bool
 	}{
-		{"{Bearer: [], OAuth: [read]}", true},
-		{"{OAuth: [read], Bearer: []}", true},
-		{"{OAuth: [], Other: [read]}", true},
-		{"{OAuth: [read], Other: []}", true},
+		{"{Bearer: [], OAuth: [read]}", false},
+		{"{OAuth: [read], Bearer: []}", false},
+		{"{OAuth: [], Other: [read]}", false},
+		{"{OAuth: [read], Other: []}", false},
 		{"{OAuth: [read], Other: [read]}", false},
 		{"{Bearer: [], OAuth: []}", false},
 		{"{Bearer: []}, {OAuth: [read]}", false},
+		{"{Bearer: [admin], OAuth: [read]}", false},
 	} {
 		t.Run(tc.requirement, func(t *testing.T) {
 			source := []byte(`openapi: 3.2.0
@@ -183,7 +184,7 @@ func TestSecurityCredentialRoles(t *testing.T) {
 		},
 		Components: Components{SecuritySchemes: []SecurityScheme{
 			{Name: "JWT", GoName: "JWT", Type: "http", Scheme: "bearer"},
-			{Name: "OAuth", GoName: "OAuth", Type: "oauth2"},
+			{Name: "OAuth", GoName: "OAuth", Type: "oauth2", Scopes: []SecurityScope{{Name: "read"}}},
 		}},
 	}
 	before, err := json.Marshal(document, json.Deterministic(true))

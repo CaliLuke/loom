@@ -157,3 +157,54 @@ func matrixMethod(transport, path string, security func(), credentials ...string
 		JSONRPC(func() {})
 	}
 }
+
+// SecurityPerSchemeDSL checks separate requirements on schemes with overlapping
+// scope inventories and separate alternatives on one physical credential.
+func SecurityPerSchemeDSL(transport string) func() {
+	return func() {
+		left := OAuth2Security("left", func() {
+			ClientCredentialsFlow("https://example.com/token", "")
+			Scope("read")
+			Scope("write")
+		})
+		right := OAuth2Security("right", func() {
+			ClientCredentialsFlow("https://example.com/token", "")
+			Scope("read")
+			Scope("write")
+		})
+		API("per_scheme", func() {
+			if transport == "jsonrpc" {
+				JSONRPC(func() {})
+			}
+		})
+		Service("per_scheme", func() {
+			matrixTransportService(transport, "per_scheme")
+			Method("read", func() {
+				Security(left, right, func() {
+					ScopeFor(left, "read")
+					ScopeFor(right, "write")
+				})
+				Security(right, func() {
+					ScopeFor(right, "read")
+				})
+				Security()
+				Payload(func() {
+					AccessToken("token")
+					if transport == "jsonrpc" {
+						ID("id", String)
+					}
+				})
+				switch transport {
+				case "http":
+					HTTP(func() {
+						GET("/per_scheme")
+					})
+				case "grpc":
+					GRPC(func() {})
+				case "jsonrpc":
+					JSONRPC(func() {})
+				}
+			})
+		})
+	}
+}

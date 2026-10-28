@@ -32,3 +32,14 @@ func TestJSONRPCSecurityScope(t *testing.T) {
 		})
 	}
 }
+
+func TestJSONRPCPerSchemeSecurityProjection(t *testing.T) {
+	root := RunJSONRPCDSL(t, testdata.SecurityPerSchemeDSL("jsonrpc"))
+	endpoint := CreateJSONRPCServices(root).Get("per_scheme").Endpoint("read")
+	requirements := endpoint.Method.Requirements
+	require.Len(t, requirements, 3)
+	require.Equal(t, []string{"read"}, requirements[0].Schemes[0].RequiredScopes)
+	require.Equal(t, []string{"write"}, requirements[0].Schemes[1].RequiredScopes)
+	require.Equal(t, []string{"read"}, requirements[1].Schemes[0].RequiredScopes)
+	require.Empty(t, requirements[2].Schemes)
+}

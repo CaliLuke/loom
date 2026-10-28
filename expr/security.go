@@ -66,6 +66,10 @@ type (
 		Schemes []*SchemeExpr
 		// Scopes list the required scopes if any.
 		Scopes []string
+		// SchemeRequirements holds names required only by the named scheme.
+		// OAuth2 values are declared scopes; other values are application roles.
+		// These requirements are additive to Scopes, never shared across schemes.
+		SchemeRequirements map[string][]string
 	}
 
 	// SessionAuthExpr defines a logical auth contract backed by one or more
@@ -263,8 +267,9 @@ func (s *SecurityExpr) EvalName() string {
 // DupRequirement creates a copy of the given security requirement.
 func DupRequirement(req *SecurityExpr) *SecurityExpr {
 	dup := &SecurityExpr{
-		Scopes:  req.Scopes,
-		Schemes: make([]*SchemeExpr, 0, len(req.Schemes)),
+		Scopes:             append([]string(nil), req.Scopes...),
+		Schemes:            make([]*SchemeExpr, 0, len(req.Schemes)),
+		SchemeRequirements: dupSchemeRequirements(req.SchemeRequirements),
 	}
 	for _, s := range req.Schemes {
 		dup.Schemes = append(dup.Schemes, DupScheme(s))
@@ -279,6 +284,7 @@ func DupScheme(sch *SchemeExpr) *SchemeExpr {
 		SchemeName:  sch.SchemeName,
 		Description: sch.Description,
 		In:          sch.In,
+		Name:        sch.Name,
 		Scopes:      sch.Scopes,
 		Flows:       sch.Flows,
 		Meta:        sch.Meta,

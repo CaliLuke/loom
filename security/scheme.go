@@ -24,8 +24,9 @@ type (
 		Name string
 		// Scopes holds a list of scopes for the scheme.
 		Scopes []string
-		// RequiredScopes holds a list of scopes which are required
-		// by the scheme. It is a subset of Scopes field.
+		// RequiredScopes holds required application permission or role names.
+		// RoleFor names need not occur in Scopes. Validate checks all these
+		// names against the authenticated principal's application-owned grants.
 		RequiredScopes []string
 	}
 
@@ -36,8 +37,9 @@ type (
 		Name string
 		// Scopes holds a list of scopes for the scheme.
 		Scopes []string
-		// RequiredScopes holds a list of scopes which are required
-		// by the scheme. It is a subset of Scopes field.
+		// RequiredScopes holds required application permission or role names.
+		// RoleFor names need not occur in Scopes. Validate checks all these
+		// names against the authenticated principal's application-owned grants.
 		RequiredScopes []string
 	}
 
@@ -48,8 +50,9 @@ type (
 		Name string
 		// Scopes holds a list of scopes for the scheme.
 		Scopes []string
-		// RequiredScopes holds a list of scopes which are required
-		// by the scheme. It is a subset of Scopes field.
+		// RequiredScopes holds required application permission or role names.
+		// RoleFor names need not occur in Scopes. Validate checks all these
+		// names against the authenticated principal's application-owned grants.
 		RequiredScopes []string
 	}
 
