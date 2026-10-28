@@ -1,6 +1,8 @@
 package openapiv3_test
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -27,6 +29,32 @@ func TestRenderedOAuthRequiredScopeOwnership(t *testing.T) {
 			for _, file := range files {
 				data := renderSection(t, file.AllSections()[0])
 				validateOpenAPIVersion(t, data.Bytes(), wantVersion)
+			}
+		})
+	}
+}
+
+func TestRenderedPerSchemeRequirements(t *testing.T) {
+	var vacuum contractVacuum
+	if os.Getenv("LOOM_OPENAPI_CONTRACT") != "" {
+		vacuum = installContractVacuum(t)
+	}
+	for _, version := range []struct{ target, want string }{
+		{"3.1", openapiv3.OpenAPICompatibilityVersion}, {"3.2", openapiv3.OpenAPIVersion},
+	} {
+		t.Run(version.target, func(t *testing.T) {
+			artifacts := renderOpenAPIArtifactsForVersion(t, servicetestdata.SecurityRequiredScopesDSL, version.target, version.want)
+			spec := decodeOpenAPIJSON(t, artifacts.JSON)
+			operation := spec["paths"].(map[string]any)["/isolated"].(map[string]any)["get"].(map[string]any)
+			require.Equal(t, []any{map[string]any{"oauth": []any{"shared"}, "second": []any{"oauth"}, "key": []any{"admin"}}}, operation["security"])
+			flows := spec["components"].(map[string]any)["securitySchemes"].(map[string]any)["oauth"].(map[string]any)["flows"].(map[string]any)
+			require.Equal(t, map[string]any{"oauth": "User consent", "shared": "User grant"}, flows["authorizationCode"].(map[string]any)["scopes"])
+			require.Equal(t, map[string]any{"machine": "Machine grant", "shared": "Machine permission"}, flows["clientCredentials"].(map[string]any)["scopes"])
+			require.Empty(t, flows["implicit"].(map[string]any)["scopes"])
+			if os.Getenv("LOOM_OPENAPI_CONTRACT") != "" {
+				path := filepath.Join(t.TempDir(), "openapi.yaml")
+				require.NoError(t, os.WriteFile(path, artifacts.YAML, 0o600))
+				require.NoError(t, vacuum.lint(path))
 			}
 		})
 	}

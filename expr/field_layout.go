@@ -6,6 +6,7 @@ import "github.com/CaliLuke/loom/internal/encodingmeta"
 // Composition uses the same owner after inherited defaults and requiredness have
 // been finalized. Type names remain the code generator's responsibility.
 func ServiceFieldLayout(parent *AttributeExpr, name string, attribute *AttributeExpr, pointer, useDefault bool) encodingmeta.FieldLayout {
+	parent = fieldLayoutDeclaration(parent)
 	return serviceFieldLayout(attribute, parent.IsRequired(name), pointer, func() bool {
 		return parent.IsPrimitivePointer(name, useDefault)
 	})
@@ -15,7 +16,7 @@ func ServiceFieldLayout(parent *AttributeExpr, name string, attribute *Attribute
 // The attribute supplies current explicit type and codec decisions; callers must
 // pair facts and attributes from the same stable object analysis.
 func (f ObjectFieldFacts) ServiceLayout(attribute *AttributeExpr, pointer, useDefault bool) encodingmeta.FieldLayout {
-	return serviceFieldLayout(attribute, f.Required, pointer, func() bool {
+	return serviceFieldLayout(attribute, f.LayoutRequired, pointer, func() bool {
 		return f.PrimitivePointer(useDefault)
 	})
 }

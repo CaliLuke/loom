@@ -317,7 +317,7 @@ func (a *AttributeContext) FieldPresence(parent expr.FieldFactsProvider, name st
 	}
 	if a.JSONPresence && parent != nil {
 		facts := parent.FieldFacts(name)
-		if facts.ParentPresent && (!facts.Required || facts.HasDefault) {
+		if facts.ParentPresent && (!facts.LayoutRequired || facts.HasDefault) {
 			return OptionalPresence
 		}
 	}

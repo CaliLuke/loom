@@ -74,7 +74,8 @@ type (
 		KeyAttr string
 		// Scopes lists the scopes that apply to the scheme.
 		Scopes []string
-		// RequiredScopes lists this requirement's scopes declared by the scheme.
+		// RequiredScopes holds this requirement's names for the scheme: declared
+		// OAuth scopes or application permission/role names for non-OAuth schemes.
 		RequiredScopes []string
 		// Flows describes the OAuth2 flows.
 		Flows []*expr.FlowExpr

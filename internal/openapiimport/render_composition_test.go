@@ -40,12 +40,12 @@ components:
 
 	document, diagnostics, err := Analyze(source)
 	require.NoError(t, err)
-	requireDiagnosticCode(t, diagnostics, "schema-allof-flattened")
+	require.Empty(t, diagnostics)
 	requireNoDiagnosticCode(t, diagnostics, "schema")
 	requireNoDiagnosticCode(t, diagnostics, "schema-composition")
 	fatal, warnings := diagnostics.Classify(true)
 	require.Empty(t, fatal)
-	require.NotEmpty(t, warnings)
+	require.Empty(t, warnings)
 
 	rendered, err := Render(document, Options{PackageName: "design"})
 	require.NoError(t, err)

@@ -69,7 +69,7 @@ func TestImportedSecurityCredentialsGenerated(t *testing.T) {
 	}
 }
 
-func TestSecurityCredentialScopePartialImport(t *testing.T) {
+func TestSecurityCredentialUnknownScopePartialImport(t *testing.T) {
 	source, err := os.ReadFile("testdata/security_credentials/imported.json")
 	require.NoError(t, err)
 	document, diagnostics, err := Analyze(source)
@@ -78,16 +78,16 @@ func TestSecurityCredentialScopePartialImport(t *testing.T) {
 	// Render also rejects a normalized source rather than relying on the parser.
 	document.Operations[0].SecurityDefined = true
 	document.Operations[0].Security = SecurityRequirements{{Schemes: []SecurityRequirementScheme{
-		{Name: "Bearer"}, {Name: "OAuth", Scopes: []string{"read"}},
+		{Name: "Bearer"}, {Name: "OAuth", Scopes: []string{"unknown"}},
 	}}}
 	_, err = Render(document, Options{})
-	require.ErrorContains(t, err, "use different scopes")
+	require.ErrorContains(t, err, "not defined by scheme")
 
 	var input map[string]any
 	require.NoError(t, json.Unmarshal(source, &input))
 	input["paths"] = map[string]any{
 		"/bad": map[string]any{"get": map[string]any{
-			"security":  []any{map[string]any{"Bearer": []any{}, "OAuth": []any{"read"}}},
+			"security":  []any{map[string]any{"Bearer": []any{}, "OAuth": []any{"unknown"}}},
 			"responses": map[string]any{"204": map[string]any{"description": "Done"}},
 		}},
 		"/good": map[string]any{"get": map[string]any{
@@ -101,7 +101,7 @@ func TestSecurityCredentialScopePartialImport(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, partial.Skipped, 1)
 		require.Equal(t, "/bad", partial.Skipped[0].Path)
-		require.Equal(t, "#/paths/~1bad/get/security/0", partial.Skipped[0].Diagnostics[0].Path)
+		require.Contains(t, partial.Skipped[0].Diagnostics[0].Path, "#/paths/~1bad/get/security/0")
 		require.Equal(t, "security-requirement", partial.Skipped[0].Diagnostics[0].Code)
 		require.Len(t, partial.Document.Operations, 1)
 		require.Equal(t, "/good", partial.Document.Operations[0].Path)

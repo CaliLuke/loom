@@ -69,7 +69,7 @@ func requestBodyRefFromIR(body *openapiir.RequestBodyRef) *RequestBodyRef {
 		return nil
 	}
 	if body.Ref != "" {
-		return &RequestBodyRef{Ref: body.Ref}
+		return &RequestBodyRef{Ref: body.Ref, Description: body.Description, Summary: body.Summary}
 	}
 	return requestBodyFromIR(body.Value)
 }
@@ -95,7 +95,7 @@ func responseRefFromIR(response *openapiir.ResponseRef) *ResponseRef {
 		return nil
 	}
 	if response.Ref != "" {
-		return &ResponseRef{Ref: response.Ref, Description: response.Description}
+		return &ResponseRef{Ref: response.Ref, Description: response.Description, Summary: response.Summary}
 	}
 	return &ResponseRef{Value: responseFromIR(response.Value)}
 }
@@ -177,7 +177,7 @@ func headerRefFromIR(header *openapiir.HeaderRef) *HeaderRef {
 		return nil
 	}
 	if header.Ref != "" {
-		return &HeaderRef{Ref: header.Ref}
+		return &HeaderRef{Ref: header.Ref, Description: header.Description, Summary: header.Summary}
 	}
 	return &HeaderRef{Value: &Header{
 		Description:   header.Value.Description,

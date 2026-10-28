@@ -63,17 +63,19 @@ func analyzeSelectedDocument(source []byte, selection Selection) (*Document, Dia
 	if err != nil {
 		return nil, nil, SelectionReport{}, fmt.Errorf("inspect numeric source: %w", err)
 	}
+	positions := numericSourcePositions(parsed.GetSpecInfo().RootNode, numbers)
 	model, err := parsed.BuildV3Model()
 	if err != nil {
 		return nil, nil, SelectionReport{}, fmt.Errorf("build OpenAPI %s model: %w", version, err)
 	}
 	analyzer := analyzer{
-		diagnostics: diagnostics,
-		selection:   selection,
-		examples:    make(map[string]Example),
-		schemas:     make(map[string]*Schema),
-		version:     version,
-		numbers:     numbers,
+		diagnostics:      diagnostics,
+		selection:        selection,
+		examples:         make(map[string]Example),
+		schemas:          make(map[string]*Schema),
+		version:          version,
+		numbers:          numbers,
+		numericPositions: positions,
 	}
 	document := analyzer.document(&model.Model)
 	if selection.Active() {
@@ -84,13 +86,14 @@ func analyzeSelectedDocument(source []byte, selection Selection) (*Document, Dia
 }
 
 type analyzer struct {
-	diagnostics Diagnostics
-	selection   Selection
-	report      SelectionReport
-	examples    map[string]Example
-	schemas     map[string]*Schema
-	version     string
-	numbers     map[string]numericSource
+	diagnostics      Diagnostics
+	selection        Selection
+	report           SelectionReport
+	examples         map[string]Example
+	schemas          map[string]*Schema
+	version          string
+	numbers          map[string]numericSource
+	numericPositions map[numericPosition]numericSource
 }
 
 var concreteHTTPStatus = regexp.MustCompile(`^[1-5][0-9]{2}$`)
@@ -404,11 +407,17 @@ func (a *analyzer) requestBody(source *v3.RequestBody, path string) RequestBody 
 	if source == nil {
 		return RequestBody{}
 	}
-	if reference := source.Reference; reference != "" {
-		return RequestBody{Ref: reference}
+	reference := source.Reference
+	var referenceNode *yaml.Node
+	if low := source.GoLow(); low != nil {
+		if reference == "" && low.IsReference() {
+			reference = low.GetReference()
+		}
+		referenceNode = low.GetReferenceNode()
 	}
-	if low := source.GoLow(); low != nil && low.IsReference() {
-		return RequestBody{Ref: low.GetReference()}
+	if reference != "" {
+		description, summary := a.referenceAnnotations(referenceNode)
+		return RequestBody{Ref: reference, ReferenceDescription: description, ReferenceSummary: summary}
 	}
 	contentTypes, schema, examples := a.requestContent(source.Content, path+"/content")
 	body := RequestBody{
@@ -424,11 +433,17 @@ func (a *analyzer) response(source *v3.Response, path string) Response {
 	if source == nil {
 		return Response{}
 	}
-	if reference := source.Reference; reference != "" {
-		return Response{Ref: reference}
+	reference := source.Reference
+	var referenceNode *yaml.Node
+	if low := source.GoLow(); low != nil {
+		if reference == "" && low.IsReference() {
+			reference = low.GetReference()
+		}
+		referenceNode = low.GetReferenceNode()
 	}
-	if low := source.GoLow(); low != nil && low.IsReference() {
-		return Response{Ref: low.GetReference()}
+	if reference != "" {
+		description, summary := a.referenceAnnotations(referenceNode)
+		return Response{Ref: reference, ReferenceDescription: description, ReferenceSummary: summary}
 	}
 	contentType, schema, examples := a.content(source.Content, path+"/content")
 	response := Response{
@@ -458,11 +473,17 @@ func (a *analyzer) header(source *v3.Header, path string) Header {
 	if source == nil {
 		return Header{}
 	}
-	if reference := source.Reference; reference != "" {
-		return Header{Ref: reference}
+	reference := source.Reference
+	var referenceNode *yaml.Node
+	if low := source.GoLow(); low != nil {
+		if reference == "" && low.IsReference() {
+			reference = low.GetReference()
+		}
+		referenceNode = low.GetReferenceNode()
 	}
-	if low := source.GoLow(); low != nil && low.IsReference() {
-		return Header{Ref: low.GetReference()}
+	if reference != "" {
+		description, summary := a.referenceAnnotations(referenceNode)
+		return Header{Ref: reference, ReferenceDescription: description, ReferenceSummary: summary}
 	}
 	header := Header{
 		Description: source.Description, Required: source.Required,
@@ -527,14 +548,7 @@ func (a *analyzer) schema(proxy *base.SchemaProxy, path string) *Schema {
 	}
 	a.schemaUnknownKeywordDiagnostics(proxy, path)
 	if proxy.IsReference() {
-		if proxy.IsTransformedRefWithSiblings() {
-			a.unsupported(
-				"schema-reference-siblings",
-				path,
-				"schema $ref siblings are not in the strict import subset; wrap the reference in a supported allOf shape",
-			)
-		}
-		return &Schema{Ref: proxy.GetReference()}
+		return a.schemaReference(proxy, path)
 	}
 	if node := semanticSchemaNode(proxy); node != nil && node.Kind == yaml.ScalarNode && node.Tag == "!!bool" {
 		var value bool
@@ -549,9 +563,13 @@ func (a *analyzer) schema(proxy *base.SchemaProxy, path string) *Schema {
 		a.unsupported("empty-schema", path, "schema could not be resolved")
 		return &Schema{}
 	}
+	return a.schemaSource(source, path)
+}
+
+func (a *analyzer) schemaSource(source *base.Schema, path string) *Schema {
 	schema := newNormalizedSchema(source)
 	a.schemaPattern(schema, path)
-	a.schemaNumericBounds(schema, path)
+	a.schemaNumericBounds(schema, source, path)
 	supportedNullableComposition := a.schemaNullableAnyOf(schema, source, path)
 	supportedNullableOneOf := schemaNullableReferenceOneOf(schema, source)
 	supportedUntaggedOneOf := false

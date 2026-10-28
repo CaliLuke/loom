@@ -13,12 +13,12 @@ import (
 )
 
 // These expected graphs include the existing export normalization of aliases
-// and flattened Extend bases. Other named targets and occurrence constraints stay exact.
+// and retained Extend references. Other named targets and occurrence constraints stay exact.
 var recursiveSchemaGraphs = map[string]string{
 	"acyclic":             `{"Node":{"properties":{"name":{"type":"string"}},"type":"object"}}`,
 	"self_array":          `{"Node":{"properties":{"children":{"items":{"$ref":"#/components/schemas/Node"},"type":"array"},"name":{"type":"string"}},"type":"object"}}`,
 	"mutual_map_array":    `{"Branch":{"properties":{"children":{"items":{"$ref":"#/components/schemas/Node"},"type":"array"}},"type":"object"},"Node":{"properties":{"branches":{"additionalProperties":{"$ref":"#/components/schemas/Branch"},"type":"object"}},"type":"object"}}`,
-	"mixed_inheritance":   `{"Node":{"properties":{"child":{"$ref":"#/components/schemas/Node"},"name":{"type":"string"}},"type":"object"}}`,
+	"mixed_inheritance":   `{"Base":{"properties":{"child":{"$ref":"#/components/schemas/Node"}},"type":"object"},"Node":{"allOf":[{"$ref":"#/components/schemas/Base"},{"properties":{"child":{"$ref":"#/components/schemas/Node"},"name":{"type":"string"}},"type":"object"}]}}`,
 	"top_array_object":    `{"Branch":{"properties":{"child":{"$ref":"#/components/schemas/Node"}},"type":"object"},"Node":{"items":{"$ref":"#/components/schemas/Branch"},"type":"array"}}`,
 	"alias_object":        `{"Branch":{"properties":{"child":{"$ref":"#/components/schemas/Branch"}},"type":"object"}}`,
 	"nested_promoted":     `{"Node":{"properties":{"children":{"items":{"$ref":"#/components/schemas/NodeChildrenItem"},"type":"array"},"name":{"minLength":2,"type":"string"}},"required":["name"],"type":"object"},"NodeChildrenItem":{"additionalProperties":{"items":{"anyOf":[{"$ref":"#/components/schemas/Node"},{"type":"null"}]},"minItems":1,"type":"array"},"type":"object"}}`,

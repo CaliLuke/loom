@@ -33,6 +33,19 @@ func (a *AttributeExpr) DSLSource() func() {
 	return a.DSLFunc
 }
 
+// CompositionBases returns the named object contracts retained by Extend after
+// composition. The returned slice is detached; its declarations are shared and
+// must not be mutated. Before composition it returns the authored bases.
+func (a *AttributeExpr) CompositionBases() []DataType {
+	if a == nil {
+		return nil
+	}
+	if len(a.compositionBases) > 0 {
+		return slices.Clone(a.compositionBases)
+	}
+	return slices.Clone(a.Bases)
+}
+
 // composeDesign establishes object shape before any transport prepares a
 // mapping or validation inspects a field set. Finalize still owns defaults,
 // views and transport lowering that depend on successful validation.

@@ -273,6 +273,7 @@ Rendered schema validation and actual decoder behavior are separate obligations.
 | Public message ownership, history masking, diagnostic exclusion, transparent wrappers and independent joins | [Public disclosure](../../../../pkg/tla/error_disclosure/README.md); finite owner/message model, with HTTP/gRPC/JSON-RPC unary/SSE/WebSocket wire tests |
 | gRPC aggregate error status and detail ownership | [Error contracts](../../../../grpc/tla/error_contract/README.md); bounded branch-order and complete-failure checks, with wrappers and generated unary/streaming mappings tested in Go |
 | Nearest raw forwarding boundary and prefix independence | [Forwarded client trust](../../../../http/tla/forwarded_client/README.md); bounded chains, with IP parsing and repeated-header grouping checked in Go |
+| Per-scheme security scopes and roles with AND/OR/anonymous alternatives | [Security requirements](../../../../expr/tla/security_requirements/README.md); flattened-name counterexample and generated credential checks |
 | Authentication alternatives, optional credential extraction and failed-context isolation | [Credential alternatives](../../../../internal/securitygen/tla/credential_alternatives/README.md); finite extraction/control model, with actual framing and HTTP/JSON-RPC/gRPC wire regressions |
 | gRPC pre-frame admission, complete application input, original cancellation and middleware rechecks; ordered AND/OR contexts and failed-branch reset | [Stream admission](../../../../security/tla/stream_admission/README.md); positive and deliberate negative models paired with runtime and generated transport regressions |
 | Scalar query/header/cookie absence, defaults and conversion admission | [Scalar binding presence](../../../../http/codegen/tla/scalar_binding_presence/README.md); supplied-empty counterexample, shared decoder and mounted HTTP/JSON-RPC controls |
@@ -355,3 +356,11 @@ The [discriminator admission model](../../../../http/codegen/openapi/internal/ir
 records optional/fallback admission and 3.1 projection. Go tests cover reference
 resolution and graph retention outside its Boolean assumptions.
 | JSON-RPC envelope ID source, presence and validation ordering | [Envelope ID admission](../../../../http/codegen/tla/jsonrpc_id_admission/README.md); params-first and late-handler counterexamples, shared carrier/CLI validation and mounted unary/SSE/WebSocket controls |
+
+OAuth flow inventories: [independent defaults and overrides](../../../../expr/tla/oauth_flow_scopes/README.md), with a flattening counterexample and generated callback checks.
+
+Schema reference siblings: [conjunction and declaration storage](../../../../internal/openapiimport/tla/reference_siblings/README.md), with rejection, replacement, mutation and occurrence-storage counterexamples.
+
+The [reusable-reference model](../../../../internal/openapiimport/tla/reusable_references/README.md)
+checks component identity, occurrence overlays, immutable definitions and bounded
+forward-reference/cycle admission across request bodies, responses and headers.

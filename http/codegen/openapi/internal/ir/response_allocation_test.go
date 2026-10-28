@@ -83,7 +83,7 @@ func responseAllocationUse(semantic, allocation, base string, forced bool) respo
 }
 
 func responseAllocatedNames(uses []responseComponentUse) ([]string, *responseNameAllocator) {
-	allocator := newResponseNameAllocator(uses)
+	allocator := newResponseNameAllocator(uses, nil)
 	names := make([]string, len(uses))
 	for i, use := range uses {
 		if use.forced || allocator.counts[use.keys.semantic] >= 2 {

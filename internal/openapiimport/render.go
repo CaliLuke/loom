@@ -39,6 +39,7 @@ func Render(document *Document, options Options) ([]byte, error) {
 	if len(plan.diagnostics) > 0 {
 		return nil, fmt.Errorf("render OpenAPI design: cannot preserve the input contract:\n%s", plan.diagnostics.Error())
 	}
+	document = plan.document
 	r := renderer{
 		document:     document,
 		schemas:      plan.schemas,

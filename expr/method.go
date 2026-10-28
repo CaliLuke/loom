@@ -3,6 +3,7 @@ package expr
 import (
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/CaliLuke/loom/eval"
 )
@@ -419,22 +420,7 @@ func copyReqs(reqs []*SecurityExpr) []*SecurityExpr {
 	}
 	reqs2 := make([]*SecurityExpr, len(reqs))
 	for i, req := range reqs {
-		req2 := &SecurityExpr{Scopes: req.Scopes}
-		schs := make([]*SchemeExpr, len(req.Schemes))
-		for j, sch := range req.Schemes {
-			schs[j] = &SchemeExpr{
-				Kind:        sch.Kind,
-				SchemeName:  sch.SchemeName,
-				Description: sch.Description,
-				In:          sch.In,
-				Name:        sch.Name,
-				Scopes:      sch.Scopes,
-				Flows:       sch.Flows,
-				Meta:        sch.Meta,
-			}
-		}
-		req2.Schemes = schs
-		reqs2[i] = req2
+		reqs2[i] = DupRequirement(req)
 	}
 	return reqs2
 }
@@ -532,11 +518,17 @@ func containsRequirement(requirements []*SecurityExpr, candidate *SecurityExpr) 
 }
 
 func requirementEqual(left *SecurityExpr, right *SecurityExpr) bool {
-	if len(left.Scopes) != len(right.Scopes) || len(left.Schemes) != len(right.Schemes) {
+	if len(left.Scopes) != len(right.Scopes) || len(left.Schemes) != len(right.Schemes) || len(left.SchemeRequirements) != len(right.SchemeRequirements) {
 		return false
 	}
 	for i, scope := range left.Scopes {
 		if right.Scopes[i] != scope {
+			return false
+		}
+	}
+	for name, names := range left.SchemeRequirements {
+		other, ok := right.SchemeRequirements[name]
+		if !ok || !slices.Equal(names, other) {
 			return false
 		}
 	}

@@ -76,12 +76,20 @@ type (
 
 	// RequestBodyRef is a request body reference or value.
 	RequestBodyRef struct {
+		// Description overrides the target description, including an explicit empty string.
+		Description *string `json:",omitzero"`
+		// Summary overrides the target summary when supported by that object.
+		Summary *string `json:",omitzero"`
+
 		Ref   string
 		Value *RequestBody
 	}
 
 	// RequestBody describes an IR request body.
 	RequestBody struct {
+		// ReferenceMetadata retains authored reusable-object edges until component allocation.
+		ReferenceMetadata []string `json:"-"`
+
 		Description   string
 		Required      bool
 		ComponentName string `json:"-"`
@@ -91,7 +99,9 @@ type (
 
 	// ResponseRef is a response reference or value.
 	ResponseRef struct {
-		Ref string
+		// Summary overrides the referenced summary, including an explicit empty string.
+		Summary *string `json:",omitzero"`
+		Ref     string
 		// Description overrides the component description, including an explicit empty string.
 		Description *string
 		Value       *Response
@@ -99,6 +109,9 @@ type (
 
 	// Response describes an IR response.
 	Response struct {
+		// ReferenceMetadata retains authored reusable-object edges until component allocation.
+		ReferenceMetadata []string `json:"-"`
+
 		Description     string
 		Summary         string
 		OmitDescription bool
@@ -137,12 +150,20 @@ type (
 
 	// HeaderRef is a header reference or value.
 	HeaderRef struct {
+		// Description overrides the target description, including an explicit empty string.
+		Description *string `json:",omitzero"`
+		// Summary overrides the target summary when supported by that object.
+		Summary *string `json:",omitzero"`
+
 		Ref   string
 		Value *Header
 	}
 
 	// Header describes an IR header.
 	Header struct {
+		// ReferenceMetadata retains authored reusable-object edges until component allocation.
+		ReferenceMetadata []string `json:"-"`
+
 		Description   string
 		Required      bool
 		AllowReserved bool

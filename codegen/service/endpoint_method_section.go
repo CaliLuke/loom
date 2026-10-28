@@ -170,6 +170,13 @@ func buildOAuth2SchemeAuth(group *jen.Group, scheme *SchemeData, payload, contex
 			for _, flow := range scheme.Flows {
 				flows.Op("&").Add(codegen.Expr("security.OAuthFlow")).CustomFunc(multilineValues, func(fields *jen.Group) {
 					fields.Id("Type").Op(":").Lit(flow.Type())
+					if flow.Scopes != nil {
+						scopes := make(jen.Dict, len(flow.Scopes))
+						for _, scope := range flow.Scopes {
+							scopes[jen.Lit(scope.Name)] = jen.Lit(scope.Description)
+						}
+						fields.Id("Scopes").Op(":").Map(jen.String()).String().Values(scopes)
+					}
 					if flow.AuthorizationURL != "" {
 						fields.Id("AuthorizationURL").Op(":").Lit(flow.AuthorizationURL)
 					}

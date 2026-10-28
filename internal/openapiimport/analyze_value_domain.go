@@ -80,7 +80,7 @@ func (a *analyzer) schemaValueDomain(schema *Schema, source *base.Schema, path s
 		if keyword == "enum" {
 			location += "/" + strconv.Itoa(index)
 		}
-		value, included, err := a.valueDomainMember(schema, node, location)
+		value, included, err := a.valueDomainMember(schema, node)
 		if err != nil {
 			fail(location, err.Error())
 			return
@@ -102,8 +102,8 @@ func (a *analyzer) schemaValueDomain(schema *Schema, source *base.Schema, path s
 
 // valueDomainMember first classifies the exact JSON value against the source
 // type. Representability failures for included values reject the whole domain.
-func (a *analyzer) valueDomainMember(schema *Schema, node *yaml.Node, path string) (any, bool, error) {
-	if raw, present := a.numbers[path]; present {
+func (a *analyzer) valueDomainMember(schema *Schema, node *yaml.Node) (any, bool, error) {
+	if raw, present := a.nodeNumericSource(node); present {
 		if number, err := raw.number(); err == nil {
 			if schema.Type != "number" && schema.Type != "integer" || schema.Type == "integer" && !number.IsInt() {
 				return nil, false, nil

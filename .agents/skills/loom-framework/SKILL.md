@@ -92,6 +92,26 @@ consumer validation.
   adaptive policy, configuration endpoints and metrics backends remain outside
   this helper.
 
+- Reusable OpenAPI body, response, and header references share one typed importer
+  walk. Resolve onto occurrence copies before planning; keep component identity
+  and annotation edges separate from baseline values. The IR allocates authored
+  identities before inferred components and reserves their names. Versioned
+  serializers preserve absent versus explicitly empty reference annotations.
+  Keep the reusable-reference model and cross-kind round-trip tests aligned.
+
+
+- OpenAPI import normalizes reference assertions with the target's carrier
+  context, retaining separate reference identity and local constraints. Persist
+  rejected intersections for planner and renderer admission. Normalize effective
+  target nullability through membership before supplying carrier context.
+  Object overlays use Extend; CompositionBases retains declaration identity for
+  the OpenAPI allOf reference marker, while the composed shape owns physical
+  fields. Preserve closed-object key sets and do not remove inherited nullability.
+  Object field facts
+  distinguish semantic Required from LayoutRequired on the physical declaration;
+  named occurrence requirements validate the existing carrier. Keep the
+  reference-sibling model and generated required-field regression aligned.
+
 - `expr.IsNullable` supplies effective nullability to prepared JSON schema
   matching and lowered `JSONShape` descriptions. Nullable null bypasses value
   predicates, including enums, while ordinary Any null still obeys its enum.
@@ -357,7 +377,21 @@ consumer validation.
   IR consume this projection; keep required scopes on each requirement's fresh
   scheme data and preserve them through Dup. Globally deduplicated transport
   schemes do not own OR-branch authentication decisions. Keep union-based
-  unknown-scope admission and OpenAPI's protocol-specific scope-array rules.
+  unknown-scope admission. SchemeRequirements binds explicit names to scheme
+  identity: OAuth scopes must be declared; non-OAuth roles need no inventory.
+  ScopeFor and RoleFor add to shared Scope requirements. Deep-copy these arrays
+  on inheritance and include them in requirement identity. Import planning owns
+  normalized requirement validation; OpenAPI exports both OAuth scope arrays and
+  non-OAuth role arrays. Keep expr/tla/security_requirements and the generated
+  credential regressions aligned; role assignment remains application-owned.
+
+- `expr.SchemeExpr.FlowScopes` owns effective OAuth inventories: nil inherits
+  scheme defaults, nonnil empty replaces them. ScopeNames projects available
+  names only for requirements and callback discovery. Import, OpenAPI export
+  and generated OAuthFlow maps retain each flow's names and descriptions. When
+  any flow overrides defaults, resolve every runtime flow explicitly so the
+  available-name union cannot leak into inherited inventories. Keep the bounded
+  model in expr/tla/oauth_flow_scopes aligned; token grants remain app-owned.
 
 - `service.assignClientMembers` owns the service Client receiver: reserve all
   authored methods, record synthetic mixed-stream method names, then allocate

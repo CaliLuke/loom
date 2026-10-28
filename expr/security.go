@@ -66,6 +66,10 @@ type (
 		Schemes []*SchemeExpr
 		// Scopes list the required scopes if any.
 		Scopes []string
+		// SchemeRequirements holds names required only by the named scheme.
+		// OAuth2 values are declared scopes; other values are application roles.
+		// These requirements are additive to Scopes, never shared across schemes.
+		SchemeRequirements map[string][]string
 	}
 
 	// SessionAuthExpr defines a logical auth contract backed by one or more
@@ -110,7 +114,7 @@ type (
 		// Name refers to a header or parameter name, based on In's
 		// value.
 		Name string
-		// Scopes lists the Basic, APIKey, JWT or OAuth2 scopes.
+		// Scopes lists Basic, APIKey or JWT scopes, or default OAuth2 flow scopes.
 		Scopes []*ScopeExpr
 		// Flows determine the oauth2 flows supported by this scheme.
 		Flows []*FlowExpr
@@ -132,6 +136,9 @@ type (
 		RefreshURL string
 		// DeviceAuthorizationURL starts a device authorization flow.
 		DeviceAuthorizationURL string
+		// Scopes is this flow's complete scope inventory. Nil inherits the
+		// scheme defaults; a nonnil empty slice declares no scopes.
+		Scopes []*ScopeExpr
 	}
 
 	// ScopeExpr defines a security scope.
@@ -263,8 +270,9 @@ func (s *SecurityExpr) EvalName() string {
 // DupRequirement creates a copy of the given security requirement.
 func DupRequirement(req *SecurityExpr) *SecurityExpr {
 	dup := &SecurityExpr{
-		Scopes:  req.Scopes,
-		Schemes: make([]*SchemeExpr, 0, len(req.Schemes)),
+		Scopes:             append([]string(nil), req.Scopes...),
+		Schemes:            make([]*SchemeExpr, 0, len(req.Schemes)),
+		SchemeRequirements: dupSchemeRequirements(req.SchemeRequirements),
 	}
 	for _, s := range req.Schemes {
 		dup.Schemes = append(dup.Schemes, DupScheme(s))
@@ -279,9 +287,15 @@ func DupScheme(sch *SchemeExpr) *SchemeExpr {
 		SchemeName:  sch.SchemeName,
 		Description: sch.Description,
 		In:          sch.In,
-		Scopes:      sch.Scopes,
-		Flows:       sch.Flows,
+		Name:        sch.Name,
+		Scopes:      dupScopeDeclarations(sch.Scopes),
+		Flows:       append([]*FlowExpr(nil), sch.Flows...),
 		Meta:        sch.Meta,
+	}
+	for i, flow := range sch.Flows {
+		copy := *flow
+		copy.Scopes = dupScopeDeclarations(flow.Scopes)
+		dup.Flows[i] = &copy
 	}
 	return &dup
 }

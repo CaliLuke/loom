@@ -43,7 +43,9 @@ func BuildDocument(api *expr.APIExpr, types []expr.UserType, resultTypes []*expr
 	if err := buildDocumentPaths(doc, api, bodyTypes, exampleGenerator, closeObjects, bindings); err != nil {
 		return nil, err
 	}
-	componentizeDocument(doc)
+	if err := componentizeDocument(doc); err != nil {
+		return nil, err
+	}
 	return doc, nil
 }
 
@@ -192,10 +194,11 @@ func buildRequestBody(endpointIR *transportir.Endpoint, bodies *EndpointBodies, 
 		applyFormFieldEncoding(endpointIR.Request, content[contentType])
 	}
 	return &RequestBody{
-		Description:   requestBodyDescription(bodyAttr),
-		Required:      required,
-		ComponentName: componentMetaValue(bodyAttr, "openapi:component:requestBody"),
-		Content:       content,
+		ReferenceMetadata: componentMetadata(bodyAttr, "openapi:reference:requestBody"),
+		Description:       requestBodyDescription(bodyAttr),
+		Required:          required,
+		ComponentName:     componentMetaValue(bodyAttr, "openapi:component:requestBody"),
+		Content:           content,
 		Extensions: openapi.MergeExtensions(
 			openapi.ExtensionsFromExpr(bodyAttr.Meta),
 			openapi.ScopedExtensionsFromExpr(bodyAttr.Meta, "requestBody"),
@@ -206,6 +209,11 @@ func buildRequestBody(endpointIR *transportir.Endpoint, bodies *EndpointBodies, 
 func requestBodyDescription(bodyAttr *expr.AttributeExpr) string {
 	if bodyAttr == nil {
 		return ""
+	}
+	if len(componentMetadata(bodyAttr, "openapi:reference:requestBody")) > 0 {
+		if values := componentMetadata(bodyAttr, "openapi:description:requestBody"); len(values) > 0 {
+			return values[len(values)-1]
+		}
 	}
 	if desc := componentMetaValue(bodyAttr, "openapi:description:requestBody"); desc != "" {
 		return strings.TrimSpace(desc)
@@ -287,17 +295,18 @@ func buildResponse(
 	}
 
 	desc := resp.Description
-	if desc == "" {
+	if desc == "" && len(resp.Meta["openapi:reference:response"]) == 0 {
 		desc = fmt.Sprintf("%s response.", http.StatusText(statusCode))
 	}
 	return &Response{
-		Description:     desc,
-		Summary:         metaValue(resp.Meta, "openapi:summary"),
-		OmitDescription: metaBool(resp.Meta, "openapi:description:omit"),
-		ComponentName:   metaValue(resp.Meta, "openapi:component:response"),
-		Headers:         headers,
-		Content:         buildResponseContent(resp, statusCode, bodies, closeObjects, websocketHandshake, mediaSchemas),
-		Links:           buildResponseLinks(resp.Links, currentService),
+		ReferenceMetadata: resp.Meta["openapi:reference:response"],
+		Description:       desc,
+		Summary:           metaValue(resp.Meta, "openapi:summary"),
+		OmitDescription:   metaBool(resp.Meta, "openapi:description:omit"),
+		ComponentName:     metaValue(resp.Meta, "openapi:component:response"),
+		Headers:           headers,
+		Content:           buildResponseContent(resp, statusCode, bodies, closeObjects, websocketHandshake, mediaSchemas),
+		Links:             buildResponseLinks(resp.Links, currentService),
 		Extensions: openapi.MergeExtensions(
 			openapi.ExtensionsFromExpr(resp.Meta),
 			openapi.ScopedExtensionsFromExpr(resp.Meta, "response"),
@@ -436,11 +445,12 @@ func headersFromIR(
 		}
 		headerContext := attributeExampleContext(child, closeObjects, "response-header", headerIR.HTTPName)
 		header := &Header{
-			Description:   child.Description,
-			Required:      child.IsRequiredNoDefault(headerIR.Name),
-			AllowReserved: metaBool(child.Meta, "openapi:allowReserved"),
-			Schema:        preparedLocationSchema(child, headerContext, rand, closeObjects, prepared),
-			Extensions:    openapi.ScopedExtensionsFromExpr(child.Meta, "header"),
+			ReferenceMetadata: componentMetadata(child, "openapi:reference:header"),
+			Description:       child.Description,
+			Required:          child.IsRequiredNoDefault(headerIR.Name),
+			AllowReserved:     metaBool(child.Meta, "openapi:allowReserved"),
+			Schema:            preparedLocationSchema(child, headerContext, rand, closeObjects, prepared),
+			Extensions:        openapi.ScopedExtensionsFromExpr(child.Meta, "header"),
 		}
 		initExamples(header, child, closeObjects, headerIR.Value)
 		headers[headerIR.HTTPName] = &HeaderRef{Value: header}
@@ -640,4 +650,19 @@ func preparedLocationSchema(attribute *expr.AttributeExpr, context string, rando
 		schema.Description = description
 	}
 	return schema
+}
+
+// componentMetadata preserves local presence, including empty values, before
+// consulting a named declaration. Reference edge metadata is never combined.
+func componentMetadata(attr *expr.AttributeExpr, key string) []string {
+	if attr == nil {
+		return nil
+	}
+	if values, present := attr.Meta[key]; present {
+		return values
+	}
+	if userType, ok := attr.Type.(expr.UserType); ok {
+		return userType.Attribute().Meta[key]
+	}
+	return nil
 }

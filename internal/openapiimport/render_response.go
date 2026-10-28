@@ -5,16 +5,23 @@ import (
 	"strconv"
 )
 
-func headerMetadata(header Header) []renderedMetadata {
-	if !header.AllowReserved {
-		return nil
+func headerMetadata(header Header) ([]renderedMetadata, error) {
+	metadata, err := reusableMetadata("header", header.referenceChain)
+	if err != nil {
+		return nil, err
 	}
-	return []renderedMetadata{{name: "openapi:allowReserved", value: "true"}}
+	if header.AllowReserved {
+		metadata = append(metadata, renderedMetadata{name: "openapi:allowReserved", value: "true"})
+	}
+	return metadata, nil
 }
 
 func (r *renderer) responseHeaderAttributes(headers []renderedHeader, path string) error {
 	for _, header := range headers {
-		metadata := headerMetadata(header.header)
+		metadata, err := headerMetadata(header.header)
+		if err != nil {
+			return err
+		}
 		if err := r.attribute(
 			header.field,
 			header.header.Schema,
@@ -65,11 +72,19 @@ func responseMappingPrefix(response renderedResponse, failure bool, path string)
 }
 
 func responseMappingNeedsBlock(response renderedResponse, failure bool) bool {
-	return failure || response.response.Summary != "" || response.response.Description != "" ||
+	return len(response.response.referenceChain) > 0 || failure || response.response.Summary != "" || response.response.Description != "" ||
 		response.response.ContentType != "" || len(response.headers) > 0 || len(response.response.Extensions) > 0
 }
 
 func (r *renderer) responseMappingMetadata(response renderedResponse, failure bool) error {
+	metadata, err := reusableMetadata("response", response.response.referenceChain)
+	if err != nil {
+		return err
+	}
+	for _, item := range metadata {
+		r.line("Meta(%q, %q)", item.name, item.value)
+	}
+
 	if response.response.Summary != "" {
 		r.line("Meta(%q, %q)", "openapi:summary", response.response.Summary)
 	}

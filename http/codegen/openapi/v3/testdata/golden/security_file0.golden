@@ -71,7 +71,9 @@
           {
             "api_key_query_k": [],
             "basic": [],
-            "jwt_header_X-Authorization": []
+            "jwt_header_X-Authorization": [
+              "api:read"
+            ]
           }
         ],
         "summary": "testEndpointA testService",

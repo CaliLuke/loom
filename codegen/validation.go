@@ -66,16 +66,18 @@ func generatedRequiredValidation(att *expr.AttributeExpr, attCtx *AttributeConte
 }
 
 func generatedRequiredValidationFrom(att *expr.AttributeExpr, validation *expr.ValidationExpr, attCtx *AttributeContext) (res []string) {
-	if validation == nil {
+	if validation == nil || len(validation.Required) == 0 {
 		return
 	}
 	obj := expr.AsObject(att.Type)
+	fields := expr.NewObjectFields(att)
 	for _, req := range validation.Required {
 		reqAtt := obj.Attribute(req)
 		if reqAtt == nil {
 			continue
 		}
-		if !attCtx.Pointer && expr.IsPrimitive(reqAtt.Type) &&
+		if attCtx.FieldPresence(fields, req, reqAtt) == NativePresence &&
+			!attCtx.IsPrimitivePointer(req, att) && expr.IsPrimitive(reqAtt.Type) &&
 			reqAtt.Type.Kind() != expr.BytesKind &&
 			!expr.IsAny(reqAtt.Type) {
 			continue

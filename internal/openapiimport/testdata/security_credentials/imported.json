@@ -43,8 +43,12 @@
         },
         "security": [
           {
-            "Bearer": [],
-            "OAuth": []
+            "Bearer": [
+              "admin"
+            ],
+            "OAuth": [
+              "read"
+            ]
           }
         ]
       }
@@ -110,9 +114,7 @@
             "OAuth": [
               "read"
             ],
-            "OAuthSecond": [
-              "read"
-            ]
+            "OAuthSecond": []
           }
         ]
       }
