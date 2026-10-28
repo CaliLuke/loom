@@ -5,7 +5,7 @@ AND branches (including empty/anonymous branches), and every per-scheme grant
 set. `checked.cfg` preserves each scheme's required names and passed 4,096
 states (8,192 generated) with TLC 1.7.4. `flatten.cfg` deliberately combines
 requirements across a conjunction; its initial-state counterexample requires
-no grants from scheme a and read from b, but incorrectly requires read from a.
+no grants from scheme `a` and `read` from `b`, but incorrectly requires `read` from `a`.
 This compares design candidates; the prior importer explicitly rejected unequal
 lists rather than admitting that faulty projection.
 
@@ -15,7 +15,7 @@ Run explicitly from this directory with Java and the installed TLA+ 1.7.4 jar:
 java -XX:+UseParallelGC -cp "$TLA_JAR" tlc2.TLC -workers 1 -config checked.cfg -metadir /tmp/loom-security-requirements Requirements.tla
 ```
 
-Substitute `flatten.cfg` and a separate temporary metadir for the negative case.
+Substitute `flatten.cfg` and a separate temporary `-metadir` for the negative case.
 This is an opt-in design tool, never a build, hook, CI or release gate.
 
 `expr.SecurityExpr.SchemeRequirements` owns explicit names by scheme identity.

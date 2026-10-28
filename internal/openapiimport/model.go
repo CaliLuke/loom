@@ -133,8 +133,9 @@ type SecurityRequirement struct {
 type SecurityRequirementScheme struct {
 	// Name is the referenced security scheme component key.
 	Name string
-	// Scopes contains the authored scopes. Supported API-key schemes require
-	// this list to be empty.
+	// Scopes contains authored OAuth scopes or, for non-OAuth schemes in
+	// OpenAPI 3.1 and 3.2, application roles. Non-OAuth requirements in
+	// OpenAPI 3.0 must leave this list empty.
 	Scopes []string
 }
 
