@@ -75,6 +75,14 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- `admission.Rate` serializes the maintained token bucket's Allow and complete
+  rate/burst policy updates. Preserve accrued allowance, clamp on reductions and
+  never reset quota on reconfiguration. `RateAdmission` owns bounded cooperative
+  backend checks and safe failures; HTTP and protected endpoint adapters retain
+  their respective placement and authored error contracts. Grouping, key storage,
+  distributed policy and retries remain application-owned. Keep the rate model,
+  fractional accounting tests and generated example aligned.
+
 - `admission.Concurrency` owns local unary permits, live capacity updates and
   coherent counters under one mutex. Endpoint exit releases the permit;
   cancellation and resizing never do. Existing protected endpoint composition

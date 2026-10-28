@@ -15,9 +15,21 @@ import (
 // then checks protected admission and its declared HTTP and gRPC error mappings.
 // No generator behavior changes; this is a consumer of the existing hooks.
 func TestConcurrencyAdmissionExample(t *testing.T) {
+	runAdmissionExample(t, "concurrency")
+}
+
+// TestRateAdmissionExample verifies early HTTP and protected endpoint quotas
+// using the exact public example, including live policy and backend failures.
+func TestRateAdmissionExample(t *testing.T) {
+	runAdmissionExample(t, "rate")
+}
+
+func runAdmissionExample(t *testing.T, example string) {
+	t.Helper()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, "design"), 0o700))
-	design, err := os.ReadFile("../../docs/examples/concurrency/design.go.txt")
+	exampleDir := filepath.Join("../../docs/examples", example)
+	design, err := os.ReadFile(filepath.Join(exampleDir, "design.go.txt"))
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "design/design.go"), design, 0o600))
 	mod := fmt.Sprintf("module example.com/admission\n\ngo 1.27.3\n\nrequire github.com/CaliLuke/loom v1.0.0\n\nreplace github.com/CaliLuke/loom => %s\n", loomModuleSource(t))
@@ -30,8 +42,8 @@ func TestConcurrencyAdmissionExample(t *testing.T) {
 		require.NoError(t, err, "%v\n%s", args, output)
 	}
 	for _, file := range []struct{ source, target string }{
-		{"../../docs/examples/concurrency/main.go.txt", "main.go"},
-		{"testdata/concurrency_admission_test.go.txt", "admission_test.go"},
+		{filepath.Join(exampleDir, "main.go.txt"), "main.go"},
+		{filepath.Join("testdata", example+"_admission_test.go.txt"), "admission_test.go"},
 	} {
 		source, err := os.ReadFile(file.source)
 		require.NoError(t, err)

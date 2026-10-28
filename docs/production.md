@@ -431,7 +431,8 @@ var _ = Service("users", func() {
 1. **Always use HTTPS in production**
 2. **Define security at API level** for consistent defaults
 3. **Use `NoSecurity()` explicitly** for public endpoints
-4. **Implement rate limiting** for API key authentication
+4. **Implement [rate admission](rate-limiting.md)** before expensive work and
+   authenticated quotas after identity is trusted
 5. **Use appropriate token expiration** for JWT tokens
 6. **Regularly rotate secrets and keys**
 7. **Log and monitor authentication failures**

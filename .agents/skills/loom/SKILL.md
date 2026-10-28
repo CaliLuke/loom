@@ -51,6 +51,21 @@ Cancellation releases capacity only when the wrapped invocation exits. Export
 bounded counts and gauges from `Snapshot`; applications own metrics, update
 authorization and any cross-replica policy. See [admission](../../../docs/admission.md).
 
+## Rate and burst admission
+
+Use `admission.Rate` for a local token bucket and `SetPolicy` for an atomic
+rate/burst update. Updates retain allowance after old-rate refill, clamp it to a
+smaller burst and apply the new rate going forward; unchanged updates never
+reset spent quota. `NewRateAdmission(check, timeout)` supplies the backend
+boundary. Checks must honor their context deadline and own coherent accounting.
+Use HTTP `middleware.RateLimit` for early admission and the control's endpoint
+`Middleware` through protected constructors for authenticated quotas. Return a
+declared denial error, map 429 plus known Retry-After, and declare/map
+`rate_limit_unavailable` for backend failures. Applications own trusted grouping,
+bounded key storage and local versus shared quota scope. See
+[rate limiting](../../../docs/rate-limiting.md) for the runnable example and update
+contract. No streams, automatic retries or fleet-wide policy activation are added.
+
 ## Typed background activities
 
 Use `execution.Activity[Input, Output]` for named, typed activity calls without

@@ -1,5 +1,5 @@
-// Package admission provides process-local admission controls for unary endpoints.
-// Applications own capacity, placement and declared transport error mappings.
+// Package admission provides request admission controls for existing middleware
+// hooks. Applications own budgets, grouping, placement and transport mappings.
 package admission
 
 import (

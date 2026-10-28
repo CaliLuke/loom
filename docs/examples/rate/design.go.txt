@@ -1,0 +1,47 @@
+package design
+
+import . "github.com/CaliLuke/loom/dsl"
+
+var _ = API("quota", func() {
+	Title("Rate admission example")
+})
+
+var key = APIKeySecurity("key")
+var run = Authorization("work.run", Empty)
+var rateDenied = Type("RateDenied", func() {
+	Attribute("message", String)
+	Attribute("retry_after", Int64, "Whole seconds until allowance may be available; absent when unknown")
+	Required("message")
+})
+
+var _ = Service("work", func() {
+	StrictAuthorization()
+	Security(key)
+	HTTP(func() {
+		AuthErrorResponses()
+	})
+	Method("run", func() {
+		Payload(func() {
+			APIKey("key", "key", String)
+			Attribute("message", String, func() {
+				MinLength(1)
+			})
+			Required("key", "message")
+		})
+		Authorize(run)
+		Result(String)
+		Error("rate_limited", rateDenied)
+		Error("rate_limit_unavailable", func() {
+			Temporary()
+		})
+		HTTP(func() {
+			POST("/work")
+			Header("key:X-API-Key")
+			Response(StatusOK)
+			Response("rate_limited", StatusTooManyRequests, func() {
+				Header("retry_after:Retry-After")
+			})
+			Response("rate_limit_unavailable", StatusServiceUnavailable)
+		})
+	})
+})

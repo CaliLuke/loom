@@ -44,7 +44,7 @@ choice to release only on endpoint exit and update capacity in the same owner.
 
 `../../concurrency_test.go` checks configuration, context identity, simultaneous
 admission, each exit path, cancellation, resizing below usage and concurrent
-updates/completions. `../../../codegen/generator/concurrency_admission_test.go`
+updates/completions. `../../../codegen/generator/admission_integration_test.go`
 (relative to the repository root: `codegen/generator/`) generates the runnable
 example and checks HTTP/gRPC mappings and protected validation/access ordering.
 The model does not establish those transport properties. Run the direct Go tests

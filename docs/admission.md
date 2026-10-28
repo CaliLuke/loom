@@ -28,7 +28,8 @@ the limiter does not add authorization or move validation to a new boundary.
 
 The budget protects work inside the wrapped endpoint. Protect transport decoding
 and authentication with separately positioned transport controls. Request-rate
-and burst quotas are separate from the count of active calls.
+and burst quotas are separate from the count of active calls; see
+[rate admission](rate-limiting.md) for early and authenticated quotas.
 
 ## Saturation and completion
 
