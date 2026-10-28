@@ -12,8 +12,10 @@ func DecodeMethodAResponse(decoder func(*http.Response) loomhttp.Decoder, restor
 				)
 				array = loomhttp.HeaderValues(resp.Header, "Array")
 
-				if len(array) < 5 {
-					err = loom.MergeErrors(err, loom.InvalidLengthError("array", len(array), 5, true))
+				if array != nil {
+					if len(array) < 5 {
+						err = loom.MergeErrors(err, loom.InvalidLengthError("array", len(array), 5, true))
+					}
 				}
 				if err != nil {
 					return nil, loomhttp.ErrValidationError("ServiceHeaderStringArrayValidateResponse", "MethodA", err)

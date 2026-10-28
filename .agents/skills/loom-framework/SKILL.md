@@ -75,6 +75,15 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- Shared `recurseValidationCode` guards optional native array/map occurrences
+  before their predicates. Nil is absence only there; required roots, elements
+  and extracted Optional/Nullable values retain their concrete-value validation.
+  `AttributeContext.CollectionNilIsEmpty` records protobuf's nil-as-empty
+  storage independently of scalar pointers; context copies retain it so wrapped
+  and streamed collection predicates still run. Keep named occurrence guards and
+  the collection-presence model under
+  `codegen/tla/validation_carrier` aligned; do not patch individual transports.
+
 - `execution/` owns typed activity names, options, registration/execution
   contracts, and futures. `execution/adapter` owns concrete-handler reflection;
   it does not own serialization. `execution/selvedge` uses native generic

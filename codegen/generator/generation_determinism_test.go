@@ -28,6 +28,7 @@ var generationDeterminismDSLs = []struct {
 	{"PkgPathMultipleDSL", servicetestdata.PkgPathMultipleDSL},
 	{"StructMetaTypeDSL", grpctestdata.StructMetaTypeDSL},
 	{"PayloadWithNestedTypesDSL", grpctestdata.PayloadWithNestedTypesDSL},
+	{"OptionalCollectionValidationDSL", optionalCollectionValidationDSL},
 }
 
 // TestGeneratedFilesAreByteStableAcrossIndependentProcesses generates the

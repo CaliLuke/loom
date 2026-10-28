@@ -60,6 +60,10 @@ type (
 		// map values use loom.Optional in a generated JSON decoding type so null
 		// is rejected by decoding before conversion to the service type.
 		CollectionElementPresence bool
+		// CollectionNilIsEmpty indicates that native collection storage cannot
+		// distinguish absence from empty, as with protobuf repeated/map fields.
+		// Validation must apply collection predicates even when that storage is nil.
+		CollectionNilIsEmpty bool
 		// JSONPresenceTypes records named types whose physical object fields use
 		// loom.Optional even when the root conversion itself uses native presence.
 		// It is keyed by the hash of the user type, which names its Go type.
@@ -375,6 +379,7 @@ func (a *AttributeContext) Dup() *AttributeContext {
 		SamePackageConversion:     a.SamePackageConversion,
 		JSONPresence:              a.JSONPresence,
 		CollectionElementPresence: a.CollectionElementPresence,
+		CollectionNilIsEmpty:      a.CollectionNilIsEmpty,
 		JSONPresenceTypes:         a.JSONPresenceTypes,
 		PresencePointerTypes:      a.PresencePointerTypes,
 		PresenceUseDefaultTypes:   a.PresenceUseDefaultTypes,

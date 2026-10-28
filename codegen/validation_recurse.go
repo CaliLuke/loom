@@ -23,6 +23,11 @@ func recurseValidationCode(att *expr.AttributeExpr, put expr.UserType, attCtx *A
 	// Write validations on attribute if any.
 	validation := validationCode(att, attCtx, req, alias, target, context)
 	if validation != "" {
+		// Native collection nil is absence only at an optional occurrence.
+		// Required and extracted values still need their value predicates.
+		if !req && !attCtx.validationValue && !attCtx.CollectionNilIsEmpty && (expr.IsArray(att.Type) || expr.IsMap(att.Type)) {
+			validation = renderSimplePointerWrappedValidation(true, target, validation)
+		}
 		fmt.Fprint(buf, validation)
 		first = false
 	}

@@ -610,6 +610,14 @@ a default applies are unchanged by this representation correction.
 - `MinLength(n)` - Minimum number of elements
 - `MaxLength(n)` - Maximum number of elements
 
+Optional arrays and maps may be omitted even when they declare `MinLength`.
+In native Go values, a nil optional collection is absent; a nonnil empty
+collection is supplied and must satisfy its bounds. Required fields still need
+to be present and satisfy their bounds. Regenerate services and transports to
+adopt the corrected optional collection validation.
+Protobuf repeated/map fields retain their wire format's absence/empty collapse;
+see the collection mapping rules in the [gRPC guide](grpc-guide.md).
+
 For `Bytes`, these bounds count decoded bytes. Built-in JSON represents the
 value as padded base64, and the generated schema projects the decoded bounds
 into constraints on that string. See [Bytes in JSON bodies](http-guide.md#bytes-in-json-bodies).
