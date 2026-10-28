@@ -1395,8 +1395,14 @@ filter, and serialization rules belong here.
   branches remain unsupported. `expr.ValuePlan.JSONShape` lowers captured
   effective predicates. `codegen/unionjson` projects service or HTTP member
   layouts and renders typed adapters; `pkg.MatchUntaggedJSON` owns orchestration.
-  Runtime DSL branches additionally admit string-keyed map fields (#1041);
-  import's narrower admission remains separate. Lower map values through
+  Runtime DSL branches additionally admit string-keyed map fields (#1041) and
+  nested untagged unions (#1036); import's narrower admission remains separate.
+  Lower nested alternatives into `JSONShape.Branches`, traverse their member
+  policies and preserve exact-one matching at every level. Only internal typed
+  union contract mismatches become ordinary failed decoder candidates; malformed
+  descriptions, evaluator errors and opaque codec failures stay fatal. Reject
+  descriptor cycles that revisit a wire value without consuming a member or
+  collection element, while retaining recursive object/collection compositions. Lower map values through
   `JSONShape.Child`, preserve entry-count rules on named map occurrences, and
   visit map values when projecting member spelling, visibility and closed-object
   policy. Emit named map validators alongside object/array validators. Current

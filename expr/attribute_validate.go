@@ -334,6 +334,9 @@ func (v *attributeValidator) validateChildTypes(a *AttributeExpr, ctx string, pa
 }
 
 func isUntaggedBranchFieldType(dataType DataType) bool {
+	if union := AsUnion(dataType); union != nil {
+		return union.Untagged
+	}
 	if IsPrimitive(dataType) {
 		return true
 	}

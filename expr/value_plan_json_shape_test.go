@@ -90,3 +90,41 @@ func TestJSONShapeMapLoweringMatchesPreparedSchema(t *testing.T) {
 		require.Equal(t, canonical, matched, tc.wire)
 	}
 }
+
+func TestJSONShapeNestedUnionMatchesPreparedSchema(t *testing.T) {
+	first := &UserTypeExpr{TypeName: "Person", AttributeExpr: &AttributeExpr{
+		Type:       &Object{{Name: "name", Attribute: &AttributeExpr{Type: String}}},
+		Validation: &ValidationExpr{Required: []string{"name"}},
+	}}
+	second := &UserTypeExpr{TypeName: "Group", AttributeExpr: &AttributeExpr{
+		Type:       &Object{{Name: "group", Attribute: &AttributeExpr{Type: String}}},
+		Validation: &ValidationExpr{Required: []string{"group"}},
+	}}
+	choice := &Union{TypeName: "Entry", Untagged: true, Values: []*NamedAttributeExpr{
+		{Name: "person", Attribute: &AttributeExpr{Type: first}},
+		{Name: "group", Attribute: &AttributeExpr{Type: second}},
+	}}
+	source := &AttributeExpr{Type: &Array{ElemType: &AttributeExpr{Type: choice}}}
+	context := NewValueContext()
+	occurrence, err := context.NewOccurrence(source)
+	require.NoError(t, err)
+	plan, err := context.NewValuePlan(occurrence, ValuePlanRequest{Target: DupAtt(source), Codec: ValueCodecJSON, Use: ValuePlanDocumentation})
+	require.NoError(t, err)
+	shape, err := plan.JSONShape()
+	require.NoError(t, err)
+	for _, tc := range []struct {
+		wire string
+		want bool
+	}{
+		{`[]`, true}, {`[{"name":"person"},{"group":"team"}]`, true},
+		{`[{}]`, false}, {`[{"name":"person","group":"team"}]`, false},
+		{`[null]`, false},
+	} {
+		actual, err := shape.Match([]byte(tc.wire))
+		require.NoError(t, err)
+		require.Equal(t, tc.want, actual, tc.wire)
+		canonical, err := plan.MatchJSONSchema([]byte(tc.wire))
+		require.NoError(t, err)
+		require.Equal(t, canonical, actual)
+	}
+}

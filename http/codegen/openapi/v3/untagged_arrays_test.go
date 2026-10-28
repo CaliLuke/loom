@@ -108,6 +108,40 @@ func TestUntaggedArrayObjectContract(t *testing.T) {
 				}
 			}
 			require.True(t, foundMap, "missing map-valued page")
+			foundNested := false
+			for name, raw := range schemas {
+				schema := raw.(map[string]any)
+				properties, ok := schema["properties"].(map[string]any)
+				if !ok || properties["entries"] == nil {
+					continue
+				}
+				foundNested = true
+				root := map[string]any{"components": spec["components"], "$ref": "#/components/schemas/" + name}
+				for _, value := range []struct {
+					wire string
+					want bool
+				}{
+					{"{\"total\":0,\"entries\":[]}", true},
+					{"{\"total\":2,\"entries\":[{\"name\":\"ok\"},{\"group\":\"team\"}]}", true},
+					{"{\"total\":1,\"entries\":[{\"group\":\"team\",\"members\":[{\"name\":\"ok\"},{\"group\":\"nested\",\"members\":[]}]}]}", true},
+					{"{\"total\":0,\"single\":null}", true},
+					{"{\"total\":0,\"single\":{\"name\":\"ok\"}}", true},
+					{"{\"total\":0,\"entry_lookup\":{\"a\":{\"name\":\"ok\"},\"b\":{\"group\":\"team\"}}}", true},
+					{"{\"total\":1,\"entries\":[{}]}", false},
+					{"{\"total\":1,\"entries\":[{\"name\":\"ok\",\"group\":\"team\"}]}", false},
+					{"{\"total\":1,\"entries\":[null]}", false},
+					{"{\"total\":1,\"entries\":[{\"name\":\"x\"}]}", false},
+					{"{\"total\":1,\"entries\":[{\"group\":\"team\",\"members\":[{}]}]}", false},
+					{"{\"total\":0,\"single\":{}}", false},
+					{"{\"total\":0,\"entry_lookup\":{\"a\":{}}}", false},
+					{"{\"total\":0,\"overlap\":{}}", false},
+				} {
+					result, err := gojsonschema.Validate(gojsonschema.NewGoLoader(root), gojsonschema.NewStringLoader(value.wire))
+					require.NoError(t, err)
+					require.Equal(t, value.want, result.Valid(), "%s: %s", name, value.wire)
+				}
+			}
+			require.True(t, foundNested, "missing nested union page")
 
 			if os.Getenv("LOOM_OPENAPI_CONTRACT") != "" {
 				dir := t.TempDir()

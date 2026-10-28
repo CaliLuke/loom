@@ -127,3 +127,47 @@ examples; and OpenAPI JSON/YAML map components/properties/examples. Those are
 the intended differences. The five other designs remain exact-byte controls.
 Five process-isolated generations of the extended inputs agree byte for byte.
 No checked-in integration fixture declares `Untagged`; none needs regeneration.
+
+## Nested untagged unions (#1036)
+
+`NestedMembership.tla` models up to two rows, each with zero, one or two matching
+inner branches. `NestedChecked.cfg` requires exactly one match per row and passes
+42 states. `NestedAny.cfg` fails `Agreement` after 26 states because an ambiguous
+row would be admitted. Empty rows are accepted by universal membership; collection
+length constraints remain independent predicates.
+
+`NestedFailure.tla` models an inner failure while another outer branch is the
+unique schema and Go match. `NestedFailureChecked.cfg` distinguishes an ordinary
+contract mismatch from an unexpected failure and passes four states.
+`NestedFailureUnclassified.cfg` fails after three states: treating all inner errors
+as fatal blocks the valid alternative. These are design candidates for a new
+capability; the previous DSL rejected nested unions before code generation.
+The direct decoder regression nevertheless reproduces the unclassified error at
+the runtime seam before the implementation change.
+
+Run TLC 1.7.4 with the invocation above, each corresponding `.tla`/`.cfg` pair
+and a separate temporary `-metadir`. Both models assume accurate branch
+predicates and error classification. They do not prove Go codecs, arbitrary
+recursion, JSON syntax or policy extraction. Keep proof execution opt-in.
+
+`pkg/json_shape_union_test.go` covers exact-one nesting, empty and mixed arrays,
+map values, malformed descriptors, recursive objects and unconsumed cycles.
+`pkg/json_union_nested_test.go` covers wrapped mismatch classification, candidate
+order and unexpected error preservation. Prepared/lowered agreement and member
+policy projection are checked in `expr` and `codegen/unionjson`. The existing
+HTTP specimen adds nested arrays/maps, nullable unions, recursive members,
+ambiguous nested objects and the distinct valid outer alternative. JSON-RPC
+checks typed round trips and invalid-row error envelopes without service calls.
+
+Verification uses Go 1.27.3 and base
+`78236cdcad977f296c80d9eef9907f5f0d3b75ea`. The six existing determinism designs
+with unchanged inputs remain byte-identical. The extended `UntaggedArraysDSL`
+changes only its generated service/client/endpoints, HTTP routing and CLI files,
+body conversion helpers/validators/union descriptors, and OpenAPI JSON/YAML.
+Those changes add nested Entry alternatives, recursive Group members and the
+Fallback endpoint used to check candidate rejection under HTTP closed-object
+policy. The other five designs remain byte-identical. Five independent processes
+produce identical raw sections and rendered files. Generated HTTP and JSON-RPC
+modules compile and run; the 3.1/3.2 OpenAPI specimens pass parsing and pinned
+Vacuum lint. Direct projection/matching checks pass with the race detector.
+No checked-in integration fixture declares `Untagged`; none needs regeneration.

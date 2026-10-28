@@ -33,30 +33,21 @@ func validateUntaggedShape(att *AttributeExpr, ctx, branch string, parent eval.E
 		validateUntaggedShape(ut.Attribute(), ctx, branch, parent, errors, seen)
 		return
 	}
+	if union := AsUnion(att.Type); union != nil {
+		for _, nested := range union.Values {
+			validateUntaggedShape(nested.Attribute, ctx, branch, parent, errors, seen)
+		}
+		return
+	}
 	if array := AsArray(att.Type); array != nil {
 		if !isUntaggedBranchFieldType(array.ElemType.Type) {
-			errors.Add(parent, "%suntagged OneOf branch %q array elements must be primitive, a concrete named object type, or arrays or string-keyed maps of these", ctx, branch)
+			errors.Add(parent, "%suntagged OneOf branch %q array elements must be primitive, a concrete named object type, an untagged union, or arrays or string-keyed maps of these", ctx, branch)
 		}
 		validateUntaggedShape(array.ElemType, ctx, branch, parent, errors, seen)
 		return
 	}
 	if mapping := AsMap(att.Type); mapping != nil {
-		key := mapping.KeyType.Type
-		for {
-			ut, named := key.(UserType)
-			if !named {
-				break
-			}
-			key = ut.Attribute().Type
-		}
-		if key != String {
-			errors.Add(parent, "%suntagged OneOf branch %q map keys must be strings", ctx, branch)
-		}
-		if !isUntaggedBranchFieldType(mapping.ElemType.Type) {
-			errors.Add(parent, "%suntagged OneOf branch %q map values must be primitive, a concrete named object type, or arrays or string-keyed maps of these", ctx, branch)
-		}
-		validateUntaggedShape(mapping.KeyType, ctx, branch, parent, errors, seen)
-		validateUntaggedShape(mapping.ElemType, ctx, branch, parent, errors, seen)
+		validateUntaggedMap(mapping, ctx, branch, parent, errors, seen)
 		return
 	}
 	object := AsObject(att.Type)
@@ -69,7 +60,7 @@ func validateUntaggedShape(att *AttributeExpr, ctx, branch string, parent eval.E
 	names := make(map[string]bool)
 	for _, field := range *object {
 		if !isUntaggedBranchFieldType(field.Attribute.Type) {
-			errors.Add(parent, "%suntagged OneOf branch %q field %q must be primitive, a concrete named object type, or arrays or string-keyed maps of these", ctx, branch, field.Name)
+			errors.Add(parent, "%suntagged OneOf branch %q field %q must be primitive, a concrete named object type, an untagged union, or arrays or string-keyed maps of these", ctx, branch, field.Name)
 		}
 		name := JSONFieldName(AttributeName(field.Name), field.Attribute)
 		switch {
@@ -83,6 +74,25 @@ func validateUntaggedShape(att *AttributeExpr, ctx, branch string, parent eval.E
 		names[name] = true
 		validateUntaggedShape(field.Attribute, ctx, branch, parent, errors, seen)
 	}
+}
+
+func validateUntaggedMap(mapping *Map, ctx, branch string, parent eval.Expression, errors *eval.ValidationErrors, seen map[*AttributeExpr]bool) {
+	key := mapping.KeyType.Type
+	for {
+		ut, named := key.(UserType)
+		if !named {
+			break
+		}
+		key = ut.Attribute().Type
+	}
+	if key != String {
+		errors.Add(parent, "%suntagged OneOf branch %q map keys must be strings", ctx, branch)
+	}
+	if !isUntaggedBranchFieldType(mapping.ElemType.Type) {
+		errors.Add(parent, "%suntagged OneOf branch %q map values must be primitive, a concrete named object type, an untagged union, or arrays or string-keyed maps of these", ctx, branch)
+	}
+	validateUntaggedShape(mapping.KeyType, ctx, branch, parent, errors, seen)
+	validateUntaggedShape(mapping.ElemType, ctx, branch, parent, errors, seen)
 }
 
 func validateUntaggedCodec(att *AttributeExpr, ctx, branch string, parent eval.Expression, errors *eval.ValidationErrors) {

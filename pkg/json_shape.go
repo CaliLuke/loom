@@ -16,7 +16,7 @@ type (
 	// DSL references, schema resolution, coercions, defaults, or branch selection.
 	// Callers must finish building the graph before sharing it and keep it immutable.
 	JSONShape struct {
-		// Kind is any, boolean, string, bytes, integer, number, object, array, map, or alias.
+		// Kind is any, boolean, string, bytes, integer, number, object, array, map, union, or alias.
 		Kind string
 		// Nullable admits explicit JSON null at this occurrence.
 		Nullable bool
@@ -24,6 +24,8 @@ type (
 		Child *JSONShape
 		// Fields are the visible object members in declaration order.
 		Fields []JSONShapeField
+		// Branches are the alternatives of an untagged union; exactly one must match.
+		Branches []*JSONShape
 		// Closed rejects object members absent from Fields.
 		Closed bool
 		// NonNullableElements rejects null array elements independently of Child.
@@ -84,16 +86,24 @@ func (s *JSONShape) validate(seen map[*JSONShape]bool) error {
 	case "any", "boolean", "string", "bytes", "integer", "number":
 	case "array", "map", "alias":
 		if s.Kind == "alias" {
-			aliases := make(map[*JSONShape]bool)
-			for node := s; node != nil && node.Kind == "alias"; node = node.Child {
-				if aliases[node] {
-					return fmt.Errorf("cyclic JSON matching alias")
-				}
-				aliases[node] = true
+			if err := s.validateAlternatives(make(map[*JSONShape]bool)); err != nil {
+				return err
 			}
 		}
 		if err := s.Child.validate(seen); err != nil {
 			return err
+		}
+	case "union":
+		if len(s.Branches) < 2 {
+			return fmt.Errorf("JSON matching union requires at least two branches")
+		}
+		if err := s.validateAlternatives(make(map[*JSONShape]bool)); err != nil {
+			return err
+		}
+		for _, branch := range s.Branches {
+			if err := branch.validate(seen); err != nil {
+				return err
+			}
 		}
 	case "object":
 		names := make(map[string]bool)
@@ -110,6 +120,28 @@ func (s *JSONShape) validate(seen map[*JSONShape]bool) error {
 		return fmt.Errorf("unsupported JSON matching kind %q", s.Kind)
 	}
 	return s.Rules.validate()
+}
+
+// validateAlternatives rejects cycles that revisit the same wire value. Object
+// fields and collection values consume input and may contain recursive unions.
+func (s *JSONShape) validateAlternatives(active map[*JSONShape]bool) error {
+	if s == nil || s.Kind != "alias" && s.Kind != "union" {
+		return nil
+	}
+	if active[s] {
+		return fmt.Errorf("cyclic JSON matching alternatives")
+	}
+	active[s] = true
+	defer delete(active, s)
+	if s.Kind == "alias" {
+		return s.Child.validateAlternatives(active)
+	}
+	for _, branch := range s.Branches {
+		if err := branch.validateAlternatives(active); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (r JSONShapeRules) validate() error {
@@ -187,6 +219,8 @@ func (s *JSONShape) match(wire jsontext.Value, depth int) (bool, error) {
 		return s.array(wire, depth)
 	case "map":
 		return s.mapping(wire, depth)
+	case "union":
+		return s.union(wire, depth)
 	case "object":
 		matched, err := s.object(wire, depth)
 		if err != nil || !matched {
@@ -196,6 +230,23 @@ func (s *JSONShape) match(wire jsontext.Value, depth int) (bool, error) {
 		return false, fmt.Errorf("unsupported JSON matching kind %q", s.Kind)
 	}
 	return s.rules(wire, length)
+}
+
+func (s *JSONShape) union(wire jsontext.Value, depth int) (bool, error) {
+	matches := 0
+	for _, branch := range s.Branches {
+		matched, err := branch.match(wire, depth+1)
+		if err != nil {
+			return false, err
+		}
+		if matched {
+			matches++
+		}
+	}
+	if matches != 1 {
+		return false, nil
+	}
+	return s.rules(wire, -1)
 }
 
 func (s *JSONShape) object(wire jsontext.Value, depth int) (bool, error) {

@@ -274,12 +274,16 @@ are validated. Regenerate affected clients and servers to pick up this correctio
 Selected-view validation remains separate from full union-branch matching.
 
 Branches must be concrete named objects or arrays. Their recursive contents may
-be primitives, named objects, arrays, and string-keyed maps of these shapes.
+be primitives, named objects, untagged unions, arrays, and string-keyed maps of
+these shapes. Every nested union keeps its own exact-one rule and concrete named
+object/array branches. Empty arrays of union values remain valid unless constrained;
+a row matching zero or multiple branches rejects its enclosing candidate. JSON
+contains each nested value directly, without a synthetic discriminator.
 Map values retain their declared constraints, including named types, nullable
 values and recursive objects. Map length constraints count entries; an empty
 map is valid unless a minimum length rejects it. Map keys must be strings or
-named string types. Inline object leaves, nested unions, opaque custom codecs,
-and schema encoding overrides are rejected throughout the branch. Matching preserves exact JSON names, required
+named string types. Inline object leaves, tagged nested unions, opaque custom
+codecs, and schema encoding overrides are rejected throughout the branch. Matching preserves exact JSON names, required
 membership before defaults, nullability, closed-object policy, and effective
 value constraints. A selected nil slice encodes as `[]`; a nil object branch is
 invalid. Multiple array branches that accept `[]` make that value ambiguous.

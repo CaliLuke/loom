@@ -93,10 +93,11 @@ The evaluated `expr` graph, effective validation, and occurrence-specific value
 plans are the semantic source of truth. Extend their supported-branch admission
 to concrete named arrays whose elements use the currently admitted object-field
 grammar: primitives, concrete named objects, and recursively arrays or
-string-keyed maps of these. Apply the same structural restrictions recursively
-to named objects reached through collection values. Reject non-string map keys,
-nested union fields, inline object leaves, and scalar or map root branches.
-Map fields were added in #1041; importer admission remains separately bounded.
+string-keyed maps of these, plus nested untagged unions whose own branches obey
+the same contract. Apply the same restrictions through every collection and
+union. Reject non-string map keys, tagged nested unions, inline object leaves,
+and scalar or map root branches. Map fields were added in #1041 and nested
+untagged unions in #1036; importer admission remains separately bounded.
 Existing primitive `Any` fields remain opaque leaves; they do not become an
 implicit union branch or rescue a failed match.
 
@@ -357,3 +358,23 @@ filter now emits it. Direct service analysis covers that discovery boundary.
 
 The map model and bounded verification evidence live beside
 [the matching model](../../pkg/tla/untagged_json/README.md).
+
+## Nested untagged composition (#1036)
+
+A nested union is an exact-one predicate over its alternatives. Arrays and maps
+require every supplied value to satisfy that predicate. Empty collections retain
+their ordinary length semantics. Outer matching still requires the same unique
+schema and Go candidate, and assignment remains transactional. Alias/union-only
+descriptor cycles are invalid because they revisit the same wire value; recursive
+objects and collections consume input and remain supported.
+
+Nested generated codecs return a private typed mismatch for zero/multiple matches
+or differing schema/decoder identities. `DecodeJSONCandidate` recognizes that
+classification through JSON error wrapping and rejects just that candidate.
+Malformed descriptions, predicate evaluator failures and unexpected codec errors
+retain their fatal causes. An undifferentiated error would let a rejected nested
+candidate block an otherwise valid outer alternative. The generated fixture's
+`Fallback` union exercises that case with API-level closed objects.
+
+See the [nested models](../../pkg/tla/untagged_json/README.md) for the bounded
+exact-one and error-classification alternatives and their implementation seams.

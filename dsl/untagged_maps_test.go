@@ -91,7 +91,7 @@ func TestUntaggedRejectsUnsupportedMapValues(t *testing.T) {
 		{"inline object", func() {
 			Attribute("values", MapOf(String, &expr.Object{{Name: "name", Attribute: &expr.AttributeExpr{Type: String}}}))
 		}, "map values must be primitive"},
-		{"nested union", func() {
+		{"tagged union", func() {
 			Attribute("values", MapOf(String, "Choice"))
 		}, "map values must be primitive"},
 	} {
@@ -103,7 +103,7 @@ func TestUntaggedRejectsUnsupportedMapValues(t *testing.T) {
 				second := Type("Second", func() {
 					Attribute("id", String)
 				})
-				Type("Choice", OneOf(first, second), Untagged)
+				Type("Choice", OneOf(first, second))
 				record := Type("Record", tc.field)
 				other := Type("Other", func() {
 					Attribute("missing", Boolean)

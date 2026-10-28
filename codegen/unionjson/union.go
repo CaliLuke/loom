@@ -76,6 +76,12 @@ func Plan(source *expr.AttributeExpr, fieldName func(string) string, schema, clo
 			walk(ut.Attribute())
 			return
 		}
+		if union := expr.AsUnion(att.Type); union != nil {
+			for _, branch := range union.Values {
+				walk(branch.Attribute)
+			}
+			return
+		}
 		if array := expr.AsArray(att.Type); array != nil {
 			walk(array.ElemType)
 			return

@@ -32,13 +32,19 @@ func TestPlanOwnsRepresentationPolicy(t *testing.T) {
 		{"hidden schema field", expr.ElementName, true, true, `{"count":0,"hidden":"x"}`, false},
 		{"runtime field", expr.ElementName, false, true, `{"count":0,"hidden":"x"}`, true},
 	} {
-		for _, mapping := range []bool{false, true} {
+		for _, container := range []string{"object", "map", "union"} {
 			target, wire := source, tc.wire
-			if mapping {
+			if container == "map" {
 				target = &expr.AttributeExpr{Type: &expr.Map{KeyType: &expr.AttributeExpr{Type: expr.String}, ElemType: source}}
 				wire = `{"entry":` + wire + `}`
 			}
-			t.Run(fmt.Sprintf("%s/map=%t", tc.name, mapping), func(t *testing.T) {
+			if container == "union" {
+				target = &expr.AttributeExpr{Type: &expr.Union{TypeName: "Choice", Untagged: true, Values: []*expr.NamedAttributeExpr{
+					{Name: "Page", Attribute: source},
+					{Name: "Strings", Attribute: &expr.AttributeExpr{Type: &expr.UserTypeExpr{TypeName: "Strings", AttributeExpr: &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: expr.String}}}}}},
+				}}}
+			}
+			t.Run(fmt.Sprintf("%s/%s", tc.name, container), func(t *testing.T) {
 				plan, err := Plan(target, tc.fieldName, tc.schema, tc.closed)
 				require.NoError(t, err)
 				shape, err := plan.JSONShape()
