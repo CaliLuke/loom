@@ -120,14 +120,22 @@ go mod tidy
 EXAMPLE_API_KEY=local-demo-key go run .
 ```
 
-From another terminal, start two long calls, then send a third while both are
-active:
+From another terminal, start two long calls:
 
 ```sh
 curl -s -H 'X-API-Key: local-demo-key' -H 'Content-Type: application/json' \
   -d '{"seconds":30}' http://127.0.0.1:8080/work &
 curl -s -H 'X-API-Key: local-demo-key' -H 'Content-Type: application/json' \
   -d '{"seconds":30}' http://127.0.0.1:8080/work &
+```
+
+Wait until the server terminal has printed `work started; holding an admission
+permit` twice. Those messages confirm that both calls acquired permits. Then,
+before the 30-second calls finish, send the third request. If either call has
+already finished, run `wait` in the request terminal to let both calls finish,
+then start the two long calls again and wait for two new messages.
+
+```sh
 curl -i -H 'X-API-Key: local-demo-key' -H 'Content-Type: application/json' \
   -d '{"seconds":1}' http://127.0.0.1:8080/work
 wait

@@ -22,17 +22,6 @@ func (s *SecurityExpr) RequiredScopes(scheme *SchemeExpr) []string {
 	return scopes
 }
 
-func dupSchemeRequirements(source map[string][]string) map[string][]string {
-	if source == nil {
-		return nil
-	}
-	result := make(map[string][]string, len(source))
-	for scheme, names := range source {
-		result[scheme] = slices.Clone(names)
-	}
-	return result
-}
-
 // FlowScopes returns a flow's effective scope inventory. A nil flow inventory
 // inherits the scheme defaults; a nonnil empty inventory remains empty. The
 // returned scope declarations are independently owned. Repeated names retain
@@ -80,6 +69,17 @@ func (s *SchemeExpr) ScopeNames() []string {
 		}
 	}
 	return names
+}
+
+func dupSchemeRequirements(source map[string][]string) map[string][]string {
+	if source == nil {
+		return nil
+	}
+	result := make(map[string][]string, len(source))
+	for scheme, names := range source {
+		result[scheme] = slices.Clone(names)
+	}
+	return result
 }
 
 func dupScopeDeclarations(source []*ScopeExpr) []*ScopeExpr {
