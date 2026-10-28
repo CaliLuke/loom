@@ -5,8 +5,25 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/grpc/codegen/testdata"
 )
+
+func TestProtoCollectionPredicatesDoNotInferAbsence(t *testing.T) {
+	for _, collection := range []expr.DataType{
+		&expr.Array{ElemType: &expr.AttributeExpr{Type: expr.String}},
+		&expr.Map{KeyType: &expr.AttributeExpr{Type: expr.String}, ElemType: &expr.AttributeExpr{Type: expr.String}},
+	} {
+		t.Run(collection.Name(), func(t *testing.T) {
+			attribute := &expr.AttributeExpr{Type: collection, Validation: &expr.ValidationExpr{MinLength: new(2)}}
+			context := protoBufTypeContext("pb", codegen.NewNameScope(), false)
+			validation := codegen.ValidationCode(wrapperAttribute(attribute), nil, context, true, false, false, "message")
+			require.Contains(t, validation, "len(message.Field) < 2")
+			require.NotContains(t, validation, "if message.Field != nil")
+		})
+	}
+}
 
 func TestProtoStreamingRootValidation(t *testing.T) {
 	root := RunGRPCDSL(t, testdata.StreamingValidationDSL)

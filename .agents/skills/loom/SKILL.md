@@ -394,6 +394,11 @@ For maps, `MinLength` and `MaxLength` count entries and export as
 `minProperties` and `maxProperties`, including named map types. Regenerate
 contracts after upgrading so schema validators enforce the declared map bounds.
 
+Optional array/map fields may be omitted despite `MinLength`. Nil native
+collections represent absence; nonnil empty collections must satisfy the bounds.
+Required fields still need presence and valid contents. Regenerate services and
+transports after upgrading to adopt the optional collection validation fix.
+
 Unsigned integer schemas use `uint32` for `UInt32` and `uint64` for `UInt64`
 and `UInt`. Regenerate after upgrading and review generated clients. These
 format annotations describe the domain; validator format support is optional.

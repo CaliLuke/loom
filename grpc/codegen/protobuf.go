@@ -57,6 +57,7 @@ func (p *protoBufScope) Scope() *codegen.NameScope {
 func protoBufTypeContext(pkg string, scope *codegen.NameScope, useDefault bool) *codegen.AttributeContext {
 	ctx := codegen.NewAttributeContext(true, false, useDefault, pkg, scope)
 	ctx.Scope = &protoBufScope{scope: scope}
+	ctx.CollectionNilIsEmpty = true
 	return ctx
 }
 

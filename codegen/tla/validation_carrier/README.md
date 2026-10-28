@@ -46,6 +46,43 @@ coverage deliberately abstracts physical Go carrier agreement. Primitive aliases
 byte slices and named Nullable declarations remain independent regression controls.
 Do not commit checker states or raw output; remove task-owned output after review.
 
+## Optional collections (#1042)
+
+`CollectionPresence.tla` distinguishes absent optional collections from supplied
+empty collections. It enumerates lengths zero through five with bounds two and
+four. Required occurrences also represent collection elements and extracted
+Optional/Nullable values, whose presence has already been established. It also
+models protobuf's nil-as-empty storage: a present collection wrapper supplies
+its collection even if decoding produces a nil slice/map. The model abstracts
+Go nil detection and does not model JSON decoding, defaults or naming.
+
+Run with the pinned tool above, substituting `CollectionPresence.tla`,
+`collection-legacy.cfg`, `collection-native-only.cfg` or `collection-checked.cfg`,
+and separate temporary state directories. Legacy fails `Omission` after 27
+distinct states: native absence is treated as a supplied empty collection.
+The first repair (`native-only`) fails `Bounds` after 29 states because protobuf
+nil contents bypass minimum length. Checked passes all 52 states, preserving
+bounds for supplied and required values. These runs used Go source base
+`05e01174e` and the candidate's explicit collection-storage context.
+
+`recurseValidationCode` owns the optional native array/map guard.
+`AttributeContext.CollectionNilIsEmpty`, set by `protoBufTypeContext` and retained
+by `Dup`, prevents that guard where native storage does not carry absence.
+Named calls retain their existing occurrence guards; required roots, collection
+elements and unwrapped presence values continue to validate concrete values.
+`TestOptionalCollectionValidationPresence` checks the emitted root guard and
+both bounds; `TestOptionalCollectionValidationGenerated` compiles service,
+HTTP, JSON-RPC and gRPC output, then exercises service validation and mounted
+HTTP/JSON-RPC omission, empty, valid, out-of-bound and required-field cases.
+`TestProtoCollectionPredicatesDoNotInferAbsence` checks the protobuf context;
+existing `TestCollectionWrapperGeneratedContracts` and
+`TestGeneratedStreamingRootValidation` reproduce the first repair's regression
+and verify corrected generated validation and mounted protobuf exchanges.
+The HTTP decoder goldens also retain the guard for optional array headers and
+query arrays/maps, including named collection aliases. `TestClientDecode` and
+`TestDecode` compare those emitted sections; element predicates remain outside
+the collection's nil guard and continue to validate supplied entries.
+
 ## Alias spine extraction (#892)
 
 `AliasPresence.tla` refines the root-versus-child distinction for inherited

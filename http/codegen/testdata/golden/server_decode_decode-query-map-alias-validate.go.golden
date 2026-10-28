@@ -34,8 +34,10 @@ func DecodeMethodARequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Dec
 				}
 			}
 		}
-		if len(map_) < 5 {
-			err = loom.MergeErrors(err, loom.InvalidLengthError("map", len(map_), 5, true))
+		if map_ != nil {
+			if len(map_) < 5 {
+				err = loom.MergeErrors(err, loom.InvalidLengthError("map", len(map_), 5, true))
+			}
 		}
 		if err != nil {
 			return payload, err

@@ -45,8 +45,10 @@ func DecodeMethodQueryMapBoolArrayStringValidateRequest(mux loomhttp.Muxer, _ fu
 				}
 			}
 		}
-		if len(q) < 1 {
-			err = loom.MergeErrors(err, loom.InvalidLengthError("q", len(q), 1, true))
+		if q != nil {
+			if len(q) < 1 {
+				err = loom.MergeErrors(err, loom.InvalidLengthError("q", len(q), 1, true))
+			}
 		}
 		for k, v := range q {
 			if !(k == true) {
