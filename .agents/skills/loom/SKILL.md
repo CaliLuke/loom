@@ -39,6 +39,18 @@ fields in the body, map them explicitly, or declare `ErrorNameFromStatus()` on
 an HTTP error response with a unique status. Views retain their projected contract.
 Generation rejects incomplete mappings; add the missing source and regenerate.
 
+## Unary concurrency admission
+
+Use `admission.NewConcurrency(capacity)` and install `budget.Middleware` through
+generated `Endpoints.Use` or protected unary per-method constructors. Share a
+budget only across methods that should share a process-local limit; exclude
+streams. Declare `overloaded` and map saturation explicitly (HTTP 503, for
+example), separately from quota errors. `SetCapacity` accepts positive values,
+retains active permits and rejects invalid updates without changing the limit.
+Cancellation releases capacity only when the wrapped invocation exits. Export
+bounded counts and gauges from `Snapshot`; applications own metrics, update
+authorization and any cross-replica policy. See [admission](../../../docs/admission.md).
+
 ## Typed background activities
 
 Use `execution.Activity[Input, Output]` for named, typed activity calls without

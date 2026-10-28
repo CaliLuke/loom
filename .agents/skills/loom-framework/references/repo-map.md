@@ -5,6 +5,9 @@ belong in the `loom` skill and the canonical guides under `docs/`.
 
 ## Ownership
 
+- `admission/`: local unary concurrency budgets, live capacity updates and
+  bounded snapshots; existing protected endpoint hooks retain access ordering
+
 - `dsl/`: public DSL functions and DSL-time validation entry points
 - `expr/`: evaluated design model, preparation, finalization, and semantic
   validation

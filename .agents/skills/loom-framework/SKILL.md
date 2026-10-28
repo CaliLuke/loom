@@ -75,6 +75,15 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- `admission.Concurrency` owns local unary permits, live capacity updates and
+  coherent counters under one mutex. Endpoint exit releases the permit;
+  cancellation and resizing never do. Existing protected endpoint composition
+  owns validation/access ordering, and authored errors own transport mappings.
+  Keep the bounded model under `admission/tla/concurrency` and the runnable
+  generated example aligned. Streaming lifetime, distributed admission,
+  adaptive policy, configuration endpoints and metrics backends remain outside
+  this helper.
+
 - `expr.IsNullable` supplies effective nullability to prepared JSON schema
   matching and lowered `JSONShape` descriptions. Nullable null bypasses value
   predicates, including enums, while ordinary Any null still obeys its enum.
