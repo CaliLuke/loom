@@ -121,7 +121,9 @@ func buildInlineJSONSchema(attr *AttributeExpr, visited map[any]struct{}, contex
 	if err != nil {
 		return nil, err
 	}
-	if attr.Nullable && !inlineTypeAlreadyNullable(attr.Type) {
+	// Occurrence constraints refine the non-null domain even when nullability
+	// comes from a named type. Lift the complete refinement into the value arm.
+	if IsNullable(attr) && (!inlineTypeAlreadyNullable(attr.Type) || attr.Validation != nil) {
 		return nullableInlineJSONSchema(schema), nil
 	}
 	return schema, nil

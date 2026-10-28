@@ -20,6 +20,10 @@ func TestJSONRPCUntaggedArrayObject(t *testing.T) {
 		items := Type("Items", ArrayOf(String))
 		page := Type("Page", func() {
 			Attribute("total", Int)
+			Attribute("status", String, func() {
+				Nullable()
+				Enum("open", "closed")
+			})
 			Required("total")
 		})
 		choice := Type("Choice", OneOf(items, page), func() {
@@ -70,12 +74,14 @@ func TestJSONRPCArrayObject(t *testing.T) {
 	host := httptest.NewServer(mux)
 	defer host.Close()
 	c := client.NewClient("http", strings.TrimPrefix(host.URL, "http://"), host.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
-	for _, wire := range []string{"[]", "[\"ok\"]", "{\"total\":0}"} {
+	for _, wire := range []string{"[]", "[\"ok\"]", "{\"total\":0}", "{\"total\":0,\"status\":null}", "{\"total\":0,\"status\":\"open\"}"} {
 		var payload svc.Choice
 		require.NoError(t, json.Unmarshal([]byte(wire), &payload))
 		result, err := c.Echo()(t.Context(), &payload)
 		require.NoError(t, err)
 		require.Equal(t, &payload, result)
 	}
+	var invalid svc.Choice
+	require.Error(t, json.Unmarshal([]byte("{\"total\":0,\"status\":\"other\"}"), &invalid))
 }
 `

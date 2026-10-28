@@ -8,12 +8,17 @@ var UntaggedArraysDSL = func() {
 	API("arrayunion", func() {
 		Meta("openapi:closed-objects", "true")
 	})
+	status := Type("Status", String, func() {
+		Nullable()
+		Enum("open", "closed")
+	})
 	item := Type("Item", func() {
 		Attribute("name", String, func() {
 			MinLength(2)
 		})
 		Attribute("label", String, func() {
 			Nullable()
+			Enum("open", "closed")
 		})
 		Required("name")
 		Meta("openapi:additionalProperties", "false")
@@ -25,6 +30,16 @@ var UntaggedArraysDSL = func() {
 		Required("total")
 	})
 	result := Type("Result", OneOf(items, page), func() {
+		Untagged()
+	})
+	record := Type("Record", func() {
+		Attribute("status", status, func() {
+			Enum("open")
+		})
+		Required("status")
+		Meta("openapi:additionalProperties", "false")
+	})
+	recordOrPage := Type("RecordOrPage", OneOf(record, page), func() {
 		Untagged()
 	})
 	signed := Type("Signed", ArrayOf(Int32))
@@ -52,6 +67,10 @@ var UntaggedArraysDSL = func() {
 		Untagged()
 	})
 	Service("listing", func() {
+		Method("record", func() {
+			Result(recordOrPage)
+			HTTP(func() { GET("/record") })
+		})
 		Method("exact", func() {
 			Result(exact)
 			HTTP(func() { GET("/exact") })

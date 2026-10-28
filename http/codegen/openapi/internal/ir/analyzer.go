@@ -205,7 +205,9 @@ func (a *Analyzer) analyzeSchema(attr *expr.AttributeExpr, context string, noref
 			return a.analyzeUnderlyingSchema(componentAttribute(attr, t), context, true)
 		}
 		s := a.analyzeUserType(attr, t, context, len(noref) > 0)
-		if attr.Nullable && !expr.IsNullable(t.Attribute()) {
+		// A named occurrence's refinement constrains its non-null domain;
+		// inherited nullability must surround that complete refinement too.
+		if expr.IsNullable(attr) && (!expr.IsNullable(t.Attribute()) || hasUserTypeValidationOverlay(attr, t.Attribute())) {
 			a.applySchemaExample(s, attr, context)
 			a.applyNullableSchema(s)
 		} else if expr.AllowsNull(t.Attribute()) && len(attr.UserExamples) > 0 {

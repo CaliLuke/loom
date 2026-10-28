@@ -21,6 +21,30 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestNullableEnumRecord(t *testing.T) {
+	for _, wire := range []string{"{\"status\":null}", "{\"status\":\"open\"}"} {
+		var record svc.Record
+		require.NoError(t, json.Unmarshal([]byte(wire), &record))
+		require.NoError(t, svc.ValidateRecord(&record))
+		value := svc.NewRecordOrPageRecord(&record)
+		encoded, err := json.Marshal(value, json.Deterministic(true))
+		require.NoError(t, err)
+		require.Equal(t, wire, string(encoded))
+		var decoded svc.RecordOrPage
+		require.NoError(t, json.Unmarshal(encoded, &decoded))
+		require.Equal(t, value, decoded)
+	}
+	for _, wire := range []string{"{}", "{\"status\":\"closed\"}", "{\"status\":\"other\"}"} {
+		var record svc.Record
+		require.NoError(t, json.Unmarshal([]byte(wire), &record))
+		require.Error(t, svc.ValidateRecord(&record))
+		_, err := json.Marshal(svc.NewRecordOrPageRecord(&record))
+		require.Error(t, err)
+		var value svc.RecordOrPage
+		require.Error(t, json.Unmarshal([]byte(wire), &value))
+	}
+}
+
 func TestServiceCodecs(t *testing.T) {
 	for _, wire := range []string{"[]", "[{\"name\":\"ok\",\"label\":null}]", "{\"total\":0}"} {
 		var value svc.Result
@@ -78,7 +102,7 @@ func TestHTTPCodecs(t *testing.T) {
 	address, err := url.Parse(host.URL)
 	require.NoError(t, err)
 	c := client.NewClient(address.Scheme, address.Host, host.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
-	for _, wire := range []string{"[]", "[{\"name\":\"ok\"}]", "{\"total\":0}"} {
+	for _, wire := range []string{"[]", "[{\"name\":\"ok\"}]", "[{\"name\":\"ok\",\"label\":null}]", "[{\"name\":\"ok\",\"label\":\"open\"}]", "{\"total\":0}", "{\"total\":1,\"items\":[{\"name\":\"ok\",\"label\":null}]}"} {
 		payload, err := client.BuildEchoPayload(wire)
 		require.NoError(t, err)
 		result, err := c.Echo()(t.Context(), payload)
@@ -93,6 +117,7 @@ func TestHTTPCodecs(t *testing.T) {
 			{"", true, false}, {" \t\r\n", true, false}, {"{x}", false, false},
 			{"[", false, false}, {"null", false, false}, {"[null]", false, false},
 			{"{\"total\":0,\"extra\":1}", false, false},
+			{"[{\"name\":\"ok\",\"label\":\"other\"}]", false, false},
 			{"[{\"name\":\"x\"}]", false, false}, {"[]", false, true},
 		} {
 			before := calls.Load()

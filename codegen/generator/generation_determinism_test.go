@@ -14,6 +14,7 @@ import (
 	servicetestdata "github.com/CaliLuke/loom/codegen/service/testdata"
 	"github.com/CaliLuke/loom/eval"
 	grpctestdata "github.com/CaliLuke/loom/grpc/codegen/testdata"
+	httptestdata "github.com/CaliLuke/loom/http/codegen/testdata"
 )
 
 const generationDeterminismHelperPath = "LOOM_GENERATION_DETERMINISM_HELPER_PATH"
@@ -29,6 +30,7 @@ var generationDeterminismDSLs = []struct {
 	{"StructMetaTypeDSL", grpctestdata.StructMetaTypeDSL},
 	{"PayloadWithNestedTypesDSL", grpctestdata.PayloadWithNestedTypesDSL},
 	{"OptionalCollectionValidationDSL", optionalCollectionValidationDSL},
+	{"UntaggedArraysDSL", httptestdata.UntaggedArraysDSL},
 }
 
 // TestGeneratedFilesAreByteStableAcrossIndependentProcesses generates the

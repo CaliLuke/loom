@@ -34,7 +34,9 @@ func lowerJSONShape(node *valuePlanNode, seen map[*valuePlanNode]*loom.JSONShape
 	if node == nil || node.codec != ValueCodecJSON {
 		return nil, fmt.Errorf("JSON matching cannot lower an opaque codec")
 	}
-	shape := &loom.JSONShape{Nullable: node.nullable, Closed: !node.schemaUnknown, NonNullableElements: node.nonNullableElements}
+	// The runtime descriptor receives effective nullability, including named
+	// aliases, so it need not reconstruct declaration-level presence policy.
+	shape := &loom.JSONShape{Nullable: IsNullable(node.attribute), Closed: !node.schemaUnknown, NonNullableElements: node.nonNullableElements}
 	seen[node] = shape
 	rules, err := lowerJSONShapeRules(node)
 	if err != nil {
