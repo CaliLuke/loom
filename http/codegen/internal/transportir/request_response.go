@@ -33,6 +33,7 @@ func buildRequest(endpoint *expr.HTTPEndpointExpr) *Request {
 		contentType = *endpoint.RequestContentType
 	}
 	return &Request{
+		MediaVariants:        buildMediaVariants(body, endpoint.MediaTypes),
 		ContentType:          contentType,
 		JSONRPCID:            endpoint.JSONRPCID,
 		Payload:              payload,
@@ -99,8 +100,10 @@ func buildResponseStatus(status *expr.HTTPResponseExpr, httpErrorExpr *expr.HTTP
 		return nil
 	}
 	documentBody := responseDocumentBody(status)
+	body := normalizeHTTPAttribute(status.Body)
 	httpError := buildError(httpErrorExpr)
 	return &ResponseStatus{
+		MediaVariants:           buildMediaVariants(body, status.MediaTypes),
 		Error:                   httpError,
 		ErrorSelector:           httpErrorExpr.JSONRPCErrorSelector(),
 		StatusErrorName:         status.StatusErrorName,
@@ -110,7 +113,7 @@ func buildResponseStatus(status *expr.HTTPResponseExpr, httpErrorExpr *expr.HTTP
 		ContentTypes:            responseContentTypes(status),
 		Headers:                 buildHeaders(status.Headers),
 		Cookies:                 buildCookies(status.Cookies),
-		Body:                    normalizeHTTPAttribute(status.Body),
+		Body:                    body,
 		DocumentBody:            documentBody,
 		IndependentDocumentBody: status.OpenAPIBody != nil,
 		BodyOrigin:              attributeOrigin(status.Body),

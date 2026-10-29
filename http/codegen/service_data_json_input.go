@@ -68,6 +68,7 @@ func newJSONBodyInput(attribute *expr.AttributeExpr, endpoint string, sd *Servic
 		}
 		switch actual := typ.(type) {
 		case expr.UserType:
+			delete(actual.Attribute().Meta, "http:media:form-root")
 			actual.Rename(name)
 		case *expr.Union:
 			actual.TypeName = name

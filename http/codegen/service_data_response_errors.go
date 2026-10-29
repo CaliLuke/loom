@@ -138,6 +138,10 @@ func (b *errorBuilder) buildResultInitCode(errorResponse *transportir.ResponseSt
 func (b *errorBuilder) buildResponseData(errorResponse *transportir.ResponseStatus, errctx *codegen.AttributeContext, init *InitData) *ResponseData {
 	httpError := errorResponse.Error
 	serverBodyData, clientBodyData := b.buildResponseBodyData(errorResponse)
+	for _, body := range serverBodyData {
+		attachMediaBodyData(body, errorResponse.MediaVariants)
+	}
+	attachMediaBodyData(clientBodyData, errorResponse.MediaVariants)
 	vars := newResponseVarScope(b.sd)
 	headers := b.sds.extractHeaders(errorResponse.Headers, httpError.Attribute, errctx, b.sd.Scope, vars, b.sds.examplesFor(b.sd))
 	cookies := b.sds.extractResponseCookies(errorResponse.Cookies, httpError.Attribute, errctx, b.sd.Scope, vars, b.sds.examplesFor(b.sd))

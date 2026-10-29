@@ -65,6 +65,9 @@ func (l Layout) Bind(context *codegen.AttributeContext) {
 
 // Record preserves the highest-priority physical layout for a declaration.
 func (l Layout) Record(userType expr.UserType, presence, pointer, defaults bool) {
+	if _, form := userType.Attribute().Meta["http:media:form-root"]; form {
+		presence = false
+	}
 	key := userType.Hash()
 	if old, found := l.JSONPresence[key]; found && layoutPriority(old, l.Pointer[key]) >= layoutPriority(presence, pointer) {
 		return

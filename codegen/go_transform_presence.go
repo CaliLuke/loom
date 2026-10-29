@@ -314,11 +314,3 @@ func nativeObjectFieldPointer(parent *expr.MappedAttributeExpr, name string, att
 func isAnyPresenceAttribute(attribute *expr.AttributeExpr) bool {
 	return attribute != nil && expr.IsAny(attribute.Type)
 }
-
-func attributeUsesJSONPresence(attribute *expr.AttributeExpr, context *AttributeContext) bool {
-	if attribute == nil || context == nil || len(context.JSONPresenceTypes) == 0 {
-		return false
-	}
-	userType, ok := attribute.Type.(expr.UserType)
-	return ok && context.JSONPresenceTypes[userType.Hash()]
-}

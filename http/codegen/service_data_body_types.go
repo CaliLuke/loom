@@ -61,6 +61,8 @@ func (sds *ServicesData) buildRequestBodyType(body, att *expr.AttributeExpr, end
 	}
 	init := sds.buildRequestBodyInit(body, att, endpointName, pkg, details.validateDefinition, svr, svcctx, httpctx, sd)
 	return &TypeData{
+		attribute:            body,
+		context:              httpctx,
 		Name:                 body.Type.Name(),
 		VarName:              details.varName,
 		Description:          details.description,
@@ -293,6 +295,8 @@ func (sds *ServicesData) buildResponseBodyType(body, att *expr.AttributeExpr, lo
 		data.ref = init.ReturnTypeRef
 	}
 	result := &TypeData{
+		attribute:          body,
+		context:            httpctx,
 		Name:               data.name,
 		VarName:            data.varName,
 		Description:        data.desc,

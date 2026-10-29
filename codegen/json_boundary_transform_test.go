@@ -33,3 +33,19 @@ func TestTransformNamedJSONCollectionBoundary(t *testing.T) {
 		})
 	}
 }
+
+func TestTransformNamedNativeBoundaryInsideJSON(t *testing.T) {
+	named := &expr.UserTypeExpr{TypeName: "FormVariant", AttributeExpr: &expr.AttributeExpr{Type: &expr.Object{{Name: "name", Attribute: &expr.AttributeExpr{Type: expr.String}}}}}
+	source := &expr.AttributeExpr{Type: named}
+	target := expr.DupAtt(source)
+	scope := NewNameScope()
+	sourceContext := NewAttributeContext(true, false, false, "", scope)
+	sourceContext.JSONPresence = true
+	sourceContext.JSONPresenceTypes = map[string]bool{named.Hash(): false}
+	targetContext := NewAttributeContext(false, false, true, "", scope)
+	plan, err := GoTransform(source, target, "body", "payload", sourceContext, targetContext, "unmarshal", true)
+	require.NoError(t, err)
+	require.NotContains(t, plan.Code, ".Value()")
+	require.Contains(t, plan.Code, "Name: body.Name")
+	require.True(t, sourceContext.JSONPresence)
+}

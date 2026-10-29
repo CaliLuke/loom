@@ -513,9 +513,9 @@ func (a *analyzer) content(content *orderedmap.Map[string, *v3.MediaType], path 
 	if orderedmap.Len(content) == 0 {
 		return "", nil, nil
 	}
-	if orderedmap.Len(content) != 1 {
-		a.unsupported("multiple-media-types", path, "exactly one media type is supported")
-		return "", nil, nil
+	if orderedmap.Len(content) > 1 {
+		_, schema, _ := a.requestContent(content, path)
+		return "", schema, nil
 	}
 	for contentType, media := range content.FromOldest() {
 		if media == nil {

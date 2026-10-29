@@ -27,8 +27,9 @@ type (
 		// It preserves that snapshot even if the original attribute later changes.
 		// Exactly one of Target and TargetOccurrence must be supplied.
 		TargetOccurrence ValueOccurrence
-		// Selection is an authored member path from the semantic root, for a
-		// selected body or location. An empty path selects the root itself.
+		// Selection is an authored member or union-branch path from the semantic
+		// root. A branch projects only values selecting that branch; other union
+		// values are absent. An empty path selects the root itself.
 		Selection []string
 		// Codec identifies the actual encoding owner, not a documentation MIME.
 		Codec ValueCodec

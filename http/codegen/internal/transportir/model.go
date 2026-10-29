@@ -110,6 +110,8 @@ type (
 	}
 
 	Request struct {
+		// MediaVariants retains each typed request representation independently.
+		MediaVariants []*MediaVariant
 		// ContentType is the admitted authored typed request media, empty when implicit.
 		ContentType string
 		// JSONRPCID retains the canonical envelope binding.
@@ -170,6 +172,8 @@ type (
 	}
 
 	ResponseStatus struct {
+		// MediaVariants retains each typed response representation independently.
+		MediaVariants []*MediaVariant
 		// BodyValue carries the effective result or error occurrence.
 		BodyValue *ValueTarget
 		// BodyValues binds each advertised media label to the actual server encoder

@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 	"github.com/CaliLuke/loom/internal/securitygen"
 )
@@ -111,6 +112,10 @@ type (
 
 	// TypeData contains the data needed to render a type definition.
 	TypeData struct {
+		// Media carries the selected HTTP occurrence's media dispatch plan.
+		Media     *MediaBodyData
+		attribute *expr.AttributeExpr
+		context   *codegen.AttributeContext
 		// Value retains the semantic source and finalized body representation plan.
 		Value *transportir.ValueTarget
 		// Name is the type name.

@@ -125,6 +125,8 @@ func (b *payloadBuilder) buildInit(request *RequestData) *InitData {
 
 func (b *payloadBuilder) buildRequestData() (*RequestData, *ParamData) {
 	serverBodyData, clientBodyData := b.buildRequestBodies()
+	attachMediaBodyData(serverBodyData, b.endpointIR.Request.MediaVariants)
+	attachMediaBodyData(clientBodyData, b.endpointIR.Request.MediaVariants)
 	paramsData, queryData, headersData, cookiesData, mapQueryParam := b.buildRequestElements()
 	multipartGen, multipartFiles := generatedMultipartRequestData(b.endpointIR.Request)
 	registerRequestBodyTypeNames(serverBodyData, b.sd)

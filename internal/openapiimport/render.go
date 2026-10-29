@@ -260,7 +260,11 @@ func (r *renderer) planOperation(operation *Operation, path string) (operationPl
 	if err != nil {
 		return operationPlan{}, err
 	}
-	parameters, err := r.parameters(operation.Parameters, path+"/parameters")
+	sourceParameters := operation.Parameters
+	if operation.RequestBody != nil && mediaRangeSchema(operation.RequestBody.Schema) {
+		sourceParameters = withMediaContentTypeParameter(sourceParameters)
+	}
+	parameters, err := r.parameters(sourceParameters, path+"/parameters")
 	if err != nil {
 		return operationPlan{}, err
 	}
@@ -528,6 +532,7 @@ func (r *renderer) errorTypeClones() error {
 func (r *renderer) responseType(call, name string, response renderedResponse, path string) error {
 	responseSchema := schemaWithExamples(response.response.Schema, response.response.Examples)
 	wrapUnconstrainedError := call == "Error" && r.effectiveUnconstrained(responseSchema)
+	wrapMediaError := call == "Error" && responseSchema != nil && len(responseSchema.MediaTypes) > 0
 	prefix := call + "("
 	if name != "" {
 		prefix += strconv.Quote(name) + ", "
@@ -536,7 +541,7 @@ func (r *renderer) responseType(call, name string, response renderedResponse, pa
 		r.line("%s%s)", prefix, response.cloneErrorGoName)
 		return nil
 	}
-	if len(response.headers) == 0 && !wrapUnconstrainedError {
+	if len(response.headers) == 0 && !wrapUnconstrainedError && !wrapMediaError {
 		if call == "Error" && response.response.Schema == nil {
 			r.open("Error(%q, func()", name)
 			r.line("Attribute(%q, String)", "message")

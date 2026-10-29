@@ -100,7 +100,9 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
 	problem := loomhttp.NewProblemResponse(ctx, {{ if .ErrorHeader }}v{{ else }}res{{ end }}, {{ .Code }}, {{ .ProblemTypeOverride }}, {{ .ProblemTitleOverride }})
 	{{- end }}
 	{{- if .EncodePlan.HasBody }}
+    {{- if not .EncodePlan.FirstBody.Media }}
 	enc := encoder(ctx, w)
+    {{- end }}
 		{{- if .ErrorHeader }}
 	var body any
 	if formatter != nil {
@@ -232,6 +234,36 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
 	{{- if and .ErrorHeader (not .ErrorNameFromStatus) }}
 	w.Header().Set("loom-error", res.LoomErrorName())
 	{{- end }}
+    {{- if and .EncodePlan.HasBody .EncodePlan.FirstBody.Media }}
+    {{- if .ErrorHeader }}
+    var enc loomhttp.Encoder
+    if formatter != nil {
+        enc = encoder(ctx, w)
+    } else {
+    {{- end }}
+    mediaIndex := -1
+    var mediaValue any
+ var mediaParts map[string]string
+    switch mediaBody := any(body).(type) {
+    {{- range .ServerBody }}
+    case {{ .Ref }}:
+        switch string(mediaBody.Kind()) {
+        {{- range $i, $variant := .Media.Variants }}
+        case {{ printf "%q" .Tag }}:
+            mediaIndex, mediaValue, mediaParts = {{ $i }}, mediaBody.{{ .Field }}, {{ .Parts }}
+        {{- end }}
+        }
+    {{- end }}
+    }
+    mediaEncoder, mediaErr := loomhttp.MediaResponseEncoder(ctx, w, mediaIndex, {{ .EncodePlan.FirstBody.Media.Contracts }}, mediaValue, mediaParts, encoder)
+    if mediaErr != nil {
+        return mediaErr
+    }
+    enc {{ if .ErrorHeader }}={{ else }}:={{ end }} mediaEncoder
+    {{- if .ErrorHeader }}
+    }
+    {{- end }}
+    {{- end }}
 		{{- if not .DeferStatus }}
 	w.WriteHeader({{ .StatusCode }})
 	{{- end }}`},

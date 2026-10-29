@@ -105,7 +105,27 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ el
 			}
 		}
 	{{- else }}
+{{- if .Payload.Request.ServerBody.Media }}
+        {
+            mediaIndex, mediaErr := loomhttp.SelectRequestMediaType(r, {{ .Payload.Request.ServerBody.Media.Contracts }}, {{ not .Payload.Request.MustHaveBody }})
+            if mediaErr != nil {
+                err = mediaErr
+            } else {
+                switch mediaIndex {
+                {{- range $i, $variant := .Payload.Request.ServerBody.Media.Variants }}
+                case {{ $i }}:
+                    var mediaValue {{ .TypeRef }}
+                    err = loomhttp.DecodeMediaRequest(r, &mediaValue, {{ .AllowsNull }}, {{ .Parts }}, decoder)
+                    if err == nil {
+                        body.Set{{ .Field }}(mediaValue)
+                    }
+                {{- end }}
+                }
+            }
+        }
+{{- else }}
 		err = decoder({{ if .Payload.Request.BodyAllowsNull }}r{{ else }}loomhttp.WithNonNullableBody(r){{ end }}).Decode({{ if not (or .Payload.Request.OptionalObjectBody .Payload.Request.OptionalPrimitiveBody) }}&{{ end }}body)
+{{- end }}
 		if err != nil {
 		{{- if .Payload.Request.MustHaveBody }}
 			if errors.Is(err, io.EOF) {

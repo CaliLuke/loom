@@ -41,6 +41,8 @@ type (
 		Cookies *MappedAttributeExpr
 		// Body describes the HTTP request body.
 		Body *AttributeExpr
+		// MediaTypes maps request media contracts to branches of the selected body union.
+		MediaTypes []*HTTPMediaTypeExpr
 		// RequestContentType is the authored typed JSON request media, or nil when
 		// implicit. A nonnil empty string is an invalid explicit declaration.
 		RequestContentType *string

@@ -183,7 +183,22 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 		body.ID = id
 		{{- end }}
 		{{- end }}
-		{{- if .Payload.Request.FormEncoded }}
+        {{- if and .Payload.Request.ClientBody .Payload.Request.ClientBody.Media }}
+        {
+            mediaIndex := -1
+            var mediaValue any
+ var mediaParts map[string]string
+            switch string(body.Kind()) {
+            {{- range $i, $variant := .Payload.Request.ClientBody.Media.Variants }}
+            case {{ printf "%q" .Tag }}:
+                mediaIndex, mediaValue, mediaParts = {{ $i }}, body.{{ .Field }}, {{ .Parts }}
+            {{- end }}
+            }
+            if err := loomhttp.EncodeMediaRequest(req, mediaIndex, {{ .Payload.Request.ClientBody.Media.Contracts }}, mediaValue, mediaParts, encoder); err != nil {
+                return loomhttp.ErrEncodingError("{{ .ServiceName }}", "{{ .Method.Name }}", err)
+            }
+        }
+        {{- else if .Payload.Request.FormEncoded }}
 		if err := loomhttp.SetFormRequest(req, &body); err != nil {
 			return loomhttp.ErrEncodingError("{{ .ServiceName }}", "{{ .Method.Name }}", err)
 		}

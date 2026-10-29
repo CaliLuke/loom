@@ -75,6 +75,15 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- Distinct HTTP media mappings belong to endpoint/response occurrences, not to
+  reusable service unions. Transport IR retains each branch's schema, examples,
+  codec and field encoding. Form roots have independent native-presence carriers;
+  nested JSON fields retain JSON carriers. Conversion contexts must honor both
+  true and false recorded presence policies. Incoming matching and outgoing
+  consistency share `internal/httpcodec`; select factories before response status.
+  Keep the media-selection and physical-layout models and generated exchange
+  specimen aligned.
+
 - `admission.Rate` serializes the maintained token bucket's Allow and complete
   rate/burst policy updates. Preserve accrued allowance, clamp on reductions and
   never reset quota on reconfiguration. `RateAdmission` owns bounded cooperative

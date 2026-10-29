@@ -58,7 +58,7 @@ func (r *renderer) requestBody(source *RequestBody, path string) (*renderedBody,
 		return nil, fmt.Errorf("render OpenAPI design: %s has no content type", path)
 	}
 	if len(body.ContentTypes) > 1 {
-		return r.multipleRequestBody(body, path)
+		return &renderedBody{body: body, field: "body", mode: requestBodyJSON}, nil
 	}
 	contentType := body.ContentTypes[0]
 	mode, err := requestBodyModeFor(contentType, path)
@@ -66,21 +66,6 @@ func (r *renderer) requestBody(source *RequestBody, path string) (*renderedBody,
 		return nil, err
 	}
 	return r.singleRequestBody(body, mode, path)
-}
-
-func (r *renderer) multipleRequestBody(body RequestBody, path string) (*renderedBody, error) {
-	for _, contentType := range body.ContentTypes {
-		if !isMultipartMediaType(contentType) && !isFormMediaType(contentType) {
-			continue
-		}
-		if err := r.validateRequestTransportBodySchema(
-			body.Schema,
-			path+"/content/"+escapeJSONPointer(contentType)+"/schema",
-		); err != nil {
-			return nil, err
-		}
-	}
-	return &renderedBody{body: body, mode: requestBodyRaw}, nil
 }
 
 func requestBodyModeFor(contentType, path string) (requestBodyMode, error) {
@@ -219,13 +204,16 @@ func (r *renderer) renderedResponse(source StatusResponse, rawBody bool, path st
 	if source.Response.Schema == nil && source.Response.ContentType != "" {
 		return renderedResponse{}, fmt.Errorf("render OpenAPI design: %s has content type but no schema", path)
 	}
-	if source.Response.Schema != nil && (source.Response.ContentType == "" ||
+	if source.Response.Schema != nil && len(source.Response.Schema.MediaTypes) == 0 && (source.Response.ContentType == "" ||
 		!rawBody && !isJSONMediaType(source.Response.ContentType)) {
 		return renderedResponse{}, fmt.Errorf(
 			"render OpenAPI design: %s content type %q is not renderable",
 			path,
 			source.Response.ContentType,
 		)
+	}
+	if mediaRangeSchema(source.Response.Schema) {
+		source.Response.Headers = withMediaContentTypeHeader(source.Response.Headers)
 	}
 	used := make(map[string]int)
 	headers := make([]renderedHeader, 0, len(source.Response.Headers))

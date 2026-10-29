@@ -12,6 +12,12 @@ request decoder accepts valid `+json` media everywhere; services still implement
 media-specific semantics. Do not combine static request media with a mapped
 Content-Type header, form/multipart, raw, JSON-RPC or WebSocket framing.
 
+For distinct HTTP representations, map each selected `Body` union branch with
+`MediaType(media, branch)` in the endpoint and response. Select a generated union
+constructor in application code. Exact media are automatic; ranges require a
+mapped concrete Content-Type. Factories receive only the selected branch, and
+unknown codecs remain application-owned. See [HTTP media contracts](../../../docs/http-media-contracts.md).
+
 Use this skill when an application consumes `github.com/CaliLuke/loom`: writing
 or changing `design/*.go`, regenerating `gen/`, implementing service methods,
 or wiring generated transports and runtime packages.

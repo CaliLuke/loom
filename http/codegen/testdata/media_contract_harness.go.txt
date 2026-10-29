@@ -1,0 +1,184 @@
+package mediacontracts_test
+
+import (
+	"context"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"strings"
+	"sync/atomic"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	client "example.com/mediacontracts/gen/http/media_contracts/client"
+	server "example.com/mediacontracts/gen/http/media_contracts/server"
+	service "example.com/mediacontracts/gen/media_contracts"
+	loomhttp "github.com/CaliLuke/loom/http"
+)
+
+func TestMediaExchange(t *testing.T) {
+	var calls atomic.Int32
+	mux := loomhttp.NewMuxer()
+	endpoint := func(_ context.Context, value any) (any, error) {
+		calls.Add(1)
+		return value, nil
+	}
+	server.Mount(mux, server.New(&service.Endpoints{Exchange: endpoint}, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil))
+	remote := httptest.NewServer(mux)
+	defer remote.Close()
+	parsed, err := url.Parse(remote.URL)
+	require.NoError(t, err)
+	transport := client.NewClient(parsed.Scheme, parsed.Host, remote.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
+	binaryType := "application/octet-stream"
+	note := "hello"
+	var nullable service.Body
+	require.NoError(t, json.Unmarshal([]byte(`{"type":"nullable","value":null}`), &nullable))
+	for _, tc := range []struct {
+		name  string
+		body  service.Body
+		media *string
+	}{
+		{"json", service.NewBodyJSON(42), nil},
+		{"vendor", service.NewBodyVendor(7), nil},
+		{"nullable", nullable, nil},
+		{"text", service.NewBodyText("hello"), nil},
+		{"binary", service.NewBodyBinary([]byte{0, 255}), &binaryType},
+		{"form", service.NewBodyForm(&service.BodyForm{Name: &note, Note: &note, Numbers: []int{1, 2}, Labels: map[string]string{"a": "b"}}), nil},
+		{"empty form", service.NewBodyForm(&service.BodyForm{}), nil},
+		{"multipart", service.NewBodyMultipart(&service.BodyMultipart{Name: "file", Data: []byte{0, 255}}), nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := transport.Exchange()(context.Background(), &service.MediaEnvelope{Body: tc.body, ContentType: tc.media})
+			require.NoError(t, err)
+			result := got.(*service.MediaEnvelope)
+			require.Equal(t, tc.body.Kind(), result.Body.Kind())
+			switch tc.name {
+			case "json":
+				require.EqualValues(t, 42, result.Body.JSON)
+			case "vendor":
+				require.EqualValues(t, 7, result.Body.Vendor)
+			case "text":
+				require.EqualValues(t, "hello", result.Body.Text)
+			case "binary":
+				require.Equal(t, service.BodyBinary{0, 255}, result.Body.Binary)
+			case "nullable":
+				require.True(t, result.Body.Nullable.IsNull())
+			case "form", "empty form":
+				require.Equal(t, tc.body.Form, result.Body.Form)
+			case "multipart":
+				require.Equal(t, tc.body.Multipart, result.Body.Multipart)
+			}
+		})
+	}
+	require.EqualValues(t, 8, calls.Load())
+	for _, tc := range []struct {
+		name, media, body string
+		status            int
+	}{
+		{"missing media", "", "42", 415},
+		{"malformed media", "invalid", "42", 415},
+		{"unsupported codec", "image/png", "data", 415},
+		{"wrong JSON shape", "application/json", `"text"`, 400},
+		{"empty JSON", "application/json", "", 400},
+		{"whitespace JSON", "application/json", " \n\t", 400},
+		{"null JSON", "application/json", "null", 400},
+		{"truncated JSON", "application/json", "{", 400},
+		{"constraint", "application/json", "101", 400},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			request, err := http.NewRequest("POST", remote.URL+"/media-contracts", strings.NewReader(tc.body))
+			require.NoError(t, err)
+			request.Header.Set("Content-Type", tc.media)
+			response, err := remote.Client().Do(request)
+			require.NoError(t, err)
+			data, err := io.ReadAll(response.Body)
+			require.NoError(t, err)
+			require.NoError(t, response.Body.Close())
+			require.Equal(t, tc.status, response.StatusCode, string(data))
+			var problem map[string]any
+			require.NoError(t, json.Unmarshal(data, &problem))
+			wantCode := "decode_payload"
+			switch {
+			case tc.status == 415:
+				wantCode = "unsupported_media_type"
+			case tc.name == "empty JSON" || tc.name == "whitespace JSON":
+				wantCode = "missing_payload"
+			case tc.name == "constraint":
+				wantCode = "invalid_range"
+			}
+			require.Equal(t, wantCode, problem["code"])
+			require.NotEmpty(t, problem["detail"])
+			require.EqualValues(t, 8, calls.Load())
+		})
+	}
+	wrongType := "text/plain"
+	_, err = transport.Exchange()(context.Background(), &service.MediaEnvelope{Body: service.NewBodyJSON(1), ContentType: &wrongType})
+	require.Error(t, err)
+	require.EqualValues(t, 8, calls.Load())
+}
+
+func TestOptionalMediaBody(t *testing.T) {
+	mux := loomhttp.NewMuxer()
+	var calls atomic.Int32
+	var present atomic.Bool
+	endpoint := func(_ context.Context, value any) (any, error) {
+		calls.Add(1)
+		present.Store(value.(*service.OptionalPayload).Choice != nil)
+		return "ok", nil
+	}
+	server.Mount(mux, server.New(&service.Endpoints{Optional: endpoint}, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil))
+	for _, tc := range []struct {
+		name, media, body string
+		status            int
+		present           bool
+	}{
+		{"absent", "", "", 200, false},
+		{"empty JSON", "application/json", "", 200, false},
+		{"zero JSON", "application/json", "0", 200, true},
+		{"empty text", "text/plain", "", 200, true},
+		{"empty form", "application/x-www-form-urlencoded", "", 200, true},
+		{"untyped body", "", "0", 415, false},
+		{"null", "application/json", "null", 400, false},
+		{"truncated", "application/json", "{", 400, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			before := calls.Load()
+			request := httptest.NewRequest("POST", "/media-contracts/optional", strings.NewReader(tc.body))
+			request.Header.Set("Content-Type", tc.media)
+			writer := httptest.NewRecorder()
+			mux.ServeHTTP(writer, request)
+			require.Equal(t, tc.status, writer.Code, writer.Body.String())
+			if tc.status == 200 {
+				require.Equal(t, before+1, calls.Load())
+				require.Equal(t, tc.present, present.Load())
+			} else {
+				require.Equal(t, before, calls.Load())
+			}
+		})
+	}
+}
+
+func TestMediaErrors(t *testing.T) {
+	failure := &service.MediaFailure{Detail: service.NewDetailText("rejected")}
+	for _, formatted := range []bool{false, true} {
+		writer := httptest.NewRecorder()
+		var formatter func(context.Context, error) loomhttp.StatusCoder
+		if formatted {
+			formatter = loomhttp.NewErrorResponse
+		}
+		encode := server.EncodeFailError(loomhttp.ResponseEncoder, formatter)
+		require.NoError(t, encode(context.Background(), writer, failure))
+		require.Equal(t, 400, writer.Code)
+		if formatted {
+			require.Contains(t, writer.Header().Get("Content-Type"), "json")
+			require.True(t, jsontext.Value(writer.Body.Bytes()).IsValid())
+		} else {
+			require.Equal(t, "text/plain", writer.Header().Get("Content-Type"))
+			require.Equal(t, "rejected", writer.Body.String())
+		}
+	}
+}

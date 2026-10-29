@@ -85,6 +85,9 @@ const (
 // RequestDecoder defaults to JSON when Content-Type is missing and rejects
 // unsupported media types.
 func RequestDecoder(r *http.Request) Decoder {
+	if mediaContractContext(r.Context()) {
+		return mediaRequestDecoder(r)
+	}
 	limit := RequestBodyLimit(r.Context())
 	selected := httpcodec.RequestContentType(r.Header.Get("Content-Type"))
 	switch selected.Kind {
@@ -118,6 +121,9 @@ func RequestDecoder(r *http.Request) Decoder {
 // ContentTypeKey value does not match any of the supported mime types or is
 // missing altogether.
 func ResponseEncoder(ctx context.Context, w http.ResponseWriter) Encoder {
+	if mediaContractContext(ctx) {
+		return mediaResponseEncoder(ctx, w)
+	}
 	accept := stringContextValue(ctx, AcceptTypeKey)
 	ct := stringContextValue(ctx, ContentTypeKey)
 	if ct != "" {
@@ -167,6 +173,9 @@ func selectedResponseEncoder(w http.ResponseWriter, selected httpcodec.Selection
 // RequestEncoder returns a HTTP request encoder.
 // The encoder uses package encoding/json/v2.
 func RequestEncoder(r *http.Request) Encoder {
+	if mediaContractContext(r.Context()) {
+		return mediaRequestEncoder(r)
+	}
 	const k = "Content-Type"
 	if h := r.Header.Get(k); h == "" {
 		r.Header.Set(k, "application/json")
@@ -247,6 +256,10 @@ func (je *jsonEncoder) GetBody() (io.ReadCloser, error) {
 //   - application/gob using package encoding/gob
 //   - text/html and text/plain for strings
 func ResponseDecoder(resp *http.Response) Decoder {
+	if resp.Request != nil && mediaContractContext(resp.Request.Context()) {
+		rejectNull, _ := resp.Request.Context().Value(nonNullableBodyKey{}).(bool)
+		return mediaDecoder(resp.Body, resp.Header.Get("Content-Type"), decodeResponse, DefaultMaxRequestBodyBytes, !rejectNull)
+	}
 	selected := httpcodec.ResponseDecode(resp.Header.Get("Content-Type"))
 	switch selected.Kind {
 	case httpcodec.XML:

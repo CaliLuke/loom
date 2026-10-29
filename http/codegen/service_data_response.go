@@ -124,6 +124,10 @@ func (sds *ServicesData) buildSingleResponseData(
 	field := selectBodyField(result, resp.Body)
 	origin := field.Name
 	serverBodyData, clientBodyData := sds.buildResponseBodyData(resp, result, origin, viewed, md, endpointIR, sd)
+	for _, body := range serverBodyData {
+		attachMediaBodyData(body, resp.MediaVariants)
+	}
+	attachMediaBodyData(clientBodyData, resp.MediaVariants)
 	init := sds.buildResponseResultInit(resp, result, field, md, httpclictx, svcctx, headersData, cookiesData, endpointIR, sd)
 	tag := responseTagData(resp.Tag, result, viewed, svcctx)
 	return newResponseData(
@@ -413,9 +417,10 @@ func (sds *ServicesData) buildClientBodyUnmarshalCode(
 		src = sourceVar[0]
 	}
 	sourceContext := httpclictx
-	if len(sourceVar) == 0 && httpclictx.JSONPresence {
+	if len(sourceVar) == 0 {
 		sourceContext = httpclictx.Dup()
-		sourceContext.CollectionElementPresence = true
+		sourceContext.CollectionElementPresence = sourceContext.JSONPresence
+		applyUserTypeLayout(sourceContext, sd, source, false)
 	}
 	plan, err := unmarshal(source, target, src, sourceContext, targetctx)
 	if err != nil {

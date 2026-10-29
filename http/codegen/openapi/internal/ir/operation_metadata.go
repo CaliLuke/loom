@@ -160,6 +160,9 @@ func paramsFromHeadersAndCookies(endpointIR *transportir.Endpoint, rand *expr.Ex
 	var params []*ParameterRef
 
 	for _, parameter := range endpointIR.Request.Headers {
+		if len(endpointIR.Request.MediaVariants) > 0 && strings.EqualFold(parameter.HTTPName, "Content-Type") {
+			continue // The content map owns representation selection in OpenAPI.
+		}
 		if endpointIR.Security.IsParameter("header", parameter.HTTPName) {
 			continue
 		}

@@ -8,8 +8,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/CaliLuke/loom/internal/openapiref"
 	"github.com/stretchr/testify/require"
+
+	"github.com/CaliLuke/loom/internal/openapiref"
 )
 
 func TestAnalyzeJSONYAMLParity(t *testing.T) {
@@ -321,7 +322,7 @@ components:
 	}, document.Operations[0].RequestBody.ContentTypes)
 }
 
-func TestAnalyzeRejectsIncompatibleRequestMediaTypes(t *testing.T) {
+func TestAnalyzeDistinctRequestMediaAdmission(t *testing.T) {
 	tests := []struct {
 		name      string
 		media     string
@@ -334,7 +335,6 @@ func TestAnalyzeRejectsIncompatibleRequestMediaTypes(t *testing.T) {
             schema: {type: string}
           multipart/form-data:
             schema: {type: object, properties: {value: {type: string}}}`,
-			wantCodes: []string{"request-media-schema"},
 		},
 		{
 			name: "different examples",
@@ -342,10 +342,9 @@ func TestAnalyzeRejectsIncompatibleRequestMediaTypes(t *testing.T) {
           application/json:
             example: first
             schema: {type: string}
-          application/x-www-form-urlencoded:
+          application/vnd.loom+json:
             example: second
             schema: {type: string}`,
-			wantCodes: []string{"request-media-examples"},
 		},
 		{
 			name: "multipart encoding",
@@ -356,16 +355,14 @@ func TestAnalyzeRejectsIncompatibleRequestMediaTypes(t *testing.T) {
             schema: {type: object, properties: {value: {type: string}}}
             encoding:
               value: {contentType: text/plain}`,
-			wantCodes: []string{"media-encoding"},
 		},
 		{
-			name: "unsupported media type",
+			name: "text media type",
 			media: `
           application/json:
             schema: {type: string}
           text/plain:
             schema: {type: string}`,
-			wantCodes: []string{"media-type"},
 		},
 		{
 			name: "form media require an object schema",
@@ -374,7 +371,7 @@ func TestAnalyzeRejectsIncompatibleRequestMediaTypes(t *testing.T) {
             schema: {type: string}
           application/x-www-form-urlencoded:
             schema: {type: string}`,
-			wantCodes: []string{"render-plan"},
+			wantCodes: []string{"media-schema"},
 		},
 	}
 	for _, test := range tests {
@@ -390,6 +387,9 @@ paths:
 `)
 			_, diagnostics, err := Analyze(source)
 			require.NoError(t, err)
+			if len(test.wantCodes) == 0 {
+				require.Empty(t, diagnostics)
+			}
 			for _, code := range test.wantCodes {
 				requireDiagnosticCode(t, diagnostics, code)
 			}

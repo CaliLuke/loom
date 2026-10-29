@@ -24,12 +24,16 @@ func (e *HTTPEndpointExpr) Validate() error {
 	e.validateResponses(verr)
 	e.validateBodyAndPayload(verr)
 	e.validateRequestContentType(verr)
+	e.validateMediaTypes(verr)
 	e.validateRequestReconstruction(verr)
 	e.validateNullableTransportLocations(verr)
 	e.validateBodyElementNames(verr)
 	e.validateAPIKeyLocations(verr)
 	for _, er := range e.HTTPErrors {
 		verr.Merge(er.Validate())
+		if definition := e.MethodExpr.Error(er.Name); definition != nil {
+			er.Response.validateMediaTypes(e, definition.AttributeExpr, verr)
+		}
 	}
 	e.validateStatusErrorNames(verr)
 

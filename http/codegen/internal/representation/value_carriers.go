@@ -23,6 +23,7 @@ func attachTargets(endpoint *transportir.Endpoint, method *service.MethodData, e
 		codec = expr.ValueCodecForm
 	}
 	request.BodyValue = ValueTarget(method.PayloadValue, request.Body, request.BodyOriginKey, codec, schemaOnly)
+	attachMediaTargets(request.MediaVariants, request.BodyValue)
 	request.StreamingValue = ValueTarget(method.StreamingPayloadValue, request.StreamingBody, "", expr.ValueCodecJSON, schemaOnly)
 	for _, group := range [][]*transportir.Parameter{request.PathParams, request.QueryParams, request.Headers, request.Cookies} {
 		for _, parameter := range group {

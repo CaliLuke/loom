@@ -73,6 +73,14 @@ so other uses of the base keep their field names and constraints. Re-import and
 regenerate affected designs, then use the generated Go selectors in service code.
 This does not assign protobuf tags or change protobuf field-name admission.
 
+Multiple request and response media types retain independent schemas, examples,
+and encoding contracts. They render as typed service unions with HTTP
+`MediaType(media, branch)` mappings, including equal schemas under different
+media types. Exact types outrank subtype and global ranges. Ranges expose a mapped
+concrete Content-Type field. The generated client/server select a codec for the
+selected branch; unknown codecs require an application factory. Single-media
+behavior is unchanged. See [HTTP media contracts](http-media-contracts.md).
+
 The following table summarizes fixed fields on objects that the importer
 reads. Specification extensions are patterns, not fixed fields.
 
@@ -87,7 +95,7 @@ reads. Specification extensions are patterns, not fixed fields.
 | Components | Supported schemas, parameters, request bodies, responses, headers, security schemes, and examples | None | Links, callbacks, path items, media types, and `x-*` component entries |
 | Parameter | Identity, location, requiredness, schema, description, supported style, equivalent `explode` defaults, `allowReserved`, named query-map JSON `content`, and supported `x-*` | `deprecated`, unsupported examples | Incompatible serialization or content |
 | Request Body | `description`, `required`, supported content, and supported `x-*` | None | unresolved, cyclic, or wrong-kind `$ref` plans |
-| Media Type | Supported schema, examples, and equivalent URL-encoded field encoding | OpenAPI 3.2 `description` | `itemSchema`, unsupported encoding fields, `prefixEncoding`, and `x-*` |
+| Media Type | Distinct per-media schemas and examples, ranges, equivalent form field encoding, and multipart part content types | OpenAPI 3.2 `description` | `itemSchema`, unsupported encoding fields, `prefixEncoding`, and `x-*` |
 | Responses | Concrete status-code entries | None | `default` and `x-*` |
 | Response | `summary`, `description`, supported headers and content, and supported `x-*` | None | Unresolved, cyclic, or wrong-kind `$ref` plans and links |
 | Header | `description`, `required`, schema, `style: simple`, and `allowReserved` | `deprecated`, unsupported examples | Other serialization, content, unresolved/cyclic/wrong-kind `$ref`, and `x-*` |
@@ -315,12 +323,13 @@ The following constructs are conditional:
   maps to a typed root map. A body-only optional form also emits
   `OptionalRequestBody()`.
 - A form map combined with transport parameters uses an object payload and a
-  selected `Body(...)` attribute. Multi-media and optional multipart maps use
-  the documented raw-body contract instead of inventing codec policy.
-- A form schema containing an unconstrained value, including a free-form
+  selected `Body(...)` attribute. Optional single-media multipart maps use
+  the documented raw-body contract. Multi-media form/multipart variants require
+  structured object schemas.
+- A single-media form schema containing an unconstrained value, including a free-form
   `additionalProperties: true` map, stays raw because typed form decoding
   cannot reconstruct JSON-valued data.
-- An optional form object with required members also stays raw so an absent
+- An optional single-media form object with required members also stays raw so an absent
   body does not spuriously fail nested required-field validation.
 
 Loom rejects boolean `false` schemas, constrained schemas without an explicit

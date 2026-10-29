@@ -12,6 +12,7 @@ import (
 func attachResponseTargets(endpoint *transportir.Endpoint, status *transportir.ResponseStatus, source *service.ValueData, schemaOnly bool) {
 	codec, boundary := responseCodec(endpoint, status)
 	status.BodyValue = ValueTarget(source, status.Body, status.BodyOrigin, codec, schemaOnly)
+	attachMediaTargets(status.MediaVariants, status.BodyValue)
 	if status.BodyValue != nil && boundary != "" {
 		status.BodyValue.Boundary = boundary
 	}
