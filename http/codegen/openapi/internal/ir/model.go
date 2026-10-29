@@ -234,6 +234,8 @@ type (
 		Description  string
 		DefaultValue any
 		Example      any
+		// Examples retains multiple schema example values in declaration order.
+		Examples []any `json:",omitzero,omitempty"`
 
 		ReadOnly         bool
 		WriteOnly        bool
@@ -304,6 +306,8 @@ type (
 		Description  string
 		DefaultValue any
 		Example      any
+		// Examples retains multiple schema example values in declaration order.
+		Examples []any `json:",omitzero,omitempty"`
 
 		Media            any
 		ReadOnly         bool
@@ -361,6 +365,7 @@ func (s *Schema) MarshalJSON() ([]byte, error) {
 		Description:           s.Description,
 		DefaultValue:          s.DefaultValue,
 		Example:               s.Example,
+		Examples:              s.Examples,
 		ReadOnly:              s.ReadOnly,
 		WriteOnly:             s.WriteOnly,
 		Deprecated:            s.Deprecated,

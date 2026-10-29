@@ -37,6 +37,10 @@ func RenderSchema(schema *Schema) *openapi.Schema {
 	out.Description = schema.Description
 	out.DefaultValue = schema.DefaultValue
 	out.Example = schema.Example
+	out.Examples = schema.Examples
+	if len(out.Examples) > 0 {
+		out.Example = nil
+	}
 	out.ReadOnly = schema.ReadOnly
 	out.WriteOnly = schema.WriteOnly
 	out.Deprecated = schema.Deprecated

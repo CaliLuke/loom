@@ -407,6 +407,12 @@ Author text or byte values as usual; examples encode them once. Incomplete
 object examples are omitted; explicit null examples are retained for nullable
 schemas. These rules also apply to nested
 parameter schemas, response-header schemas, and streaming message schemas.
+Multiple schema examples retain declaration order, duplicates and explicit nulls
+in `examples`; a single value uses `example`. Schema entries are JSON values,
+not named Example Objects. Regenerate OpenAPI to adopt this preservation.
+Import preserves schema and media example ownership with
+`Meta("openapi:example:scope", "schema")` or `"media"` inside `Example`.
+Keep these markers when editing imported designs to avoid merging the groups.
 Synthesized tagged-union examples retain every nested envelope, including when
 branches share the same shape. Configured discriminator/value keys and branch
 tags apply at each level; authored examples keep their existing interpretation.

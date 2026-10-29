@@ -233,6 +233,7 @@ func isPureRefSchema(schema *openapi.Schema) bool {
 		schema.Description == "" &&
 		schema.DefaultValue == nil &&
 		schema.Example == nil &&
+		len(schema.Examples) == 0 &&
 		!schema.ReadOnly &&
 		!schema.WriteOnly &&
 		!schema.Deprecated &&

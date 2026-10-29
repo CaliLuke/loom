@@ -28,8 +28,8 @@ type (
 		discriminatorReferences []discriminatorReference
 		declarationRoots        map[string]*Schema
 		asyncAcquisition        *asyncBaselineAcquisition
-		componentAnnotations    map[componentAnnotationIdentity]map[componentAnnotationPosition]any
-		annotationOwner         map[componentAnnotationPosition]any
+		componentAnnotations    map[componentAnnotationIdentity]map[componentAnnotationPosition]componentExamples
+		annotationOwner         map[componentAnnotationPosition]componentExamples
 		occurrences             []schemaOccurrenceAnalysis
 		registrations           []*Schema
 		plan                    expr.ValuePlanNode
@@ -479,53 +479,6 @@ func (a *Analyzer) applySchemaAnnotations(s *Schema, attr *expr.AttributeExpr, n
 	}
 }
 
-func (a *Analyzer) applySchemaExample(s *Schema, attr *expr.AttributeExpr, context string) {
-	if a.annotationOwner != nil {
-		position := componentAnnotationPosition{context, fingerprintAttribute(attr, a.closeObjects)}
-		if example, found := a.annotationOwner[position]; found {
-			s.Example = copyComponentAnnotation(example)
-			return
-		}
-		defer func() {
-			a.annotationOwner[position] = copyComponentAnnotation(s.Example)
-		}()
-	}
-	suppress := false
-	if a.suppressExamples != nil {
-		suppress = a.suppressExamples(attr, a.closeObjects)
-	}
-	if !suppress {
-		generator := exampleGeneratorForAttribute(a.rand, attr, a.closeObjects, context)
-		if a.customExampleValue {
-			raw := attr.Example(generator)
-			if example, ok := a.exampleValue(attr, raw); ok {
-				s.Example = example
-			}
-			return
-		}
-		if a.preparedExamples == nil {
-			return
-		}
-		set, prepared := a.preparedExamples.ExampleSets[a.examplePlan]
-		if !prepared || set == nil || !set.Prepared {
-			return
-		}
-		if set.Representative != nil {
-			var example any
-			var ok bool
-			if a.declaredExampleValue {
-				example, ok = preparedDeclaredExampleValue(*set.Representative)
-			} else {
-				example, ok = preparedOpenAPIExampleValue(*set.Representative)
-			}
-			if ok {
-				s.Example = example
-			}
-		}
-		return
-	}
-}
-
 func applyNullableSchema(schema *Schema) {
 	if schema == nil || schema.Type == string(openapi.Null) {
 		return
@@ -535,6 +488,7 @@ func applyNullableSchema(schema *Schema) {
 	base.Description = ""
 	base.DefaultValue = nil
 	base.Example = nil
+	base.Examples = nil
 	base.ReadOnly = false
 	base.WriteOnly = false
 	base.Deprecated = false
@@ -545,6 +499,7 @@ func applyNullableSchema(schema *Schema) {
 		Description:  schema.Description,
 		DefaultValue: schema.DefaultValue,
 		Example:      schema.Example,
+		Examples:     schema.Examples,
 		ReadOnly:     schema.ReadOnly,
 		WriteOnly:    schema.WriteOnly,
 		Deprecated:   schema.Deprecated,

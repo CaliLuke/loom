@@ -1225,6 +1225,17 @@ There is one DSL parser, one shared semantic IR, and one renderer.
   the same projected values emitted in the schema. Ambiguous wire shapes
   remain omitted. Never reinterpret typed bytes separately for a competing
   string branch; `internal/ir/tla/byte_examples` records that counterexample.
+- Schema example analysis retains the complete prepared authored group in order.
+  Carry plural values through component annotation snapshots, nullable wrappers,
+  async overlays, schema identity and rendering. Emit `examples` instead of
+  `example` when a plural group survives projection; never wrap schema values
+  in media-level Example Objects. Keep the schema-examples model and import
+  round-trip coverage aligned.
+  Import carries schema/media provenance through `openapi:example:scope`;
+  select each scope's group and representative before rendering. An entirely
+  excluded group suppresses synthesis. Apply examples by replacement so repeated
+  nullable-overlay visits cannot append the same group twice.
+
 - The IR analyzer consumes prepared examples for bodies, nested parameters,
   response headers and async messages. Track the captured example position
   separately from structural schema authority: a neutral reusable schema can

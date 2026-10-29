@@ -53,7 +53,10 @@
           }
         },
         "schema": {
-          "example": "trace_456",
+          "examples": [
+            "trace_123",
+            "trace_456"
+          ],
           "type": "string"
         }
       }
@@ -72,12 +75,20 @@
             },
             "schema": {
               "$ref": "#/components/schemas/Credentials",
-              "example": {
-                "legacyToken": "legacy-token-2",
-                "password": "swordfish",
-                "profile": "eyJyb2xlIjoiZWRpdG9yIn0=",
-                "username": "bob"
-              }
+              "examples": [
+                {
+                  "legacyToken": "legacy-token",
+                  "password": "hunter2",
+                  "profile": "eyJyb2xlIjoiYWRtaW4ifQ==",
+                  "username": "alice"
+                },
+                {
+                  "legacyToken": "legacy-token-2",
+                  "password": "swordfish",
+                  "profile": "eyJyb2xlIjoiZWRpdG9yIn0=",
+                  "username": "bob"
+                }
+              ]
             }
           }
         },
@@ -101,10 +112,16 @@
             },
             "schema": {
               "$ref": "#/components/schemas/Session_cf64610497754895",
-              "example": {
-                "expiresAt": "2026-03-21T12:00:00Z",
-                "token": "token-456"
-              }
+              "examples": [
+                {
+                  "expiresAt": "2026-03-20T12:00:00Z",
+                  "token": "token-123"
+                },
+                {
+                  "expiresAt": "2026-03-21T12:00:00Z",
+                  "token": "token-456"
+                }
+              ]
             }
           }
         },
@@ -118,12 +135,20 @@
     },
     "schemas": {
       "Credentials": {
-        "example": {
-          "legacyToken": "legacy-token-2",
-          "password": "swordfish",
-          "profile": "eyJyb2xlIjoiZWRpdG9yIn0=",
-          "username": "bob"
-        },
+        "examples": [
+          {
+            "legacyToken": "legacy-token",
+            "password": "hunter2",
+            "profile": "eyJyb2xlIjoiYWRtaW4ifQ==",
+            "username": "alice"
+          },
+          {
+            "legacyToken": "legacy-token-2",
+            "password": "swordfish",
+            "profile": "eyJyb2xlIjoiZWRpdG9yIn0=",
+            "username": "bob"
+          }
+        ],
         "properties": {
           "legacyToken": {
             "deprecated": true,
@@ -153,10 +178,16 @@
         "type": "object"
       },
       "Session_cf64610497754895": {
-        "example": {
-          "expiresAt": "2026-03-21T12:00:00Z",
-          "token": "token-456"
-        },
+        "examples": [
+          {
+            "expiresAt": "2026-03-20T12:00:00Z",
+            "token": "token-123"
+          },
+          {
+            "expiresAt": "2026-03-21T12:00:00Z",
+            "token": "token-456"
+          }
+        ],
         "properties": {
           "expiresAt": {
             "example": "2026-03-20T12:00:00Z",

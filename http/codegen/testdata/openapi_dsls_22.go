@@ -87,3 +87,39 @@ var StreamingPartialExamplesDSL = func() {
 		})
 	})
 }
+
+var MultipleSchemaExamplesDSL = func() {
+	StreamingPartialExamplesDSL()
+	colors := Type("ExampleColors", String, func() {
+		Nullable()
+		for _, example := range []struct {
+			name  string
+			value any
+		}{{"empty", Null()}, {"red", "red"}, {"blue", "blue"}, {"blue-again", "blue"}} {
+			Example(example.name, func() {
+				Meta("openapi:example:scope", "schema")
+				Value(example.value)
+			})
+		}
+		Example("media", func() {
+			Meta("openapi:example:scope", "media")
+			Value("green")
+		})
+	})
+	Service("schemaExamples", func() {
+		Method("echo", func() {
+			Payload(func() {
+				Attribute("color", colors)
+				Attribute("bytes", Bytes, func() {
+					Example("first", []byte("a"))
+					Example("second", []byte("b"))
+				})
+			})
+			Result(colors)
+			HTTP(func() {
+				POST("/schema-examples")
+				Response(StatusOK)
+			})
+		})
+	})
+}
