@@ -27,6 +27,8 @@ type (
 		DefaultValue any `json:"default,omitzero" yaml:"default,omitempty"`
 		// Example is an example value accepted by the schema.
 		Example any `json:"example,omitzero" yaml:"example,omitempty"`
+		// Examples contains ordered JSON values, without Example Object metadata.
+		Examples []any `json:"examples,omitzero,omitempty" yaml:"examples,omitempty"`
 
 		// ReadOnly marks a value as response-only.
 		ReadOnly bool `json:"readOnly,omitzero" yaml:"readOnly,omitempty"`

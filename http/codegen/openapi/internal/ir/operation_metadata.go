@@ -202,7 +202,11 @@ func preparedParamFor(
 	if _, explicit := attr.Meta.Last("openapi:description:schema"); !explicit {
 		schema.Description = ""
 	}
-	schema.Example = nil
+	if value == nil || !slices.ContainsFunc(value.Examples, func(example transportir.ValueExample) bool {
+		return metaValue(example.Meta, "openapi:example:scope") == "schema"
+	}) {
+		schema.Example = nil
+	}
 	parameter := &Parameter{
 		Name:            name,
 		In:              in,

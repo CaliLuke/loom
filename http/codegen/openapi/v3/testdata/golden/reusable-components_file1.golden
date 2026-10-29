@@ -69,11 +69,15 @@ components:
                 username:
                     type: string
                     example: alice
-            example:
-                legacyToken: legacy-token-2
-                password: swordfish
-                profile: eyJyb2xlIjoiZWRpdG9yIn0=
-                username: bob
+            examples:
+                - legacyToken: legacy-token
+                  password: hunter2
+                  profile: eyJyb2xlIjoiYWRtaW4ifQ==
+                  username: alice
+                - legacyToken: legacy-token-2
+                  password: swordfish
+                  profile: eyJyb2xlIjoiZWRpdG9yIn0=
+                  username: bob
             required:
                 - username
                 - password
@@ -88,9 +92,11 @@ components:
                     type: string
                     example: token-123
                     readOnly: true
-            example:
-                expiresAt: "2026-03-21T12:00:00Z"
-                token: token-456
+            examples:
+                - expiresAt: "2026-03-20T12:00:00Z"
+                  token: token-123
+                - expiresAt: "2026-03-21T12:00:00Z"
+                  token: token-456
             required:
                 - token
                 - expiresAt
@@ -98,7 +104,9 @@ components:
         XTraceIDHeader:
             schema:
                 type: string
-                example: trace_456
+                examples:
+                    - trace_123
+                    - trace_456
             examples:
                 trace-a:
                     $ref: '#/components/examples/XTraceIDHeaderTraceAExample'
@@ -110,11 +118,15 @@ components:
             content:
                 application/json:
                     schema:
-                        example:
-                            legacyToken: legacy-token-2
-                            password: swordfish
-                            profile: eyJyb2xlIjoiZWRpdG9yIn0=
-                            username: bob
+                        examples:
+                            - legacyToken: legacy-token
+                              password: hunter2
+                              profile: eyJyb2xlIjoiYWRtaW4ifQ==
+                              username: alice
+                            - legacyToken: legacy-token-2
+                              password: swordfish
+                              profile: eyJyb2xlIjoiZWRpdG9yIn0=
+                              username: bob
                         $ref: '#/components/schemas/Credentials'
                     examples:
                         backup:
@@ -132,9 +144,11 @@ components:
             content:
                 application/json:
                     schema:
-                        example:
-                            expiresAt: "2026-03-21T12:00:00Z"
-                            token: token-456
+                        examples:
+                            - expiresAt: "2026-03-20T12:00:00Z"
+                              token: token-123
+                            - expiresAt: "2026-03-21T12:00:00Z"
+                              token: token-456
                         $ref: '#/components/schemas/Session_cf64610497754895'
                     examples:
                         current:

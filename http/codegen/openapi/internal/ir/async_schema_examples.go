@@ -85,6 +85,7 @@ func applyPreparedTargetExamples(
 		}
 	}
 	schema.Example = nil
+	schema.Examples = nil
 	restore := a.schemaPlanScope(a.plan, plan)
 	a.applySchemaExample(schema, attr, context)
 	restore()
@@ -138,6 +139,7 @@ func applyAsyncExamples(a *Analyzer, schema *Schema, attr *expr.AttributeExpr, c
 		}
 	}
 	schema.Example = nil
+	schema.Examples = nil
 	a.applySchemaExample(schema, attr, context)
 }
 

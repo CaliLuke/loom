@@ -186,6 +186,7 @@ func asyncAnnotationOnly(schema *Schema) bool {
 	copy := *schema
 	copy.Title, copy.Description = "", ""
 	copy.DefaultValue, copy.Example = nil, nil
+	copy.Examples = nil
 	copy.ReadOnly, copy.WriteOnly, copy.Deprecated = false, false, false
 	return onlySchemaReference(&copy)
 }
@@ -200,8 +201,9 @@ func overlayAsyncAnnotations(base, local *Schema) *Schema {
 	if local.DefaultValue != nil {
 		base.DefaultValue = local.DefaultValue
 	}
-	if local.Example != nil {
+	if local.Example != nil || len(local.Examples) > 0 {
 		base.Example = local.Example
+		base.Examples = local.Examples
 	}
 	base.ReadOnly = base.ReadOnly || local.ReadOnly
 	base.WriteOnly = base.WriteOnly || local.WriteOnly

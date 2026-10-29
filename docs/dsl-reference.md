@@ -921,6 +921,14 @@ encoding for byte fields, including fields authored as text and nested
 collections. This applies to body schemas, nested parameter schemas,
 response-header schemas, and `x-loom-async` message schemas
 in both output formats. Explicit null examples remain null for nullable schemas.
+Multiple schema examples are emitted as an ordered JSON Schema `examples` array,
+including duplicate values and explicit nulls. These are JSON values, without
+the names and descriptions used by media-level Example Objects. A single example
+continues to use `example`. Regenerate OpenAPI to preserve all authored values.
+Imported examples retain their original schema or media scope through
+`Meta("openapi:example:scope", "schema")` or `"media"` inside `Example`.
+This keeps re-import from combining two independently authored example groups.
+Unscoped examples remain available to both schema and media documentation.
 Synthesized tagged-union examples retain a discriminator/value envelope at
 every nesting level, including unions that reuse the same branch shapes in
 objects, arrays, and maps. Each envelope uses its configured field names and

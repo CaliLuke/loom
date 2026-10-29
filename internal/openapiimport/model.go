@@ -413,6 +413,8 @@ type Schema struct {
 
 // Example is an example value retained from a schema or media type.
 type Example struct {
+	// Scope identifies schema or media ownership; empty retains shared DSL behavior.
+	Scope string
 	// Name is the authored media example key or a deterministic schema example name.
 	Name string
 	// Summary is the authored media example summary.

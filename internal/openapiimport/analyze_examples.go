@@ -41,6 +41,9 @@ func (a *analyzer) mediaExamples(media *v3.MediaType, schema *Schema, path strin
 			examples = append(examples, example)
 		}
 	}
+	for index := range examples {
+		examples[index].Scope = "media"
+	}
 	return examples
 }
 
@@ -137,12 +140,13 @@ func (a *analyzer) normalizedExample(source *base.Example, schema *Schema, path 
 func (a *analyzer) schemaExamples(schema *Schema, source *base.Schema, path string) {
 	if source.Example != nil {
 		if value, ok := a.exampleValue(source.Example, schema, path+"/example"); ok {
-			schema.Examples = append(schema.Examples, Example{Value: value})
+			schema.Examples = append(schema.Examples, Example{Value: value, Scope: "schema"})
 		}
 	}
 	for index, node := range source.Examples {
 		if value, ok := a.exampleValue(node, schema, fmt.Sprintf("%s/examples/%d", path, index)); ok {
 			schema.Examples = append(schema.Examples, Example{
+				Scope: "schema",
 				Name:  fmt.Sprintf("example-%d", index+1),
 				Value: value,
 			})

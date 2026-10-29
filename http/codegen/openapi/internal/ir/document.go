@@ -530,9 +530,12 @@ func hasStructuredExampleMetadata(meta expr.MetaExpr) bool {
 // represents its attribute's OpenAPI schema.
 func OpenAPIExampleValue(attr *expr.AttributeExpr, raw any) (any, bool) {
 	if raw == nil {
-		if examples := attr.ExtractUserExamples(); len(examples) > 0 &&
-			examples[len(examples)-1].ExplicitNull && expr.AllowsNull(attr) {
-			return NullExample{}, true
+		if expr.AllowsNull(attr) {
+			for _, example := range attr.ExtractUserExamples() {
+				if example.ExplicitNull {
+					return NullExample{}, true
+				}
+			}
 		}
 		return nil, false
 	}

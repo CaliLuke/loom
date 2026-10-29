@@ -175,11 +175,11 @@ func TestComponentAnnotationControlledWrapperReuse(t *testing.T) {
 				originalSchema := analyzer.schemas["SampleData"]
 				original := copyComponentAnnotation(originalSchema.Example)
 				originalChild := copyComponentAnnotation(analyzer.schemas["SampleData"].Properties["data"].Example)
-				originalOwners := make(map[componentAnnotationIdentity]map[componentAnnotationPosition]any)
+				originalOwners := make(map[componentAnnotationIdentity]map[componentAnnotationPosition]componentExamples)
 				for identity, positions := range analyzer.componentAnnotations {
-					originalOwners[identity] = make(map[componentAnnotationPosition]any)
+					originalOwners[identity] = make(map[componentAnnotationPosition]componentExamples)
 					for position, value := range positions {
-						originalOwners[identity][position] = copyComponentAnnotation(value)
+						originalOwners[identity][position] = value.snapshot()
 					}
 				}
 				for _, endpoint := range prepared.Endpoints {

@@ -253,6 +253,7 @@ Name-allocation assumptions are not proved merely by proving declaration lookup.
 | Code concern | Model |
 | --- | --- |
 | Nested synthesized union selection and occurrence-specific example caches | [Nested union examples](../../../../http/codegen/openapi/internal/ir/tla/nested_union_examples/README.md) |
+| Ordered schema examples, explicit nulls and duplicate values | [Schema examples](../../../../http/codegen/openapi/internal/ir/tla/schema_examples/README.md); representative-only counterexample and bounded sequence preservation, with rendered/import tests for concrete projection and serialization |
 | Alias-bound intersection and decoded Bytes length projection into base64 schema branches | `AliasLengthBounds.lean` and `ByteLengthProjection.lean` in the [Lean value model](../../../../expr/lean/value_projection/README.md); [production owners and checks](../../../../internal/valuecontract/BYTE_SCHEMA.md) distinguish proved arithmetic from tested codec extraction and schema allocation |
 | One wire representation for byte/text branch comparison | [Byte example projection](../../../../http/codegen/openapi/internal/ir/tla/byte_examples/README.md) |
 | Security binding ownership, explicit reservations and deterministic component names | [Security bindings](../../../../http/codegen/openapi/internal/ir/tla/security_bindings/README.md) |

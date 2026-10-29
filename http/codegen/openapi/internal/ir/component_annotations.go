@@ -3,6 +3,11 @@ package ir
 import "github.com/CaliLuke/loom/expr"
 
 type (
+	componentExamples struct {
+		representative any
+		values         []any
+	}
+
 	componentAnnotationIdentity struct {
 		declaration string
 		baseline    string
@@ -25,11 +30,11 @@ func (a *Analyzer) componentAnnotationScope(declaration, baseline, context strin
 		declaration: declaration, baseline: baseline, context: context, examplePlan: a.examplePlan,
 	}
 	if a.componentAnnotations == nil {
-		a.componentAnnotations = make(map[componentAnnotationIdentity]map[componentAnnotationPosition]any)
+		a.componentAnnotations = make(map[componentAnnotationIdentity]map[componentAnnotationPosition]componentExamples)
 	}
 	owner, ok := a.componentAnnotations[identity]
 	if !ok {
-		owner = make(map[componentAnnotationPosition]any)
+		owner = make(map[componentAnnotationPosition]componentExamples)
 		a.componentAnnotations[identity] = owner
 	}
 	prior := a.annotationOwner
@@ -47,4 +52,13 @@ func copyComponentAnnotation(value any) any {
 		return nil
 	}
 	return expr.DupAtt(&expr.AttributeExpr{Type: expr.Any, DefaultValue: value}).DefaultValue
+}
+
+// snapshot detaches all builtin containers without invoking custom codecs.
+func (e componentExamples) snapshot() componentExamples {
+	result := componentExamples{representative: copyComponentAnnotation(e.representative)}
+	if e.values != nil {
+		result.values = copyComponentAnnotation(e.values).([]any)
+	}
+	return result
 }
