@@ -62,6 +62,13 @@ func (r *renderer) operationRequestBodyHTTP(body *renderedBody, path string) err
 	if body == nil {
 		return nil
 	}
+	if len(body.body.Schema.MediaTypes) > 0 {
+		if err := r.mediaTypeMappings(body.body.Schema); err != nil {
+			return err
+		}
+		r.line("Body(%q)", body.field)
+		return nil
+	}
 	switch body.mode {
 	case requestBodyMultipart:
 		r.line("MultipartRequest()")

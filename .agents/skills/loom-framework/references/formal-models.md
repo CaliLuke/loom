@@ -20,6 +20,13 @@ The [documentation schema admission model](../../../../expr/tla/documentation_sc
 separates valid documentation schemas from unsupported generated codecs and
 checks that validation visits cannot leak between those contexts.
 
+## HTTP media contracts
+
+The [media contract models](../../../../internal/httpcodec/tla/media_contracts/README.md)
+check most-specific selection, concrete publication, and agreement between
+physical branch declarations and conversion contexts. The inherited-layout
+control reproduces the former failure to honor an explicitly native child layout.
+
 ## Unary admission
 
 The [concurrency model](../../../../admission/tla/concurrency/README.md) checks

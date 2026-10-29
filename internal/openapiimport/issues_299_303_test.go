@@ -401,6 +401,21 @@ components:
     ApiKey: {type: apiKey, in: header, name: X-API-Key}
 `)
 
+	_, diagnostics, err := Analyze(source)
+	require.NoError(t, err)
+	require.Len(t, diagnostics, 2)
+	for _, diagnostic := range diagnostics {
+		require.Equal(t, "media-schema", diagnostic.Code)
+		require.Contains(t, diagnostic.Path, "/requestBody/content/")
+	}
+
+	// Multi-media form maps no longer fall back to one shared raw body.
+	// Keep the other four single-media contracts in the generated round trip.
+	multiStart := strings.Index(string(source), "  /multi/{id}:")
+	multiEnd := strings.Index(string(source), "  /multipart-required:")
+	require.GreaterOrEqual(t, multiStart, 0)
+	require.Greater(t, multiEnd, multiStart)
+	source = []byte(string(source[:multiStart]) + string(source[multiEnd:]))
 	document, diagnostics, err := Analyze(source)
 	require.NoError(t, err)
 	require.Empty(t, diagnostics)
@@ -413,16 +428,15 @@ components:
 		`Attribute("body3", ImportedConfig)`,
 		`Required("id", "body3")`,
 		`Body("body3")`,
-		`OpenAPIRequestBodyTypes(ImportedConfig, []string{"application/json", "application/x-www-form-urlencoded", "multipart/form-data"}, false)`,
 		`OpenAPIRequestBodyTypes(ImportedConfig, []string{"multipart/form-data"}, false)`,
 		"MultipartRequest()",
 	} {
 		require.Contains(t, design, expected)
 	}
-	requireRenderedDesignEvaluates(t, rendered, 5)
+	requireRenderedDesignEvaluates(t, rendered, 4)
 
 	contract := readGeneratedOpenAPIContract(t, requireRenderedDesignGenerates(t, rendered))
-	for _, path := range []string{"/required", "/envelope/{id}", "/multi/{id}", "/multipart-required", "/multipart-optional"} {
+	for _, path := range []string{"/required", "/envelope/{id}", "/multipart-required", "/multipart-optional"} {
 		operation := operationFromImportedSpec(t, contract, path, "patch")
 		require.NotNil(t, operation["requestBody"], path)
 	}
@@ -432,9 +446,6 @@ components:
 	envelope := patchRequestBodyFromImportedSpec(t, contract, "/envelope/{id}")
 	require.Equal(t, true, envelope["required"])
 	require.Equal(t, "#/components/schemas/Config", envelope["content"].(map[string]any)["application/x-www-form-urlencoded"].(map[string]any)["schema"].(map[string]any)["$ref"])
-	multi := patchRequestBodyFromImportedSpec(t, contract, "/multi/{id}")
-	require.NotEqual(t, true, multi["required"])
-	require.ElementsMatch(t, []string{"application/json", "application/x-www-form-urlencoded", "multipart/form-data"}, mapKeysAny(multi["content"].(map[string]any)))
 	requiredMultipart := patchRequestBodyFromImportedSpec(t, contract, "/multipart-required")
 	require.Equal(t, true, requiredMultipart["required"])
 	optionalMultipart := patchRequestBodyFromImportedSpec(t, contract, "/multipart-optional")
@@ -456,14 +467,6 @@ func patchRequestBodyFromImportedSpec(t *testing.T, contract map[string]any, pat
 		require.True(t, ok, "request body component %q", ref)
 	}
 	return body
-}
-
-func mapKeysAny(values map[string]any) []string {
-	keys := make([]string, 0, len(values))
-	for key := range values {
-		keys = append(keys, key)
-	}
-	return keys
 }
 
 func TestDynamicFormMapEnvelopeRejectsGeneratedBodyLocalCollision(t *testing.T) {

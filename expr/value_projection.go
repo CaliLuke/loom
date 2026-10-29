@@ -259,6 +259,9 @@ func projectionBuildFailure(outcome ProjectionOutcome, format string, args ...an
 
 func projectionMember(value ResolvedValue, identity uint64) ResolvedValue {
 	if value.node != nil {
+		if value.node.kind == ValueKindUnion && value.node.branch.index == identity {
+			return value.node.payload
+		}
 		for _, field := range value.node.fields {
 			if field.Member.index == identity {
 				return field.Value

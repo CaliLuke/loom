@@ -98,6 +98,7 @@ func prepareSchemaTargets(endpoint *transportir.Endpoint, layout Layout) {
 	requestContext.CollectionElementPresence = requestContext.JSONPresence
 	layout.Bind(requestContext)
 	request := endpoint.Request
+	prepareMediaTargets(request.MediaVariants, requestContext)
 	request.BodyValue = BuildValuePlan(request.BodyValue, request.Body, requestContext, expr.ValuePlanSchema)
 	request.StreamingValue = BuildValuePlan(request.StreamingValue, request.StreamingBody, requestContext, expr.ValuePlanSchema)
 	request.DocumentValue = BuildValuePlan(request.DocumentValue, request.DocumentBody, requestContext, expr.ValuePlanSchema)
@@ -112,6 +113,7 @@ func prepareSchemaTargets(endpoint *transportir.Endpoint, layout Layout) {
 	responseContext := schemaContext(false)
 	layout.Bind(responseContext)
 	for _, response := range serviceResponses(endpoint) {
+		prepareMediaTargets(response.MediaVariants, responseContext)
 		response.BodyValue = BuildValuePlan(response.BodyValue, response.Body, responseContext, expr.ValuePlanSchema)
 		for media, value := range response.BodyValues {
 			response.BodyValues[media] = BuildValuePlan(value, response.Body, responseContext, expr.ValuePlanSchema)

@@ -1,8 +1,6 @@
 package openapiimport
 
 import (
-	"reflect"
-
 	v3 "github.com/CaliLuke/libopenapi/datamodel/high/v3"
 	"github.com/CaliLuke/libopenapi/orderedmap"
 	"github.com/pb33f/go-yaml"
@@ -16,39 +14,40 @@ func (a *analyzer) requestContent(
 		return nil, nil, nil
 	}
 	contentTypes := make([]string, 0, orderedmap.Len(content))
-	var sharedSchema *Schema
-	var sharedExamples []Example
+	branches := make([]*Schema, 0, orderedmap.Len(content))
+	var singleExamples []Example
 	for contentType, media := range content.FromOldest() {
-		first := len(contentTypes) == 0
 		contentTypes = append(contentTypes, contentType)
+		mediaPath := path + "/" + escapeJSONPointer(contentType)
 		var schema *Schema
 		var examples []Example
-		mediaPath := path + "/" + escapeJSONPointer(contentType)
 		if media != nil {
 			a.mediaTypeParserGapDiagnostics(media, mediaPath)
 			if media.ItemSchema != nil {
 				a.unsupported("media-item-schema", mediaPath+"/itemSchema", "item schemas are not in the strict import subset")
 			}
-			if orderedmap.Len(media.Encoding) > 0 && !isFormMediaType(contentType) || orderedmap.Len(media.ItemEncoding) > 0 {
+			if orderedmap.Len(media.Encoding) > 0 && !isFormMediaType(contentType) && !isMultipartMediaType(contentType) || orderedmap.Len(media.ItemEncoding) > 0 {
 				a.unsupported("media-encoding", mediaPath, "media encodings are not in the strict import subset")
 			}
 			schema = a.schema(media.Schema, mediaPath+"/schema")
 			examples = a.mediaExamples(media, schema, mediaPath)
+			if len(contentTypes) == 1 {
+				singleExamples = examples
+			}
+			if orderedmap.Len(content) > 1 {
+				schema = schemaWithExamples(schema, examples)
+				if schema != nil {
+					schema.MediaEncoding = a.mediaEncoding(media, mediaPath)
+				}
+			}
 			a.unsupportedExtensions(mediaPath, media.Extensions)
 		}
-		if first {
-			sharedSchema = schema
-			sharedExamples = examples
-			continue
-		}
-		if !reflect.DeepEqual(schema, sharedSchema) {
-			a.unsupported("request-media-schema", mediaPath+"/schema", "request media types must use the same schema")
-		}
-		if !reflect.DeepEqual(examples, sharedExamples) {
-			a.unsupported("request-media-examples", mediaPath, "request media types must use the same examples")
-		}
+		branches = append(branches, schema)
 	}
-	return contentTypes, sharedSchema, sharedExamples
+	if len(branches) == 1 {
+		return contentTypes, branches[0], singleExamples
+	}
+	return contentTypes, &Schema{OneOf: branches, MediaTypes: contentTypes}, nil
 }
 
 // mediaTypeParserGapDiagnostics inspects official OpenAPI 3.2 fields that the

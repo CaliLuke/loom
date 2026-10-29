@@ -42,6 +42,11 @@ func prepareEndpointRequestExamples(
 	security *transportir.Security,
 	prepare endpointExamplePreparer,
 ) error {
+	for _, variant := range request.MediaVariants {
+		if err := prepare(variant.Value, variant.Body, "request-media", variant.ContentType); err != nil {
+			return err
+		}
+	}
 	for _, input := range []struct {
 		target    *transportir.ValueTarget
 		attribute *expr.AttributeExpr
@@ -84,6 +89,11 @@ func prepareEndpointRequestExamples(
 func prepareEndpointResponseExamples(response *transportir.Response, prepare endpointExamplePreparer) error {
 	for _, statusResponse := range append(append([]*transportir.ResponseStatus(nil), response.Responses...), response.ErrorResponses...) {
 		status := fmt.Sprint(statusResponse.StatusCode)
+		for _, variant := range statusResponse.MediaVariants {
+			if err := prepare(variant.Value, variant.Body, "response-media-variant", status, variant.ContentType); err != nil {
+				return err
+			}
+		}
 		if err := prepare(statusResponse.BodyValue, statusResponse.Body, "response-body", status); err != nil {
 			return err
 		}

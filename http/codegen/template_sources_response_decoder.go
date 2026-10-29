@@ -146,7 +146,27 @@ func {{ .ResponseDecoder }}(decoder func(*http.Response) loomhttp.Decoder, resto
 				body {{ .ClientBody.ValueRef }}
 				err error
 			)
+            {{- if .ClientBody.Media }}
+            {
+                mediaIndex, mediaErr := loomhttp.SelectMediaType(resp.Header.Get("Content-Type"), {{ .ClientBody.Media.Contracts }})
+                if mediaErr != nil {
+                    err = mediaErr
+                } else {
+                    switch mediaIndex {
+                    {{- range $i, $variant := .ClientBody.Media.Variants }}
+                    case {{ $i }}:
+                        var mediaValue {{ .TypeRef }}
+                        err = loomhttp.DecodeMediaResponse(resp, &mediaValue, {{ .AllowsNull }}, {{ .Parts }}, decoder)
+                        if err == nil {
+                            body.Set{{ .Field }}(mediaValue)
+                        }
+                    {{- end }}
+                    }
+                }
+            }
+            {{- else }}
 			err = decoder(resp).Decode(&body)
+            {{- end }}
 			if err != nil {
 				return nil, loomhttp.ErrDecodingError("{{ $.ServiceName }}", "{{ $.Method.Name }}", err)
 			}

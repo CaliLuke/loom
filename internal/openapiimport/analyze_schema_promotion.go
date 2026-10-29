@@ -114,6 +114,17 @@ func (a *analyzer) prepareSchemaObjects(
 			path+"/additionalProperties", objectMapValue, used)
 	}
 	for index, branch := range schema.OneOf {
+		if branch == nil {
+			continue
+		}
+		if len(schema.MediaTypes) > 0 {
+			componentName := uniqueComponentName(name+"Media", used)
+			a.prepareSchemaObjects(document, branch, componentName,
+				fmt.Sprintf("%s/content/%s/schema", path, escapeJSONPointer(schema.MediaTypes[index])), objectDeclaration, used)
+			document.Components.Schemas = append(document.Components.Schemas, NamedSchema{Name: componentName, Schema: branch})
+			schema.OneOf[index] = &Schema{Ref: "#/components/schemas/" + componentName}
+			continue
+		}
 		branchName := name + "Variant"
 		if len(branch.Required) > 0 {
 			branchName = name + codegen.Goify(branch.Required[0], true)

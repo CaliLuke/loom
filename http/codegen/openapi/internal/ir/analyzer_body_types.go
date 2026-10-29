@@ -121,6 +121,9 @@ func analyzeEndpointBodies(a *Analyzer, endpoint *transportir.Endpoint) *Endpoin
 		ResponseBodies: responseBodies,
 	}
 	bodies.requestMedia = analyzeDocumentMedia(a, endpoint.Request.DocumentBody, endpoint.Request.DocumentValues, schemaUsageRequest, "request-schema")
+	if len(endpoint.Request.MediaVariants) > 0 {
+		bodies.requestMedia = analyzeMediaVariants(a, endpoint.Request.MediaVariants, schemaUsageRequest)
+	}
 	if len(endpoint.Request.DocumentContentTypes) > 0 && bodies.requestMedia != nil {
 		bodies.RequestBody = bodies.requestMedia[endpoint.Request.DocumentContentTypes[0]]
 	}
@@ -128,6 +131,9 @@ func analyzeEndpointBodies(a *Analyzer, endpoint *transportir.Endpoint) *Endpoin
 	for _, responses := range [][]*transportir.ResponseStatus{endpoint.Response.Responses, endpoint.Response.ErrorResponses} {
 		for _, response := range responses {
 			bodies.responseMedia[response] = analyzeDocumentMedia(a, response.DocumentBody, response.DocumentValues, schemaUsageResponse, "response-schema", strconv.Itoa(response.StatusCode))
+			if len(response.MediaVariants) > 0 {
+				bodies.responseMedia[response] = analyzeMediaVariants(a, response.MediaVariants, schemaUsageResponse)
+			}
 		}
 	}
 	indexes := make(map[int]int)
@@ -144,6 +150,9 @@ func analyzeEndpointBodies(a *Analyzer, endpoint *transportir.Endpoint) *Endpoin
 }
 
 func analyzeRequestBody(a *Analyzer, endpoint *transportir.Endpoint) *Schema {
+	if len(endpoint.Request.MediaVariants) > 0 {
+		return nil
+	}
 	body := expr.UnwrapInlineHTTPBody(endpoint.Request.Body)
 	if endpoint.Request.DocumentBody != nil {
 		body = endpoint.Request.DocumentBody
@@ -171,7 +180,7 @@ func analyzeResponseBodies(a *Analyzer, endpoint *transportir.Endpoint) map[int]
 	responseBodies := make(map[int][]*Schema)
 	appendBodies := func(responses []*transportir.ResponseStatus, projectSSE bool) {
 		for _, resp := range responses {
-			if len(resp.DocumentValues) > 0 {
+			if len(resp.DocumentValues) > 0 || len(resp.MediaVariants) > 0 {
 				responseBodies[resp.StatusCode] = append(responseBodies[resp.StatusCode], nil)
 				continue
 			}

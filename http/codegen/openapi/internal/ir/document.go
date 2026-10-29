@@ -180,18 +180,22 @@ func buildRequestBody(endpointIR *transportir.Endpoint, bodies *EndpointBodies, 
 		contentTypes = []string{"application/x-www-form-urlencoded"}
 	}
 	content := make(map[string]*MediaType, len(contentTypes))
-	for _, contentType := range contentTypes {
-		schema := bodies.RequestBody
-		target := endpointIR.Request.BodyValue
-		if prepared, exists := bodies.requestMedia[contentType]; exists {
-			schema = prepared
-			target = endpointIR.Request.DocumentValues[contentType]
-		} else if endpointIR.Request.DocumentBody != nil {
-			target = endpointIR.Request.DocumentValue
+	if len(endpointIR.Request.MediaVariants) > 0 {
+		content = buildMediaVariantContent(endpointIR.Request.MediaVariants, bodies.requestMedia, closeObjects, schemaUsageRequest)
+	} else {
+		for _, contentType := range contentTypes {
+			schema := bodies.RequestBody
+			target := endpointIR.Request.BodyValue
+			if prepared, exists := bodies.requestMedia[contentType]; exists {
+				schema = prepared
+				target = endpointIR.Request.DocumentValues[contentType]
+			} else if endpointIR.Request.DocumentBody != nil {
+				target = endpointIR.Request.DocumentValue
+			}
+			content[contentType] = buildMediaType(bodyAttr, schema, closeObjects,
+				endpointIR.Request.DocumentBody != nil, target)
+			applyFormFieldEncoding(endpointIR.Request, content[contentType])
 		}
-		content[contentType] = buildMediaType(bodyAttr, schema, closeObjects,
-			endpointIR.Request.DocumentBody != nil, target)
-		applyFormFieldEncoding(endpointIR.Request, content[contentType])
 	}
 	return &RequestBody{
 		ReferenceMetadata: componentMetadata(bodyAttr, "openapi:reference:requestBody"),
@@ -287,6 +291,13 @@ func buildResponse(
 	mediaSchemas map[string]*Schema,
 ) *Response {
 	headers := headersFromIR(resp.Headers, rand, closeObjects, prepared)
+	if len(resp.MediaVariants) > 0 {
+		for name := range headers {
+			if strings.EqualFold(name, "Content-Type") {
+				delete(headers, name) // The content map owns representation selection.
+			}
+		}
+	}
 	if cookieHeader := responseCookieHeader(resp.Cookies); cookieHeader != nil {
 		if headers == nil {
 			headers = make(map[string]*HeaderRef)
@@ -322,6 +333,9 @@ func buildResponseContent(
 	websocketHandshake bool,
 	mediaSchemas map[string]*Schema,
 ) map[string]*MediaType {
+	if len(resp.MediaVariants) > 0 {
+		return buildMediaVariantContent(resp.MediaVariants, mediaSchemas, closeObjects, schemaUsageResponse)
+	}
 	body := attributeForSchemaUsage(resp.DocumentBody, schemaUsageResponse)
 	contentTypes := resp.ContentTypes
 	var content map[string]*MediaType

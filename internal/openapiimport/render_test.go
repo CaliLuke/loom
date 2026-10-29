@@ -374,9 +374,11 @@ components:
 	rendered, err := Render(document, Options{PackageName: "design"})
 	require.NoError(t, err)
 	design := string(rendered)
-	require.Contains(t, design, "SkipRequestBodyEncodeDecode()")
-	require.Contains(t, design, `OpenAPIRequestBodyTypes(ImportedItem, []string{"application/json", "application/x-www-form-urlencoded", "multipart/form-data"}, true`)
-	require.NotContains(t, design, `Body("body")`)
+	require.NotContains(t, design, "SkipRequestBodyEncodeDecode()")
+	require.Contains(t, design, `MediaType("application/json",`)
+	require.Contains(t, design, `MediaType("application/x-www-form-urlencoded",`)
+	require.Contains(t, design, `MediaType("multipart/form-data",`)
+	require.Contains(t, design, `Body("body")`)
 	requireRenderedDesignEvaluates(t, rendered, 1)
 	moduleDir := requireRenderedDesignGenerates(t, rendered)
 
@@ -423,7 +425,7 @@ paths:
 	require.Empty(t, diagnostics)
 	rendered, err := Render(document, Options{PackageName: "design"})
 	require.NoError(t, err)
-	require.Contains(t, string(rendered), "OpenAPIRequestBodyTypes(func() {")
+	require.Contains(t, string(rendered), `MediaType("multipart/form-data",`)
 	requireRenderedDesignEvaluates(t, rendered, 1)
 }
 

@@ -277,6 +277,7 @@ func (r *renderer) schemaBlock(schema *Schema, path string, errorType bool, desc
 }
 
 func (r *renderer) schemaAttributeBlock(schema *Schema, path string, description *string) error {
+	r.mediaEncodingMetadata(schema)
 	if err := r.schemaRequired(schema, path); err != nil {
 		return err
 	}
@@ -353,7 +354,7 @@ func (r *renderer) schemaAnnotations(schema *Schema, description *string) error 
 }
 
 func (r *renderer) untaggedValidation(schema *Schema) {
-	if len(schema.OneOf) > 0 {
+	if len(schema.OneOf) > 0 && len(schema.MediaTypes) == 0 {
 		r.line("Untagged()")
 	}
 }
@@ -404,7 +405,7 @@ func (r *renderer) hasSchemaBlock(schema *Schema) bool {
 	if schema == nil {
 		return false
 	}
-	if schema.Title != "" || schema.Description != "" || len(schema.OneOf) > 0 || len(schema.Bases) > 0 || len(schema.Properties) > 0 || len(schema.Required) > 0 || len(schema.Enum) > 0 ||
+	if len(schema.MediaEncoding) > 0 || schema.Title != "" || schema.Description != "" || len(schema.OneOf) > 0 || len(schema.Bases) > 0 || len(schema.Properties) > 0 || len(schema.Required) > 0 || len(schema.Enum) > 0 ||
 		schema.Pattern != "" || schema.Minimum != nil || schema.Maximum != nil || schema.ExclusiveMinimum != nil ||
 		schema.ExclusiveMaximum != nil || schema.MinLength != nil || schema.MaxLength != nil ||
 		schema.MinItems != nil || schema.MaxItems != nil ||

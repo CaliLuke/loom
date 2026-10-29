@@ -94,21 +94,28 @@ func valuePlanSelection(source *valueOccurrenceNode, names []string) (*valueOccu
 	selection := make([]uint64, 0, len(names))
 	for _, name := range names {
 		selected = valueUnderlyingOccurrence(selected)
-		var match *valueOccurrenceMember
-		for index := range selected.declaration.members {
-			member := &selected.declaration.members[index]
-			if member.name == name {
-				match = member
-				break
-			}
+		child, identity := valuePlanSelectedChild(selected, name)
+		if child == nil {
+			return nil, nil, fmt.Errorf("value plan selection has no authored member or branch %q", name)
 		}
-		if match == nil {
-			return nil, nil, fmt.Errorf("value plan selection has no authored member %q", name)
-		}
-		selection = append(selection, match.id)
-		selected = match.node
+		selection = append(selection, identity)
+		selected = child
 	}
 	return selected, selection, nil
+}
+
+func valuePlanSelectedChild(parent *valueOccurrenceNode, name string) (*valueOccurrenceNode, uint64) {
+	for _, member := range parent.declaration.members {
+		if member.name == name {
+			return member.node, member.id
+		}
+	}
+	for _, branch := range parent.declaration.branches {
+		if branch.name == name {
+			return branch.node, branch.id
+		}
+	}
+	return nil, 0
 }
 
 func (b *valuePlanBuilder) validatePolicies() error {

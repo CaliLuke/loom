@@ -165,7 +165,7 @@ func (p *documentPlanner) operation(operation *Operation, path string) {
 		if !success && p.schemaContainsUntaggedOneOf(response.Response.Schema, make(map[string]struct{})) {
 			p.unsupported("schema-oneof-location", responsePath+"/content/schema", "untagged oneOf is supported only in JSON request and success response bodies")
 		}
-		if response.Response.Schema != nil && !isJSONMediaType(response.Response.ContentType) &&
+		if response.Response.Schema != nil && len(response.Response.Schema.MediaTypes) == 0 && !isJSONMediaType(response.Response.ContentType) &&
 			responseMode == responseBodyEncoded {
 			p.unsupported(
 				"media-type",
@@ -223,6 +223,10 @@ func (p *documentPlanner) requestBody(body *RequestBody, path string) {
 		// resolveReusableDocument already reported this unresolved occurrence.
 		return
 	}
+	if body.Schema != nil && len(body.Schema.MediaTypes) > 0 {
+		p.mediaContracts(body.Schema, path)
+		return
+	}
 	if len(body.ContentTypes) == 0 {
 		p.content("", body.Schema, path, false, requestObjectRole(*body))
 		return
@@ -257,7 +261,11 @@ func (p *documentPlanner) response(response Response, path string, allowNonJSON 
 		// resolveReusableDocument already reported this unresolved occurrence.
 		return
 	}
-	p.content(response.ContentType, response.Schema, path, allowNonJSON, responseObjectRole(response, allowNonJSON))
+	if response.Schema != nil && len(response.Schema.MediaTypes) > 0 {
+		p.mediaContracts(response.Schema, path)
+	} else {
+		p.content(response.ContentType, response.Schema, path, allowNonJSON, responseObjectRole(response, allowNonJSON))
+	}
 	for _, named := range response.Headers {
 		headerPath := path + "/headers/" + escapeJSONPointer(named.Name)
 		if strings.Contains(named.Name, ":") {
@@ -311,7 +319,7 @@ func (p *documentPlanner) schemaContainsUntaggedOneOf(schema *Schema, seen map[s
 	if schema == nil {
 		return false
 	}
-	if len(schema.OneOf) > 0 {
+	if len(schema.OneOf) > 0 && len(schema.MediaTypes) == 0 {
 		return true
 	}
 	if schema.Ref != "" {
@@ -347,7 +355,7 @@ func operationResponseBodyMode(operation *Operation) responseBodyMode {
 	successClass := successResponseClass(operation.Responses)
 	for _, response := range operation.Responses {
 		if !isSuccessResponseStatus(response.Status, successClass) || response.Response.Schema == nil ||
-			isJSONMediaType(response.Response.ContentType) {
+			isJSONMediaType(response.Response.ContentType) || len(response.Response.Schema.MediaTypes) > 0 {
 			continue
 		}
 		if (operation.Method == "GET" || operation.Method == "HEAD") && response.Status == "200" &&
@@ -398,7 +406,7 @@ func (p *documentPlanner) schema(schema *Schema, path string, role objectConstru
 	if !p.schemaAdmission(schema, path, role) {
 		return
 	}
-	if schema != nil && len(schema.OneOf) > 0 {
+	if schema != nil && len(schema.OneOf) > 0 && len(schema.MediaTypes) == 0 {
 		for index, branch := range schema.OneOf {
 			if branch == nil || branch.Ref == "" {
 				p.unsupported("schema-oneof-branch", fmt.Sprintf("%s/oneOf/%d", path, index), "untagged oneOf branches must reference concrete object or array components")

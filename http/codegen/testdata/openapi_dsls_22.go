@@ -123,3 +123,141 @@ var MultipleSchemaExamplesDSL = func() {
 		})
 	})
 }
+
+var MultipleMediaContractsDSL = func() {
+	StreamingPartialExamplesDSL()
+	envelope := Type("MediaEnvelope", func() {
+		Attribute("content_type", String)
+		OneOf("body", func() {
+			Attribute("json", Int, func() {
+				Minimum(0)
+				Maximum(100)
+				Example("one", 1)
+				Example("two", 2)
+			})
+			Attribute("nullable", String, func() {
+				Nullable()
+				Example(Null())
+			})
+			Attribute("vendor", Int, func() {
+				Example("vendor", 7)
+			})
+			Attribute("text", String, func() {
+				Example("text", "hello")
+			})
+			Attribute("binary", Bytes, func() {
+				Example("binary", []byte("bytes"))
+			})
+			Attribute("form", func() {
+				Attribute("name", String)
+				Attribute("note", String)
+				Attribute("numbers", ArrayOf(Int))
+				Attribute("labels", MapOf(String, String))
+				Meta("openapi:encoding:labels:contentType", "application/json")
+			})
+			Attribute("multipart", func() {
+				Attribute("name", String)
+				Attribute("data", Bytes)
+				Required("name", "data")
+				Meta("openapi:encoding:data:contentType", "image/png")
+			})
+		})
+		Required("body")
+	})
+	payload := Type("MediaRootExamples", func() {
+		OneOf("body", func() {
+			Attribute("number", Int)
+			Attribute("text", String)
+		})
+		Required("body")
+		Example("first", map[string]any{"body": 11})
+		Example("second", map[string]any{"body": 22})
+		Example("text", map[string]any{"body": "hello"})
+	})
+	failure := Type("MediaFailure", func() {
+		OneOf("detail", func() {
+			Attribute("number", Int)
+			Attribute("text", String)
+		})
+		Required("detail")
+	})
+	Service("mediaContracts", func() {
+		Method("fail", func() {
+			Error("rejected", failure)
+			HTTP(func() {
+				GET("/media-contracts/fail")
+				Response("rejected", StatusBadRequest, func() {
+					Body("detail")
+					MediaType("application/json", "number")
+					MediaType("text/plain", "text")
+				})
+			})
+		})
+		Method("optional", func() {
+			Payload(func() {
+				OneOf("choice", func() {
+					Attribute("number", Int)
+					Attribute("text", String)
+					Attribute("form", func() {
+						Attribute("name", String)
+					})
+				})
+			})
+			Result(String)
+			HTTP(func() {
+				POST("/media-contracts/optional")
+				Body("choice")
+				MediaType("application/x-www-form-urlencoded", "form")
+				MediaType("application/json", "number")
+				MediaType("text/plain", "text")
+				Response(StatusOK)
+			})
+		})
+
+		Method("exchange", func() {
+			Payload(envelope)
+			Result(envelope)
+			HTTP(func() {
+				POST("/media-contracts")
+				Body("body")
+				Header("content_type:Content-Type")
+				MediaType("application/json", "json")
+				MediaType("application/vnd.loom+json", "vendor")
+				MediaType("application/vnd.null+json", "nullable")
+				MediaType("text/plain", "text")
+				MediaType("*/*", "binary")
+				MediaType("application/x-www-form-urlencoded", "form")
+				MediaType("multipart/form-data", "multipart")
+				Response(StatusOK, func() {
+					Body("body")
+					Header("content_type:Content-Type")
+					MediaType("application/json", "json")
+					MediaType("application/vnd.loom+json", "vendor")
+					MediaType("application/vnd.null+json", "nullable")
+					MediaType("text/plain", "text")
+					MediaType("*/*", "binary")
+					MediaType("application/x-www-form-urlencoded", "form")
+					MediaType("multipart/form-data", "multipart")
+				})
+			})
+		})
+	})
+	Service("mediaExampleSelections", func() {
+		Method("rootExamples", func() {
+
+			Payload(payload)
+			Result(payload)
+			HTTP(func() {
+				POST("/media-root-examples")
+				Body("body")
+				MediaType("application/json", "number")
+				MediaType("text/plain", "text")
+				Response(StatusOK, func() {
+					Body("body")
+					MediaType("application/json", "number")
+					MediaType("text/plain", "text")
+				})
+			})
+		})
+	})
+}

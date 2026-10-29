@@ -89,18 +89,38 @@ func transformContextLayout(ctx *AttributeContext) transformLayout {
 }
 
 func transformPresenceContext(source, target *expr.AttributeExpr, ta *TransformAttrs) *TransformAttrs {
-	if !attributeUsesJSONPresence(source, ta.SourceCtx) && !attributeUsesJSONPresence(target, ta.TargetCtx) {
+	sourceContext := transformPhysicalContext(source, ta.SourceCtx)
+	targetContext := transformPhysicalContext(target, ta.TargetCtx)
+	if sourceContext == ta.SourceCtx && targetContext == ta.TargetCtx {
 		return ta
 	}
 	nested := *ta
-	nested.SourceCtx, nested.TargetCtx = ta.SourceCtx.Dup(), ta.TargetCtx.Dup()
-	if attributeUsesJSONPresence(source, ta.SourceCtx) {
-		nested.SourceCtx.JSONPresence, nested.SourceCtx.CollectionElementPresence = true, true
-	}
-	if attributeUsesJSONPresence(target, ta.TargetCtx) {
-		nested.TargetCtx.JSONPresence, nested.TargetCtx.CollectionElementPresence = true, true
-	}
+	nested.SourceCtx, nested.TargetCtx = sourceContext, targetContext
 	return &nested
+}
+
+func transformPhysicalContext(attribute *expr.AttributeExpr, context *AttributeContext) *AttributeContext {
+	if attribute == nil || context == nil {
+		return context
+	}
+	named, ok := attribute.Type.(expr.UserType)
+	if !ok {
+		return context
+	}
+	key := named.Hash()
+	presence, found := context.JSONPresenceTypes[key]
+	if !found {
+		return context
+	}
+	nested := context.Dup()
+	nested.JSONPresence, nested.CollectionElementPresence = presence, presence
+	if pointer, found := context.PresencePointerTypes[key]; found {
+		nested.Pointer = pointer
+	}
+	if defaults, found := context.PresenceUseDefaultTypes[key]; found {
+		nested.UseDefault = defaults
+	}
+	return nested
 }
 
 func transformCallArguments(source, target *expr.AttributeExpr, value string, ta *TransformAttrs) []jen.Code {

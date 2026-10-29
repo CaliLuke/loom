@@ -98,6 +98,8 @@ type (
 		Cookies []*HTTPResponseCookieExpr
 		// Response body if any
 		Body *AttributeExpr
+		// MediaTypes maps response media contracts to branches of the selected body union.
+		MediaTypes []*HTTPMediaTypeExpr
 		// OpenAPIBody describes a documentation-only response body used by
 		// OpenAPI generation when runtime response encoding/decoding is skipped.
 		OpenAPIBody *AttributeExpr
@@ -158,6 +160,7 @@ func (r *HTTPResponseExpr) Validate(e *HTTPEndpointExpr) *eval.ValidationErrors 
 	r.validateHeadersAndCookies(e, resultType, verr)
 	r.validateBodyAndLinks(e, resultType, verr)
 	r.validateResultReconstruction(e, verr)
+	r.validateMediaTypes(e, e.MethodExpr.Result, verr)
 	return verr
 }
 
@@ -524,6 +527,15 @@ func (r *HTTPResponseExpr) Dup() *HTTPResponseExpr {
 		ErrorNameFromStatus: r.ErrorNameFromStatus,
 		StatusErrorName:     r.StatusErrorName,
 		Meta:                r.Meta,
+	}
+	if len(r.MediaTypes) > 0 {
+		res.MediaTypes = make([]*HTTPMediaTypeExpr, len(r.MediaTypes))
+		for i, mapping := range r.MediaTypes {
+			if mapping != nil {
+				copy := *mapping
+				res.MediaTypes[i] = &copy
+			}
+		}
 	}
 	if r.Body != nil {
 		res.Body = DupAtt(r.Body)

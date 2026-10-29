@@ -143,7 +143,7 @@ func PrepareTargetExamples(
 	if !target.Plan.Root().Valid() || !target.ExamplePlan.Root().Valid() || !target.AnchorPlan.Root().Valid() {
 		return fmt.Errorf("HTTP example target has no captured schema and example plans")
 	}
-	anchor, err := selectedValueOccurrence(target.Anchor.Occurrence, target.Selection)
+	anchor, branchSelection, err := selectedValueOccurrence(target.Anchor.Occurrence, target.Selection)
 	if err != nil {
 		return err
 	}
@@ -157,7 +157,7 @@ func PrepareTargetExamples(
 	position := targetExamplePosition{
 		schema: target.Plan.Root(), examplePlan: target.ExamplePlan.Root(), anchorPlan: target.AnchorPlan.Root(),
 		exampleProjection: target.ExamplePlan, anchorProjection: anchorProjection,
-		example: target.ExampleOccurrence, anchor: anchor,
+		example: target.ExampleOccurrence, anchor: anchor, branchSelection: branchSelection,
 	}
 	target.ExampleSets = make(map[expr.ValuePlanNode]*transportir.ValueExampleSet)
 	target.Annotations = make(map[expr.ValuePlanNode]expr.JSONSchemaAnnotations)
@@ -182,6 +182,7 @@ type targetExamplePosition struct {
 	anchorProjection  expr.ValuePlan
 	example           expr.ValueOccurrence
 	anchor            expr.ValueOccurrence
+	branchSelection   bool
 }
 
 func prepareTargetExamplePosition(
@@ -250,6 +251,9 @@ func prepareTargetExampleSet(
 		Reachable: true, SuppressGenerated: suppressGenerated,
 	})
 	entries := selection.Entries()
+	if len(entries) == 0 && position.schema == target.Plan.Root() && position.branchSelection {
+		entries = target.Anchor.Context.SelectExample(target.Anchor.Occurrence, expr.ExamplePolicy{Reachable: true, SuppressGenerated: suppressGenerated}).Entries()
+	}
 	if len(entries) == 0 {
 		data := target.Source
 		plan := position.exampleProjection
@@ -526,22 +530,29 @@ func appendExamplePath(path []string, parts ...string) []string {
 	return append(append([]string(nil), path...), parts...)
 }
 
-func selectedValueOccurrence(root expr.ValueOccurrence, selection []string) (expr.ValueOccurrence, error) {
+func selectedValueOccurrence(root expr.ValueOccurrence, selection []string) (expr.ValueOccurrence, bool, error) {
 	current := root
+	branchSelection := false
 	for _, name := range selection {
 		var found expr.ValueOccurrence
 		for _, member := range current.Members() {
 			if member.Name == name || expr.AttributeName(member.Name) == expr.AttributeName(name) {
 				if found.ID() != (expr.ValueIdentity{}) {
-					return expr.ValueOccurrence{}, fmt.Errorf("HTTP example selection %q is ambiguous", name)
+					return expr.ValueOccurrence{}, false, fmt.Errorf("HTTP example selection %q is ambiguous", name)
 				}
 				found = member.Occurrence
 			}
 		}
+		for _, branch := range current.Branches() {
+			if branch.Name == name {
+				branchSelection = true
+				found = branch.Occurrence
+			}
+		}
 		if found.ID() == (expr.ValueIdentity{}) {
-			return expr.ValueOccurrence{}, fmt.Errorf("HTTP example selection has no member %q", name)
+			return expr.ValueOccurrence{}, false, fmt.Errorf("HTTP example selection has no member %q", name)
 		}
 		current = found
 	}
-	return current, nil
+	return current, branchSelection, nil
 }

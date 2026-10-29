@@ -72,7 +72,7 @@ func responseMappingPrefix(response renderedResponse, failure bool, path string)
 }
 
 func responseMappingNeedsBlock(response renderedResponse, failure bool) bool {
-	return len(response.response.referenceChain) > 0 || failure || response.response.Summary != "" || response.response.Description != "" ||
+	return response.response.Schema != nil && len(response.response.Schema.MediaTypes) > 0 || len(response.response.referenceChain) > 0 || failure || response.response.Summary != "" || response.response.Description != "" ||
 		response.response.ContentType != "" || len(response.headers) > 0 || len(response.response.Extensions) > 0
 }
 
@@ -97,6 +97,11 @@ func (r *renderer) responseMappingMetadata(response renderedResponse, failure bo
 	if err := r.emitExtensions("response", response.response.Extensions); err != nil {
 		return err
 	}
+	if response.response.Schema != nil && len(response.response.Schema.MediaTypes) > 0 {
+		if err := r.mediaTypeMappings(response.response.Schema); err != nil {
+			return err
+		}
+	}
 	if response.response.ContentType != "" {
 		r.line("ContentType(%q)", response.response.ContentType)
 	}
@@ -117,7 +122,8 @@ func (r *renderer) responseMappingRawBody(response renderedResponse, path string
 
 func (r *renderer) responseMappingBody(response renderedResponse, failure bool, path string) error {
 	wrapUnconstrainedError := failure && r.effectiveUnconstrained(response.response.Schema)
-	if response.body != "" && (len(response.headers) > 0 || wrapUnconstrainedError) {
+	wrapMediaError := failure && response.response.Schema != nil && len(response.response.Schema.MediaTypes) > 0
+	if response.body != "" && (len(response.headers) > 0 || wrapUnconstrainedError || wrapMediaError) {
 		r.line("Body(%q)", response.body)
 	}
 	if len(response.headers) == 0 && !response.rawBody && response.response.Schema != nil {

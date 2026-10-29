@@ -259,7 +259,7 @@ type RequestBody struct {
 	Description string
 	// Required reports whether the request body is required.
 	Required bool
-	// ContentTypes are the request media types that share Schema and Examples.
+	// ContentTypes are the authored request media types in source order.
 	ContentTypes []string
 	// Schema describes the request body.
 	Schema *Schema
@@ -348,7 +348,12 @@ type Schema struct {
 	// LegacyNullable retains the OpenAPI 3.0 nullable keyword, including false.
 	// Other dialects reject this keyword instead of applying OpenAPI 3.0 semantics.
 	LegacyNullable *bool
-	// OneOf contains the branches of a supported untagged object union.
+	// MediaTypes maps OneOf branches to distinct HTTP content representations.
+	// When present, OneOf is a service union, not an authored JSON oneOf.
+	MediaTypes []string
+	// MediaEncoding retains this branch's per-property HTTP encoding declarations.
+	MediaEncoding map[string]httpencoding.Serialization
+	// OneOf contains the branches of a supported union.
 	OneOf []*Schema
 	// Format is the authored schema format.
 	Format string
