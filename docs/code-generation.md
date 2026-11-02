@@ -293,6 +293,15 @@ Its zero value means the property was absent; `loom.NullValue[T]()` means it
 was explicitly null; and `loom.NullableValue(value)` carries a concrete value.
 Use `Present`, `IsNull`, and `Value` when handling generated service types.
 
+`loom.Optional[T]` and `loom.Nullable[T]` preserve enclosing JSON v2 decoding
+options for their contained values, including `RejectUnknownMembers`,
+`StringifyNumbers`, and caller-supplied unmarshaling functions. Optional values
+still reject JSON null; nullable values retain explicit null. Caller codecs
+take precedence over Loom's boolean map-key fallback. Upgrade the Loom runtime
+to adopt this correction; regeneration is not required. These wrappers implement
+`UnmarshalJSONFrom`; use `json.Unmarshal` or `json.UnmarshalDecode` instead of
+calling a wrapper's former `UnmarshalJSON` method directly.
+
 A two-member `oneOf` with one bare `null` branch and one local component
 reference imports as the same nullable named type when the referenced schema
 explicitly excludes null. Regenerated OpenAPI uses the equivalent `anyOf`

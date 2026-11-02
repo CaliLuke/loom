@@ -1730,12 +1730,19 @@ filter, and serialization rules belong here.
   a collision-free alias in each payload-builder file.
 - `loom.JSONOptions()` exposes the shared boolean map-key options to generated
   code. Apply them at typed branch decoding and value encoding in both service
-  and HTTP union codecs, in `Optional` and `Nullable`, and at HTTP body codec
-  boundaries. Outer JSON options do not propagate through legacy custom
+  and HTTP union codecs and at HTTP body codec boundaries. `Optional` and
+  `Nullable` decode through `UnmarshalJSONFrom` and the shared private
+  `unmarshalPresenceJSON` owner: retain the enclosing decoder and compose caller
+  unmarshaling functions ahead of the boolean-key fallback. Do not restart a
+  byte-based decode or replace caller codecs with framework defaults. Outer JSON
+  options do not propagate through legacy custom
   `MarshalJSON`/`UnmarshalJSON` methods that start new JSON operations. Preserve
   explicit `json.Deterministic(true)` in custom marshalers. The model under
   `pkg/tla/json_options` reproduces the outer-only failure and the incomplete
   union-only repair, then checks nested option handling at all three layers.
+  Its presence-decoding model separately checks caller-option inheritance and
+  fallback availability; generated union byte-based codecs remain outside that
+  caller-option guarantee.
 - Ordinary unary HTTP handlers delegate request context, observation, decode,
   invocation, response encode, and failure routing to the typed runtime helper.
   A response encoder failure that occurs before commit is encoded through the

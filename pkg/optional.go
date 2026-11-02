@@ -2,6 +2,7 @@ package loom
 
 import (
 	"bytes"
+	"encoding/json/jsontext"
 	"encoding/json/v2"
 	"errors"
 )
@@ -64,14 +65,18 @@ func (o Optional[T]) MarshalJSON() ([]byte, error) {
 	return data, nil
 }
 
-// UnmarshalJSON implements json.Unmarshaler and rejects JSON null.
-func (o *Optional[T]) UnmarshalJSON(data []byte) error {
-	if bytes.Equal(bytes.TrimSpace(data), []byte("null")) {
+// UnmarshalJSONFrom implements json.UnmarshalerFrom, preserving the enclosing
+// decoder options for the contained value and rejecting JSON null.
+func (o *Optional[T]) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	if dec.PeekKind() == jsontext.KindNull {
+		if _, err := dec.ReadToken(); err != nil {
+			return err
+		}
 		o.value = nil
 		return ErrNullOptional
 	}
 	var value T
-	if err := json.Unmarshal(data, &value, JSONOptions()); err != nil {
+	if err := unmarshalPresenceJSON(dec, &value); err != nil {
 		return err
 	}
 	o.value = &value

@@ -2,6 +2,7 @@ package loom
 
 import (
 	"bytes"
+	"encoding/json/jsontext"
 	"encoding/json/v2"
 	"errors"
 )
@@ -92,17 +93,20 @@ func (n Nullable[T]) MarshalJSON() ([]byte, error) {
 	return data, nil
 }
 
-// UnmarshalJSON implements json.Unmarshaler and records the distinction
-// between an absent property and an explicitly null property.
-func (n *Nullable[T]) UnmarshalJSON(data []byte) error {
+// UnmarshalJSONFrom implements json.UnmarshalerFrom, preserving the enclosing
+// decoder options and distinguishing an absent property from explicit null.
+func (n *Nullable[T]) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 	n.present = true
-	if bytes.Equal(bytes.TrimSpace(data), []byte("null")) {
+	if dec.PeekKind() == jsontext.KindNull {
+		if _, err := dec.ReadToken(); err != nil {
+			return err
+		}
 		n.value = nil
 		n.null = true
 		return nil
 	}
 	var value T
-	if err := json.Unmarshal(data, &value, JSONOptions()); err != nil {
+	if err := unmarshalPresenceJSON(dec, &value); err != nil {
 		return err
 	}
 	n.value = &value

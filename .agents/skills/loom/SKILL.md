@@ -875,6 +875,11 @@ Correct the key design and regenerate instead of editing generated declarations.
 - Generated nullable fields use `loom.Nullable[T]`. Its zero value is absent;
   use `loom.NullValue[T]()` for explicit null and `loom.NullableValue(value)`
   for a concrete value. Inspect it with `Present`, `IsNull`, and `Value`.
+- `Optional[T]` and `Nullable[T]` preserve enclosing JSON v2 decoding options
+  and caller codecs, including strict unknown-member rejection. Upgrade the
+  runtime without regeneration for this fix. Use `json.Unmarshal` or
+  `json.UnmarshalDecode`; the wrappers now implement `UnmarshalJSONFrom`
+  instead of the byte-based `UnmarshalJSON` method. Optional still rejects null.
 - Use `Example("name", Null())` to author an explicit null example. `Null()`
   is not valid as a default. Concrete defaults apply only to absent inputs.
 - `Nullable()` is supported for JSON HTTP bodies, JSON-RPC values, array
