@@ -11,7 +11,7 @@ on:
 jobs:
   # Windows is not part of the per-PR pipeline: the audience is mac/linux
   # and the Windows job only ran unit tests while being the pipeline's
-  # critical path. A weekly compile+unit canary lives in windows-canary.yml.
+  # critical path. An on-demand compile+unit canary lives in windows-canary.yml.
   ci:
     runs-on: ubuntu-latest
 
@@ -31,39 +31,58 @@ jobs:
       - name: Static checks
         run: make lint
 
-      - name: Unit tests and coverage ratchet
-        run: make test-ci
-
       - name: Transport integration tests
         run: make integration-test
 
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        lane: [http, grpc, generator, jsonrpc, importer, remaining]
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v7
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: Install test dependencies
+        run: make depend-test
+      - name: Tests with race, shuffled order and coverage
+        run: make test-ci-lane TEST_LANE=${{ matrix.lane }}
+      - name: Upload completed lane
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-${{ matrix.lane }}
+          path: coverage-parts/coverage-${{ matrix.lane }}
+          if-no-files-found: error
+          overwrite: true
+
+  coverage:
+    needs: tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v7
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: Download completed lanes
+        uses: actions/download-artifact@v8
+        with:
+          pattern: coverage-*
+          path: coverage-parts
+      - name: Verify complete coverage and enforce ratchet
+        run: make test-ci-merge
       - name: Upload test coverage for deep source
         uses: actions/upload-artifact@v7
         with:
           name: coverage
           path: cover.out
-
-  race:
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        lane: [http, grpc, generator, remaining]
-
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v7
-
-      - name: Set up Go
-        uses: actions/setup-go@v7
-        with:
-          go-version-file: go.mod
-
-      - name: Install dependencies
-        run: make depend
-
-      - name: Race and shuffled-order unit tests
-        run: make test-race RACE_LANE=${{ matrix.lane }}
+          if-no-files-found: error
+          overwrite: true
 
   openapi-contract:
     runs-on: ubuntu-latest
@@ -117,7 +136,7 @@ jobs:
         with:
           go-version-file: go.mod
       - name: Install dependencies
-        run: make depend
+        run: make depend-test
       - name: Compile exported testdata designs
         run: make test-testdata-compile TESTDATA_RUN='TestDesigns/${{ matrix.domain }}/'
 
@@ -137,7 +156,7 @@ jobs:
   release-ready:
     name: Release eligibility
     if: always()
-    needs: [ci, race, openapi-contract, generated-code-quality, testdata-compile, pulse-redis]
+    needs: [ci, tests, coverage, openapi-contract, generated-code-quality, testdata-compile, pulse-redis]
     runs-on: ubuntu-latest
     steps:
       - name: Require every validation job to succeed

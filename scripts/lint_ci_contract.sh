@@ -76,7 +76,7 @@ fi
 
 assert_prerequisites all "lint test integration-test"
 assert_prerequisites ci "depend lint test-ci integration-test"
-assert_prerequisites ci-local "lint test-ci integration-test test-race openapi-contract generated-code-quality test-testdata-compile"
+assert_prerequisites ci-local "lint test-ci integration-test openapi-contract generated-code-quality test-testdata-compile"
 assert_prerequisites value-contract-conformance "value-contract-proof"
 assert_prerequisites release ""
 assert_prerequisites release-promote ""
@@ -108,23 +108,25 @@ workflow_targets="$({
 } | LC_ALL=C sort -u)"
 expected_workflow_targets="$(printf '%s\n' \
   depend \
+  depend-test \
   generated-code-quality \
   integration-test \
   lint \
   openapi-contract \
-  test-ci \
+  test-ci-lane \
+  test-ci-merge \
   test-pulse-redis \
   test-testdata-compile \
-  test-race \
   | LC_ALL=C sort)"
 if [[ "$workflow_targets" != "$expected_workflow_targets" ]]; then
   fail "workflow Make targets are [$workflow_targets], want [$expected_workflow_targets]"
 fi
 
 # Every workflow gate must also run in ci-local, except the ones listed here.
-# depend installs tools. test-pulse-redis needs Docker, which pre-push must not require (see
+# depend/depend-test install tools. test-ci-lane/test-ci-merge distribute the
+# same suite run by test-ci locally. test-pulse-redis needs Docker, which pre-push must not require (see
 # the ci-local comment in the Makefile).
-ci_local_exceptions=" depend test-pulse-redis "
+ci_local_exceptions=" depend depend-test test-pulse-redis test-ci-lane test-ci-merge "
 ci_local_prerequisites=" $(target_prerequisites ci-local) "
 for target in $workflow_targets; do
   if [[ "$ci_local_exceptions" == *" $target "* ]]; then
@@ -262,6 +264,5 @@ if [[ "$actual_make_fast" != "$expected_make_fast" ]]; then
   fail "integration-test-fast changed or shell-parsed SERVICE/RUN at the Make boundary"
 fi
 
-bash "$ROOT/scripts/test_race_contract.sh"
 
 echo "CI contract lint passed"

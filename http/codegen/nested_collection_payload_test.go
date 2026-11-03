@@ -1,29 +1,6 @@
 package codegen
 
-import (
-	"os"
-	"path/filepath"
-	"testing"
-
-	"github.com/stretchr/testify/require"
-
-	. "github.com/CaliLuke/loom/dsl"
-)
-
-// TestNestedCollectionPayloadGeneratedIntegration generates a service whose
-// unary and WebSocket streaming payloads are flat and nested collections of
-// one element type, compiles and vets it, then round-trips the payloads
-// through the generated client and server and checks that the server
-// rejects invalid nested elements.
-func TestNestedCollectionPayloadGeneratedIntegration(t *testing.T) {
-	root := RunHTTPDSL(t, nestedCollectionPayloadDSL)
-	dir := t.TempDir()
-	renderHTTPModule(t, dir, "example.com/nestedpayload", root)
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "nested_payload_test.go"), []byte(nestedCollectionPayloadHarness), 0o600))
-	runGoCommand(t, dir, "mod", "tidy")
-	runGoCommand(t, dir, "vet", "./...")
-	runGoCommand(t, dir, "test", "-race", "-count=1", ".")
-}
+import . "github.com/CaliLuke/loom/dsl"
 
 func nestedCollectionPayloadDSL() {
 	item := Type("Item", func() {

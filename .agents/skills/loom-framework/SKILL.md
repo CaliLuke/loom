@@ -2861,14 +2861,19 @@ consumer-aware profile. Treat any reduction as an explicit reviewed contract
 change and document its reason; aggregate coverage remains an inspection
 artifact, not the ratchet.
 
-`make ci` and `make ci-local` use `test-ci` instead of running `test` followed
-by `coverage-ratchet`. The coverage runner expands the configured consumer set
-and the complete root-module inventory, runs each package once, and checks the
-floors using only the configured consumers. Remaining packages cannot inflate
-the ratchet. It publishes the combined `cover.out` only after both groups and
-the coverage floors pass. Standalone `test` and `coverage-ratchet` remain useful
-for local iteration; do not chain them in CI. Race/shuffle, generated-design,
-contract and integration tiers retain their separate checks.
+`make ci` and `make ci-local` use `test-ci`: each root package runs once
+with race detection, shuffled order and atomic coverage. Do not chain the
+standalone `test-race` target after it. Protected floors still use only the
+configured consumers; remaining packages cannot inflate the ratchet.
+
+GitHub CI distributes that same suite with `test-ci-lane` over complete package
+sets and aggregates with `test-ci-merge`. `scripts/coveragecheck/lanes.go` owns
+the exhaustive partition. Aggregation requires every lane's successful result,
+matching source revision, configuration and package inventory before enforcing
+the floors and publishing `cover.out`. Keep the workflow matrix aligned with
+`suiteLanes`. Standalone `test`, `test-race` and `coverage-ratchet` remain useful
+for local iteration. Generated-design, contract and integration tiers retain
+their separate checks.
 
 ## Local and Remote Source Modes
 
@@ -2894,12 +2899,19 @@ current repository root before invoking `loom gen`.
 
 ## Race Suite Execution
 
-`make test-race` runs the full root-module suite by default. CI sets `RACE_LANE`
-to isolate the complete HTTP codegen, gRPC codegen and generator packages, plus
-an exhaustive remaining-package lane. `scripts/test_race.sh` owns this partition;
-keep race instrumentation, count=1 and complete within-package shuffled order.
-The contract lint checks coverage against the actual Go package inventory.
-Do not replace whole-package lanes with manually maintained test-name subsets.
+`make test-race` runs the full root-module suite for focused race validation.
+CI combines race, count=1, whole-package shuffle and coverage in `test-ci-lane`
+so generated applications are not rebuilt by a second root-suite invocation.
+The distributed-suite regression executes real miniature Go packages, including
+race-only tests, and verifies exactly-once execution and aggregation failures.
+
+Generated contract tests should share module setup and compiler invocations
+when their dependencies agree. `TestRequestBodyContractsGenerated` keeps six
+body designs in separate namespaces inside one module and runs every original
+runtime harness. Keep assertions for malformed input, payload state, service
+invocation, CLI behavior and streaming failures when consolidating fixtures.
+A compile-only test can be retired when the exported-design corpus exercises
+that exact design through generation, example generation, build and vet.
 
 ## Exported Design Compile Corpus
 

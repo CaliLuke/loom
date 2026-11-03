@@ -16,7 +16,6 @@ import (
 	servicecodegen "github.com/CaliLuke/loom/codegen/service"
 	. "github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/expr"
-	"github.com/CaliLuke/loom/http/codegen/testdata"
 	"github.com/CaliLuke/loom/internal/loomsource"
 )
 
@@ -38,21 +37,16 @@ func TestFormRequestUnionOAuthIntegration(t *testing.T) {
 	runGoCommand(t, dir, "test", "./...")
 }
 
-func TestLargeErrorSetHTTPClientIntegration(t *testing.T) {
-	const modulePath = "example.com/largeerrorsit"
-
-	root := RunHTTPDSL(t, testdata.LargeErrorSetHTTPClientDSL)
-	dir := t.TempDir()
-	renderHTTPModule(t, dir, modulePath, root)
-
-	runGoCommand(t, dir, "mod", "tidy")
-	runGoCommand(t, dir, "test", "./...")
-}
-
 func renderHTTPModule(t *testing.T, dir, modulePath string, root *expr.RootExpr) {
 	t.Helper()
 
-	genpkg := modulePath + "/gen"
+	renderHTTPModuleFiles(t, dir, modulePath+"/gen", root)
+	writeHTTPModule(t, dir, modulePath)
+}
+
+func renderHTTPModuleFiles(t *testing.T, dir, genpkg string, root *expr.RootExpr) {
+	t.Helper()
+
 	serviceData := servicecodegen.NewServicesData(root)
 	for _, service := range root.Services {
 		require.NoError(t, servicecodegen.SetUserTypeImports(genpkg, serviceData.Get(service.Name)))
@@ -86,6 +80,10 @@ func renderHTTPModule(t *testing.T, dir, modulePath string, root *expr.RootExpr)
 	}
 
 	renderGeneratedFiles(t, dir, files)
+}
+
+func writeHTTPModule(t *testing.T, dir, modulePath string) {
+	t.Helper()
 
 	repoRoot := checkoutPinnedLoomModule(t)
 	goMod := fmt.Sprintf(`module %s

@@ -1,31 +1,6 @@
 package codegen
 
-import (
-	"os"
-	"path/filepath"
-	"testing"
-
-	"github.com/stretchr/testify/require"
-
-	. "github.com/CaliLuke/loom/dsl"
-)
-
-// TestNamedCollectionPayloadGeneratedIntegration generates a service whose
-// unary and WebSocket streaming payloads are two named collections of one
-// element type, and whose request bodies are two collection attributes of
-// one payload type. It compiles and vets the service, then checks that the
-// generated client sends each payload, and each selected attribute, to the
-// server, and that the server rejects a payload that violates the
-// validations of its type.
-func TestNamedCollectionPayloadGeneratedIntegration(t *testing.T) {
-	root := RunHTTPDSL(t, namedCollectionPayloadDSL)
-	dir := t.TempDir()
-	renderHTTPModule(t, dir, "example.com/namedcollection", root)
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "named_collection_test.go"), []byte(namedCollectionPayloadHarness), 0o600))
-	runGoCommand(t, dir, "mod", "tidy")
-	runGoCommand(t, dir, "vet", "./...")
-	runGoCommand(t, dir, "test", "-race", "-count=1", ".")
-}
+import . "github.com/CaliLuke/loom/dsl"
 
 func namedCollectionPayloadDSL() {
 	item := Type("Item", func() {

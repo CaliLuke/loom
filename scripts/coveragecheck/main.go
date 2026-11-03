@@ -52,10 +52,22 @@ func main() {
 	testTimeout := flag.String("test-timeout", "", "go test -timeout for the coverage run; empty keeps the go test default")
 	suite := flag.Bool("suite", false, "run every root-module test once, enforce coverage, and write the aggregate profile")
 	profilePath := flag.String("coverprofile", "cover.out", "aggregate profile written by -suite after all checks pass")
+	lane := flag.String("lane", "", "suite lane to execute with race, shuffle and coverage")
+	partsDir := flag.String("parts", "", "directory containing suite lane results")
+	merge := flag.Bool("merge", false, "validate and merge all suite lane results")
+	source := flag.String("source", "", "immutable source revision for lane results")
 	flag.Parse()
 
 	var err error
 	switch {
+	case (*lane != "" || *merge) && (*suite || *update):
+		err = errors.New("lane/merge cannot be combined with suite/update")
+	case *lane != "" && *merge:
+		err = errors.New("lane and merge cannot be combined")
+	case *lane != "":
+		err = runLane(*configPath, *testTimeout, *partsDir, *source, *lane)
+	case *merge:
+		err = mergeSuite(*configPath, *partsDir, *source, *profilePath)
 	case *suite && *update:
 		err = errors.New("-suite and -update cannot be combined; update the scoped baseline separately")
 	case *suite:

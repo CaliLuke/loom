@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"slices"
 	"strings"
 	"time"
 )
@@ -76,18 +75,9 @@ func runSuite(configPath, testTimeout, profilePath string) (returnErr error) {
 }
 
 func collectSelectedCoverage(config baselineConfig, selected []string, dir, testTimeout string) ([]byte, error) {
-	// Also instrument each selected package itself, preserving the ordinary
-	// profile's coverage of packages such as codegen/generator. This adds no
-	// consumers to the configured boundaries.
-	config.TestPackages = selected
-	config.CoverPackages = slices.Clone(config.CoverPackages)
-	for _, p := range selected {
-		if !slices.Contains(config.CoverPackages, p) {
-			config.CoverPackages = append(config.CoverPackages, p)
-		}
-	}
+	config = suiteCoverageConfig(config, selected, selected)
 	profile := filepath.Join(dir, "selected.out")
-	if err := runCoverage(config, profile, testTimeout); err != nil {
+	if err := runSuiteCoverage(config, profile, testTimeout); err != nil {
 		return nil, fmt.Errorf("collect consumer-aware coverage: %w", err)
 	}
 	data, err := os.ReadFile(profile)
@@ -102,7 +92,7 @@ func appendRemainingCoverage(data []byte, remaining []string, dir, testTimeout s
 		return data, nil
 	}
 	profile := filepath.Join(dir, "remaining.out")
-	if err := runCoverage(baselineConfig{TestPackages: remaining}, profile, testTimeout); err != nil {
+	if err := runSuiteCoverage(baselineConfig{TestPackages: remaining}, profile, testTimeout); err != nil {
 		return nil, fmt.Errorf("collect remaining coverage: %w", err)
 	}
 	other, err := os.ReadFile(profile)
@@ -112,15 +102,15 @@ func appendRemainingCoverage(data []byte, remaining []string, dir, testTimeout s
 	if _, err := parseProfile(bytes.NewReader(other)); err != nil {
 		return nil, err
 	}
-	body, ok := bytes.CutPrefix(other, []byte("mode: count\n"))
+	body, ok := bytes.CutPrefix(other, []byte("mode: atomic\n"))
 	if !ok {
-		return nil, errors.New("remaining coverage must use mode: count")
+		return nil, errors.New("remaining coverage must use mode: atomic")
 	}
 	return append(data, body...), nil
 }
 
 func listPackages(patterns []string) ([]string, error) {
-	command := exec.Command("go", append([]string{"list"}, patterns...)...)
+	command := exec.Command("go", append([]string{"list", "-race"}, patterns...)...)
 	command.Stderr = os.Stderr
 	output, err := command.Output()
 	if err != nil {

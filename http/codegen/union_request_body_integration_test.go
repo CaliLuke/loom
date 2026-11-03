@@ -1,36 +1,6 @@
 package codegen
 
-import (
-	"os"
-	"path/filepath"
-	"testing"
-
-	"github.com/stretchr/testify/require"
-
-	. "github.com/CaliLuke/loom/dsl"
-)
-
-// TestUnionRequestBodyGeneratedIntegration generates services whose payload
-// or streaming payload is a constructor OneOf union carried in a required
-// JSON body, an optional JSON body, a form body and WebSocket messages,
-// compiles and vets them in a temporary module, and round-trips every branch
-// through the generated client and server, including a nil optional union,
-// which the client sends as no body at all. It also sends empty, whitespace,
-// malformed, truncated and invalid JSON bodies to the generated server and
-// checks the status, the problem code and detail, whether the service is
-// invoked and the decoded payload.
-func TestUnionRequestBodyGeneratedIntegration(t *testing.T) {
-	const modulePath = "example.com/unionrequestbody"
-
-	root := RunHTTPDSL(t, unionRequestBodyIntegrationDSL)
-	dir := t.TempDir()
-	renderHTTPModule(t, dir, modulePath, root)
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "union_request_body_test.go"), []byte(unionRequestBodyHarness), 0o600))
-
-	runGoCommand(t, dir, "mod", "tidy")
-	runGoCommand(t, dir, "vet", "./...")
-	runGoCommand(t, dir, "test", "-race", "-count=1", ".")
-}
+import . "github.com/CaliLuke/loom/dsl"
 
 func unionRequestBodyIntegrationDSL() {
 	var Leaf = Type("Leaf", func() {

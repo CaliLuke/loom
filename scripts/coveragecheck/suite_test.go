@@ -94,7 +94,7 @@ func TestOnce(t *testing.T) {
 			require.FileExists(t, "other/ran")
 			data, err := os.ReadFile("cover.out")
 			require.NoError(t, err)
-			require.Equal(t, 1, strings.Count(string(data), "mode: count"))
+			require.Equal(t, 1, strings.Count(string(data), "mode: atomic"))
 			blocks, err := parseProfile(strings.NewReader(string(data)))
 			require.NoError(t, err)
 			for _, p := range []string{"service", "consumer", "other"} {

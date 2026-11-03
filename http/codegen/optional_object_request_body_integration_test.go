@@ -1,37 +1,6 @@
 package codegen
 
-import (
-	"os"
-	"path/filepath"
-	"testing"
-
-	"github.com/stretchr/testify/require"
-
-	. "github.com/CaliLuke/loom/dsl"
-)
-
-// TestOptionalObjectRequestBodyGeneratedIntegration generates services whose
-// request body is an object payload attribute selected with Body: optional
-// JSON bodies with and without required fields, the documented
-// OptionalRequestBody example, an optional form body, and a required JSON
-// body. It compiles and vets them in a temporary module and round-trips nil
-// and non-nil objects through the generated client and server, checking that
-// a nil object is sent as no body at all. It also sends empty, whitespace,
-// null, empty-object, valid, invalid, malformed and truncated bodies to the
-// generated servers and checks the status, the problem code and detail,
-// whether the service is invoked and the decoded object.
-func TestOptionalObjectRequestBodyGeneratedIntegration(t *testing.T) {
-	const modulePath = "example.com/optobjectbody"
-
-	root := RunHTTPDSL(t, optionalObjectRequestBodyIntegrationDSL)
-	dir := t.TempDir()
-	renderHTTPModule(t, dir, modulePath, root)
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "optional_object_body_test.go"), []byte(optionalObjectRequestBodyHarness), 0o600))
-
-	runGoCommand(t, dir, "mod", "tidy")
-	runGoCommand(t, dir, "vet", "./...")
-	runGoCommand(t, dir, "test", "-race", "-count=1", ".")
-}
+import . "github.com/CaliLuke/loom/dsl"
 
 func optionalObjectRequestBodyIntegrationDSL() {
 	var Filters = Type("Filters", func() {

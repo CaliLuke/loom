@@ -1,39 +1,6 @@
 package codegen
 
-import (
-	"os"
-	"path/filepath"
-	"testing"
-
-	"github.com/stretchr/testify/require"
-
-	. "github.com/CaliLuke/loom/dsl"
-)
-
-// TestNullableRequestBodyGeneratedIntegration generates services whose request
-// body is a nullable object, array or string payload attribute, or an Any
-// attribute, selected with Body. It compiles and vets them in a temporary
-// module and round-trips absent, null and concrete values through the
-// generated clients and servers, checking that an absent optional value is
-// sent as no body and a null value as JSON null. It also sends empty,
-// whitespace, null, concrete, invalid, malformed and truncated bodies to the
-// generated servers and checks the status, the problem code and detail,
-// whether the service is invoked and the decoded absent, null or concrete
-// state.
-func TestNullableRequestBodyGeneratedIntegration(t *testing.T) {
-	const modulePath = "example.com/nullbody"
-
-	root := RunHTTPDSL(t, func() {
-		nullableRequestBodyIntegrationDSL("")
-	})
-	dir := t.TempDir()
-	renderHTTPModule(t, dir, modulePath, root)
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "nullable_body_test.go"), []byte(nullableRequestBodyHarness), 0o600))
-
-	runGoCommand(t, dir, "mod", "tidy")
-	runGoCommand(t, dir, "vet", "./...")
-	runGoCommand(t, dir, "test", "-race", "-count=1", ".")
-}
+import . "github.com/CaliLuke/loom/dsl"
 
 func nullableRequestBodyIntegrationDSL(media string) {
 	var Leaf = Type("Leaf", func() {

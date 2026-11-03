@@ -1,39 +1,6 @@
 package codegen
 
-import (
-	"os"
-	"path/filepath"
-	"testing"
-
-	"github.com/stretchr/testify/require"
-
-	. "github.com/CaliLuke/loom/dsl"
-)
-
-// TestOptionalValueRequestBodyGeneratedIntegration generates a service whose
-// methods select an optional string, integer, array, map, bytes or string
-// alias payload attribute, a defaulted string or a required string with
-// Body. It compiles
-// and vets it in a temporary module and round-trips nil and non-nil values
-// through the generated client and server, checking that a nil value is
-// sent as no body at all. It sends empty, whitespace, null, empty, valid,
-// invalid, malformed and truncated bodies to the generated server and checks
-// the status, the problem code and detail, whether the service is invoked
-// and the decoded value. It also calls the generated CLI payload builders
-// with empty and set body flags.
-func TestOptionalValueRequestBodyGeneratedIntegration(t *testing.T) {
-	const modulePath = "example.com/optvaluebody"
-
-	root := RunHTTPDSL(t, optionalValueBodyModuleDSL("v"))
-	dir := t.TempDir()
-	renderHTTPModule(t, dir, modulePath, root)
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "optional_value_body_test.go"), []byte(optionalValueRequestBodyHarness), 0o600))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "optional_value_cli_test.go"), []byte(optionalValueRequestBodyCLIHarness), 0o600))
-
-	runGoCommand(t, dir, "mod", "tidy")
-	runGoCommand(t, dir, "vet", "./...")
-	runGoCommand(t, dir, "test", "-race", "-count=1", ".")
-}
+import . "github.com/CaliLuke/loom/dsl"
 
 const optionalValueRequestBodyHarness = `package optvaluebody
 

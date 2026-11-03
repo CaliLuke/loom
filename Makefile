@@ -18,7 +18,9 @@
 # - "all" is the default target, it runs "lint" and "test"
 #
 LOOM_TEST_TIMEOUT?=40m
-RACE_LANE?=all
+TEST_LANE?=remaining
+COVERAGE_PARTS?=coverage-parts
+CI_SOURCE?=$(shell git rev-parse HEAD)
 VERSION?=
 
 GOOS=$(shell go env GOOS)
@@ -33,7 +35,7 @@ PROTOC_GEN_GO_GRPC_VERSION?=v1.6.2
 PROTOC_BIN=protoc
 PROTOC_DEST=$(GOBIN_DIR)/$(PROTOC_BIN)
 
-.PHONY: all all-tests ci ci-local clean coverage-baseline coverage-ratchet depend fmt install-hooks lint lint-docs lint-filesize lint-gofmt lint-json-v2 lint-legacy-middleware lint-namescope lint-test-sources lint-toolchain test test-ci test-race test-pulse-redis test-testdata-compile integration-test integration-test-fast generated-code-quality openapi-contract value-contract-proof value-contract-conformance build-loom build-loom-cached loom-local loom-remote loom-status release release-promote
+.PHONY: all all-tests ci ci-local clean coverage-baseline coverage-ratchet depend depend-test depend-lint fmt install-hooks lint lint-docs lint-filesize lint-gofmt lint-json-v2 lint-legacy-middleware lint-namescope lint-test-sources lint-toolchain test test-ci test-ci-lane test-ci-merge test-race test-pulse-redis test-testdata-compile integration-test integration-test-fast generated-code-quality openapi-contract value-contract-proof value-contract-conformance build-loom build-loom-cached loom-local loom-remote loom-status release release-promote
 .NOTPARALLEL: release ci-local
 
 # Only list test and build dependencies
@@ -61,7 +63,7 @@ unexport LOOM_PULSE_REDIS_ADDR
 # rsync, and network access are also required by the external contract gates.
 # Formal verification is opt-in design work and must not enter this dependency tree.
 # The source mode is intentionally inherited from the worktree or LOOM_DIR.
-ci-local: lint test-ci integration-test test-race openapi-contract generated-code-quality test-testdata-compile
+ci-local: lint test-ci integration-test openapi-contract generated-code-quality test-testdata-compile
 
 # Install protoc
 PROTOC_VERSION=36.2
@@ -86,13 +88,14 @@ ifeq ($(GOOS),windows)
 	GOPATH:=$(subst \,/,$(GOPATH))
 endif
 
-depend:
+depend: depend-test depend-lint
+
+# Test-only jobs need protoc and its plugins, but do not run golangci-lint.
+depend-test:
 	@echo INSTALLING DEPENDENCIES...
 	@mkdir -p "$(GOBIN_DIR)"
 	@go mod download
 	@for package in $(DEPEND); do GOBIN="$(GOBIN_DIR)" go install $$package; done
-	@GOBIN="$(GOBIN_DIR)" go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
-	@$(GOLANGCI_LINT) version
 	@go mod tidy
 	@echo INSTALLING PROTOC...
 	@rm -rf "$(PROTOC)"
@@ -107,6 +110,11 @@ depend:
 		cp -R "$(PROTOC)/include/." "$(GOBIN_DIR)/../include/" && \
 		rm -rf $(PROTOC) && \
 		"$(PROTOC_DEST)" --version
+
+depend-lint:
+	@mkdir -p "$(GOBIN_DIR)"
+	@GOBIN="$(GOBIN_DIR)" go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
+	@$(GOLANGCI_LINT) version
 
 install-hooks:
 	git config core.hooksPath .githooks
@@ -168,7 +176,7 @@ endif
 coverage-ratchet:
 	go run ./scripts/coveragecheck -test-timeout=$(LOOM_TEST_TIMEOUT)
 
-# Every root test runs exactly once. Protected consumers retain their scoped
+# Every root test runs exactly once with race detection and shuffled order. Protected consumers retain their scoped
 # coverage instrumentation; all remaining packages contribute ordinary coverage.
 # The aggregate cover.out is published only after tests and ratchets pass.
 test-ci:
@@ -177,6 +185,14 @@ ifneq ($(GOOS),windows)
 else
 	go run ./scripts/coveragecheck -suite -coverprofile=cover.out -test-timeout=$(LOOM_TEST_TIMEOUT)
 endif
+
+# CI distributes whole package suites; aggregation verifies every lane before
+# evaluating consumer coverage. Race and shuffle run in the same invocation.
+test-ci-lane:
+	PATH="$(GOBIN_DIR):$$PATH" go run ./scripts/coveragecheck -lane="$(TEST_LANE)" -parts="$(COVERAGE_PARTS)" -source="$(CI_SOURCE)" -test-timeout=$(LOOM_TEST_TIMEOUT)
+
+test-ci-merge:
+	go run ./scripts/coveragecheck -merge -parts="$(COVERAGE_PARTS)" -source="$(CI_SOURCE)" -coverprofile=cover.out
 
 # Rewrite the checked-in floors from the current consumer-aware profile. Review
 # every reduction and document why the protected boundary lost coverage.
@@ -189,9 +205,9 @@ coverage-baseline:
 # covers importer tests that compile generated temporary modules under race.
 test-race:
 ifneq ($(GOOS),windows)
-	PATH="$(GOBIN_DIR):$$PATH" bash ./scripts/test_race.sh "$(RACE_LANE)" "$(LOOM_TEST_TIMEOUT)"
+	PATH="$(GOBIN_DIR):$$PATH" go test -race -shuffle=on -count=1 -timeout=$(LOOM_TEST_TIMEOUT) ./...
 else
-	bash ./scripts/test_race.sh "$(RACE_LANE)" "$(LOOM_TEST_TIMEOUT)"
+	go test -race -shuffle=on -count=1 -timeout=$(LOOM_TEST_TIMEOUT) ./...
 endif
 
 # Opt-in real-Redis tier for the pulse suites (issue #383). `make test` runs

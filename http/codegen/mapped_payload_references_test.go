@@ -139,7 +139,7 @@ func TestMappedOptionalValueBodyCode(t *testing.T) {
 
 // TestMappedOptionalValueBodyGeneratedModule runs the generated module test of
 // optional values selected with Body (see
-// TestOptionalValueRequestBodyGeneratedIntegration) on payload attributes
+// TestRequestBodyContractsGenerated/optional_value) on payload attributes
 // declared with the key "v:x": it compiles and vets the module, round-trips
 // nil and non-nil values, including an optional alias and a defaulted string,
 // sends raw bodies to the server and calls the CLI payload builders.
