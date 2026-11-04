@@ -11,51 +11,56 @@ import (
 	servicedata "github.com/CaliLuke/loom/codegen/service/testdata"
 	"github.com/CaliLuke/loom/expr"
 	openapiv3 "github.com/CaliLuke/loom/http/codegen/openapi/v3"
+	"github.com/CaliLuke/loom/internal/testingx"
 )
 
-func TestSelectedBodyFieldIdentity(t *testing.T) {
-	for _, shape := range []string{"string", "named", "optional", "defaulted", "nullable", "array", "object"} {
-		t.Run(shape, func(t *testing.T) {
-			root := RunHTTPDSL(t, servicedata.SelectedBodyFieldsDSL("http", "request", shape, true))
-			request := CreateHTTPServices(root).Get("fields").Endpoint("call").Payload.Request
-			require.Equal(t, "ActualValue", request.PayloadAttr)
-			require.Equal(t, "ActualValue", request.PayloadInit.ReturnTypeAttribute)
-		})
+// TestSelectedBodyContractsGenerated compiles all body directions and carriers
+// together while retaining the client/server and CLI assertions for each case.
+func TestSelectedBodyContractsGenerated(t *testing.T) {
+	type bodyCase struct {
+		name, direction, shape string
+		renamed                bool
 	}
-}
-
-func TestSelectedBodyFieldIdentityCompiles(t *testing.T) {
+	cases := make([]bodyCase, 0, 18)
 	for _, direction := range []string{"request", "response", "error", "whole", "viewed"} {
 		for _, renamed := range []bool{false, true} {
 			name := direction + "/ordinary"
 			if renamed {
 				name = direction + "/renamed"
 			}
-			t.Run(name, func(t *testing.T) {
-				dir := t.TempDir()
-				renderSelectedBodyFields(t, dir, direction, "string", renamed)
-				if direction == "request" || direction == "response" {
-					require.NoError(t, os.WriteFile(filepath.Join(dir, "wire_test.go"), []byte(servicedata.SelectedBodyFieldHarness("http", direction, "string", renamed)), 0o600))
-				}
-				runGoCommand(t, dir, "mod", "tidy")
-				runGoCommand(t, dir, "test", "-race", "./...")
-				runGoCommand(t, dir, "vet", "./...")
-			})
+			cases = append(cases, bodyCase{name, direction, "string", renamed})
 		}
 	}
-}
-
-func TestSelectedBodyFieldCarriersCompile(t *testing.T) {
 	for _, shape := range []string{"named", "optional", "defaulted", "nullable", "array", "object"} {
-		t.Run(shape, func(t *testing.T) {
-			dir := t.TempDir()
-			renderSelectedBodyFields(t, dir, "request", shape, true)
-			require.NoError(t, os.WriteFile(filepath.Join(dir, "wire_test.go"), []byte(servicedata.SelectedBodyFieldHarness("http", "request", shape, true)), 0o600))
-			runGoCommand(t, dir, "mod", "tidy")
-			runGoCommand(t, dir, "test", "-race", "./...")
-			runGoCommand(t, dir, "vet", "./...")
+		cases = append(cases, bodyCase{"request/" + shape, "request", shape, true})
+	}
+	for _, renamed := range []bool{false, true} {
+		name := "viewed/optional/ordinary"
+		if renamed {
+			name = "viewed/optional/renamed"
+		}
+		cases = append(cases, bodyCase{name, "viewed", "optional", renamed})
+	}
+	batch := testingx.NewModuleBatch(t, checkoutPinnedLoomModule(t), "")
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root := RunHTTPDSL(t, servicedata.SelectedBodyFieldsDSL("http", tc.direction, tc.shape, tc.renamed))
+			if tc.direction == "request" && tc.renamed {
+				request := CreateHTTPServices(root).Get("fields").Endpoint("call").Payload.Request
+				require.Equal(t, "ActualValue", request.PayloadAttr)
+				require.Equal(t, "ActualValue", request.PayloadInit.ReturnTypeAttribute)
+			}
+			c := batch.Case(t, tc.name, "example.com/bodyfields")
+			renderHTTPModuleFiles(t, c.Dir, c.ModulePath+"/gen", root)
+			files, err := openapiv3.Files(root)
+			require.NoError(t, err)
+			renderGeneratedFiles(t, c.Dir, files)
+			if tc.direction == "request" || tc.direction == "response" {
+				c.WriteFile(t, "wire_test.go", servicedata.SelectedBodyFieldHarness("http", tc.direction, tc.shape, tc.renamed))
+			}
 		})
 	}
+	batch.Check(t)
 }
 
 func TestSelectedBodyFieldArtifacts(t *testing.T) {
@@ -103,14 +108,4 @@ func TestSelectedBodyFieldMappedIdentity(t *testing.T) {
 	require.True(t, parent.IsRequired(got.Key))
 	require.Equal(t, "fallback", got.Attribute.DefaultValue)
 	require.Same(t, parent, selectBodyField(parent, &expr.AttributeExpr{Type: expr.String}).Attribute)
-}
-
-func TestSelectedOptionalViewedBodyCompiles(t *testing.T) {
-	for _, renamed := range []bool{false, true} {
-		dir := t.TempDir()
-		renderSelectedBodyFields(t, dir, "viewed", "optional", renamed)
-		runGoCommand(t, dir, "mod", "tidy")
-		runGoCommand(t, dir, "build", "./...")
-		runGoCommand(t, dir, "vet", "./...")
-	}
 }

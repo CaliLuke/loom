@@ -32,9 +32,10 @@ and WebSocket mode. The finite candidate suffixes abstract NameScope, not its
 exact suffix choice. This model does not prove complete registration, request
 wiring, import qualification, CLI identity, group delegation or Go syntax.
 
-`TestHTTPClientMemberIdentity` and `TestJSONRPCClientMemberIdentity` inspect actual
+`TestHTTPClientMemberIdentityGenerated` and `TestJSONRPCClientMemberIdentity` inspect actual
 emitted fields and receiver methods across generated client files, including
-operation groups. Generated module checks pair these with Go compilation and
+operation groups. The HTTP assertions run within the generated module cases;
+generated module checks pair these with Go compilation and
 include the transport CLI. Mounted checks exercise endpoint,
 Doer, builder, stream, group and CLI bindings; `TestClientMembersRetainFileImportIdentity` establishes
 that names are independent of imports. Server, gRPC and package namespaces are

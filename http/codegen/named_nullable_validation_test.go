@@ -1,33 +1,24 @@
 package codegen
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
 	"github.com/CaliLuke/loom/http/codegen/testdata"
+	"github.com/CaliLuke/loom/internal/testingx"
 )
 
 func TestNamedNullableValidationGenerated(t *testing.T) {
+	batch := testingx.NewModuleBatch(t, checkoutPinnedLoomModule(t), "")
 	for _, shape := range []string{"object", "array", "map"} {
 		t.Run(shape, func(t *testing.T) {
 			root := RunHTTPDSL(t, testdata.NamedNullableValidationDSL("http", shape))
-			dir := t.TempDir()
-			renderHTTPModule(t, dir, "example.com/namednullablevalidation", root)
-			mod, err := os.ReadFile(filepath.Join(dir, "go.mod"))
-			require.NoError(t, err)
-			mod = []byte(strings.ReplaceAll(string(mod), "require github.com/CaliLuke/loom v1.0.0", "require github.com/CaliLuke/loom v1.10.0-alpha.9.0.20261012201303-8c7d8d711b9e"))
-			require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), mod, 0o600))
-			harness := strings.ReplaceAll(namedNullableValidationHarness, "SHAPE", shape)
-			require.NoError(t, os.WriteFile(filepath.Join(dir, "validation_test.go"), []byte(harness), 0o600))
-			for _, args := range [][]string{{"mod", "tidy"}, {"build", "./..."}, {"vet", "./..."}, {"test", "-race", "-count=1", "./..."}} {
-				runGoCommand(t, dir, args...)
-			}
+			c := batch.Case(t, shape, "example.com/namednullablevalidation")
+			renderHTTPModuleFiles(t, c.Dir, c.ModulePath+"/gen", root)
+			c.WriteFile(t, "validation_test.go", strings.ReplaceAll(namedNullableValidationHarness, "SHAPE", shape))
 		})
 	}
+	batch.Check(t)
 }
 
 const namedNullableValidationHarness = `package validation_test

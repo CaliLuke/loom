@@ -38,9 +38,9 @@ belongs to this receiver owner; its decoder and metadata helpers remain in the
 package scope. `fileData` reanalysis must preserve semantic binding when import
 aliases differ.
 
-`TestGRPCServerMemberDeclarations` checks actual rendered receiver ASTs and keeps
-canonical service/protobuf identities. `TestGRPCServerMemberIdentityGenerated`
-reproduces actual compiler failures and ordinary/authenticated controls. Mounted unary/streaming/auth dispatch verifies protobuf registration, endpoint
+`TestGRPCServerMemberIdentityGenerated` checks actual rendered receiver ASTs and
+canonical service/protobuf identities in the same cases that reproduce compiler
+failures and exercise ordinary/authenticated controls. Mounted unary/streaming/auth dispatch verifies protobuf registration, endpoint
 identity and authentication before any stream frame. The generated test also
 checks package declarations against the alias reservation inventory.
 `TestGRPCServerEmbeddingImportIdentity` covers both occupied alias spellings and

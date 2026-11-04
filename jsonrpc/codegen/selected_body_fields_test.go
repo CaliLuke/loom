@@ -9,40 +9,49 @@ import (
 	"github.com/stretchr/testify/require"
 
 	servicedata "github.com/CaliLuke/loom/codegen/service/testdata"
+	"github.com/CaliLuke/loom/internal/testingx"
 )
 
-func TestSelectedBodyFieldIdentityCompiles(t *testing.T) {
+// TestSelectedBodyContractsGenerated compiles all body directions and carriers
+// together while retaining the client/server and CLI assertions for each case.
+func TestSelectedBodyContractsGenerated(t *testing.T) {
+	type bodyCase struct {
+		name, direction, shape string
+		renamed                bool
+	}
+	cases := make([]bodyCase, 0, 18)
 	for _, direction := range []string{"request", "response", "error", "whole", "viewed"} {
 		for _, renamed := range []bool{false, true} {
 			name := direction + "/ordinary"
 			if renamed {
 				name = direction + "/renamed"
 			}
-			t.Run(name, func(t *testing.T) {
-				dir := t.TempDir()
-				renderSelectedBodyFields(t, dir, direction, "string", renamed)
-				if direction == "request" || direction == "response" {
-					require.NoError(t, os.WriteFile(filepath.Join(dir, "wire_test.go"), []byte(servicedata.SelectedBodyFieldHarness("jsonrpc", direction, "string", renamed)), 0o600))
-				}
-				runGoJSONRPCTestCommand(t, dir, "mod", "tidy")
-				runGoJSONRPCTestCommand(t, dir, "test", "-race", "./...")
-				runGoJSONRPCTestCommand(t, dir, "vet", "./...")
-			})
+			cases = append(cases, bodyCase{name, direction, "string", renamed})
 		}
 	}
-}
-
-func TestSelectedBodyFieldCarriersCompile(t *testing.T) {
 	for _, shape := range []string{"named", "optional", "defaulted", "nullable", "array", "object"} {
-		t.Run(shape, func(t *testing.T) {
-			dir := t.TempDir()
-			renderSelectedBodyFields(t, dir, "request", shape, true)
-			require.NoError(t, os.WriteFile(filepath.Join(dir, "wire_test.go"), []byte(servicedata.SelectedBodyFieldHarness("jsonrpc", "request", shape, true)), 0o600))
-			runGoJSONRPCTestCommand(t, dir, "mod", "tidy")
-			runGoJSONRPCTestCommand(t, dir, "test", "-race", "./...")
-			runGoJSONRPCTestCommand(t, dir, "vet", "./...")
+		cases = append(cases, bodyCase{"request/" + shape, "request", shape, true})
+	}
+	for _, renamed := range []bool{false, true} {
+		name := "viewed/optional/ordinary"
+		if renamed {
+			name = "viewed/optional/renamed"
+		}
+		cases = append(cases, bodyCase{name, "viewed", "optional", renamed})
+	}
+	batch := testingx.NewModuleBatch(t, resolveJSONRPCTestLoomModulePath(t, t.TempDir()), "")
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root := RunJSONRPCDSL(t, servicedata.SelectedBodyFieldsDSL("jsonrpc", tc.direction, tc.shape, tc.renamed))
+			c := batch.Case(t, tc.name, "example.com/bodyfields")
+			renderJSONRPCModuleFiles(t, c.Dir, c.ModulePath+"/gen", root)
+			renderCodegenFiles(t, c.Dir, ClientCLIFiles(c.ModulePath+"/gen", CreateJSONRPCServices(root)))
+			if tc.direction == "request" || tc.direction == "response" {
+				c.WriteFile(t, "wire_test.go", servicedata.SelectedBodyFieldHarness("jsonrpc", tc.direction, tc.shape, tc.renamed))
+			}
 		})
 	}
+	batch.Check(t)
 }
 
 func TestSelectedBodyFieldArtifacts(t *testing.T) {
@@ -75,14 +84,4 @@ func renderSelectedBodyFields(t *testing.T, dir, direction, shape string, rename
 	require.NoError(t, err)
 	module = []byte(strings.Replace(string(module), "github.com/CaliLuke/loom v1.0.0", "github.com/CaliLuke/loom v1.10.0-alpha.9.0.20261013020843-063198a2f427", 1))
 	require.NoError(t, os.WriteFile(path, module, 0o600))
-}
-
-func TestSelectedOptionalViewedBodyCompiles(t *testing.T) {
-	for _, renamed := range []bool{false, true} {
-		dir := t.TempDir()
-		renderSelectedBodyFields(t, dir, "viewed", "optional", renamed)
-		runGoJSONRPCTestCommand(t, dir, "mod", "tidy")
-		runGoJSONRPCTestCommand(t, dir, "build", "./...")
-		runGoJSONRPCTestCommand(t, dir, "vet", "./...")
-	}
 }

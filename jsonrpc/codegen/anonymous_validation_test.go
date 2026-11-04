@@ -8,32 +8,31 @@ import (
 	"testing"
 
 	"github.com/CaliLuke/loom/http/codegen/testdata"
-	"github.com/stretchr/testify/require"
+	"github.com/CaliLuke/loom/internal/testingx"
 )
 
 func TestAnonymousValidationGenerated(t *testing.T) {
+	output := os.Getenv("LOOM_VALIDATION_CARRIER_OUTPUT")
+	if output != "" {
+		output = filepath.Join(output, "jsonrpc")
+	}
+	batch := testingx.NewModuleBatch(t, resolveJSONRPCTestLoomModulePath(t, t.TempDir()), output)
 	for _, nullable := range []bool{false, true} {
 		for _, enum := range []bool{false, true} {
 			t.Run(fmt.Sprintf("nullable=%t/enum=%t", nullable, enum), func(t *testing.T) {
 				root := RunJSONRPCDSL(t, testdata.AnonymousValidationDSL("jsonrpc", nullable, enum))
-				dir := t.TempDir()
-				if output := os.Getenv("LOOM_VALIDATION_CARRIER_OUTPUT"); output != "" {
-					dir = filepath.Join(output, "jsonrpc", fmt.Sprintf("nullable-%t-enum-%t", nullable, enum))
-					require.NoError(t, os.MkdirAll(dir, 0o700))
-				}
-				renderJSONRPCModule(t, dir, "example.com/anonymousvalidation", root)
+				c := batch.Case(t, fmt.Sprintf("nullable-%t-enum-%t", nullable, enum), "example.com/anonymousvalidation")
+				renderJSONRPCModuleFiles(t, c.Dir, c.ModulePath+"/gen", root)
 				if os.Getenv("LOOM_VALIDATION_CARRIER_GENERATE_ONLY") == "1" {
 					return
 				}
-				runGoJSONRPCTestCommand(t, dir, "mod", "edit", "-require=github.com/CaliLuke/loom@v1.10.0-alpha.9.0.20261012214204-66a9dc9090a0")
-				harness := strings.ReplaceAll(anonymousValidationHarness, "NULLABLE", fmt.Sprint(nullable))
-				harness = strings.ReplaceAll(harness, "ENUM", fmt.Sprint(enum))
-				require.NoError(t, os.WriteFile(filepath.Join(dir, "validation_test.go"), []byte(harness), 0o600))
-				for _, args := range [][]string{{"mod", "tidy"}, {"build", "./..."}, {"vet", "./..."}, {"test", "-race", "-count=1", "./..."}} {
-					runGoJSONRPCTestCommand(t, dir, args...)
-				}
+				harness := strings.NewReplacer("NULLABLE", fmt.Sprint(nullable), "ENUM", fmt.Sprint(enum)).Replace(anonymousValidationHarness)
+				c.WriteFile(t, "validation_test.go", harness)
 			})
 		}
+	}
+	if os.Getenv("LOOM_VALIDATION_CARRIER_GENERATE_ONLY") != "1" {
+		batch.Check(t)
 	}
 }
 

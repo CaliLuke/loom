@@ -93,6 +93,21 @@ func renderGRPCResponseContractModule(t *testing.T, dir, modulePath string, root
 func renderGRPCModule(t *testing.T, dir, modulePath string, root *expr.RootExpr, loomSource string) {
 	t.Helper()
 	genpkg := modulePath + "/gen"
+	renderGRPCModuleFiles(t, dir, genpkg, root)
+	for _, file := range ResponseContractTestFiles(genpkg, CreateGRPCServices(root)) {
+		_, err := file.Render(dir)
+		require.NoError(t, err, file.Path)
+	}
+
+	goMod := fmt.Sprintf("module %s\n\ngo 1.27.0\n\nrequire github.com/CaliLuke/loom v1.0.0\n\nreplace github.com/CaliLuke/loom => %s\n", modulePath, loomSource)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte(goMod), 0o600))
+}
+
+// renderGRPCModuleFiles renders service and transport code. Consumer-owned
+// response-contract scaffolds belong to renderGRPCModule: their empty scenario
+// maps are intentionally incomplete until a consumer supplies observations.
+func renderGRPCModuleFiles(t *testing.T, dir, genpkg string, root *expr.RootExpr) {
+	t.Helper()
 	serviceData := servicecodegen.NewServicesData(root)
 	for _, service := range root.Services {
 		require.NoError(t, servicecodegen.SetUserTypeImports(genpkg, serviceData.Get(service.Name)))
@@ -113,14 +128,10 @@ func renderGRPCModule(t *testing.T, dir, modulePath string, root *expr.RootExpr,
 	files = append(files, ClientFiles(genpkg, grpcData)...)
 	files = append(files, ServerTypeFiles(genpkg, grpcData)...)
 	files = append(files, ServerFiles(genpkg, grpcData)...)
-	files = append(files, ResponseContractTestFiles(genpkg, grpcData)...)
 	for _, file := range files {
 		_, err := file.Render(dir)
 		require.NoError(t, err, file.Path)
 	}
-
-	goMod := fmt.Sprintf("module %s\n\ngo 1.27.0\n\nrequire github.com/CaliLuke/loom v1.0.0\n\nreplace github.com/CaliLuke/loom => %s\n", modulePath, loomSource)
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte(goMod), 0o600))
 }
 
 func runGRPCGoCommand(t *testing.T, dir string, args ...string) {

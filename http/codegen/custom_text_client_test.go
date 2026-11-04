@@ -11,6 +11,7 @@ import (
 	cg "github.com/CaliLuke/loom/codegen"
 	. "github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
+	"github.com/CaliLuke/loom/internal/testingx"
 )
 
 const customTextClientHarness = `package customtext_test
@@ -109,6 +110,7 @@ func (t *Token) UnmarshalText(b []byte) error {
 
 // TestCustomTextClientGeneratedModules compiles and exercises custom scalar CLI and wire encoding.
 func TestCustomTextClientGeneratedModules(t *testing.T) {
+	batch := testingx.NewModuleBatch(t, checkoutPinnedLoomModule(t), "")
 	cases := []struct {
 		name, location string
 		design         func()
@@ -126,8 +128,8 @@ func TestCustomTextClientGeneratedModules(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			root := RunHTTPDSL(t, tc.design)
-			dir := t.TempDir()
-			renderHTTPModule(t, dir, "example.com/customtext", root)
+			c := batch.Case(t, tc.name, "example.com/customtext")
+			renderHTTPModuleFiles(t, c.Dir, c.ModulePath+"/gen", root)
 			svc := root.Services[0]
 			method := svc.Methods[0]
 			checkEmpty := ""
@@ -157,12 +159,10 @@ func TestCustomTextClientGeneratedModules(t *testing.T) {
 			harness := strings.NewReplacer("SERVICE", cg.SnakeCase(svc.Name), "METHOD", cg.Goify(method.Name, true), "LOCATION", tc.location, "EMPTY", checkEmpty).Replace(customTextClientHarness)
 			// Replacement text is expanded separately because Replacer does not recurse.
 			harness = strings.ReplaceAll(harness, "METHOD", cg.Goify(method.Name, true))
-			require.NoError(t, os.WriteFile(filepath.Join(dir, "client_test.go"), []byte(harness), 0600))
-			runGoCommand(t, dir, "mod", "tidy")
-			runGoCommand(t, dir, "vet", "./...")
-			runGoCommand(t, dir, "test", "-race", "-count=1", "./...")
+			c.WriteFile(t, "client_test.go", harness)
 		})
 	}
+	batch.Check(t)
 }
 
 // TestCustomTextClientStringer verifies a non-UUID type and raw text constraints.

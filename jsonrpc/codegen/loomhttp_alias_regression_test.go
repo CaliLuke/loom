@@ -114,8 +114,22 @@ func TestJSONRPCMixedServicePackageAliasAggregateExampleCompiles(t *testing.T) {
 
 func renderJSONRPCModule(t *testing.T, dir, modulePath string, root *expr.RootExpr) {
 	t.Helper()
+	renderJSONRPCModuleFiles(t, dir, modulePath+"/gen", root)
 
-	genpkg := modulePath + "/gen"
+	goMod := fmt.Sprintf(`module %s
+
+go 1.27.0
+
+require github.com/CaliLuke/loom v1.0.0
+
+replace github.com/CaliLuke/loom => %s
+`, modulePath, resolveJSONRPCTestLoomModulePath(t, dir))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte(goMod), 0o644))
+}
+
+func renderJSONRPCModuleFiles(t *testing.T, dir, genpkg string, root *expr.RootExpr) {
+	t.Helper()
+
 	serviceData := servicecodegen.NewServicesData(root)
 	for _, svc := range root.Services {
 		require.NoError(t, servicecodegen.SetUserTypeImports(genpkg, serviceData.Get(svc.Name)))
@@ -148,16 +162,6 @@ func renderJSONRPCModule(t *testing.T, dir, modulePath string, root *expr.RootEx
 		}
 	}
 	renderCodegenFiles(t, dir, files)
-
-	goMod := fmt.Sprintf(`module %s
-
-go 1.27.0
-
-require github.com/CaliLuke/loom v1.0.0
-
-replace github.com/CaliLuke/loom => %s
-`, modulePath, resolveJSONRPCTestLoomModulePath(t, dir))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte(goMod), 0o644))
 }
 
 func renderMixedHTTPJSONRPCModule(t *testing.T, dir, modulePath string, root *expr.RootExpr) {

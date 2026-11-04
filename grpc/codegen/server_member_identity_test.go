@@ -12,6 +12,7 @@ import (
 
 	servicecodegen "github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/dsl"
+	"github.com/CaliLuke/loom/internal/testingx"
 )
 
 type grpcMemberCase struct {
@@ -23,94 +24,80 @@ type grpcMemberCase struct {
 }
 
 func TestGRPCServerMemberIdentityGenerated(t *testing.T) {
+	batch := testingx.NewModuleBatch(t, resolveGRPCLoomSource(t), os.Getenv("LOOM_GRPC_MEMBER_OUTPUT"))
 	for _, tc := range grpcMemberCases() {
 		t.Run(tc.name, func(t *testing.T) {
 			root := RunGRPCDSL(t, grpcMemberDesign(tc.methods, tc.stream, tc.secure, tc.located))
-			dir := t.TempDir()
-			if output := os.Getenv("LOOM_GRPC_MEMBER_OUTPUT"); output != "" {
-				dir = filepath.Join(output, tc.name)
-				require.NoError(t, os.MkdirAll(dir, 0o700))
-			}
-			renderGRPCModule(t, dir, "example.com/grpcmembers", root, resolveGRPCLoomSource(t))
+			c := batch.Case(t, tc.name, "example.com/grpcmembers")
+			renderGRPCModuleFiles(t, c.Dir, c.ModulePath+"/gen", root)
 			services := CreateGRPCServices(root)
-			require.NoError(t, servicecodegen.SetUserTypeImports("example.com/grpcmembers/gen", services.ServicesData.Get("members")))
+			require.NoError(t, servicecodegen.SetUserTypeImports(c.ModulePath+"/gen", services.ServicesData.Get("members")))
+			assertGRPCServerMemberDeclarations(t, services)
 			data := services.Get("members")
-			assertServerPackageInventory(t, dir, append(serverPackageNames(data, root.API.GRPC.Services[0]), data.serverEmbeddingAlias))
-			mounted := false
+			assertServerPackageInventory(t, c.Dir, append(serverPackageNames(data, root.API.GRPC.Services[0]), data.serverEmbeddingAlias))
 			if harness, err := os.ReadFile(filepath.Join("testdata", "server_members", tc.name+".go.txt")); err == nil {
 				common, err := os.ReadFile(filepath.Join("testdata", "server_members", "common.go.txt"))
 				require.NoError(t, err)
-				require.NoError(t, os.WriteFile(filepath.Join(dir, "common_test.go"), common, 0o600))
-				require.NoError(t, os.WriteFile(filepath.Join(dir, "members_test.go"), harness, 0o600))
-				mounted = true
+				c.WriteFile(t, "common_test.go", string(common))
+				c.WriteFile(t, "members_test.go", string(harness))
 			} else {
 				require.ErrorIs(t, err, os.ErrNotExist)
 			}
-			runGRPCGoCommand(t, dir, "mod", "tidy")
-			runGRPCGoCommand(t, dir, "build", "./...")
-			runGRPCGoCommand(t, dir, "vet", "./...")
-			if mounted {
-				runGRPCGoCommand(t, dir, "test", "-race", "-count=1", ".")
-			}
 		})
 	}
+	batch.Check(t)
 }
 
-func TestGRPCServerMemberDeclarations(t *testing.T) {
-	for _, tc := range grpcMemberCases() {
-		t.Run(tc.name, func(t *testing.T) {
-			root := RunGRPCDSL(t, grpcMemberDesign(tc.methods, tc.stream, tc.secure, tc.located))
-			services := CreateGRPCServices(root)
-			data := services.Get("members")
-			neutral := services.ServicesData.Get("members")
-			source := "package server\n" + sectionCode(t, grpcServerStructSection(data))
-			for _, e := range data.Endpoints {
-				source += "\n" + sectionCode(t, grpcServerInterfaceSection(e))
-				require.Equal(t, neutral.Method(e.Method.Name).VarName, e.Method.VarName)
-				require.Equal(t, protoServiceName(e.Method.VarName), e.RPCName)
-			}
-			file, err := parser.ParseFile(token.NewFileSet(), "server.go", source, 0)
-			require.NoError(t, err)
-			members := make(map[string]string)
-			add := func(name, kind string) {
-				if previous, exists := members[name]; exists {
-					t.Errorf("receiver member %q collides: %s and %s", name, previous, kind)
+func assertGRPCServerMemberDeclarations(t *testing.T, services *ServicesData) {
+	t.Helper()
+	data := services.Get("members")
+	neutral := services.ServicesData.Get("members")
+	source := "package server\n" + sectionCode(t, grpcServerStructSection(data))
+	for _, e := range data.Endpoints {
+		source += "\n" + sectionCode(t, grpcServerInterfaceSection(e))
+		require.Equal(t, neutral.Method(e.Method.Name).VarName, e.Method.VarName)
+		require.Equal(t, protoServiceName(e.Method.VarName), e.RPCName)
+	}
+	file, err := parser.ParseFile(token.NewFileSet(), "server.go", source, 0)
+	require.NoError(t, err)
+	members := make(map[string]string)
+	add := func(name, kind string) {
+		if previous, exists := members[name]; exists {
+			t.Errorf("receiver member %q collides: %s and %s", name, previous, kind)
+		}
+		members[name] = kind
+	}
+	for _, decl := range file.Decls {
+		switch decl := decl.(type) {
+		case *ast.GenDecl:
+			for _, spec := range decl.Specs {
+				typ, ok := spec.(*ast.TypeSpec)
+				if !ok || typ.Name.Name != data.ServerStruct {
+					continue
 				}
-				members[name] = kind
-			}
-			for _, decl := range file.Decls {
-				switch decl := decl.(type) {
-				case *ast.GenDecl:
-					for _, spec := range decl.Specs {
-						typ, ok := spec.(*ast.TypeSpec)
-						if !ok || typ.Name.Name != data.ServerStruct {
-							continue
+				fields := typ.Type.(*ast.StructType).Fields.List
+				for _, field := range fields {
+					if len(field.Names) > 0 {
+						for _, name := range field.Names {
+							add(name.Name, "field")
 						}
-						fields := typ.Type.(*ast.StructType).Fields.List
-						for _, field := range fields {
-							if len(field.Names) > 0 {
-								for _, name := range field.Names {
-									add(name.Name, "field")
-								}
-							} else {
-								switch typ := field.Type.(type) {
-								case *ast.SelectorExpr:
-									add(typ.Sel.Name, "embedding")
-								case *ast.Ident:
-									add(typ.Name, "embedding")
-								default:
-									t.Errorf("unexpected embedding %T", field.Type)
-								}
-							}
+					} else {
+						switch typ := field.Type.(type) {
+						case *ast.SelectorExpr:
+							add(typ.Sel.Name, "embedding")
+						case *ast.Ident:
+							add(typ.Name, "embedding")
+						default:
+							t.Errorf("unexpected embedding %T", field.Type)
 						}
-					}
-				case *ast.FuncDecl:
-					if decl.Recv != nil {
-						add(decl.Name.Name, "RPC")
 					}
 				}
 			}
-		})
+		case *ast.FuncDecl:
+			if decl.Recv != nil {
+				add(decl.Name.Name, "RPC")
+			}
+		}
 	}
 }
 

@@ -1,19 +1,17 @@
 package codegen
 
 import (
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
 	. "github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/testingx"
 )
 
 func TestNullableCollectionResponsesGenerated(t *testing.T) {
+	batch := testingx.NewModuleBatch(t, checkoutPinnedLoomModule(t), "")
 	cases := []struct {
 		name                                                 string
 		shape                                                func() expr.DataType
@@ -65,8 +63,8 @@ func TestNullableCollectionResponsesGenerated(t *testing.T) {
 					})
 				})
 			})
-			dir := t.TempDir()
-			renderHTTPModule(t, dir, "example.com/collectionresponse", root)
+			specimen := batch.Case(t, c.name, "example.com/collectionresponse")
+			renderHTTPModuleFiles(t, specimen.Dir, specimen.ModulePath+"/gen", root)
 			harness := strings.NewReplacer(
 				"EMPTY_JSON", strconv.Quote(c.empty),
 				"VALUE_JSON", strconv.Quote(c.value),
@@ -74,12 +72,10 @@ func TestNullableCollectionResponsesGenerated(t *testing.T) {
 				"INVALID_DETAIL", strconv.Quote(c.invalidDetail),
 				"INVALID_POINTER", strconv.Quote(c.invalidPointer),
 			).Replace(nullableCollectionResponseHarness)
-			require.NoError(t, os.WriteFile(filepath.Join(dir, "response_test.go"), []byte(harness), 0o600))
-			runGoCommand(t, dir, "mod", "tidy")
-			runGoCommand(t, dir, "vet", "./...")
-			runGoCommand(t, dir, "test", "-race", "-count=1", "./...")
+			specimen.WriteFile(t, "response_test.go", harness)
 		})
 	}
+	batch.Check(t)
 }
 
 const nullableCollectionResponseHarness = `package collectionresponse_test

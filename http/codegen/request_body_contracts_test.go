@@ -2,12 +2,9 @@ package codegen
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"github.com/CaliLuke/loom/internal/testingx"
 )
 
 // TestRequestBodyContractsGenerated compiles the body contracts in one module.
@@ -15,9 +12,7 @@ import (
 // names and global CLI flags stay isolated. One tidy, vet and race-test run
 // covers all packages, including every generated client, server and CLI.
 func TestRequestBodyContractsGenerated(t *testing.T) {
-	const modulePath = "example.com/bodycontracts"
-	dir := t.TempDir()
-	writeHTTPModule(t, dir, modulePath)
+	batch := testingx.NewModuleBatch(t, checkoutPinnedLoomModule(t), "")
 	for _, tc := range []struct {
 		name, oldModule string
 		design          func()
@@ -34,20 +29,12 @@ func TestRequestBodyContractsGenerated(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			root := RunHTTPDSL(t, tc.design)
-			packagePath := modulePath + "/" + tc.name
-			packageDir := filepath.Join(dir, tc.name)
-			renderHTTPModuleFiles(t, packageDir, packagePath+"/gen", root)
+			c := batch.Case(t, tc.name, tc.oldModule)
+			renderHTTPModuleFiles(t, c.Dir, c.ModulePath+"/gen", root)
 			for i, harness := range tc.harnesses {
-				path := filepath.Join(packageDir, fmt.Sprintf("contract_%d_test.go", i))
-				source := strings.ReplaceAll(harness, tc.oldModule+"/", packagePath+"/")
-				require.NoError(t, os.WriteFile(path, []byte(source), 0o600))
+				c.WriteFile(t, fmt.Sprintf("contract_%d_test.go", i), harness)
 			}
 		})
 	}
-	if t.Failed() {
-		return
-	}
-	runGoCommand(t, dir, "mod", "tidy")
-	runGoCommand(t, dir, "vet", "./...")
-	t.Log(runCommand(t, dir, "go", "test", "-race", "-count=1", "-v", "./..."))
+	batch.Check(t)
 }
