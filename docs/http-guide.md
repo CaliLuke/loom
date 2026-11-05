@@ -1670,6 +1670,14 @@ such as `unknown`, `_hidden`, or `198.51.100.7:1234` are invalid. An absent head
 or a chain containing only trusted addresses also retains the direct peer.
 `PeerAddr` always remains the direct peer.
 
+For trusted peers, host and scheme use the final value across all
+`X-Forwarded-Host` or `X-Forwarded-Proto` lines, whether the proxy appends a
+separate line or a comma-separated entry. An empty final host keeps the request
+host; an empty or unsupported final scheme keeps the request scheme. Earlier
+values are never selected as a fallback. This prevents a client-supplied first
+line from overriding the trusted proxy's appended value. The application must
+still configure trusted CIDRs and ensure its proxy supplies authoritative values.
+
 For example, with trusted peer `10.0.0.2` and trusted CIDR `10.0.0.0/8`,
 `6.6.6.6, unknown, 10.0.0.1` keeps `ClientAddr` at `10.0.0.2`. In contrast,
 `unknown, 198.51.100.7, 10.0.0.1` selects `198.51.100.7`: the untrusted address

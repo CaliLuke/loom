@@ -72,8 +72,8 @@ header-value order, which the model treats as one flattened sequence; direct
 Go tests cover the two-level traversal. Model prefix substitution preserves
 length; Go tests also vary prefix length. Neither the model nor these tests
 establish the trustworthiness of application-selected proxy CIDRs or proxy
-header construction. `X-Forwarded-Host` and `X-Forwarded-Proto` processing remain
-separate and unchanged. No generated program, concurrent mutation, or unbounded
+header construction. `X-Forwarded-Host` and `X-Forwarded-Proto` processing are
+covered by the separate model below. No generated program, concurrent mutation, or unbounded
 chain theorem is claimed.
 
 Before changing runtime source at parent
@@ -82,3 +82,36 @@ invalid-boundary cases; `TestFrom/invalid_boundary_retains_direct_peer` failed
 as well. Valid chains and nearer untrusted boundaries passed. These tests pass
 with the corrected shared traversal. Application upgrades require the runtime
 fix, not regeneration.
+
+## Host and scheme field-line selection
+
+`ForwardedValue.tla` explores zero to three ordered entries, two distinguishable
+nonempty values and an empty entry, trusted/untrusted direct peers, and every
+possible ending position for the first field line. This abstracts all groupings
+that can affect `Header.Get` versus `Header.Values`; internal grouping of the
+later lines cannot change the final value. The
+[HTTP field-line ordering rule](https://www.rfc-editor.org/rfc/rfc9110.html#section-5.2)
+preserves order when combining a list into one comma-separated value.
+
+Before the runtime correction, `value_legacy.cfg` fails `LastValueSelection`:
+`<<client, proxy>>` split into two lines selects `client` from the first line.
+`value_checked.cfg` passes all 412 distinct states, selecting the last entry
+regardless of grouping, or retaining the original request value for an untrusted
+peer, absent field, or empty final entry. This informed changing the shared
+`lastForwardedValue` input to all header values instead of adding consumer checks.
+
+Run with the same pinned TLC jar above (recorded Java version 25.0.5):
+
+```sh
+java -cp /path/to/tla2tools-1.7.4.jar tlc2.TLC -workers 1 -metadir /tmp/forwarded-value-legacy -config value_legacy.cfg ForwardedValue.tla
+java -cp /path/to/tla2tools-1.7.4.jar tlc2.TLC -workers 1 -metadir /tmp/forwarded-value-checked -config value_checked.cfg ForwardedValue.tla
+```
+
+The first exits 12; the second exits 0. Keep this opt-in design check out of CI
+and clean external checker state after review. `TestRequestMetadataForwardedAuthority`
+tests combined, repeated, mixed, empty and unsupported-scheme cases and unchanged
+request headers. `TestRequestMetadataForwardedAuthorityWire` verifies repeated
+lines through a real HTTP connection. Both failed against the original runtime.
+The model does not parse hosts, schemes, whitespace, or CIDRs, authenticate the
+proxy, or establish how an application uses metadata. Those are Go-test and
+deployment obligations. Runtime adoption needs no regeneration.

@@ -56,6 +56,7 @@ var (
 // retainedHeaders is an explicit allowlist; Authorization and Cookie are not
 // retained unless named. trustedProxies contains direct peer CIDR ranges that
 // may supply X-Forwarded-For, X-Forwarded-Host, and X-Forwarded-Proto.
+// Host and scheme use the final value across all repeated header lines.
 func NewRequestMetadataPolicy(
 	retainedHeaders []string,
 	trustedProxies []netip.Prefix,
@@ -145,10 +146,10 @@ func snapshotRequestMetadata(r *http.Request, policy RequestMetadataPolicy) Requ
 	if client := forwardedClient(r.Header.Values("X-Forwarded-For"), policy.trustedProxies); client.IsValid() {
 		metadata.ClientAddr = client.String()
 	}
-	if host := lastForwardedValue(r.Header.Get("X-Forwarded-Host")); host != "" {
+	if host := lastForwardedValue(r.Header.Values("X-Forwarded-Host")); host != "" {
 		metadata.Host = host
 	}
-	if scheme := lastForwardedValue(r.Header.Get("X-Forwarded-Proto")); scheme == "http" || scheme == "https" {
+	if scheme := lastForwardedValue(r.Header.Values("X-Forwarded-Proto")); scheme == "http" || scheme == "https" {
 		metadata.Scheme = scheme
 	}
 	return metadata
@@ -204,7 +205,12 @@ func forwardedClient(values []string, proxies []netip.Prefix) netip.Addr {
 	return netip.Addr{}
 }
 
-func lastForwardedValue(value string) string {
-	parts := strings.Split(value, ",")
-	return strings.TrimSpace(parts[len(parts)-1])
+// lastForwardedValue preserves field-line ordering and does not skip an empty
+// final entry to select an earlier, potentially client-supplied value.
+func lastForwardedValue(values []string) string {
+	if len(values) == 0 {
+		return ""
+	}
+	last := values[len(values)-1]
+	return strings.TrimSpace(last[strings.LastIndexByte(last, ',')+1:])
 }

@@ -1527,6 +1527,9 @@ filter, and serialization rules belong here.
   walk raw `X-Forwarded-For` header lines and comma entries right to left.
   Invalid or empty entries terminate with direct-peer fallback; never filter
   entries before selection or reinterpret headers in logging/security consumers.
+  Host/proto select the final comma entry of the final header line, never the
+  first line returned by Header.Get. An empty or rejected final value retains
+  the original host/scheme instead of looking farther left.
   Keep `http/tla/forwarded_client` aligned with metadata, accessor and log tests.
 
 - HTTP error response analysis retains the selected `Body` field in
