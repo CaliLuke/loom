@@ -41,8 +41,7 @@ func TestShutdownReturnsRequestError(t *testing.T) {
 				// Release the original unbounded wait so a failing regression
 				// cannot leak the Shutdown goroutine into the next test.
 				require.NoError(t, node.Close(context.Background()))
-				<-result
-				t.Error("Shutdown waited for closure after its request failed")
+				t.Errorf("Shutdown waited for closure after its request failed (returned %v)", <-result)
 			}
 		})
 	}

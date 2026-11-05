@@ -13,7 +13,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-REDIS_IMAGE="redis:8.10.2"
+REDIS_IMAGE="redis:8.10.3"
 PACKAGES=(./pulse/...)
 
 CONTAINER=""

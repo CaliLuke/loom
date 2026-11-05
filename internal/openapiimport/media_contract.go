@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	v3 "github.com/CaliLuke/libopenapi/datamodel/high/v3"
-	"github.com/CaliLuke/libopenapi/orderedmap"
+	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
+	"github.com/pb33f/libopenapi/orderedmap"
 
 	"github.com/CaliLuke/loom/internal/httpcodec"
 	"github.com/CaliLuke/loom/internal/httpencoding"

@@ -11,7 +11,7 @@ require_line() {
   fi
 }
 
-require_line 'GOLANGCI_LINT_VERSION?=v2.14.0'
+require_line 'GOLANGCI_LINT_VERSION?=v2.15.0'
 require_line 'PROTOC_GEN_GO_VERSION?=v1.36.12'
 require_line 'PROTOC_GEN_GO_GRPC_VERSION?=v1.6.2'
 require_line 'PROTOC_VERSION=36.2'

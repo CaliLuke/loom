@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/CaliLuke/libopenapi/datamodel/high/base"
+	"github.com/pb33f/libopenapi/datamodel/high/base"
 )
 
 func TestNullableAnyOfAnnotationOwnership(t *testing.T) {

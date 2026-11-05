@@ -4,7 +4,7 @@ import (
 	"encoding/json/v2"
 	"testing"
 
-	"github.com/CaliLuke/libopenapi"
+	"github.com/pb33f/libopenapi"
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/expr"

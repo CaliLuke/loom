@@ -23,10 +23,10 @@ const (
 	heyAPIClientFetchVersion = "0.13.1"
 	typeScriptAPIVersion     = "6.0.2"
 	typeScriptVersion        = "7.0.2"
-	tanStackQueryVersion     = "5.104.1"
-	zodVersion               = "4.6.5"
-	reactVersion             = "19.3.0"
-	oapiCodegenVersion       = "v2.8.0"
+	tanStackQueryVersion     = "5.106.1"
+	zodVersion               = "4.6.7"
+	reactVersion             = "19.3.1"
+	oapiCodegenVersion       = "v2.8.2"
 	openAPIAsyncExtension    = "x-loom-async"
 )
 

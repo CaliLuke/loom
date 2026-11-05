@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/xeipuuv/gojsonschema"
-	"go.yaml.in/yaml/v3"
+	"go.yaml.in/yaml/v4"
 )
 
 // These specimens use only the common type/null vocabulary supported by Draft 7

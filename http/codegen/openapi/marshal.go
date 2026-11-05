@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"sort"
 
-	"go.yaml.in/yaml/v3"
+	"go.yaml.in/yaml/v4"
 )
 
 // MarshalJSON produces the JSON resulting from encoding an object composed of

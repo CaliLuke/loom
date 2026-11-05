@@ -3,8 +3,8 @@ package openapiimport
 import (
 	"testing"
 
-	"github.com/CaliLuke/libopenapi"
 	"github.com/pb33f/go-yaml"
+	"github.com/pb33f/libopenapi"
 
 	"github.com/stretchr/testify/require"
 )

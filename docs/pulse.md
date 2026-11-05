@@ -13,7 +13,7 @@ shutdown are part of their public contract.
 
 ## Supported Redis
 
-Pulse supports only the latest stable Redis release, currently **8.10.2**.
+Pulse supports only the latest stable Redis release, currently **8.10.3**.
 Older Redis releases are not supported. The real-Redis CI and local test runner
 share the version pin in `scripts/test_pulse_redis.sh`; update that pin and this
 guidance when adopting a newer stable release.
@@ -21,7 +21,9 @@ guidance when adopting a newer stable release.
 ## Redis Client Module
 
 Pulse currently uses `github.com/CaliLuke/go-redis/v9`, an exact pinned fork of
-upstream v9.23.0 with the reviewed [WithTimeout hook-copy correction](https://github.com/redis/go-redis/pull/4095).
+upstream master at `5cba5e182946cf18a757718938bc43910e589466`, including the merged
+[WithTimeout hook-copy correction](https://github.com/redis/go-redis/pull/4095).
+The latest stable upstream release, v9.23.0, does not yet include that fix.
 The fork makes the fix available to applications through ordinary Go module
 resolution; applications do not need a `replace` directive.
 

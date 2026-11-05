@@ -14,7 +14,7 @@ import (
 	"unicode"
 
 	"github.com/stretchr/testify/require"
-	"go.yaml.in/yaml/v3"
+	"go.yaml.in/yaml/v4"
 
 	"github.com/CaliLuke/loom/codegen"
 	. "github.com/CaliLuke/loom/dsl"

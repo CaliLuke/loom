@@ -38,16 +38,18 @@ Upstream v0.41.8 includes that repair but still fails local component references
 supplied through aliases or merges, tracked in
 [libopenapi #672](https://github.com/pb33f/libopenapi/issues/672) and fixed by
 [PR #673](https://github.com/pb33f/libopenapi/pull/673).
-The framework uses the ordinary module `github.com/CaliLuke/libopenapi`, pinned
-in the root `go.mod`. Its source is libopenapi v0.41.8 plus the effective
-index/collection traversal correction and mechanical module/self-import renaming.
-Consumers need no `replace` directive. Component indexing and model construction
+The framework now uses released `github.com/pb33f/libopenapi v0.42.3`, pinned
+in the root `go.mod`. Upstream cherry-picked PR #673 as
+`f4fb28d55d879425d0d07ca7d0efe07ee17455bf`, first included in v0.42.0.
+Its patch is identical to the submitted correction even though the PR remains
+open. The temporary fork module and self-import renaming are no longer needed.
+Component indexing and model construction
 read the same effective mappings; repeated aliases retain each semantic occurrence,
 while active-path mapping and sequence cycles terminate. The corresponding model
 and focused acceptance are in `../../tla/yaml_index_owner/README.md`.
 
-To verify the corrected public API, change the reproduction import and module
-requirement to `github.com/CaliLuke/libopenapi` at the version in the root
+To verify the corrected public API, use the original reproduction import and
+change its module requirement to `github.com/pb33f/libopenapi` at the version in the root
 `go.mod`, then repeat the two commands above. Framework regression owners are
 `TestAnalyzeYAMLNumericSourceNormalization`, `TestAnalyzeYAMLAliasedMergeSequence`
 and the invalid-merge tests in `numeric_source_test.go`, plus
@@ -55,12 +57,7 @@ and the invalid-merge tests in `numeric_source_test.go`, plus
 bounds, local overrides and merge precedence while race detection checks the
 library's internally concurrent builders.
 
-Return to the original module path when a stable upstream release includes the
-immutable merge-view and effective-index fixes and passes these regressions plus upstream metadata,
-render/reload and alias/merge controls. Rename all importer and test imports
-together, update `go.mod`/`go.sum`, and verify a separate consuming module can
-fetch and compile without replacement directives. The importer is internal;
-this temporary module identity does not change the framework's public Go types.
-Vacuum is installed into an independent tool module with released libopenapi
-v0.41.8 for the enum fix in upstream PR #656; its Go types never cross this boundary.
-That tool no longer uses a fork or replacement directive.
+The importer is internal; returning to the upstream module does not change the
+framework's public Go types. Vacuum v0.36.2 also selects released libopenapi
+v0.42.3, including the enum fix in upstream PR #656. Its Go types never cross
+this boundary, and no tool-module override is needed.

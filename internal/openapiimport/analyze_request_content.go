@@ -1,9 +1,9 @@
 package openapiimport
 
 import (
-	v3 "github.com/CaliLuke/libopenapi/datamodel/high/v3"
-	"github.com/CaliLuke/libopenapi/orderedmap"
 	"github.com/pb33f/go-yaml"
+	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
+	"github.com/pb33f/libopenapi/orderedmap"
 )
 
 func (a *analyzer) requestContent(

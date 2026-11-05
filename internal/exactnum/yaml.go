@@ -3,7 +3,7 @@ package exactnum
 import (
 	"strings"
 
-	"go.yaml.in/yaml/v3"
+	"go.yaml.in/yaml/v4"
 )
 
 // MarshalYAML emits an exact numeric scalar. Explicit node tags retain numeric

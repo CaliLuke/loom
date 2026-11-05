@@ -6,11 +6,12 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/CaliLuke/libopenapi/datamodel/high/base"
-	v3 "github.com/CaliLuke/libopenapi/datamodel/high/v3"
-	"github.com/CaliLuke/libopenapi/orderedmap"
-	"github.com/CaliLuke/loom/internal/openapiref"
 	"github.com/pb33f/go-yaml"
+	"github.com/pb33f/libopenapi/datamodel/high/base"
+	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
+	"github.com/pb33f/libopenapi/orderedmap"
+
+	"github.com/CaliLuke/loom/internal/openapiref"
 )
 
 // securitySchemeDescriptions resolves each alias chain from authored reference occurrences.

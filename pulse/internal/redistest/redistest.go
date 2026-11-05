@@ -15,16 +15,19 @@ package redistest
 
 import (
 	"context"
+	"crypto/sha1"
 	"errors"
 	"fmt"
 	"net"
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/CaliLuke/go-redis/v9"
 	"github.com/alicebob/miniredis/v2"
+	"github.com/alicebob/miniredis/v2/server"
 	"github.com/stretchr/testify/require"
 )
 
@@ -42,7 +45,9 @@ type (
 
 	// structShimHook rewrites EVAL and SCRIPT LOAD commands on their way to
 	// miniredis so scripts that use the Redis struct library keep working.
-	structShimHook struct{}
+	structShimHook struct {
+		hashes sync.Map // immutable original digest -> rewritten digest
+	}
 )
 
 // AddrEnv is the environment variable that selects a real Redis server. Its
@@ -70,6 +75,8 @@ const (
 // the miniredis client rewrites scripts to prepend this shim. Only the
 // struct.pack "i" (4-byte little-endian length) and "c0" (raw string) format
 // codes used by the production scripts are implemented.
+// Remove this shim when https://github.com/alicebob/miniredis/issues/180 is
+// resolved and the struct script tests pass without source rewriting.
 const luaStructShim = `
 local struct = { pack = function(fmt, ...)
    local args = {...}
@@ -105,7 +112,9 @@ func Start(t testing.TB, db int) *Server {
 	if addr == "" {
 		mr := miniredis.RunT(t)
 		rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
-		rdb.AddHook(structShimHook{})
+		shim := &structShimHook{}
+		mr.Server().SetPreHook(shim.rewriteScriptHash)
+		rdb.AddHook(shim)
 		closeOnCleanup(t, rdb)
 		return &Server{Client: rdb, mini: mr}
 	}
@@ -138,25 +147,34 @@ func (s *Server) MajorVersion() int {
 }
 
 // DialHook implements redis.Hook.
-func (structShimHook) DialHook(next redis.DialHook) redis.DialHook {
+func (*structShimHook) DialHook(next redis.DialHook) redis.DialHook {
 	return next
 }
 
 // ProcessHook implements redis.Hook.
-func (structShimHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
+func (h *structShimHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
 	return func(ctx context.Context, cmd redis.Cmder) error {
-		shimStructScript(cmd)
-		return next(ctx, cmd)
+		hash := h.shimStructScript(cmd)
+		err := next(ctx, cmd)
+		if err == nil {
+			restoreScriptDigest(cmd, hash)
+		}
+		return err
 	}
 }
 
 // ProcessPipelineHook implements redis.Hook.
-func (structShimHook) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.ProcessPipelineHook {
+func (h *structShimHook) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.ProcessPipelineHook {
 	return func(ctx context.Context, cmds []redis.Cmder) error {
-		for _, cmd := range cmds {
-			shimStructScript(cmd)
+		hashes := make([]string, len(cmds))
+		for i, cmd := range cmds {
+			hashes[i] = h.shimStructScript(cmd)
 		}
-		return next(ctx, cmds)
+		err := next(ctx, cmds)
+		for i, cmd := range cmds {
+			restoreScriptDigest(cmd, hashes[i])
+		}
+		return err
 	}
 }
 
@@ -198,24 +216,71 @@ func majorVersion(info string) (int, error) {
 }
 
 // shimStructScript prepends the struct shim to Lua sources sent via EVAL or
-// SCRIPT LOAD. EVALSHA calls issued for the original source fail with NOSCRIPT
-// and go-redis falls back to EVAL, which is then rewritten here.
-func shimStructScript(cmd redis.Cmder) {
+// SCRIPT LOAD. The server hook translates digest lookups, keeping original
+// command identities visible to client-side fault-injection hooks.
+// A rewritten load returns its original digest so the test-only substitution
+// does not violate the client's source/hash identity check.
+func (h *structShimHook) shimStructScript(cmd redis.Cmder) string {
 	args := cmd.Args()
 	switch cmd.Name() {
 	case "eval":
 		if len(args) > 1 {
 			if src, ok := args[1].(string); ok && strings.Contains(src, "struct.pack") {
-				args[1] = luaStructShim + src
+				args[1], _ = h.rewriteScriptSource(src)
 			}
 		}
 	case "script":
 		if len(args) > 2 {
 			if sub, ok := args[1].(string); ok && strings.EqualFold(sub, "load") {
 				if src, ok := args[2].(string); ok && strings.Contains(src, "struct.pack") {
-					args[2] = luaStructShim + src
+					rewritten, hash := h.rewriteScriptSource(src)
+					args[2] = rewritten
+					return hash
 				}
 			}
 		}
+	}
+	return ""
+}
+
+func (h *structShimHook) rewriteScriptSource(src string) (string, string) {
+	rewritten := luaStructShim + src
+	originalHash := fmt.Sprintf("%x", sha1.Sum([]byte(src)))
+	h.hashes.Store(originalHash, fmt.Sprintf("%x", sha1.Sum([]byte(rewritten))))
+	return rewritten, originalHash
+}
+
+// The mapping is published before the rewritten source reaches miniredis.
+// It survives SCRIPT FLUSH: the server's actual cache still decides whether a
+// translated digest exists. No script is executed or cached by this hook.
+func (h *structShimHook) rewriteScriptHash(_ *server.Peer, command string, args ...string) bool {
+	var digests []string
+	switch command {
+	case "EVALSHA", "EVALSHA_RO":
+		if len(args) > 0 {
+			digests = args[:1]
+		}
+	case "SCRIPT":
+		if len(args) > 1 && strings.EqualFold(args[0], "exists") {
+			digests = args[1:]
+		}
+	}
+	for i, digest := range digests {
+		if rewritten, ok := h.hashes.Load(strings.ToLower(digest)); ok {
+			digests[i] = rewritten.(string)
+		}
+	}
+	return false
+}
+
+func restoreScriptDigest(cmd redis.Cmder, hash string) {
+	if hash == "" || cmd.Err() != nil {
+		return
+	}
+	switch result := cmd.(type) {
+	case *redis.StringCmd:
+		result.SetVal(hash)
+	case *redis.Cmd:
+		result.SetVal(hash)
 	}
 }

@@ -3,7 +3,7 @@ package openapiimport
 import (
 	"maps"
 
-	"github.com/CaliLuke/libopenapi/datamodel/high/base"
+	"github.com/pb33f/libopenapi/datamodel/high/base"
 )
 
 // schemaAnnotations composes one authored layer after structural normalization.

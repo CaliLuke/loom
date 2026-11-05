@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/CaliLuke/libopenapi"
-	"github.com/CaliLuke/libopenapi/datamodel/high/v3"
+	"github.com/pb33f/libopenapi"
+	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/stretchr/testify/require"
-	"go.yaml.in/yaml/v3"
+	"go.yaml.in/yaml/v4"
 )
 
 const unconstrainedSchemaSource = `openapi: 3.1.1

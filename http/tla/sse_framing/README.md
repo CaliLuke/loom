@@ -55,3 +55,12 @@ the generated clients through `TestGeneratedSSEClientDiscardsIncompleteTail`.
 `ParseSSEStream` and `ParseSSEEvent` use the same library semantics; incomplete
 final events are discarded. The single-event helper reports an error when no
 complete event was present.
+
+The current reader pin is
+`github.com/CaliLuke/go-sse v0.11.1-0.20261105165416-f13a4c171451`.
+It follows upstream master `fb578c33b9afebac952ff874bd6e422c094cf2c1` plus
+[PR #61](https://github.com/tmaxmax/go-sse/pull/61), refreshed with the fork's
+line-ending and read-chunk regression matrix. The final publication commit
+changes only module/self-import paths and records provenance. Return to the
+upstream module when a stable release contains the EOF correction and passes
+the incomplete-tail, reader-error and connection regressions.

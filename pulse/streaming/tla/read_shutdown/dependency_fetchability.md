@@ -5,13 +5,14 @@ PR: https://github.com/redis/go-redis/pull/4095
 
 ## Adopted module
 
-Use `github.com/CaliLuke/go-redis/v9 v9.23.1-0.20261014134601-1073297e76ea`
-(commit `1073297e76ea3d39d2d012f1ac76e9ff9e549f72`). This exact ordinary Go module pin
+Use `github.com/CaliLuke/go-redis/v9 v9.23.1-0.20261105165422-21c4e561f514`.
+This exact ordinary Go module pin
 works transitively; consumers do not need a `replace` directive. The fork
-contains stable v9.23.0 (`6f2b2639e563b11709e06f42bc0addbfb5a1abb6`), the
-reviewed hook-copy fix (`b77660a3c76c01f05b19204f9a72f790a1394ddf`), and
-only module-declaration/self-import renaming in its final commit. There is no
-unrelated upstream-master dependency.
+follows upstream master (`5cba5e182946cf18a757718938bc43910e589466`), which
+includes the merged hook-copy fix, with only module-declaration/self-import
+renaming and provenance documentation in its final commit. The user-authorized
+fork refresh includes current upstream changes; stable v9.23.0 still lacks the
+fix. No duplicate patch is applied.
 
 The renamed module has distinct Go type identity. Pulse clients and hook-facing
 application code must import the fork consistently. Upstream extra instrumentation
@@ -27,8 +28,8 @@ identity at Pulse boundaries.
 
 ## Why a real module fork
 
-Original-path version queries for the reviewed PR commits fail with `unknown
-revision`: the commits are not reachable from upstream branches/tags. GitHub PR
+At the original publication, original-path version queries for the reviewed PR commits failed with `unknown
+revision`: those commits were not reachable from upstream branches/tags. GitHub PR
 refs do not make them valid original-module pseudo-versions. A Loom `replace`
 directive would be ignored by downstream consumers, so it cannot deliver this
 fix. The user authorized proceeding with delivery; the real fork supersedes the
@@ -43,9 +44,16 @@ they intentionally retain upstream imports.
 
 ## Validation
 
-The fork's exact 238-file module-path diff was independently reviewed; every
+The original fork's exact 238-file module-path diff was independently reviewed; every
 changed file is byte-for-byte the reviewed parent with only its root module path
 substituted. All root-module packages compiled under `go test -race ./... -run
 '^TestWithTimeoutPreservesHooks$' -count=1`; the hook regression passed. Full
 proto/util/hashtag/hscan/push race suites also passed. Final integration checks
 exercise the published pin rather than a local replacement.
+
+The refreshed fork's 302 source/module changes are likewise byte-for-byte
+upstream with only the root module path substituted, with a separate `FORK.md`
+recording provenance. An independent review confirmed this, the merged fix's
+ancestry, and unchanged nested modules. All root packages compile under race
+instrumentation, the hook-preservation regression passes, and `go vet ./...`
+passes on Go 1.27.3.

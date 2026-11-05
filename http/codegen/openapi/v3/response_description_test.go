@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"go.yaml.in/yaml/v3"
+	"go.yaml.in/yaml/v4"
 
 	openapiv3 "github.com/CaliLuke/loom/http/codegen/openapi/v3"
 	"github.com/CaliLuke/loom/http/codegen/testdata"

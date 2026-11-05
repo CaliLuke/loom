@@ -158,8 +158,7 @@ func TestCheckOwnershipDoesNotJoinCaller(t *testing.T) {
 		exit.Do(func() {
 			close(h.exited)
 		})
-		<-result
-		t.Fatal("ownership check called Stop inline and joined its own caller")
+		t.Fatalf("ownership check called Stop inline and joined its own caller (returned %v)", <-result)
 	}
 }
 
