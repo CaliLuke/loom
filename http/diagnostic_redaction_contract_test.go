@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	stdhttp "net/http"
+	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
@@ -108,4 +109,32 @@ func TestDebugRedactsDefaultJSONExchange(t *testing.T) {
 	require.NotContains(t, output.String(), secret)
 	require.Contains(t, output.String(), "visible")
 	require.Equal(t, 2, strings.Count(output.String(), "[REDACTED]"))
+}
+
+func TestDebugRedactsOpaqueURL(t *testing.T) {
+	const secret = "diagnostic-secret-value"
+	received := make(chan string, 1)
+	server := httptest.NewServer(stdhttp.HandlerFunc(func(w stdhttp.ResponseWriter, r *stdhttp.Request) {
+		received <- r.URL.Query().Get("ticket")
+		w.WriteHeader(stdhttp.StatusNoContent)
+	}))
+	t.Cleanup(server.Close)
+	request, err := stdhttp.NewRequestWithContext(t.Context(), stdhttp.MethodGet, server.URL, nil)
+	require.NoError(t, err)
+	request.URL.Opaque = "//" + request.URL.Host + "/resource?ticket=" + secret
+	original := request.URL.Clone()
+	debug := NewDebugDoer(server.Client(), diagnostics.Fields{Query: []string{"ticket"}}).(*debugDoer)
+	var automatic bytes.Buffer
+	debug.output = &automatic
+	response, err := debug.Do(request)
+	require.NoError(t, err)
+	require.NoError(t, response.Body.Close())
+	require.Equal(t, stdhttp.StatusNoContent, response.StatusCode)
+	require.Equal(t, secret, <-received)
+	require.Equal(t, original, request.URL)
+	var snapshot bytes.Buffer
+	debug.Fprint(&snapshot)
+	require.Equal(t, automatic.String(), snapshot.String())
+	require.NotContains(t, snapshot.String(), secret)
+	require.Contains(t, snapshot.String(), "opaque%20URL%20omitted")
 }

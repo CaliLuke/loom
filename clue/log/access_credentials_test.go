@@ -126,3 +126,36 @@ func TestAccessLogCredentialOptionLifetime(t *testing.T) {
 		})
 	}
 }
+
+func TestClientAccessLogOpaqueURL(t *testing.T) {
+	const secret = "diagnostic-secret-value"
+	for _, parameter := range []string{"password", "ticket"} {
+		t.Run(parameter, func(t *testing.T) {
+			received := make(chan string, 1)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				received <- r.URL.Query().Get(parameter)
+				w.WriteHeader(http.StatusNoContent)
+			}))
+			t.Cleanup(server.Close)
+			var output bytes.Buffer
+			request, err := http.NewRequestWithContext(newTestContext(&output), http.MethodGet, server.URL, nil)
+			require.NoError(t, err)
+			request.URL.Opaque = "//" + request.URL.Host + "/resource?" + parameter + "=" + secret
+			original := request.URL.Clone()
+			var options []HTTPClientLogOption
+			if parameter == "ticket" {
+				options = append(options, WithClientURLCredentials(diagnostics.Fields{Query: []string{"ticket"}}))
+			}
+			client := server.Client()
+			client.Transport = Client(client.Transport, options...)
+			response, err := client.Do(request)
+			require.NoError(t, err)
+			require.NoError(t, response.Body.Close())
+			require.Equal(t, http.StatusNoContent, response.StatusCode)
+			require.Equal(t, secret, <-received)
+			require.Equal(t, original, request.URL)
+			require.NotContains(t, output.String(), secret)
+			require.Contains(t, output.String(), "opaque%20URL%20omitted")
+		})
+	}
+}

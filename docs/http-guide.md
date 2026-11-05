@@ -812,6 +812,11 @@ transport := log.Client(http.DefaultTransport,
     log.WithClientURLCredentials(serviceDiagnostics.Fields()))
 ```
 
+Opaque URL previews are omitted in both Debug and access logs: an opaque URL can
+carry userinfo and query credentials outside the parsed fields. Ordinary
+hierarchical URLs keep their masked query previews. The original request URL is
+unchanged, including its opaque representation.
+
 These options snapshot fields when constructed, can be reused, and combine when
 supplied more than once. Only URL query and path locations affect access logs;
 this does not configure response-body logging. Generated server examples supply

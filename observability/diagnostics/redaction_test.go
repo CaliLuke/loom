@@ -143,3 +143,29 @@ func TestPolicyOpaqueCredentialPath(t *testing.T) {
 	require.NotContains(t, result.String(), "secret-value")
 	require.Equal(t, "//example.test/secret-value", original.Opaque)
 }
+
+func TestPolicyOpaqueURL(t *testing.T) {
+	for _, opaque := range []string{
+		"//example.test/resource?ticket=opaque-secret",
+		"//example.test/resource?password=opaque-secret",
+		"//user:opaque-secret@example.test/resource",
+		"resource?ticket=opaque-secret;broken=%xx",
+	} {
+		t.Run(opaque, func(t *testing.T) {
+			original := &url.URL{
+				Scheme: "https", Host: "example.test", Opaque: opaque,
+				Path: "/shadow-secret", RawPath: "/shadow%2Dsecret",
+				RawQuery: "ticket=query-secret&view=full",
+			}
+			before := original.Clone()
+			result := New(Fields{Query: []string{"ticket"}}).URL(original)
+			require.Empty(t, result.Opaque)
+			require.Empty(t, result.RawPath)
+			require.Equal(t, "/[opaque URL omitted]", result.Path)
+			require.NotContains(t, result.String(), "secret")
+			require.Equal(t, redactedValue, result.Query().Get("ticket"))
+			require.Equal(t, "full", result.Query().Get("view"))
+			require.Equal(t, before, original)
+		})
+	}
+}

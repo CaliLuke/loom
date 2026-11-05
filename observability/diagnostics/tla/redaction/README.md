@@ -75,3 +75,13 @@ disjoint hosts in `codegen/generator/access_log_credentials_test.go` execute the
 emitted middleware configuration and generated credential metadata. Host selection
 and ordinary query visibility remain implementation obligations rather than new
 properties of this finite model.
+
+Opaque-URL regression: `net/http` can send an opaque URL containing a query that
+does not appear in `URL.RawQuery`. The former projection therefore logged that
+credential despite the correct query policy. `Policy.URL` now omits opaque previews
+and clears the alternate path representation, preserving the original URL.
+`TestPolicyOpaqueURL` covers query/userinfo and malformed opaque values;
+`TestDebugRedactsOpaqueURL` and `TestClientAccessLogOpaqueURL` send real HTTP requests,
+verify received credentials and unchanged URLs, and check both logging consumers.
+All three failed before the fix. This representation issue is another concrete
+parser obligation outside the finite model's abstract physical locations.

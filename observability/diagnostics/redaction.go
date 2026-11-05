@@ -83,8 +83,9 @@ func (p *Policy) Headers(headers http.Header) http.Header {
 	return result
 }
 
-// URL returns a masked copy. An authored credential path also clears RawPath;
-// credentials must not remain in an alternate escaped or opaque URL rendering.
+// URL returns a masked copy. Opaque URLs are omitted because they can contain
+// credentials outside the parsed userinfo/query fields. An authored credential
+// path also clears RawPath so an alternate escaped rendering cannot disclose it.
 func (p *Policy) URL(original *url.URL) *url.URL {
 	if original == nil {
 		return nil
@@ -92,6 +93,9 @@ func (p *Policy) URL(original *url.URL) *url.URL {
 	result := original.Clone()
 	if result.User != nil {
 		result.User = url.User(redactedValue)
+	}
+	if result.Opaque != "" {
+		result.Path, result.RawPath, result.Opaque = "/[opaque URL omitted]", "", ""
 	}
 	query, err := url.ParseQuery(result.RawQuery)
 	if err != nil {

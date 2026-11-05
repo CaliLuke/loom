@@ -3039,7 +3039,9 @@ into an immutable policy. Missing Content-Type uses JSON preview masking, matchi
 the built-in HTTP decoders; malformed or incomplete default-JSON previews are
 omitted. JSON credential names conservatively fold Unicode case and ignore
 dashes/underscores, including authored `case:ignore` aliases without changing
-decoder acceptance or requiring new generated metadata. Access-log options snapshot at option construction and
+decoder acceptance or requiring new generated metadata. Opaque URL previews are
+omitted, clearing alternate raw paths as well; opaque queries/userinfo cannot be
+safely masked through parsed URL fields. Access-log options snapshot at option construction and
 compose immutable policies without mutating requests. The shared HTTP example
 base selects generated Fields for the current server's HTTP and JSON-RPC services;
 the JSON-RPC extension inherits that configuration. Do not duplicate credential
