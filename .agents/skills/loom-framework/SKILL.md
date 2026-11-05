@@ -3028,7 +3028,9 @@ and its timing/error/redaction tests aligned. Client request prefix/GetBody capt
 remains a separate existing policy.
 Diagnostic masking lives in `observability/diagnostics`, shared by client and
 server Debug and clue access-log URLs. Its constructor copies public field sets
-into an immutable policy. Access-log options snapshot at option construction and
+into an immutable policy. Missing Content-Type uses JSON preview masking, matching
+the built-in HTTP decoders; malformed or incomplete default-JSON previews are
+omitted. Access-log options snapshot at option construction and
 compose immutable policies without mutating requests. The shared HTTP example
 base selects generated Fields for the current server's HTTP and JSON-RPC services;
 the JSON-RPC extension inherits that configuration. Do not duplicate credential

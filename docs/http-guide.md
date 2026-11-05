@@ -768,6 +768,9 @@ Client and server Debug share credential redaction. Conventional names include
 authorization and cookie headers are wholly masked. Structured JSON fields are
 masked at any nesting depth, and URL/form parameters include repeated values.
 Malformed or incomplete structured previews are omitted.
+When `Content-Type` is absent, previews use JSON masking, matching the built-in
+HTTP decoders. Untyped bodies that are not valid JSON are omitted; declare an
+explicit content type such as `text/plain` for ordinary opaque previews.
 
 Regenerate after changing security or wire mappings. Credential-bearing services
 expose `Fields()` in `gen/http/<service>/diagnostics.go` (or `gen/jsonrpc/<service>`).

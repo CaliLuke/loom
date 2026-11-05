@@ -43,6 +43,17 @@ HTTP/JSON-RPC metadata and example wiring. The finite model does not enumerate
 DSL legality, duplicate Basic transport slots, codec failures or HTTP I/O; those
 are direct/runtime/generated obligations.
 
+Missing-media regression: the finite model abstracts parser selection and did
+not cover an absent `Content-Type`. The original `Policy.Body` treated that body
+as opaque, while the built-in HTTP decoders selected JSON. Conventional JSON
+credentials consequently appeared in both client and server Debug output.
+`TestPolicyBodyWithoutContentType` checks default JSON masking and omission of
+malformed/incomplete previews. `TestDebugRedactsDefaultJSONRequest` exercises
+the actual request decoder under server Debug; `TestDebugRedactsDefaultJSONExchange`
+checks client request and response logging without changing wire bytes or headers.
+These tests failed against the prior implementation and pass with the shared
+policy's JSON default. This is implementation evidence, not an expanded model claim.
+
 Access-log correspondence (#721): `clue/log` constructs immutable policies in
 `WithURLCredentials` and `WithClientURLCredentials`, before a middleware/client
 is constructed or an option is reused. Each option contributes its policy;

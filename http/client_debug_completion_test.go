@@ -56,7 +56,7 @@ func TestDebugResponseCompletionTiming(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			source := &debugStepBody{steps: append([]debugReadStep(nil), tc.steps...)}
 			var output bytes.Buffer
-			debug := NewDebugDoer(debugResponseDoer{body: source}).(*debugDoer)
+			debug := NewDebugDoer(debugResponseDoer{body: source, contentType: "text/plain"}).(*debugDoer)
 			debug.output = &output
 			response, err := debug.Do(httptest.NewRequest("GET", "http://example.test/timing", nil))
 			require.NoError(t, err)
@@ -122,11 +122,11 @@ func TestDebugResponseCompletionEmptyAndCloseFailure(t *testing.T) {
 
 func TestDebugResponseCompletionKeepsExchangeIdentity(t *testing.T) {
 	var output bytes.Buffer
-	debug := NewDebugDoer(debugResponseDoer{body: io.NopCloser(strings.NewReader("first-body"))}).(*debugDoer)
+	debug := NewDebugDoer(debugResponseDoer{body: io.NopCloser(strings.NewReader("first-body")), contentType: "text/plain"}).(*debugDoer)
 	debug.output = &output
 	first, err := debug.Do(httptest.NewRequest("GET", "http://example.test/first", nil))
 	require.NoError(t, err)
-	debug.Doer = debugResponseDoer{body: io.NopCloser(strings.NewReader("second-body"))}
+	debug.Doer = debugResponseDoer{body: io.NopCloser(strings.NewReader("second-body")), contentType: "text/plain"}
 	second, err := debug.Do(httptest.NewRequest("GET", "http://example.test/second", nil))
 	require.NoError(t, err)
 	for _, response := range []*http.Response{second, first} {
@@ -194,7 +194,7 @@ func TestDebugResponseCompletionRedactionAndRetention(t *testing.T) {
 		t.Run(fmt.Sprintf("bytes-%d", size), func(t *testing.T) {
 			data := strings.Repeat("x", size)
 			var output bytes.Buffer
-			debug := NewDebugDoer(debugResponseDoer{body: io.NopCloser(strings.NewReader(data))}).(*debugDoer)
+			debug := NewDebugDoer(debugResponseDoer{body: io.NopCloser(strings.NewReader(data)), contentType: "text/plain"}).(*debugDoer)
 			debug.output = &output
 			response, err := debug.Do(httptest.NewRequest("GET", "http://example.test/bounded", nil))
 			require.NoError(t, err)
@@ -289,7 +289,7 @@ func TestDebugResponseConcurrentCloseAndSnapshot(t *testing.T) {
 	sentinel := errors.New("source closed")
 	source := &debugBlockedBody{started: make(chan struct{}), closed: make(chan struct{}), release: make(chan struct{}), err: sentinel}
 	var output debugLockedOutput
-	debug := NewDebugDoer(debugResponseDoer{body: source}).(*debugDoer)
+	debug := NewDebugDoer(debugResponseDoer{body: source, contentType: "text/plain"}).(*debugDoer)
 	debug.output = &output
 	response, err := debug.Do(httptest.NewRequest("GET", "http://example.test/blocked", nil))
 	require.NoError(t, err)

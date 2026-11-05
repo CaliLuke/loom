@@ -24,7 +24,8 @@ func TestPolicyBodyProjection(t *testing.T) {
 		{"incomplete form", "application/x-www-form-urlencoded", "proof=" + secret, "[incomplete structured body omitted]", false},
 		{"invalid form", "application/x-www-form-urlencoded", "proof=%gg" + secret, "[invalid form body omitted]", true},
 		{"opaque credential", "text/plain", secret, "[credential body with unsupported content type omitted]", true},
-		{"absent content type", "", secret, "[credential body with unsupported content type omitted]", true},
+		{"absent content type", "", secret, "[invalid JSON body omitted]", true},
+		{"default JSON wire name", "", `{"permit":"` + secret + `","ordinary":"visible"}`, `{"ordinary":"visible","permit":"[REDACTED]"}`, true},
 		{"invalid content type", "not a media type", secret, "[credential body with unsupported content type omitted]", true},
 		{"empty", "application/json", "", "", true},
 	} {
@@ -77,6 +78,26 @@ func TestPolicyConventionalNames(t *testing.T) {
 	}
 	for _, name := range []string{"ordinary", "monkey", "keyboard", "value", "tokenizer"} {
 		require.False(t, sensitiveName(name), name)
+	}
+}
+
+func TestPolicyBodyWithoutContentType(t *testing.T) {
+	for _, tc := range []struct {
+		name, input, want string
+		complete          bool
+	}{
+		{"conventional credential", `{"password":"diagnostic-secret","ordinary":"visible"}`, `{"ordinary":"visible","password":"[REDACTED]"}`, true},
+		{"malformed JSON", `{"password":"diagnostic-secret"`, "[invalid JSON body omitted]", true},
+		{"incomplete JSON", `{"password":"diagnostic-secret"}`, "[incomplete structured body omitted]", false},
+		{"ordinary JSON", `{"ordinary":"visible"}`, `{"ordinary":"visible"}`, true},
+		{"untyped opaque body", "diagnostic-secret", "[invalid JSON body omitted]", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			input := []byte(tc.input)
+			preview := New().Body("", input, false, tc.complete)
+			require.Equal(t, tc.want, string(preview))
+			require.Equal(t, tc.input, string(input))
+		})
 	}
 }
 

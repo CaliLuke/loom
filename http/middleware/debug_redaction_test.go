@@ -25,6 +25,33 @@ type metadataReadAheadWriter struct {
 	*httptest.ResponseRecorder
 }
 
+func TestDebugRedactsDefaultJSONRequest(t *testing.T) {
+	const secret = "diagnostic-secret-value"
+	const body = `{"password":"` + secret + `","ordinary":"visible"}`
+	var output bytes.Buffer
+	called := false
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		require.Empty(t, r.Header.Get("Content-Type"))
+		var payload struct {
+			Password string `json:"password"`
+			Ordinary string `json:"ordinary"`
+		}
+		require.NoError(t, loomhttp.RequestDecoder(r).Decode(&payload))
+		require.Equal(t, secret, payload.Password)
+		require.Equal(t, "visible", payload.Ordinary)
+		w.WriteHeader(http.StatusNoContent)
+	})
+	request := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(body))
+	response := httptest.NewRecorder()
+	httpm.Debug(loomhttp.NewMuxer(), &output)(handler).ServeHTTP(response, request)
+	require.True(t, called)
+	require.Equal(t, http.StatusNoContent, response.Code)
+	require.NotContains(t, output.String(), secret)
+	require.Contains(t, output.String(), "visible")
+	require.Contains(t, output.String(), "[REDACTED]")
+}
+
 func TestDebugRedactsCredentialsWithoutChangingWire(t *testing.T) {
 	for _, location := range []string{"query", "authorization", "cookie", "JSON", "form", "response JSON", "response cookie"} {
 		t.Run(location, func(t *testing.T) {

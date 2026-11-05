@@ -124,7 +124,8 @@ func (p *Policy) PathValues(values map[string]string) map[string]string {
 // Body returns a safe preview of captured bytes. It never reads or modifies the
 // application body. Omitted, malformed or incomplete structured captures are
 // represented by an omission marker. Known body credentials with an unsupported
-// content type cause whole-body omission; ordinary opaque bodies remain visible.
+// content type cause whole-body omission; ordinary explicitly typed opaque bodies
+// remain visible. A missing content type uses JSON, matching the HTTP decoders.
 func (p *Policy) Body(contentType string, data []byte, omitted, complete bool) []byte {
 	if omitted {
 		return fmt.Appendf(nil, "[body omitted after %d bytes]", BodyCaptureLimit)
@@ -134,6 +135,9 @@ func (p *Policy) Body(contentType string, data []byte, omitted, complete bool) [
 	}
 	if p.body {
 		return []byte("[credential body omitted]")
+	}
+	if contentType == "" {
+		contentType = "application/json"
 	}
 	mediaType, _, err := mime.ParseMediaType(contentType)
 	isJSON := err == nil && (mediaType == "application/json" || strings.HasSuffix(mediaType, "+json"))

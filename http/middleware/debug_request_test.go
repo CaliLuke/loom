@@ -125,6 +125,7 @@ func TestDebugRequestCaptureLimit(t *testing.T) {
 				require.Equal(t, body, string(got))
 			})
 			r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(body))
+			r.Header.Set("Content-Type", "text/plain")
 			httpm.Debug(loomhttp.NewMuxer(), &output)(h).ServeHTTP(httptest.NewRecorder(), r)
 			if size > 65536 {
 				require.True(t, strings.Contains(output.String(), "[body omitted after 65536 bytes]"), "missing omission marker")
@@ -237,6 +238,7 @@ func TestDebugRequestPolicyExactLimit(t *testing.T) {
 					wrapped = httpm.Debug(loomhttp.NewMuxer(), &output)(policy.Handler(h))
 				}
 				r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("abcd"))
+				r.Header.Set("Content-Type", "text/plain")
 				r.ContentLength = length
 				response := httptest.NewRecorder()
 				wrapped.ServeHTTP(response, r)

@@ -45,7 +45,7 @@ func TestDebug(t *testing.T) {
 	id := debugRequestID(t, buf.String())
 	want := "> [" + id + "] POST /foo?a=1\n" +
 		"> [" + id + "] X-Test: value\n" +
-		"[" + id + "] hi\n" +
+		"[" + id + "] [invalid JSON body omitted]\n" +
 		"\n< [" + id + "] OK\n" +
 		"< [" + id + "] Content-Type: application/json\n" +
 		"[" + id + "] [invalid JSON body omitted]\n\n"

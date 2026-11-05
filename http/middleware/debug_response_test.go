@@ -160,6 +160,7 @@ func TestDebugResponseAcceptedBytes(t *testing.T) {
 			original := &debugResponseWriter{header: make(http.Header), partial: true, failure: failure}
 			var output bytes.Buffer
 			httpm.Debug(loomhttp.NewMuxer(), &output)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Content-Type", "text/plain")
 				var n int64
 				var err error
 				switch method {

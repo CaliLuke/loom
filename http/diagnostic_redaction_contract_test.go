@@ -86,3 +86,26 @@ func TestDebugCredentialPolicySurvivesDelayedCompletion(t *testing.T) {
 	debug.Fprint(&snapshot)
 	require.Equal(t, automatic.String(), snapshot.String())
 }
+
+func TestDebugRedactsDefaultJSONExchange(t *testing.T) {
+	const secret = "diagnostic-secret-value"
+	const body = `{"password":"` + secret + `","ordinary":"visible"}`
+	doer := &debugCaptureDoer{t: t, responseBody: body, responseHeader: stdhttp.Header{}}
+	debug := NewDebugDoer(doer).(*debugDoer)
+	var output bytes.Buffer
+	debug.output = &output
+	request, err := stdhttp.NewRequest(stdhttp.MethodPost, "http://example.test/login", strings.NewReader(body))
+	require.NoError(t, err)
+	response, err := debug.Do(request)
+	require.NoError(t, err)
+	got, err := io.ReadAll(response.Body)
+	require.NoError(t, err)
+	require.NoError(t, response.Body.Close())
+	require.Equal(t, body, doer.requestBody)
+	require.Equal(t, body, string(got))
+	require.Empty(t, request.Header.Get("Content-Type"))
+	require.Empty(t, response.Header.Get("Content-Type"))
+	require.NotContains(t, output.String(), secret)
+	require.Contains(t, output.String(), "visible")
+	require.Equal(t, 2, strings.Count(output.String(), "[REDACTED]"))
+}
