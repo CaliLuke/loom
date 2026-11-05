@@ -119,7 +119,8 @@ func RequestDecoder(r *http.Request) Decoder {
 //
 // ResponseEncoder defaults to the JSON encoder if the context AcceptTypeKey or
 // ContentTypeKey value does not match any of the supported mime types or is
-// missing altogether.
+// missing altogether. Responses selected through Accept include Vary: Accept,
+// including JSON fallbacks. Explicit ContentTypeKey overrides do not add it.
 func ResponseEncoder(ctx context.Context, w http.ResponseWriter) Encoder {
 	if mediaContractContext(ctx) {
 		return mediaResponseEncoder(ctx, w)
@@ -151,6 +152,7 @@ func requestAcceptHeader(req *http.Request) string {
 }
 
 func negotiatedResponseEncoder(w http.ResponseWriter, accept string) (Encoder, string) {
+	writeVary(w.Header(), "Accept")
 	selected := httpcodec.ResponseAccept(accept)
 	return selectedResponseEncoder(w, selected), selected.Media
 }

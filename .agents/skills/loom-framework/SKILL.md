@@ -1516,6 +1516,13 @@ filter, and serialization rules belong here.
 
 ## Transport Invariants
 
+- `http.negotiatedResponseEncoder` publishes `Vary: Accept` before response
+  commitment for every negotiated representation, including absent/unsupported
+  Accept JSON fallbacks. Reuse `writeVary` to preserve existing dimensions and
+  deduplicate tokens; explicit content-type and service-selected media variants
+  do not negotiate. Keep `http/tla/response_negotiation` and direct/generated
+  header regressions aligned.
+
 - `RequestMetadataPolicy` owns forwarding trust. Verify the direct peer, then
   walk raw `X-Forwarded-For` header lines and comma entries right to left.
   Invalid or empty entries terminate with direct-peer fallback; never filter

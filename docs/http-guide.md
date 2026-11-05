@@ -860,6 +860,10 @@ media type from `Accept`, ignoring media-type parameters such as `charset`.
 Missing or unsupported values fall back to JSON. The built-in negotiator does
 not rank comma-separated alternatives, quality values, or wildcards; install a
 custom encoder when the API needs to select among several representations.
+The default negotiator adds `Vary: Accept`, including when `Accept` is absent or
+falls back to JSON, so caches separate responses selected by different request
+headers. Existing `Vary` fields are preserved. A fixed response `ContentType`
+does not add this header because its encoding does not depend on `Accept`.
 
 A mapped response `Content-Type` header is written after encoder selection;
 its value alone does not select the encoder. Use the response `ContentType`

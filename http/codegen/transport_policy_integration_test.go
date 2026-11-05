@@ -137,6 +137,42 @@ import (
 	loomhttp "github.com/CaliLuke/loom/http"
 )
 
+func TestDefaultGeneratedNegotiationVariesAccept(t *testing.T) {
+	endpoints := &transportpolicy.Endpoints{
+		Read: func(context.Context, any) (any, error) {
+			return &transportpolicy.ReadResult{
+				Message: "<script>alert(1)</script>",
+				Session: "session-value",
+				Refresh: "refresh-value",
+			}, nil
+		},
+	}
+	mux := loomhttp.NewMuxer()
+	generated := transportpolicyserver.New(endpoints, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil)
+	transportpolicyserver.Mount(mux, generated)
+	for _, test := range []struct {
+		accept, contentType, body string
+	}{
+		{"text/html", "text/html", "<script>alert(1)</script>"},
+		{"application/json", "application/json", "\"<script>alert(1)</script>\"\n"},
+		{"", "application/json", "\"<script>alert(1)</script>\"\n"},
+		{"text/html,application/xhtml+xml,*/*;q=0.8", "application/json", "\"<script>alert(1)</script>\"\n"},
+	} {
+		t.Run(test.accept, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodGet, "/session", nil)
+			request.Header.Set("Accept", test.accept)
+			response := httptest.NewRecorder()
+			mux.ServeHTTP(response, request)
+			if response.Code != http.StatusOK || response.Header().Get("Content-Type") != test.contentType || response.Body.String() != test.body {
+				t.Errorf("negotiated response = %d %q %q, want 200 %q %q", response.Code, response.Header().Get("Content-Type"), response.Body.String(), test.contentType, test.body)
+			}
+			if vary := response.Header().Get("Vary"); vary != "Accept" {
+				t.Errorf("negotiated Vary = %q, want Accept", vary)
+			}
+		})
+	}
+}
+
 func TestPoliciesRunThroughGeneratedHandler(t *testing.T) {
 	var calls atomic.Int32
 	expires := time.Date(2031, time.February, 3, 4, 5, 6, 0, time.UTC)
