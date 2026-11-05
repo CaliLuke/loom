@@ -213,7 +213,8 @@ func diagnosticCredentialDSL() {
 				dsl.Security(key)
 				dsl.Payload(func() {
 					dsl.APIKey("diagnostic_key", "credential", dsl.String, func() {
-						dsl.Meta("struct:tag:json:name", "permit")
+						dsl.Meta("struct:tag:json", "permit,case:ignore")
+						dsl.Meta("struct:tag:form", "credential")
 					})
 					dsl.Required("credential")
 				})

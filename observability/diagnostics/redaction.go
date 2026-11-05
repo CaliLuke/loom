@@ -20,6 +20,8 @@ type (
 		// Query lists credential query parameter names.
 		Query []string
 		// JSON lists credential JSON member names, masked at any nesting depth.
+		// Matching ignores Unicode case, dashes and underscores, conservatively
+		// covering aliases accepted by encoding/json/v2's case:ignore fields.
 		JSON []string
 		// Form lists credential URL-encoded form field names.
 		Form []string
@@ -59,7 +61,7 @@ func New(fields ...Fields) *Policy {
 			policy.query[name] = true
 		}
 		for _, name := range field.JSON {
-			policy.json[name] = true
+			policy.json[foldJSONName(name)] = true
 		}
 		for _, name := range field.Form {
 			policy.form[name] = true
@@ -162,7 +164,7 @@ func sensitiveName(name string) bool {
 	var normalized strings.Builder
 	for _, char := range name {
 		if unicode.IsLetter(char) || unicode.IsDigit(char) {
-			normalized.WriteRune(unicode.ToLower(char))
+			normalized.WriteRune(unicode.ToLower(foldRune(char)))
 		}
 	}
 	value := normalized.String()

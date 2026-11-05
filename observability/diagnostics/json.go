@@ -3,6 +3,8 @@ package diagnostics
 import (
 	"encoding/json/jsontext"
 	"encoding/json/v2"
+	"strings"
+	"unicode"
 )
 
 func (p *Policy) jsonBody(data []byte) []byte {
@@ -25,7 +27,7 @@ func (p *Policy) jsonValue(value jsontext.Value) (jsontext.Value, error) {
 			return nil, err
 		}
 		for name, field := range object {
-			if sensitiveName(name) || p.json[name] {
+			if sensitiveName(name) || p.json[foldJSONName(name)] {
 				object[name] = jsontext.Value(`"[REDACTED]"`)
 				continue
 			}
@@ -52,4 +54,27 @@ func (p *Policy) jsonValue(value jsontext.Value) (jsontext.Value, error) {
 	default:
 		return value.Clone(), nil
 	}
+}
+
+// foldJSONName includes every alias accepted by case:ignore JSON fields. Policy
+// metadata need not retain codec options: even strict fields are masked under
+// the broader matching rule so an alias never weakens credential protection.
+func foldJSONName(name string) string {
+	return strings.Map(func(char rune) rune {
+		if char == '-' || char == '_' {
+			return -1
+		}
+		return foldRune(char)
+	}, name)
+}
+
+// foldRune returns the smallest member of a Unicode simple-fold cycle.
+func foldRune(char rune) rune {
+	minimum := char
+	for next := unicode.SimpleFold(char); next != char; next = unicode.SimpleFold(next) {
+		if next < minimum {
+			minimum = next
+		}
+	}
+	return minimum
 }

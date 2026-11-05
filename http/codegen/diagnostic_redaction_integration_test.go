@@ -20,13 +20,49 @@ import (
 
  svc "example.com/diagnostic/gen/diagnostic"
  client "example.com/diagnostic/gen/http/diagnostic/client"
+ server "example.com/diagnostic/gen/http/diagnostic/server"
  policy "example.com/diagnostic/gen/http/diagnostic"
  loomhttp "github.com/CaliLuke/loom/http"
+ "github.com/CaliLuke/loom/http/middleware"
 )
 
 type credentialDoer struct {
  t *testing.T
  location string
+}
+
+func TestGeneratedCredentialAliases(t *testing.T) {
+ const secret = "diagnostic-secret-value"
+ for _, name := range []string{"permit", "PERMIT", "PER_MIT", "per-mit"} {
+  t.Run(name, func(t *testing.T) {
+   var output bytes.Buffer
+   mux := loomhttp.NewMuxer()
+   called := false
+   decode := server.DecodeBodyRequest(mux, loomhttp.RequestDecoder)
+   handler := middleware.Debug(mux, &output, policy.Fields())(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+    called = true
+    payload, err := decode(r)
+    if err != nil {
+     t.Errorf("decode credential alias: %v", err)
+     w.WriteHeader(http.StatusBadRequest)
+     return
+    }
+    if payload.Credential != secret {
+     t.Errorf("decoded credential = %q", payload.Credential)
+    }
+    w.WriteHeader(http.StatusNoContent)
+   }))
+   req := httptest.NewRequest(http.MethodPost, "/body", strings.NewReader("{\""+name+"\":\""+secret+"\"}"))
+   recorder := httptest.NewRecorder()
+   handler.ServeHTTP(recorder, req)
+   if !called || recorder.Code != http.StatusNoContent {
+    t.Errorf("handler called=%v status=%d", called, recorder.Code)
+   }
+   if strings.Contains(output.String(), secret) || !strings.Contains(output.String(), "[REDACTED]") {
+    t.Errorf("credential alias escaped masking: %s", output.String())
+   }
+  })
+ }
 }
 
 func TestGeneratedCredentialDiagnostics(t *testing.T) {

@@ -109,6 +109,34 @@ func TestPolicyMalformedQuery(t *testing.T) {
 	require.True(t, strings.Contains(original.RawQuery, "secret"))
 }
 
+func TestPolicyJSONCredentialAliases(t *testing.T) {
+	for _, tc := range []struct {
+		name, declared, wire string
+	}{
+		{"exact", "permit", "permit"},
+		{"case", "permit", "PERMIT"},
+		{"underscore", "permit", "PER_MIT"},
+		{"dash", "per_mit", "per-mit"},
+		{"Unicode fold", "σ", "ς"},
+		{"Unicode ASCII fold", "pass", "paſſ"},
+		{"conventional Unicode fold", "", "paſſword"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			policy := New()
+			if tc.declared != "" {
+				policy = New(Fields{JSON: []string{tc.declared}})
+			}
+			input := `{"nested":[{"` + tc.wire + `":"diagnostic-secret","ordinary":"visible"}]}`
+			want := `{"nested":[{"ordinary":"visible","` + tc.wire + `":"[REDACTED]"}]}`
+			body := []byte(input)
+			require.JSONEq(t, want, string(policy.Body("application/json", body, false, true)))
+			require.Equal(t, input, string(body))
+		})
+	}
+	policy := New(Fields{JSON: []string{"permit"}})
+	require.JSONEq(t, `{"per.mit":"visible"}`, string(policy.Body("application/json", []byte(`{"per.mit":"visible"}`), false, true)))
+}
+
 func TestPolicyOpaqueCredentialPath(t *testing.T) {
 	original := &url.URL{Scheme: "http", Opaque: "//example.test/secret-value"}
 	result := New(Fields{Path: true}).URL(original)

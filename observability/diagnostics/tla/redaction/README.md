@@ -54,6 +54,16 @@ checks client request and response logging without changing wire bytes or header
 These tests failed against the prior implementation and pass with the shared
 policy's JSON default. This is implementation evidence, not an expanded model claim.
 
+JSON-alias regression: physical-name projection alone did not account for authored
+`case:ignore` tags. The generated decoder accepted `PER_MIT` for `permit`, while
+exact-name preview matching disclosed the credential. The shared policy now folds
+Unicode case and ignores dashes/underscores for all authored JSON credential names.
+`TestPolicyJSONCredentialAliases` covers nested names and Unicode fold cycles;
+`TestGeneratedCredentialDiagnostics` compiles the emitted transport and exercises
+its decoder under Debug with exact, case, dash and underscore spellings. These
+regressions failed before the fix. Parser name matching remains an implementation
+obligation outside this finite model; the model's lifetime assumptions are unchanged.
+
 Access-log correspondence (#721): `clue/log` constructs immutable policies in
 `WithURLCredentials` and `WithClientURLCredentials`, before a middleware/client
 is constructed or an option is reused. Each option contributes its policy;

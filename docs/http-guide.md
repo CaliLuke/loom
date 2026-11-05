@@ -793,6 +793,12 @@ ordinary data. A scalar credential body is omitted completely. A credential path
 omits the whole URL path and separately logged route variables. Known credential
 bodies with unsupported content types are also omitted.
 
+JSON credential names also match Unicode case variants and names differing only
+in dashes or underscores, covering aliases accepted by Go's
+[`case:ignore` JSON tags](https://pkg.go.dev/encoding/json/v2#hdr-JSON_Representation_of_Go_structs).
+This conservative masking also applies to strict fields; it does not change which
+names the request decoder accepts. Existing generated metadata works unchanged.
+
 Application headers, URLs, and wire bodies remain unchanged. Ordinary opaque
 bodies remain visible when no body credential policy applies, so use Debug only
 for development and avoid payloads containing unmodeled secrets. Access logging uses the same URL masking policy: `log.HTTP` and `log.Client`
