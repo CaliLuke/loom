@@ -13,7 +13,7 @@ import (
 const conformanceFakeLake = `#!/bin/sh
 case "$*" in
   'env lean --version')
-    if [ "$CONFORMANCE_MODE" = version ]; then echo 'Lean (version 4.0.0, test)'; else echo 'Lean (version 4.34.1, test)'; fi ;;
+    if [ "$CONFORMANCE_MODE" = version ]; then echo 'Lean (version 4.0.0, test)'; else echo 'Lean (version 4.35.0, test)'; fi ;;
   'build value_contract_reference')
     case "$CONFORMANCE_MODE" in
       build) exit 1 ;;
@@ -68,7 +68,7 @@ func TestValueContractConformanceGate(t *testing.T) {
 			require.NoError(t, os.WriteFile(path, script, 0o700))
 			project := filepath.Join(root, "expr", "lean", "value_projection")
 			require.NoError(t, os.MkdirAll(project, 0o700))
-			require.NoError(t, os.WriteFile(filepath.Join(project, "lean-toolchain"), []byte("leanprover/lean4:v4.34.1\n"), 0o600))
+			require.NoError(t, os.WriteFile(filepath.Join(project, "lean-toolchain"), []byte("leanprover/lean4:v4.35.0\n"), 0o600))
 			bin := filepath.Join(root, "bin")
 			require.NoError(t, os.Mkdir(bin, 0o700))
 			require.NoError(t, os.WriteFile(filepath.Join(bin, "lake"), []byte(conformanceFakeLake), 0o700))

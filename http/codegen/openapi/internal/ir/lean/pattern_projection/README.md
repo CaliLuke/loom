@@ -1,6 +1,6 @@
 # Go pattern projection boundary
 
-Run `./check.sh` with the pinned Lean 4.34.1 toolchain. The manifest audits each
+Run `./check.sh` with the pinned Lean 4.35.0 toolchain. The manifest audits each
 listed theorem's transitive axioms; all five pass without axioms.
 
 The finite witness model reproduces the former absolute-anchor and whitespace

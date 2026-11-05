@@ -352,13 +352,13 @@ These commands are for explicit design verification. They are not prerequisites
 for building, testing, committing, pushing or releasing Loom, and must not be
 added to CI workflows.
 
-Lean **4.34.1** is pinned in [`lean-toolchain`](lean-toolchain). It includes
+Lean **4.35.0** is pinned in [`lean-toolchain`](lean-toolchain). It includes
 `lake` and `leanchecker`; no proof-library or generated-service dependency is
 added. With elan installed:
 
 ```sh
 export PATH="$HOME/.elan/bin:$PATH"
-elan toolchain install leanprover/lean4:v4.34.1
+elan toolchain install leanprover/lean4:v4.35.0
 # From the Loom repository root:
 make value-contract-proof
 ```

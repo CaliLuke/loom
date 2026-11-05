@@ -5,7 +5,7 @@ OpenAPI importer cases tracked by Loom issue [#659](https://github.com/CaliLuke/
 It is design evidence for the Go importer, not a proof that the Go code refines
 the model.
 
-Run `lake build` in this directory with Lean 4.34.1. The model has no external
+Run `lake build` in this directory with Lean 4.35.0. The model has no external
 packages. `required-theorems.txt` is the named theorem manifest for review.
 
 To inspect each theorem's type and axiom dependencies after building, run:

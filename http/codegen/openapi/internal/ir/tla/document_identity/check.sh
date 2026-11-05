@@ -6,9 +6,9 @@ cd "$model_dir"
 
 lean_version=$(lean --version)
 case "$lean_version" in
-	"Lean (version 4.34.1,"*) ;;
+	"Lean (version 4.35.0,"*) ;;
 	*)
-		echo "expected Lean 4.34.1, got: $lean_version" >&2
+		echo "expected Lean 4.35.0, got: $lean_version" >&2
 		exit 1
 		;;
 esac

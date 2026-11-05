@@ -8,7 +8,7 @@ components with one explicit name but different values are resolved by
 last-writer order. It also keeps the valid control of multiple methods on one
 path and allows identical media claims to share a component.
 
-Run the bounded model with the pinned Lean 4.34.1 toolchain from this
+Run the bounded model with the pinned Lean 4.35.0 toolchain from this
 directory:
 
 ```sh

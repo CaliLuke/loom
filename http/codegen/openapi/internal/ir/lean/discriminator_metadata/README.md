@@ -1,6 +1,6 @@
 # Discriminator metadata admission
 
-Run `./check.sh` with Lean 4.34.1. The theorem manifest audits transitive axioms.
+Run `./check.sh` with Lean 4.35.0. The theorem manifest audits transitive axioms.
 The Boolean model reproduces admission of an optional discriminator without a
 fallback, then checks the cross-field rule and the 3.1 required-property policy.
 All five theorems pass without axioms. A valid fallback is an assumption in this

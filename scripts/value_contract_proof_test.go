@@ -23,7 +23,7 @@ case "$*" in
     if [ "$LOOM_PROOF_TEST_MODE" = version ]; then
       echo 'Lean (version 4.0.0, test)'
     else
-      echo 'Lean (version 4.34.1, test)'
+      echo 'Lean (version 4.35.0, test)'
     fi ;;
   build)
     case "$LOOM_PROOF_TEST_MODE" in
@@ -110,7 +110,7 @@ func TestValueContractProofGate(t *testing.T) {
 		{name: "numeric interval control succeeds", negativeSource: "NegativeNumericIntervalGuess.lean", want: "negative proof control unexpectedly succeeded: NegativeNumericIntervalGuess.lean"},
 		{name: "numeric value admission control succeeds", negativeSource: "NegativeNumericValueAdmission.lean", want: "negative proof control unexpectedly succeeded: NegativeNumericValueAdmission.lean"},
 		{name: "enum override control succeeds", negativeSource: "NegativeEnumOverride.lean", want: "negative proof control unexpectedly succeeded: NegativeEnumOverride.lean"},
-		{name: "wrong toolchain", mode: "version", want: "expected Lean 4.34.1"},
+		{name: "wrong toolchain", mode: "version", want: "expected Lean 4.35.0"},
 		{name: "axiom rejected", mode: "axiom", want: "forbidden transitive axiom"},
 		{name: "empty audit", mode: "empty-audit", want: "missing audit completion"},
 		{name: "missing theorem", mode: "missing-theorem", want: "missing theorem report"},
@@ -294,7 +294,7 @@ func proofTestTree(t *testing.T, full bool) string {
 	project := filepath.Join(root, "expr", "lean", "value_projection")
 	require.NoError(t, os.MkdirAll(project, 0o700))
 	if !full {
-		require.NoError(t, os.WriteFile(filepath.Join(project, "lean-toolchain"), []byte("leanprover/lean4:v4.34.1\n"), 0o600))
+		require.NoError(t, os.WriteFile(filepath.Join(project, "lean-toolchain"), []byte("leanprover/lean4:v4.35.0\n"), 0o600))
 		require.NoError(t, os.WriteFile(filepath.Join(project, "required-theorems.txt"), []byte("ValueContract.Legacy.first\nValueContract.Legacy.second\n"), 0o600))
 		require.NoError(t, os.WriteFile(filepath.Join(project, "required-theorems-456.txt"), []byte("ValueContract.Candidate.Issue456CollisionDiagnostics.first\nValueContract.Candidate.Issue456CollisionDiagnostics.second\n"), 0o600))
 		return root
