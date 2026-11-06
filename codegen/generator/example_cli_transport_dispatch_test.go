@@ -28,7 +28,7 @@ func TestExampleCLISelectsTransportByCommand(t *testing.T) {
 	require.NoError(t, err)
 	_, err = testingx.RunCmd(dir, "go", "mod", "tidy")
 	require.NoError(t, err)
-	output, err := testingx.RunCmd(dir, "go", "build", "-o", filepath.Join(dir, "mixed-cli"), "./cmd/mixed-cli")
+	output, err := testingx.RunCmd(dir, "go", "build", "-o", filepath.Join(dir, "500-mixed-cli"), "./cmd/mixed-cli")
 	require.NoError(t, err, output)
 
 	requests := make(chan *http.Request, 8)
@@ -37,7 +37,7 @@ func TestExampleCLISelectsTransportByCommand(t *testing.T) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	t.Cleanup(server.Close)
-	command := filepath.Join(dir, "mixed-cli")
+	command := filepath.Join(dir, "500-mixed-cli")
 	cases := []struct {
 		name   string
 		args   []string
@@ -77,7 +77,7 @@ func TestExampleCLISelectsTransportByCommand(t *testing.T) {
 	for _, args := range [][]string{{"web", "ping", "unexpected"}, {"missing", "ping"}} {
 		output, err := testingx.RunCmd(dir, command, append([]string{"-url", server.URL}, args...)...)
 		require.Error(t, err)
-		require.NotContains(t, output, "500")
+		require.Contains(t, output, "parse command:")
 		select {
 		case request := <-requests:
 			t.Fatalf("invalid command %v unexpectedly reached %s %s", args, request.Method, request.URL.Path)
