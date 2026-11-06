@@ -2752,14 +2752,13 @@ parsed events directly; do not reintroduce framing or reparsing in generators.
 EOF discards an incomplete block after delivering preceding complete events.
 See the [framing and lifecycle models](../../../http/tla/sse_framing/README.md).
 
-Temporarily use `github.com/CaliLuke/go-sse` at the pinned version in `go.mod`.
-It contains [upstream PR #61](https://github.com/tmaxmax/go-sse/pull/61) plus only
-the module/import path changes needed for transitive Go consumers. The upstream
-PR branch remains separate from the packaging branch. When an upstream revision
-contains the correction, switch runtime imports and module requirements back to
-`github.com/tmaxmax/go-sse`, tidy affected fixture modules and rerun the focused
-SSE reader/transport checks. Do not use a transitive `replace`, vendor a parser
-patch, or add local EOF filters.
+Use the released `github.com/tmaxmax/go-sse v0.12.0` pin. It includes
+[upstream PR #61](https://github.com/tmaxmax/go-sse/pull/61), so the temporary
+fork is no longer needed. Keep runtime and active fixture/interoperability
+modules on the same verified upstream version. Preserve the isolated historical
+form-library investigation's original snapshot. Dependency updates must retain
+incomplete-tail, underlying reader-error, cancellation and generated transport
+checks. Do not add local EOF filters or a parser replacement.
 
 SSE changes require coverage for:
 

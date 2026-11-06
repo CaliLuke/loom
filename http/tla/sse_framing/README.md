@@ -56,11 +56,11 @@ the generated clients through `TestGeneratedSSEClientDiscardsIncompleteTail`.
 final events are discarded. The single-event helper reports an error when no
 complete event was present.
 
-The current reader pin is
-`github.com/CaliLuke/go-sse v0.11.1-0.20261105165416-f13a4c171451`.
-It follows upstream master `fb578c33b9afebac952ff874bd6e422c094cf2c1` plus
-[PR #61](https://github.com/tmaxmax/go-sse/pull/61), refreshed with the fork's
-line-ending and read-chunk regression matrix. The final publication commit
-changes only module/self-import paths and records provenance. Return to the
-upstream module when a stable release contains the EOF correction and passes
-the incomplete-tail, reader-error and connection regressions.
+The reader uses `github.com/tmaxmax/go-sse v0.12.0`, whose tagged source
+`a2762acb8cbfc7ecf98c49c922505658c95d34e3` includes
+[PR #61](https://github.com/tmaxmax/go-sse/pull/61). The temporary fork is
+removed from the runtime and active fixtures. The released parser owns the EOF
+correction and underlying reader-error preservation; Loom retains its shared
+lifecycle adapter and incomplete-tail, cancellation and connection regressions.
+The opt-in historical form-library comparison keeps its original dependency
+snapshot so that investigation remains reproducible.

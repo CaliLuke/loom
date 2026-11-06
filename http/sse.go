@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	sse "github.com/CaliLuke/go-sse"
+	sse "github.com/tmaxmax/go-sse"
 )
 
 type (

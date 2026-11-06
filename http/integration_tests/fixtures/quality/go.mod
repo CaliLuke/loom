@@ -8,13 +8,13 @@ require (
 )
 
 require (
-	github.com/CaliLuke/go-sse v0.11.1-0.20261105165416-f13a4c171451 // indirect
 	github.com/alecthomas/kong v1.17.0 // indirect
 	github.com/dimfeld/httppath v0.0.0-20170720192232-ee938bf73598 // indirect
 	github.com/felixge/httpsnoop v1.1.0 // indirect
 	github.com/go-chi/chi/v5 v5.5.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/manveru/faker v0.0.0-20171103152722-9fbc68a78c4d // indirect
+	github.com/tmaxmax/go-sse v0.12.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.6 // indirect
 	go.yaml.in/yaml/v4 v4.0.0 // indirect
 	golang.org/x/mod v0.42.0 // indirect

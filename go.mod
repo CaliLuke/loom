@@ -4,7 +4,6 @@ go 1.27.3
 
 require (
 	github.com/CaliLuke/go-redis/v9 v9.23.1-0.20261105165422-21c4e561f514
-	github.com/CaliLuke/go-sse v0.11.1-0.20261105165416-f13a4c171451
 	github.com/CaliLuke/selvedge v0.8.1
 	github.com/alecthomas/kong v1.17.0
 	github.com/alicebob/miniredis/v2 v2.40.0
@@ -22,6 +21,7 @@ require (
 	github.com/pb33f/libopenapi v0.42.3
 	github.com/sirupsen/logrus v1.10.2
 	github.com/stretchr/testify v1.12.1
+	github.com/tmaxmax/go-sse v0.12.0
 	github.com/xeipuuv/gojsonschema v1.2.0
 	go.opentelemetry.io/contrib/bridges/otellogrus v0.21.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.72.0

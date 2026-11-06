@@ -6,12 +6,11 @@ require (
 	github.com/CaliLuke/loom v1.7.1
 	github.com/gorilla/websocket v1.5.3
 	github.com/stretchr/testify v1.12.1
-	github.com/tmaxmax/go-sse v0.11.0
+	github.com/tmaxmax/go-sse v0.12.0
 	go.yaml.in/yaml/v4 v4.0.0
 )
 
 require (
-	github.com/CaliLuke/go-sse v0.11.1-0.20261105165416-f13a4c171451 // indirect
 	github.com/dave/jennifer v1.7.1 // indirect
 	github.com/dimfeld/httppath v0.0.0-20170720192232-ee938bf73598 // indirect
 	github.com/felixge/httpsnoop v1.1.0 // indirect

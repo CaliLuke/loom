@@ -5,7 +5,7 @@ go 1.27.3
 require (
 	github.com/CaliLuke/loom v1.7.1
 	github.com/stretchr/testify v1.12.1
-	github.com/tmaxmax/go-sse v0.11.0
+	github.com/tmaxmax/go-sse v0.12.0
 )
 
 require (

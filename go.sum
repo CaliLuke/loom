@@ -4,8 +4,6 @@ github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 h1:L/gRVlceqvL25
 github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161/go.mod h1:xomTg63KZ2rFqZQzSB4Vz2SUXa1BpHTVz9L5PTmPC4E=
 github.com/CaliLuke/go-redis/v9 v9.23.1-0.20261105165422-21c4e561f514 h1:7FzXC8Z1cNR4Eo3+0d2BEKQuWPC1Y792a9AAMe+Nluw=
 github.com/CaliLuke/go-redis/v9 v9.23.1-0.20261105165422-21c4e561f514/go.mod h1:ogPCGSIlz4iGKhuZR/JxH1dgSCegbEmnBk8iDS7u3iQ=
-github.com/CaliLuke/go-sse v0.11.1-0.20261105165416-f13a4c171451 h1:V4R5/eJrtL7rz/I2Xt7hQpBiaw07vtjthCLz6WabQJk=
-github.com/CaliLuke/go-sse v0.11.1-0.20261105165416-f13a4c171451/go.mod h1:lXdhhI7K/QSTmuy5OiNyu32AQ/bUZ8aE8wj8taCn3QE=
 github.com/CaliLuke/selvedge v0.8.1 h1:LNcpZUDNAhSIPuJMxJMvR1rRT6beE/dyK2IqxA80Cdg=
 github.com/CaliLuke/selvedge v0.8.1/go.mod h1:nO+OYh+BwaYJLDbaBYLQcuWmPi95rBAW2CuEvff6304=
 github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERoyfY=
@@ -171,6 +169,8 @@ github.com/tklauser/go-sysconf v0.3.12 h1:0QaGUFOdQaIVdPgfITYzaTegZvdCjmYO52cSFA
 github.com/tklauser/go-sysconf v0.3.12/go.mod h1:Ho14jnntGE1fpdOqQEEaiKRpvIavV0hSfmBq8nJbHYI=
 github.com/tklauser/numcpus v0.6.1 h1:ng9scYS7az0Bk4OZLvrNXNSAO2Pxr1XXRAPyjhIx+Fk=
 github.com/tklauser/numcpus v0.6.1/go.mod h1:1XfjsgE2zo8GVw7POkMbHENHzVg3GzmoZ9fESEdAacY=
+github.com/tmaxmax/go-sse v0.12.0 h1:ecYxU1Xa/BviAZ+lHr3/KZd6N6UcIjjCh+8jPW7ov7Y=
+github.com/tmaxmax/go-sse v0.12.0/go.mod h1:7YYyjsF2IzKhznfkRNlr+ZC3R3mD8YBsT72aC0V74SI=
 github.com/xeipuuv/gojsonpointer v0.0.0-20180127040702-4e3ac2762d5f/go.mod h1:N2zxlSyiKSe5eX1tZViRH5QA0qijqEDrYZiPEAiq3wU=
 github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb h1:zGWFAtiMcyryUHoUjUJX0/lt1H2+i2Ka2n+D3DImSNo=
 github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb/go.mod h1:N2zxlSyiKSe5eX1tZViRH5QA0qijqEDrYZiPEAiq3wU=
