@@ -123,6 +123,7 @@ func collectUnionBranchUserTypesSeen(att *expr.AttributeExpr, hashes, seen map[s
 		for _, nat := range *actual {
 			collectUnionBranchUserTypesSeen(nat.Attribute, hashes, seen)
 		}
+		collectUnionBranchUserTypesSeen(att.AdditionalAttributes, hashes, seen)
 	case *expr.Array:
 		collectUnionBranchUserTypesSeen(actual.ElemType, hashes, seen)
 	case *expr.Map:
@@ -173,6 +174,7 @@ func collectHTTPUnionTypes(att *expr.AttributeExpr, scope *codegen.NameScope, un
 		for _, nat := range sortedNamedAttributes(*dt) {
 			collectHTTPUnionTypes(nat.Attribute, scope, unions, seen, closedObjects, allocated)
 		}
+		collectHTTPUnionTypes(att.AdditionalAttributes, scope, unions, seen, closedObjects, allocated)
 	case *expr.Array:
 		collectHTTPUnionTypes(dt.ElemType, scope, unions, seen, closedObjects, allocated)
 	case *expr.Map:

@@ -1,0 +1,81 @@
+package composite_test
+
+import (
+	"context"
+	"encoding/json/v2"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"sync/atomic"
+	"testing"
+
+	client "example.com/composite/gen/TRANSPORT/composite/client"
+	server "example.com/composite/gen/TRANSPORT/composite/server"
+	svc "example.com/composite/gen/composite"
+	loomhttp "github.com/CaliLuke/loom/http"
+	"github.com/stretchr/testify/require"
+)
+
+func TestCompositeAdditionalMembers(t *testing.T) {
+	var calls atomic.Int32
+	echo := func(_ context.Context, value any) (any, error) {
+		calls.Add(1)
+		return value, nil
+	}
+	mux := loomhttp.NewMuxer()
+	server.Mount(mux, server.New(&svc.Endpoints{Objects: echo, Unions: echo, Nested: echo, Recursive: echo}, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, SERVER_OPTIONS))
+	host := httptest.NewServer(mux)
+	defer host.Close()
+	c := client.NewClient("http", strings.TrimPrefix(host.URL, "http://"), host.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
+	for _, tc := range []struct {
+		name, wire string
+		payload    any
+		call       func(context.Context, any) (any, error)
+	}{
+		{"objects", `{"x":{"name":"leaf"}}`, new(svc.Objects), c.Objects()},
+		{"unions", `{"x":{"name":"leaf"},"y":{"count":2}}`, new(svc.Unions), c.Unions()},
+		{"nested", `{"x":[{"y":{"name":"leaf"}}]}`, new(svc.Nested), c.Nested()},
+		{"recursive", `{"name":"root","child":{"name":"leaf"}}`, new(svc.Recursive), c.Recursive()},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.NoError(t, json.Unmarshal([]byte(tc.wire), tc.payload))
+			before := calls.Load()
+			result, err := tc.call(t.Context(), tc.payload)
+			require.NoError(t, err)
+			require.Equal(t, before+1, calls.Load())
+			require.Equal(t, tc.payload, result)
+			output, err := json.Marshal(result, json.Deterministic(true))
+			require.NoError(t, err)
+			require.JSONEq(t, tc.wire, string(output))
+		})
+	}
+	for _, tc := range []struct{ name, wire string }{
+		{"objects", `{"x":{"name":""}}`},
+		{"objects", `{"x":null}`},
+		{"unions", `{"x":{"count":-1}}`},
+		{"unions", `{"x":{"name":"leaf","count":1}}`},
+		{"nested", `{"x":[{"y":{"name":""}}]}`},
+	} {
+		t.Run("reject "+tc.name+tc.wire, func(t *testing.T) {
+			before := calls.Load()
+			path, body := "/"+tc.name, tc.wire
+			if IS_RPC {
+				path = "/rpc"
+				body = `{"jsonrpc":"2.0","id":1,"method":"` + tc.name + `","params":` + tc.wire + `}`
+			}
+			response, err := host.Client().Post(host.URL+path, "application/json", strings.NewReader(body))
+			require.NoError(t, err)
+			raw, err := io.ReadAll(response.Body)
+			require.NoError(t, err)
+			require.NoError(t, response.Body.Close())
+			if IS_RPC {
+				require.Equal(t, http.StatusOK, response.StatusCode)
+				require.Contains(t, string(raw), `"code":-32602`)
+			} else {
+				require.Equal(t, http.StatusBadRequest, response.StatusCode, string(raw))
+			}
+			require.Equal(t, before, calls.Load())
+		})
+	}
+}

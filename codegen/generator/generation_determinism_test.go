@@ -31,6 +31,8 @@ var generationDeterminismDSLs = []struct {
 	{"PayloadWithNestedTypesDSL", grpctestdata.PayloadWithNestedTypesDSL},
 	{"OptionalCollectionValidationDSL", optionalCollectionValidationDSL},
 	{"UntaggedArraysDSL", httptestdata.UntaggedArraysDSL},
+	{"AdditionalCompositeDSL", httptestdata.AdditionalCompositeDSL},
+	{"AdditionalCompositeJSONRPCDSL", httptestdata.AdditionalCompositeJSONRPCDSL},
 	{"PayloadQueryStringDSL", httptestdata.PayloadQueryStringDSL},
 	{"PayloadQueryArrayStringValidateDSL", httptestdata.PayloadQueryArrayStringValidateDSL},
 	{"PayloadQueryMapStringStringDSL", httptestdata.PayloadQueryMapStringStringDSL},

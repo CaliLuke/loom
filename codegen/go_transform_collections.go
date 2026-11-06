@@ -404,6 +404,17 @@ func appendNestedHelpers(source, target *expr.AttributeExpr, req bool, ta *Trans
 				helpers = append(helpers, other...)
 			}
 		})
+		// The additional-members map is a physical child of the object, just
+		// like its fields. Discover the helpers used by transformAdditionalMembers
+		// even when no declared or synthesized field reaches its value type.
+		if err == nil {
+			sourceCarrier, targetCarrier := source.AdditionalMembersCarrier(), target.AdditionalMembersCarrier()
+			if sourceCarrier != nil && targetCarrier != nil {
+				if other, err = collectHelpers(sourceCarrier, targetCarrier, false, ta, seen); err == nil {
+					helpers = append(helpers, other...)
+				}
+			}
+		}
 	}
 	return helpers, err
 }
