@@ -284,14 +284,20 @@ func TestStreamEndsAlone(t *testing.T) {
 
 // TestConnectionFailureEndsEveryStream checks that when the connection fails
 // every stream waiting on it returns an error instead of waiting forever, and
-// that later sends and receives fail too.
+// that later sends and receives fail too, even while the error handler waits.
 func TestConnectionFailureEndsEveryStream(t *testing.T) {
 	svc := &service{}
 	dials := &countingConn{}
-	var connectionErrors atomic.Int32
-	c := newClient(t, svc, dials, jsonrpc.WithErrorHandler(func(_ context.Context, kind jsonrpc.StreamErrorType, _ error, _ *jsonrpc.RawResponse) {
+	resumeHandler := make(chan struct{})
+	releaseHandler := sync.OnceFunc(func() {
+		close(resumeHandler)
+	})
+	defer releaseHandler()
+	connectionErrors := make(chan error, 1)
+	c := newClient(t, svc, dials, jsonrpc.WithErrorHandler(func(_ context.Context, kind jsonrpc.StreamErrorType, err error, _ *jsonrpc.RawResponse) {
 		if kind == jsonrpc.StreamErrorConnection {
-			connectionErrors.Add(1)
+			<-resumeHandler
+			connectionErrors <- err
 		}
 	}))
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -329,8 +335,14 @@ func TestConnectionFailureEndsEveryStream(t *testing.T) {
 			t.Errorf("stream %d: recv after the connection failed succeeded", i)
 		}
 	}
-	if n := connectionErrors.Load(); n == 0 {
-		t.Error("the connection failure was not reported")
+	releaseHandler()
+	select {
+	case err := <-connectionErrors:
+		if err == nil {
+			t.Error("the connection failure report has no error")
+		}
+	case <-ctx.Done():
+		t.Fatal("the connection failure was not reported")
 	}
 	for i, stream := range opened {
 		if err := stream.Close(); err != nil && !errors.Is(err, net.ErrClosed) {
