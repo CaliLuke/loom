@@ -17,7 +17,7 @@ type contractVacuum struct {
 	ruleset string
 }
 
-const vacuumVersion = "v0.36.2"
+const vacuumVersion = "v0.39.3"
 
 func installContractVacuum(t *testing.T) contractVacuum {
 	t.Helper()

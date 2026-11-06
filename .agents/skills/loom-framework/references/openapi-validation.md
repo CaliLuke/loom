@@ -13,7 +13,7 @@ Use the existing suites and fixtures; do not default to the exported-design corp
 | Regex engine agreement | `ir/pattern_projection_test.go` compares Go regexp and unflagged Node ECMA matching on anchors, ASCII whitespace, literal classes/braces and quantified assertions. Unsupported syntax must return diagnostics. |
 | Discriminator semantics | `ir/discriminator_metadata_test.go` checks admission and URI references; v3 discriminator tests cover both targets, required controls, nested/reusable occurrences and fallback-only graph edges. The bounded Lean model records the cross-field rule, not URI or engine correctness. |
 | Independent-process determinism | `requireIndependentRegeneration` invokes a new CLI process and compares exact JSON/YAML bytes for the nullable import. Export fixture snapshots are likewise compared across separate generator processes. |
-| Structural conformance | Libopenapi parses rendered JSON/YAML. Vacuum v0.36.2 lints both formats for the representative specimens, including the full 3.2 fixture. The gate requires success and verifies rejection of malformed documents; no crash is counted as a pass. |
+| Structural conformance | Libopenapi parses rendered JSON/YAML. Vacuum v0.39.3 lints both formats for the representative specimens, including the full 3.2 fixture. The gate requires success and verifies rejection of malformed documents; no crash is counted as a pass. |
 | Encoding admission | Shared IR rejects named `encoding` combined with positional `prefixEncoding` or `itemEncoding` at the same object. Direct metadata tests cover nested scopes and index aliases; rendered tests cover requests, successful responses and errors in both targets. |
 
 The existing `gojsonschema` dependency is used for the specimens' shared
@@ -32,7 +32,7 @@ external linting and process determinism explicit in the acceptance record.
 
 ## External lint gate
 
-`make openapi-contract` installs [Vacuum v0.36.2](https://github.com/daveshanley/vacuum/releases/tag/v0.36.2)
+`make openapi-contract` installs [Vacuum v0.39.3](https://github.com/daveshanley/vacuum/releases/tag/v0.39.3)
 into a temporary directory with the repository Go toolchain. Its released module
 requires `github.com/pb33f/libopenapi v0.42.3`, which includes
 [libopenapi PR #656](https://github.com/pb33f/libopenapi/pull/656).
@@ -51,6 +51,16 @@ tests remain in place. No structural schema rule is disabled.
 Other controls remove required document and device-flow fields, introduce an
 invalid parameter location or schema type, and reintroduce conflicting nested
 encodings. Assertions require the relevant rule diagnostic, not just process failure.
+
+Vacuum v0.39.3 resolves fragment-only OpenAPI 3.2 security requirement URIs
+([upstream #1044](https://github.com/daveshanley/vacuum/issues/1044)).
+Document-prefixed URIs that resolve through `$self` still fail its security rule,
+as tracked by [upstream #1053](https://github.com/daveshanley/vacuum/issues/1053).
+The external-reference identity specimen remains blocked by that defect; neither
+this version update nor ordinary gate success waives its zero-error obligation.
+Keep the authored URI and the security rule intact. The standalone fragment,
+absolute, relative and missing-target controls distinguish the released fix from
+the remaining limitation.
 
 Redocly 2.62.1 crashed on the full 3.2 specimen before linting. The replacement
 exposed an invalid combination of named and positional nested encodings in that
