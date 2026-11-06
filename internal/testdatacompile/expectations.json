@@ -210,19 +210,19 @@
     "stage": "dsl"
   },
   "expr/EndpointUnionCookie": {
-    "contains": "service \"Service\" HTTP endpoint \"Method\": cookie \"filter\" must be primitive",
+    "contains": "service \"Service\" HTTP endpoint \"Method\": cookie \"filter\": unions have no parameter codec",
     "phase": "gen",
     "reason": "intentional validation failure",
     "stage": "dsl"
   },
   "expr/EndpointUnionHeader": {
-    "contains": "service \"Service\" HTTP endpoint \"Method\": header \"filter\" must be primitive or array",
+    "contains": "service \"Service\" HTTP endpoint \"Method\": header \"filter\": unions have no parameter codec",
     "phase": "gen",
     "reason": "intentional validation failure",
     "stage": "dsl"
   },
   "expr/EndpointUnionQueryParam": {
-    "contains": "service \"Service\" HTTP endpoint \"Method\": path parameter filter cannot be an object, path parameter types must be primitive, array or map (query string only)",
+    "contains": "service \"Service\" HTTP endpoint \"Method\": query \"filter\": unions have no parameter codec",
     "phase": "gen",
     "reason": "intentional validation failure",
     "stage": "dsl"
