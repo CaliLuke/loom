@@ -66,6 +66,7 @@ func Plan(source *expr.AttributeExpr, fieldName func(string) string, schema, clo
 	target := expr.DupAtt(source)
 	request := expr.ValuePlanRequest{Target: target, Codec: expr.ValueCodecJSON, Use: expr.ValuePlanDocumentation}
 	seen := make(map[*expr.AttributeExpr]bool)
+	variants := make(map[string]expr.UserType)
 	var walk func(*expr.AttributeExpr)
 	walk = func(att *expr.AttributeExpr) {
 		if seen[att] {
@@ -73,7 +74,7 @@ func Plan(source *expr.AttributeExpr, fieldName func(string) string, schema, clo
 		}
 		seen[att] = true
 		if ut, ok := att.Type.(expr.UserType); ok {
-			walk(ut.Attribute())
+			walk(occurrenceVariant(att, ut, variants).Attribute())
 			return
 		}
 		if union := expr.AsUnion(att.Type); union != nil {
@@ -92,11 +93,8 @@ func Plan(source *expr.AttributeExpr, fieldName func(string) string, schema, clo
 			return
 		}
 		if object := expr.AsObject(att.Type); object != nil {
-			if schema && closedObjects {
-				if att.Meta == nil {
-					att.Meta = make(expr.MetaExpr)
-				}
-				att.Meta["openapi:additionalProperties"] = []string{"false"}
+			if schema && closedObjects && att.ObjectOpenness() == expr.ObjectOpennessUnset {
+				att.CloseObject()
 			}
 			for _, field := range *object {
 				request.Fields = append(request.Fields, matchingFieldPolicy(att, field, fieldName, schema))
@@ -181,4 +179,25 @@ func (u *Union) candidates(b *strings.Builder) {
 		fmt.Fprintf(b, "value%d = v\nreturn true, nil\n}},\n", index)
 	}
 	b.WriteString("}\n")
+}
+
+// occurrenceVariant gives a named-type occurrence that authors its own
+// openness a private copy of the type carrying that policy, as OpenAPI
+// selects a component variant for it. Copies are shared per type and policy,
+// so recursive occurrences reach the same variant. target is the plan's own
+// copy of the source graph, so the authored design is never changed.
+func occurrenceVariant(att *expr.AttributeExpr, ut expr.UserType, variants map[string]expr.UserType) expr.UserType {
+	policy := att.ObjectOpenness()
+	if policy == expr.ObjectOpennessUnset || policy == ut.Attribute().ObjectOpenness() {
+		return ut
+	}
+	key := fmt.Sprintf("%s/%s/%d", ut.ID(), ut.Name(), policy)
+	variant, ok := variants[key]
+	if !ok {
+		variant = ut.Dup(expr.DupAtt(ut.Attribute()))
+		expr.CopyObjectOpenness(variant.Attribute(), att)
+		variants[key] = variant
+	}
+	att.Type = variant
+	return variant
 }

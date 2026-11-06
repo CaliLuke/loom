@@ -187,25 +187,7 @@ func (e *canonicalSchemaEncoder) writeTypeShape(att *expr.AttributeExpr, t expr.
 	case expr.ObjectKind:
 		e.writeObject(att, expr.AsObject(t), closeObjects, input)
 	case expr.UserTypeKind:
-		original := t.(expr.UserType).Attribute()
-		base := *original
-		derived := false
-		if att.Nullable && !expr.IsNullable(&base) {
-			base.Nullable = true
-			derived = true
-		}
-		if att.Title != "" && att.Title != base.Title {
-			base.Title = att.Title
-		}
-		if hasUserTypeValidationOverlay(att, &base) {
-			base.Validation = att.Validation
-			derived = true
-		}
-		underlying := e.childInput(original, input.occurrence.Underlying())
-		if derived {
-			underlying = e.captureInput(&base)
-		}
-		e.writeAttribute(&base, closeObjects, underlying)
+		e.writeUserTypeShape(att, t.(expr.UserType), closeObjects, input)
 	case expr.ResultTypeKind:
 		e.writeString("result-type")
 		resultType := t.(*expr.ResultTypeExpr)
@@ -265,11 +247,14 @@ func (e *canonicalSchemaEncoder) writeObject(att *expr.AttributeExpr, object *ex
 		member := members[name]
 		e.writeAttribute(member, closeObjects, e.childInput(member, occurrences[name]))
 	}
-	explicitAdditionalProperties := openapi.AdditionalPropertiesFromExpr(att.Meta)
-	e.writeBool(explicitAdditionalProperties == nil && closeObjects)
-	if explicit, ok := explicitAdditionalProperties.(bool); ok {
+	// Encode the emitted policy. API closed-object mode renders an explicitly
+	// closed object exactly like an unset one, so both share the encoding the
+	// unset object already had; all other encodings are unchanged.
+	openness := att.ObjectOpenness()
+	e.writeBool(closeObjects && openness != expr.ObjectOpen)
+	if openness == expr.ObjectClosed && !closeObjects {
 		e.writeString("explicit-additional-properties")
-		e.writeBool(explicit)
+		e.writeBool(false)
 	} else {
 		e.writeString("implicit-additional-properties")
 	}
@@ -481,4 +466,35 @@ func compactSortedStrings(values []string) []string {
 
 func boolPtr(v bool) *bool {
 	return &v
+}
+
+// writeUserTypeShape encodes a named-type occurrence as the component it
+// references: the type's attribute with the occurrence's nullability, title,
+// validation overlay and openness policy applied.
+func (e *canonicalSchemaEncoder) writeUserTypeShape(att *expr.AttributeExpr, named expr.UserType, closeObjects bool, input schemaFingerprintInput) {
+	original := named.Attribute()
+	base := *original
+	derived := false
+	if att.Nullable && !expr.IsNullable(&base) {
+		base.Nullable = true
+		derived = true
+	}
+	if att.Title != "" && att.Title != base.Title {
+		base.Title = att.Title
+	}
+	if hasUserTypeValidationOverlay(att, &base) {
+		base.Validation = att.Validation
+		derived = true
+	}
+	if policy := att.ObjectOpenness(); policy != expr.ObjectOpennessUnset && policy != base.ObjectOpenness() {
+		// The occurrence references a component variant with its own policy.
+		base.Meta = base.Meta.Dup()
+		expr.CopyObjectOpenness(&base, att)
+		derived = true
+	}
+	underlying := e.childInput(original, input.occurrence.Underlying())
+	if derived {
+		underlying = e.captureInput(&base)
+	}
+	e.writeAttribute(&base, closeObjects, underlying)
 }

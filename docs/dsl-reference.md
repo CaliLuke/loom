@@ -491,6 +491,34 @@ cycles in `Extend` ancestry are rejected. Composition owns inherited fields, so
 method customizations cannot mutate a shared base or another method. Automatic
 views and transport validation use the complete composed shape.
 
+A closed base (`Meta("openapi:additionalProperties", "false")`) constrains every
+member it does not declare, as a JSON Schema `allOf` subschema with
+`additionalProperties: false` does. The derived type inherits the closure. It
+can refine members the base declares and can add members that are not on the
+JSON wire (`struct:tag:json` `"-"`). A derived type or a peer base that
+declares any other JSON member is a design error, and so is reopening the
+object with `"true"`. To add members, leave the base open and close the derived
+type:
+
+```go
+var Base = Type("Base", func() {
+    Attribute("id", String)
+})
+
+var Record = Type("Record", func() {
+    Extend(Base)
+    Attribute("note", String)
+    Meta("openapi:additionalProperties", "false")
+})
+```
+
+A base reached through an alias (`Type("Alias", Base)`) carries the policy of
+`Base`; a closed link anywhere in the alias chain keeps the base closed.
+
+Earlier releases flattened a closed base and closed the composed object, which
+silently admitted the derived members. Designs that extend a closed base with new
+members must move the closure to the derived type as shown above.
+
 Regenerate code after upgrading. Designs that relied on the former last-base
 field overwrite must express compatible refinements or resolve their conflicts.
 The existing named-alias policy for empty domains is unchanged; the structural
@@ -874,6 +902,7 @@ The most commonly used metadata keys are:
 | `openapi:mediaType:extension:<x-name>` | Body attribute, response | Add OpenAPI extension JSON to that media type |
 | `openapi:response:extension:<x-name>` | Response | Add OpenAPI extension JSON to that response |
 | `openapi:header:extension:<x-name>` | Response header attribute | Add OpenAPI extension JSON to that header |
+| `openapi:additionalProperties` | Type, payload, result, attribute using a named type | `"false"` closes the object; `"true"` keeps it open under `openapi:closed-objects` and cannot reopen a closed type. Other values, and the key on maps, arrays, unions or scalars, are rejected |
 | `openapi:closed-objects` | API | Close object schemas by default |
 | `openapi:readOnly` / `openapi:writeOnly` | Attribute | Mark request/response-only fields |
 | `openapi:deprecated` | Attribute | Mark a schema field deprecated |
@@ -1109,6 +1138,22 @@ schemas are emitted as closed JSON Schema objects with
 `additionalProperties`, and union wrapper schemas use
 `unevaluatedProperties: false` so `oneOf` branches and discriminators remain
 valid OpenAPI 3.1 / JSON Schema 2020-12.
+An object with `Meta("openapi:additionalProperties", "true")` stays open in this
+mode. Earlier releases closed it anyway.
+
+The policy can also be set on one use of a named type. That use gets its own
+OpenAPI component with the chosen policy, and other uses keep the type's
+policy:
+
+```go
+Attribute("draft", Record, func() {
+    Meta("openapi:additionalProperties", "true")
+})
+```
+
+An attribute or alias cannot set `"true"` on a type that is closed. For an
+attribute-level `"false"`, earlier releases emitted `additionalProperties:
+false` beside the `$ref`, which rejected every member.
 
 Use the `ReadOnly()` and `WriteOnly()` helpers instead of spelling the metadata
 directly when marking attributes:

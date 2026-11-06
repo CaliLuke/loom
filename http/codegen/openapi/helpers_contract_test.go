@@ -18,12 +18,6 @@ func TestMetadataHelperContracts(t *testing.T) {
 		require.False(t, MustGenerate(expr.MetaExpr{"openapi:generate": {"false"}}))
 	})
 
-	t.Run("additional properties recognizes only explicit false", func(t *testing.T) {
-		require.Nil(t, AdditionalPropertiesFromExpr(nil))
-		require.Equal(t, false, AdditionalPropertiesFromExpr(expr.MetaExpr{"openapi:additionalProperties": {"false"}}))
-		require.Nil(t, AdditionalPropertiesFromExpr(expr.MetaExpr{"openapi:additionalProperties": {"true"}}))
-	})
-
 	t.Run("closed object mode requires explicit true", func(t *testing.T) {
 		require.False(t, ClosedObjectModeFromExpr(nil))
 		require.True(t, ClosedObjectModeFromExpr(expr.MetaExpr{"openapi:closed-objects": {"true"}}))

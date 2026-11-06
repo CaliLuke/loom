@@ -56,9 +56,9 @@ func composeInheritedMetadata(
 	local := attribute.Meta
 	values := base.Meta[key]
 	identity := compositionIdentityMeta(key)
-	if key == "openapi:additionalProperties" {
-		if !allowsAdditionalProperties(base) {
-			if _, explicit := local[key]; explicit && allowsAdditionalProperties(attribute) || attribute.removedMeta[key] {
+	if key == objectOpennessMeta {
+		if base.ObjectOpenness() == ObjectClosed {
+			if attribute.reopensClosedObject() {
 				compositionError(attribute, "%s: cannot reopen inherited closed object from %s", path, compositionSource(base))
 				return false
 			}
@@ -130,7 +130,7 @@ func validateCompositionJSONTags(attribute *AttributeExpr, bases []*AttributeExp
 func compositionIdentityMeta(key string) bool {
 	return strings.HasPrefix(key, "struct:") || strings.HasPrefix(key, "security:") ||
 		strings.HasPrefix(key, "oneof:") || key == "rpc:tag" || key == "proto:tag:json" ||
-		key == "openapi:additionalProperties" || key == "openapi:contentEncoding" || key == "openapi:contentMediaType" || key == "openapi:format"
+		key == objectOpennessMeta || key == "openapi:contentEncoding" || key == "openapi:contentMediaType" || key == "openapi:format"
 }
 
 func compositionDocumentationMeta(key string) bool {
@@ -152,7 +152,7 @@ func equalCompositionMeta(key string, left, right []string) bool {
 		return encodingmeta.GoType(a) == encodingmeta.GoType(b)
 	case "struct:field:proto":
 		return encodingmeta.ProtoType(a) == encodingmeta.ProtoType(b)
-	case "rpc:tag", "struct:pkg:path", "openapi:additionalProperties", "openapi:contentEncoding", "openapi:contentMediaType", "openapi:format":
+	case "rpc:tag", "struct:pkg:path", objectOpennessMeta, "openapi:contentEncoding", "openapi:contentMediaType", "openapi:format":
 		av, ap := a.Last(key)
 		bv, bp := b.Last(key)
 		return ap == bp && av == bv

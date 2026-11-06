@@ -10,6 +10,13 @@ var OpenAPIClosedObjectsDSL = func() {
 		Required("street")
 	})
 
+	var OpenExtras = Type("ClosedObjectsOpenExtras", func() {
+		Attribute("tag", String, func() {
+			Example("t")
+		})
+		Meta("openapi:additionalProperties", "true")
+	})
+
 	var UnionAlpha = Type("ClosedObjectsUnionAlpha", func() {
 		Attribute("alpha", String, func() {
 			Example("a")
@@ -40,6 +47,10 @@ var OpenAPIClosedObjectsDSL = func() {
 					Example("")
 				})
 				Attribute("address", Nested)
+				Attribute("extras", OpenExtras)
+				Attribute("open_address", Nested, func() {
+					Meta("openapi:additionalProperties", "true")
+				})
 				Required("name", "address")
 			})
 			HTTP(func() {

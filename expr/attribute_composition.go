@@ -161,17 +161,14 @@ func (c *designComposer) object(attribute *AttributeExpr, bases []*AttributeExpr
 		return
 	}
 	for _, base := range bases {
-		if allowsAdditionalProperties(base) {
+		if base.effectiveObjectOpenness().AdmitsUndeclared() {
 			continue
 		}
-		if _, explicit := attribute.Meta["openapi:additionalProperties"]; explicit && allowsAdditionalProperties(attribute) || attribute.removedMeta["openapi:additionalProperties"] {
+		if attribute.reopensClosedObject() {
 			compositionError(attribute, "%s: cannot reopen inherited closed object from %s", path, compositionSource(base))
 			return
 		}
-		if attribute.Meta == nil {
-			attribute.Meta = make(MetaExpr)
-		}
-		attribute.Meta["openapi:additionalProperties"] = []string{"false"}
+		attribute.CloseObject()
 	}
 	// Every consumer owns its inherited fields, including nested mutable data.
 	fields := &Object{}
@@ -201,6 +198,9 @@ func (c *designComposer) object(attribute *AttributeExpr, bases []*AttributeExpr
 		}
 		fields.Set(name, field)
 	}
+	if !closedBasesDeclare(attribute, bases, fields, path) {
+		return
+	}
 	if named, ok := attribute.Type.(UserType); ok && named != Empty {
 		owned := named.Dup(c.copyAttribute(named.Attribute(), c.owner))
 		owned.Attribute().Type = fields
@@ -214,6 +214,33 @@ func (c *designComposer) object(attribute *AttributeExpr, bases []*AttributeExpr
 		}
 	}
 	c.retainConstraints(attribute, bases, path)
+}
+
+// closedBasesDeclare applies each closed base per source: the base rejects
+// every wire key it does not declare, including keys contributed by the
+// derived type or by peer bases. The derived type itself semantically declares
+// all composed fields, so its own closure never forbids an inherited field.
+func closedBasesDeclare(attribute *AttributeExpr, bases []*AttributeExpr, fields *Object, path string) bool {
+	for _, base := range bases {
+		if base.effectiveObjectOpenness() != ObjectClosed {
+			continue
+		}
+		declared := make(map[string]bool)
+		if object := AsObject(base.Type); object != nil {
+			for _, field := range *object {
+				declared[JSONFieldName(ElementName(field.Name), field.Attribute)] = true
+			}
+		}
+		for _, field := range *fields {
+			name := JSONFieldName(ElementName(field.Name), field.Attribute)
+			if name != "-" && !declared[name] {
+				compositionError(attribute, "%s: closed Extend base %s does not declare %q; leave the base open and close the derived type instead",
+					path, compositionSource(base), name)
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func inheritedCompositionFields(bases []*AttributeExpr) (map[string][]*AttributeExpr, []string) {

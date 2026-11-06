@@ -131,10 +131,7 @@ func httpRequestBody(a *HTTPEndpointExpr) *AttributeExpr {
 			ut.AddMeta("openapi:typename", m...)
 		}
 
-		// Remember additionalProperties.
-		if m, ok := t.Attribute().Meta["openapi:additionalProperties"]; ok {
-			ut.AddMeta("openapi:additionalProperties", m...)
-		}
+		CopyObjectOpenness(ut.Attribute(), t.Attribute())
 	}
 	if m, ok := payload.Meta.Last("openapi:typename"); ok {
 		ut.AddMeta("openapi:typename", m)
@@ -365,9 +362,7 @@ func copyHTTPResponseBodyMeta(userType *UserTypeExpr, attr *AttributeExpr) {
 		if m, ok := t.Attribute().Meta["openapi:typename:canonical"]; ok {
 			userType.AddMeta("openapi:typename:canonical", m...)
 		}
-		if m, ok := t.Attribute().Meta["openapi:additionalProperties"]; ok {
-			userType.AddMeta("openapi:additionalProperties", m...)
-		}
+		CopyObjectOpenness(userType.Attribute(), t.Attribute())
 	}
 	if m, ok := attr.Meta.Last("openapi:typename"); ok {
 		userType.AddMeta("openapi:typename", m)

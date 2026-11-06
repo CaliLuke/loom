@@ -37,6 +37,7 @@ func (a *Analyzer) analyzeUserTypeOverlay(attr *expr.AttributeExpr, t expr.UserT
 		return nil, false
 	}
 	baseAttr := &expr.AttributeExpr{Type: t, Meta: userTypeNamingMeta(attr.Meta)}
+	expr.CopyObjectOpenness(baseAttr, attr)
 	base := a.analyzeUserType(baseAttr, t, context, noRef)
 	schema := &Schema{AllOf: []*Schema{base}}
 	if base.Ref != "" {
@@ -155,8 +156,11 @@ func hasUserTypeConstraintOverlay(attr *expr.AttributeExpr, userType expr.UserTy
 		return true
 	}
 	for key, values := range attr.Meta {
+		// An occurrence's openness selects a component variant through
+		// componentAttribute; it is never an annotation beside the reference.
 		if key == "openapi:typename" || key == "openapi:typename:canonical" || key == expr.ViewMetaKey ||
-			key == projectedResultMetaKey || key == "type:generate:force" || strings.HasPrefix(key, "struct:") {
+			key == projectedResultMetaKey || key == "type:generate:force" || strings.HasPrefix(key, "struct:") ||
+			expr.IsObjectOpennessMeta(key) {
 			continue
 		}
 		if !reflect.DeepEqual(values, base.Meta[key]) {

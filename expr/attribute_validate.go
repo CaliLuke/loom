@@ -51,6 +51,7 @@ func (v *attributeValidator) validate(a *AttributeExpr, ctx string, parent eval.
 	verr.Merge(a.validatePresence(ctx, parent))
 	verr.Merge(a.validateStructTagKeys(ctx, parent))
 	verr.Merge(validateStructMeta(ctx, a.Meta, parent))
+	verr.Merge(a.validateObjectOpenness(ctx, parent))
 	verr.Merge(v.validateChildTypes(a, ctx, parent))
 	verr.Merge(a.validateViewReference(ctx, parent))
 

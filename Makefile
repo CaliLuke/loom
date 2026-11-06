@@ -35,7 +35,7 @@ PROTOC_GEN_GO_GRPC_VERSION?=v1.6.2
 PROTOC_BIN=protoc
 PROTOC_DEST=$(GOBIN_DIR)/$(PROTOC_BIN)
 
-.PHONY: all all-tests ci ci-local clean coverage-baseline coverage-ratchet depend depend-test depend-lint fmt install-hooks lint lint-docs lint-filesize lint-gofmt lint-json-v2 lint-legacy-middleware lint-namescope lint-test-sources lint-toolchain test test-ci test-ci-lane test-ci-merge test-race test-workflow-postgres test-pulse-redis test-testdata-compile integration-test integration-test-fast generated-code-quality openapi-contract value-contract-proof value-contract-conformance build-loom build-loom-cached loom-local loom-remote loom-status release release-promote
+.PHONY: all all-tests ci ci-local clean coverage-baseline coverage-ratchet depend depend-test depend-lint fmt install-hooks lint lint-docs lint-filesize lint-gofmt lint-json-v2 lint-legacy-middleware lint-namescope lint-object-openness lint-test-sources lint-toolchain test test-ci test-ci-lane test-ci-merge test-race test-workflow-postgres test-pulse-redis test-testdata-compile integration-test integration-test-fast generated-code-quality openapi-contract value-contract-proof value-contract-conformance build-loom build-loom-cached loom-local loom-remote loom-status release release-promote
 .NOTPARALLEL: release ci-local
 
 # Only list test and build dependencies
@@ -128,6 +128,7 @@ ifneq ($(GOOS),windows)
 	@bash ./scripts/lint_json_v2.sh || (echo "^ - JSON v2 lint errors!" && echo && exit 1)
 	@bash ./scripts/lint_legacy_middleware.sh || (echo "^ - legacy middleware lint errors!" && echo && exit 1)
 	@bash ./scripts/lint_name_scope.sh || (echo "^ - name-scope lint errors!" && echo && exit 1)
+	@bash ./scripts/lint_object_openness.sh || (echo "^ - object openness lint errors!" && echo && exit 1)
 	@GOLANGCI_LINT="$(GOLANGCI_LINT)" GOLANGCI_LINT_VERSION="$(GOLANGCI_LINT_VERSION)" bash ./scripts/lint_toolchain.sh || (echo "^ - toolchain lint errors!" && echo && exit 1)
 	@bash ./scripts/lint_ci_contract.sh || (echo "^ - CI contract lint errors!" && echo && exit 1)
 	@go run ./scripts/docscheck || (echo "^ - documentation lint errors!" && echo && exit 1)
@@ -155,6 +156,9 @@ lint-legacy-middleware:
 
 lint-namescope:
 	@bash ./scripts/lint_name_scope.sh
+
+lint-object-openness:
+	@bash ./scripts/lint_object_openness.sh
 
 lint-toolchain:
 	@GOLANGCI_LINT="$(GOLANGCI_LINT)" GOLANGCI_LINT_VERSION="$(GOLANGCI_LINT_VERSION)" bash ./scripts/lint_toolchain.sh

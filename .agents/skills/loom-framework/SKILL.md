@@ -109,6 +109,23 @@ consumer validation.
   Keep the reusable-reference model and cross-kind round-trip tests aligned.
 
 
+- `expr.AttributeExpr.ObjectOpenness` is the only reader of authored object
+  openness; `CloseObject` and body copies are its only writers. Value admission,
+  examples, value plans, untagged validation, representation and the OpenAPI
+  analyzer and hash consume it; `scripts/lint_object_openness.sh` rejects other
+  uses of the metadata key. Unset objects close under API closed-objects mode;
+  explicit open objects do not. A base's effective policy follows aliases.
+  `Extend` applies a closed base to its own members: every closed base must
+  declare each composed wire key, and the derived type inherits the closure.
+  A named-type occurrence's own policy is resolved where its representation
+  is chosen, after finalization: the OpenAPI analyzer merges it through
+  `componentAttribute` into a variant component (never an overlay annotation)
+  and hashes it into the parent, and unionjson projects a per-type, per-policy
+  copy of its private target. Do not copy types for it during composition;
+  copies there miss later constraint and result-type finalization. Policy
+  belongs on object schemas, never beside a `$ref`. Keep the object openness
+  model aligned.
+
 - OpenAPI import normalizes reference assertions with the target's carrier
   context, retaining separate reference identity and local constraints. Persist
   rejected intersections for planner and renderer admission. Normalize effective

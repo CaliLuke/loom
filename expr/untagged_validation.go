@@ -54,7 +54,7 @@ func validateUntaggedShape(att *AttributeExpr, ctx, branch string, parent eval.E
 	if object == nil {
 		return
 	}
-	if additional, ok := att.Meta.Last("openapi:additionalProperties"); ok && additional != "false" {
+	if att.ObjectOpenness() == ObjectOpen {
 		errors.Add(parent, "%suntagged OneOf branch %q must use the default open object or openapi:additionalProperties false", ctx, branch)
 	}
 	names := make(map[string]bool)

@@ -862,6 +862,23 @@ func TestRenderedSpecClosedObjectModeClosesObjectsAndUsesUnevaluatedPropertiesFo
 	requirePattern(`(?m)unevaluatedProperties: false`)
 }
 
+// TestRenderedSpecClosedObjectModeKeepsExplicitOpenObjects checks that
+// closed-object emission closes only objects without an authored policy.
+func TestRenderedSpecClosedObjectModeKeepsExplicitOpenObjects(t *testing.T) {
+	spec := renderYAMLOpenAPI(t, testdata.OpenAPIClosedObjectsDSL)
+	parsed, err := libopenapi.NewDocument([]byte(spec))
+	require.NoError(t, err)
+	model, err := parsed.BuildV3Model()
+	require.NoError(t, err)
+	schemas := model.Model.Components.Schemas
+
+	closed := schemas.GetOrZero("ClosedObjectsNested").Schema().AdditionalProperties
+	require.NotNil(t, closed)
+	require.True(t, closed.IsB())
+	require.False(t, closed.B)
+	require.Nil(t, schemas.GetOrZero("ClosedObjectsOpenExtras").Schema().AdditionalProperties)
+}
+
 func validateOpenAPI(t *testing.T, b []byte) {
 	validateOpenAPIVersion(t, b, openapiv3.OpenAPIVersion)
 }

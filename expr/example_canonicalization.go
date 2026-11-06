@@ -213,7 +213,7 @@ func exampleMatchesObject(attribute *AttributeExpr, object *Object, example map[
 		fields[field.Name] = field.Attribute
 		fields[wireName] = field.Attribute
 	}
-	allowsUnknown := allowsAdditionalProperties(attribute)
+	allowsUnknown := attribute.ObjectOpenness().AdmitsUndeclared()
 	if len(fields) == 0 {
 		return len(example) == 0 || allowsUnknown
 	}

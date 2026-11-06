@@ -367,9 +367,19 @@ const DefaultProtoc = expr.DefaultProtoc
 //	    Meta("openapi:extension:x-api", `{"foo":"bar"}`)
 //	})
 //
-// - "openapi:additionalProperties" sets the OpenAPI additionalProperties field.
-// The value can be true or false. Defaults to true. Applicable to types (including
-// embedded Payload and Result definitions).
+// - "openapi:additionalProperties" sets whether an object admits members it does
+// not declare. The value must be "true" or "false", and the attribute must be an
+// object; anything else is a design error. Without it, objects are open. "false"
+// closes the object: Loom rejects undeclared members during value admission and
+// emits additionalProperties false.
+// An explicit "true" keeps the object open even when the API sets
+// "openapi:closed-objects". Applicable to types (including embedded Payload and
+// Result definitions) and to attributes that use a named type, where the policy
+// applies to that use only. An alias or attribute cannot set "true" on a closed
+// type. Extend applies a closed base, including one reached through aliases, to
+// its own members, as JSON Schema allOf does: a type that extends a closed base
+// cannot declare a JSON member the base does not declare, and cannot reopen the
+// object. To add members, leave the base open and close the derived type.
 //
 //	var Foo = Type("Foo", func() {
 //	    Attribute("name", String)
@@ -388,7 +398,8 @@ const DefaultProtoc = expr.DefaultProtoc
 //
 // - "openapi:closed-objects" enables contract-oriented OpenAPI emission where
 // ordinary object schemas are closed by default. Applicable to the API only.
-// Explicit maps remain open.
+// Explicit maps and objects with "openapi:additionalProperties" "true" remain
+// open.
 //
 //	var _ = API("MyAPI", func() {
 //	    Meta("openapi:closed-objects", "true")

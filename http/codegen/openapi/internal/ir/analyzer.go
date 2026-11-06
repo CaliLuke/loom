@@ -225,18 +225,20 @@ func (a *Analyzer) analyzeSchema(attr *expr.AttributeExpr, context string, noref
 	return s
 }
 
-// Uniquify returns a stable unique component name.
+// Uniquify returns a stable unique component name. A name reserved for a
+// component still under analysis, such as the owner of a recursive variant,
+// counts as taken.
 func (a *Analyzer) Uniquify(name, fingerprint string) string {
-	if _, ok := a.schemas[name]; !ok {
+	if !a.componentNameTaken(name) {
 		return name
 	}
 	candidate := name + "_" + fingerprint[:16]
-	if _, ok := a.schemas[candidate]; !ok {
+	if !a.componentNameTaken(candidate) {
 		return candidate
 	}
 	for i := 2; ; i++ {
 		fallback := fmt.Sprintf("%s_%s_%d", name, fingerprint[:16], i)
-		if _, ok := a.schemas[fallback]; !ok {
+		if !a.componentNameTaken(fallback) {
 			return fallback
 		}
 	}
@@ -388,8 +390,16 @@ func (a *Analyzer) analyzeInlineObject(s *Schema, attr *expr.AttributeExpr, obj 
 			)
 		}
 	}
-	if a.closeObjects && openapi.AdditionalPropertiesFromExpr(attr.Meta) == nil {
+	// The policy belongs to the object schema itself. Beside a $ref it would
+	// see no properties and reject every member, so occurrences select a
+	// component variant instead (see expr ownOccurrenceOpenness).
+	switch attr.ObjectOpenness() {
+	case expr.ObjectClosed:
 		s.AdditionalProperties = &BoolOrSchema{Bool: boolPtr(false)}
+	case expr.ObjectOpennessUnset:
+		if a.closeObjects {
+			s.AdditionalProperties = &BoolOrSchema{Bool: boolPtr(false)}
+		}
 	}
 }
 
@@ -472,11 +482,6 @@ func (a *Analyzer) applySchemaAnnotations(s *Schema, attr *expr.AttributeExpr, n
 	)
 	a.applyDiscriminatorMetadata(s, attr.Meta, context)
 	applySchemaOpenAPIMetadata(s, attr.Meta)
-	if ap := openapi.AdditionalPropertiesFromExpr(attr.Meta); ap != nil {
-		if explicit, ok := ap.(bool); ok {
-			s.AdditionalProperties = &BoolOrSchema{Bool: boolPtr(explicit)}
-		}
-	}
 }
 
 func applyNullableSchema(schema *Schema) {
@@ -648,4 +653,10 @@ func toStringMap(val any) any {
 		panic(fmt.Errorf("openapi: %w", err))
 	}
 	return value
+}
+
+func (a *Analyzer) componentNameTaken(name string) bool {
+	_, analyzed := a.schemas[name]
+	_, reserved := a.schemaFingerprints[name]
+	return analyzed || reserved
 }

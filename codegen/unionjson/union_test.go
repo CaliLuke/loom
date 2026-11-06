@@ -57,3 +57,83 @@ func TestPlanOwnsRepresentationPolicy(t *testing.T) {
 	}
 	require.Empty(t, source.Type.(expr.UserType).Attribute().Meta, "projection must not mutate the authored type")
 }
+
+// TestPlanHonorsAuthoredOpenness checks that API closed-object mode closes only
+// objects without an authored policy, matching OpenAPI emission.
+func TestPlanHonorsAuthoredOpenness(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		meta   []string
+		closed bool
+		want   bool
+	}{
+		{"unset under API closed", nil, true, false},
+		{"explicit open under API closed", []string{"true"}, true, true},
+		{"explicit closed", []string{"false"}, false, false},
+		{"unset", nil, false, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			extras := &expr.AttributeExpr{Type: &expr.Object{{Name: "tag", Attribute: &expr.AttributeExpr{Type: expr.String}}}}
+			if tc.meta != nil {
+				extras.Meta = expr.MetaExpr{"openapi:additionalProperties": tc.meta}
+			}
+			branch := &expr.AttributeExpr{Type: &expr.UserTypeExpr{TypeName: "Branch", AttributeExpr: &expr.AttributeExpr{
+				Type: &expr.Object{{Name: "extras", Attribute: &expr.AttributeExpr{Type: &expr.UserTypeExpr{TypeName: "Extras", AttributeExpr: extras}}}},
+			}}}
+			plan, err := Plan(branch, expr.ElementName, true, tc.closed)
+			require.NoError(t, err)
+			shape, err := plan.JSONShape()
+			require.NoError(t, err)
+			matched, err := shape.Match([]byte(`{"extras":{"tag":"t","more":1}}`))
+			require.NoError(t, err)
+			require.Equal(t, tc.want, matched)
+		})
+	}
+}
+
+// TestPlanAppliesOccurrenceOpenness checks that a named-type occurrence's own
+// policy governs that occurrence only, including recursive occurrences.
+func TestPlanAppliesOccurrenceOpenness(t *testing.T) {
+	extras := &expr.UserTypeExpr{TypeName: "Extras", AttributeExpr: &expr.AttributeExpr{
+		Type: &expr.Object{{Name: "tag", Attribute: &expr.AttributeExpr{Type: expr.String}}},
+	}}
+	occurrence := func(policy string) *expr.AttributeExpr {
+		return &expr.AttributeExpr{Type: extras, Meta: expr.MetaExpr{"openapi:additionalProperties": {policy}}}
+	}
+	branch := &expr.AttributeExpr{Type: &expr.UserTypeExpr{TypeName: "Branch", AttributeExpr: &expr.AttributeExpr{Type: &expr.Object{
+		{Name: "open", Attribute: occurrence("true")},
+		{Name: "closed", Attribute: occurrence("false")},
+		{Name: "plain", Attribute: &expr.AttributeExpr{Type: extras}},
+	}}}}
+	node := &expr.UserTypeExpr{TypeName: "Node"}
+	node.AttributeExpr = &expr.AttributeExpr{Type: &expr.Object{
+		{Name: "id", Attribute: &expr.AttributeExpr{Type: expr.String}},
+		{Name: "next", Attribute: &expr.AttributeExpr{Type: node, Meta: expr.MetaExpr{"openapi:additionalProperties": {"false"}}}},
+	}}
+	for _, tc := range []struct {
+		name   string
+		source *expr.AttributeExpr
+		closed bool
+		wire   string
+		want   bool
+	}{
+		{"open occurrence under API closed", branch, true, `{"open":{"tag":"t","more":1}}`, true},
+		{"plain occurrence under API closed", branch, true, `{"plain":{"tag":"t","more":1}}`, false},
+		{"closed occurrence", branch, false, `{"closed":{"tag":"t","more":1}}`, false},
+		{"plain occurrence", branch, false, `{"plain":{"tag":"t","more":1}}`, true},
+		{"recursive root keeps type policy", &expr.AttributeExpr{Type: node}, false, `{"id":"a","more":1}`, true},
+		{"recursive occurrence", &expr.AttributeExpr{Type: node}, false, `{"next":{"id":"b","more":1}}`, false},
+		{"nested recursive occurrence", &expr.AttributeExpr{Type: node}, false, `{"next":{"next":{"id":"c","more":1}}}`, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			plan, err := Plan(tc.source, expr.ElementName, true, tc.closed)
+			require.NoError(t, err)
+			shape, err := plan.JSONShape()
+			require.NoError(t, err)
+			matched, err := shape.Match([]byte(tc.wire))
+			require.NoError(t, err)
+			require.Equal(t, tc.want, matched)
+		})
+	}
+	require.Empty(t, extras.Attribute().Meta, "projection must not mutate the authored type")
+}

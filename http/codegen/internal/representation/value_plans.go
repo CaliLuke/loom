@@ -197,10 +197,9 @@ func CustomCodec(attribute *expr.AttributeExpr) string {
 }
 
 func (b *httpValuePlanBuilder) object(attribute *expr.AttributeExpr, actual *expr.Object, context *codegen.AttributeContext, untaggedBranch, reachable, visited bool) error {
-	closed, _ := attribute.Meta.Last("openapi:additionalProperties")
 	if !visited {
 		b.request.Containers = append(b.request.Containers, expr.ValueContainerPolicy{
-			Target: attribute, RejectUnknownMembers: untaggedBranch && closed == "false",
+			Target: attribute, RejectUnknownMembers: untaggedBranch && attribute.ObjectOpenness() == expr.ObjectClosed,
 			PreserveAdditional: false,
 		})
 	}
