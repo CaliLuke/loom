@@ -23,6 +23,13 @@ type (
 		OriginalKey string
 		// Index is the winning field's original position, or -1 when absent.
 		Index int
+		// Synthesized marks a member that a typed object requires without
+		// declaring it. Its value is typed by the object's AdditionalAttributes
+		// and it has no original position.
+		Synthesized bool
+		// CaseStrict requires the exact wire name, as every member of an
+		// object with typed AdditionalAttributes does.
+		CaseStrict bool
 	}
 
 	// FieldFactsProvider supplies field facts from an immutable snapshot or the
@@ -103,7 +110,24 @@ func NewObjectFields(attribute *AttributeExpr) *ObjectFields {
 		facts.LayoutRequired = true
 		result.fields[name] = facts
 	}
+	result.addTypedMembers(attribute)
 	return result
+}
+
+// PhysicalMemberAttribute returns the attribute of the physical member that
+// facts select from the object a refers to: the declared field, or the typed
+// policy for a synthesized member.
+func (a *AttributeExpr) PhysicalMemberAttribute(facts ObjectFieldFacts) *AttributeExpr {
+	if facts.Synthesized {
+		if declaration := a.TypedObjectDeclaration(); declaration != nil {
+			return declaration.AdditionalAttributes
+		}
+		return nil
+	}
+	if object := AsObject(a.Type); object != nil && facts.Index >= 0 && facts.Index < len(*object) {
+		return (*object)[facts.Index].Attribute
+	}
+	return nil
 }
 
 // PrimitivePointer reports whether an optional primitive uses pointer storage
@@ -160,6 +184,18 @@ func (ma *MappedAttributeExpr) FieldFacts(name string) ObjectFieldFacts {
 		}
 		break
 	}
+	if declaration := ma.AttributeExpr.TypedObjectDeclaration(); declaration != nil {
+		facts.CaseStrict = true
+		if facts.Index < 0 {
+			for _, member := range ma.AttributeExpr.SynthesizedMembers() {
+				if member.Name == name {
+					facts.Synthesized, facts.ElementName, facts.OriginalKey = true, name, name
+					facts.HasDefault = member.Attribute.effectiveDefault() != nil
+					facts.NativePrimitive = primitivePointerEligible(member.Attribute)
+				}
+			}
+		}
+	}
 	return facts
 }
 
@@ -182,4 +218,25 @@ func fieldLayoutDeclaration(attribute *AttributeExpr) *AttributeExpr {
 		attribute = named.Attribute()
 	}
 	return nil
+}
+
+// addTypedMembers adds the synthesized members of a typed object after its
+// declared members and marks every member for exact name matching.
+func (o *ObjectFields) addTypedMembers(attribute *AttributeExpr) {
+	declaration := attribute.TypedObjectDeclaration()
+	if declaration == nil {
+		return
+	}
+	for _, member := range attribute.SynthesizedMembers() {
+		facts := o.FieldFacts(member.Name)
+		facts.Synthesized, facts.ElementName, facts.OriginalKey = true, member.Name, member.Name
+		facts.HasDefault = declaration.AdditionalAttributes.effectiveDefault() != nil
+		facts.NativePrimitive = primitivePointerEligible(declaration.AdditionalAttributes)
+		o.fields[member.Name] = facts
+		o.order = append(o.order, member.Name)
+	}
+	for name, facts := range o.fields {
+		facts.CaseStrict = true
+		o.fields[name] = facts
+	}
 }

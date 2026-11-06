@@ -36,6 +36,9 @@ func (g *compositionGraph) attribute(attribute *AttributeExpr, path string) {
 	attribute.compositionName = path
 	g.attributes = append(g.attributes, attribute)
 	g.typ(attribute.Type, path)
+	if additional := attribute.AdditionalAttributes; additional != nil {
+		g.attribute(additional, path+"[additional]")
+	}
 	for _, base := range attribute.Bases {
 		g.typ(base, base.Name())
 	}

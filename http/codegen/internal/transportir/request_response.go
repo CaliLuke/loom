@@ -414,26 +414,35 @@ func normalizeHTTPAttributeRecursive(
 		actual.KeyType = normalizeHTTPAttributeRecursive(actual.KeyType, occurrence.Key(), seen)
 		actual.ElemType = normalizeHTTPAttributeRecursive(actual.ElemType, occurrence.Element(), seen)
 	case *expr.Object:
-		members := occurrence.Members()
-		if len(members) != len(*actual) {
-			panic("invalid HTTP normalization: captured object shape differs")
-		}
-		object := make(expr.Object, len(*actual))
-		for i, named := range *actual {
-			if members[i].Name != named.Name {
-				panic("invalid HTTP normalization: captured object member differs")
-			}
-			object[i] = &expr.NamedAttributeExpr{
-				Name:      named.Name,
-				Attribute: normalizeHTTPAttributeRecursive(named.Attribute, members[i].Occurrence, seen),
-			}
-		}
-		attr.Type = &object
+		normalizeHTTPObject(attr, actual, occurrence, seen)
 	case *expr.Union:
 		// Unions are represented as first-class sum types; HTTP uses the same
 		// type for request and response bodies.
 	}
 	return attr
+}
+
+// normalizeHTTPObject normalizes the members of an object attribute, and its
+// typed AdditionalAttributes, against the captured occurrence.
+func normalizeHTTPObject(attr *expr.AttributeExpr, actual *expr.Object, occurrence expr.ValueOccurrence, seen map[string]struct{}) {
+	members := occurrence.Members()
+	if len(members) != len(*actual) {
+		panic("invalid HTTP normalization: captured object shape differs")
+	}
+	object := make(expr.Object, len(*actual))
+	for i, named := range *actual {
+		if members[i].Name != named.Name {
+			panic("invalid HTTP normalization: captured object member differs")
+		}
+		object[i] = &expr.NamedAttributeExpr{
+			Name:      named.Name,
+			Attribute: normalizeHTTPAttributeRecursive(named.Attribute, members[i].Occurrence, seen),
+		}
+	}
+	attr.Type = &object
+	if additional, ok := occurrence.Additional(); ok && attr.AdditionalAttributes != nil {
+		attr.AdditionalAttributes = normalizeHTTPAttributeRecursive(attr.AdditionalAttributes, additional, seen)
+	}
 }
 
 func hasCanonicalOpenAPITypeName(attr *expr.AttributeExpr, userType expr.UserType) bool {

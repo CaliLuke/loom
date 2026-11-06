@@ -4,7 +4,6 @@
       "CreateRequestBodyRequest": {
         "example": {
           "email": "user@example.test",
-          "id": "acct_123",
           "password": "hunter2"
         },
         "properties": {
@@ -28,8 +27,7 @@
       "CreateResponseBodyResponse": {
         "example": {
           "email": "user@example.test",
-          "id": "acct_123",
-          "password": "hunter2"
+          "id": "acct_123"
         },
         "properties": {
           "email": {
@@ -66,14 +64,12 @@
             "application/json": {
               "example": {
                 "email": "user@example.test",
-                "id": "acct_123",
                 "password": "hunter2"
               },
               "schema": {
                 "$ref": "#/components/schemas/CreateRequestBodyRequest",
                 "example": {
                   "email": "user@example.test",
-                  "id": "acct_123",
                   "password": "hunter2"
                 }
               }
@@ -87,15 +83,13 @@
               "application/json": {
                 "example": {
                   "email": "user@example.test",
-                  "id": "acct_123",
-                  "password": "hunter2"
+                  "id": "acct_123"
                 },
                 "schema": {
                   "$ref": "#/components/schemas/CreateResponseBodyResponse",
                   "example": {
                     "email": "user@example.test",
-                    "id": "acct_123",
-                    "password": "hunter2"
+                    "id": "acct_123"
                   }
                 }
               }

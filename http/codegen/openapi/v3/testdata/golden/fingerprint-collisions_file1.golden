@@ -60,7 +60,6 @@ components:
                     type: string
                     example: token-123
             example:
-                secret: secret
                 token: token-123
             required:
                 - token
@@ -110,11 +109,9 @@ components:
                 application/json:
                     schema:
                         example:
-                            secret: secret
                             token: token-123
                         $ref: '#/components/schemas/CreateResponseBodyResponse'
                     example:
-                        secret: secret
                         token: token-123
 tags:
     - name: collision

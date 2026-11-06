@@ -286,6 +286,9 @@ func validateGRPCMessageShapes(att *AttributeExpr, parent eval.Expression, verr 
 	}
 
 	if o := AsObject(att.Type); o != nil {
+		if att.TypedObjectDeclaration() != nil {
+			verr.Add(parent, "objects with AdditionalAttributes are not supported by gRPC")
+		}
 		for _, nat := range *o {
 			validateGRPCMessageShapes(nat.Attribute, parent, verr, seenUnions, seenAttrs)
 		}

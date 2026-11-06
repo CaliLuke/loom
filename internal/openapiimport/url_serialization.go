@@ -112,17 +112,22 @@ func (p *documentPlanner) urlShape(schema *Schema) httpencoding.Shape {
 		}
 		return httpencoding.UnsupportedShape
 	case "object":
-		representation, err := classifyObject(schema)
-		if err != nil {
-			return httpencoding.UnsupportedShape
-		}
-		if representation == objectFreeMap || representation == objectTypedMap {
+		switch classifyObject(schema) {
+		case objectFreeMap, objectTypedMap:
 			return httpencoding.Map
+		}
+		if objectAdmitsTypedMembers(schema, p.schemas) {
+			// URL serializations have no carrier for undeclared members,
+			// whether the object's own or inherited through allOf.
+			return httpencoding.UnsupportedShape
 		}
 		return httpencoding.Object
 	case "string", "number", "integer", "boolean":
 		return httpencoding.Scalar
 	default:
+		if len(schema.Bases) > 0 && objectAdmitsTypedMembers(schema, p.schemas) {
+			return httpencoding.UnsupportedShape
+		}
 		if len(schema.Bases) > 0 || len(schema.OneOf) > 0 {
 			return httpencoding.Object
 		}

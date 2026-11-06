@@ -9,6 +9,14 @@ import (
 	"github.com/CaliLuke/loom/internal/naming"
 )
 
+// resolvedExtra is the result of resolving one undeclared member of an object
+// value, or of checking an absent required undeclared member when name is
+// empty.
+type resolvedExtra struct {
+	name   string
+	result ValueResult
+}
+
 func (r *valueResolver) array(node *valueOccurrenceNode, raw any, complete bool) ValueResult {
 	input := reflect.ValueOf(raw)
 	if !input.IsValid() || (input.Kind() != reflect.Array && input.Kind() != reflect.Slice) {
@@ -63,20 +71,15 @@ func (r *valueResolver) object(node, owner *valueOccurrenceNode, raw any, comple
 		result.value.node.fields = append(result.value.node.fields, ResolvedField{Member: identity, Name: member.name, Value: child.value})
 		children = append(children, child)
 	}
-	var extraNames []string
-	for name := range entries {
-		if !known[name] {
-			extraNames = append(extraNames, name)
+	extras, failure := r.objectExtras(node, owner, entries, known, complete)
+	if failure != nil {
+		return *failure
+	}
+	for _, extra := range extras {
+		children = append(children, extra.result)
+		if extra.name != "" {
+			result.value.node.fields = append(result.value.node.fields, ResolvedField{Name: extra.name, Value: extra.result.value})
 		}
-	}
-	sort.Strings(extraNames)
-	if len(extraNames) > 0 && !owner.attribute.ObjectOpenness().AdmitsUndeclared() {
-		return valueFailure(ValueInvalid, "additional", "undeclared object members are not allowed")
-	}
-	for _, name := range extraNames {
-		child := valueAtPath(r.raw(node, entries[name]), name)
-		children = append(children, child)
-		result.value.node.fields = append(result.value.node.fields, ResolvedField{Name: name, Value: child.value})
 	}
 	return valueCombine(result, children, r.admission)
 }
@@ -292,4 +295,48 @@ func (r *valueResolver) objectMember(owner *valueOccurrenceNode, member valueOcc
 		}
 	}
 	return child
+}
+
+// objectExtras resolves the undeclared members of an object value against its
+// typed policy and checks the undeclared members it requires. It returns a
+// failure when the object admits no undeclared member.
+func (r *valueResolver) objectExtras(node, owner *valueOccurrenceNode, entries map[string]any, known map[string]bool, complete bool) ([]resolvedExtra, *ValueResult) {
+	var extraNames []string
+	for name := range entries {
+		if !known[name] {
+			extraNames = append(extraNames, name)
+		}
+	}
+	sort.Strings(extraNames)
+	if len(extraNames) > 0 && !owner.attribute.ObjectOpenness().AdmitsUndeclared() {
+		failure := valueFailure(ValueInvalid, "additional", "undeclared object members are not allowed")
+		return nil, &failure
+	}
+	extras := make([]resolvedExtra, 0, len(extraNames)+len(node.additionalRequired))
+	for _, name := range extraNames {
+		var child ValueResult
+		if node.additional != nil {
+			child = valueAtPath(r.resolve(node.additional, entries[name], complete, node.additional, nil), name)
+		} else {
+			child = valueAtPath(r.raw(node, entries[name]), name)
+		}
+		extras = append(extras, resolvedExtra{name: name, result: child})
+	}
+	if r.shapeNodes[owner] {
+		return extras, nil
+	}
+	for _, name := range node.additionalRequired {
+		if _, present := entries[name]; present {
+			continue
+		}
+		if complete {
+			extras = append(extras, resolvedExtra{result: valueAtPath(valueFailure(ValueInvalid, "required", "required member is absent"), name)})
+			continue
+		}
+		missing := r.success(node.additional, ValueAbsent, 0, nil)
+		identity := ValueIdentity{context: r.context.identity, graph: r.occurrence.graph, index: node.additional.id}
+		missing.outcome, missing.missing = ValueIncomplete, [][]ValueIdentity{{identity}}
+		extras = append(extras, resolvedExtra{result: valueAtPath(missing, name)})
+	}
+	return extras, nil
 }

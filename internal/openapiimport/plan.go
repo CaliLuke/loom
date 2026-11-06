@@ -506,8 +506,7 @@ func (p *documentPlanner) schemaIsUntaggedShape(schema *Schema, named bool, acti
 			return false
 		}
 		if active[name] {
-			representation, err := classifyObject(declaration.Schema)
-			return err == nil && representation == objectStructured
+			return classifyObject(declaration.Schema) == objectStructured
 		}
 		active[name] = true
 		defer delete(active, name)
@@ -517,8 +516,7 @@ func (p *documentPlanner) schemaIsUntaggedShape(schema *Schema, named bool, acti
 		return schema.Items != nil && p.schemaIsUntaggedShape(schema.Items, false, active)
 	}
 	if schema.Type == "object" {
-		representation, err := classifyObject(schema)
-		if !named || err != nil || representation != objectStructured {
+		if !named || classifyObject(schema) != objectStructured {
 			return false
 		}
 		for _, property := range schema.Properties {

@@ -1,10 +1,18 @@
 package ir
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/openapi"
 )
+
+// usageOmittedMembersMeta lists the JSON names of the members that read/write
+// usage pruning removed from an object. The analyzer records it on the pruned
+// copy of the object attribute so that schemas, fingerprints and examples of
+// the pruned object can tell an omitted member from an undeclared one.
+const usageOmittedMembersMeta = "openapi:usage:omitted"
 
 func attributeForSchemaUsage(attr *expr.AttributeExpr, usage schemaUsage) *expr.AttributeExpr {
 	if attr == nil || attr.Type == expr.Empty || usage == schemaUsageNeutral {
@@ -44,6 +52,7 @@ func pruneUserTypeForSchemaUsage(attr *expr.AttributeExpr, userType expr.UserTyp
 		return false
 	}
 	seen[key] = struct{}{}
+	original := expr.AsObject(userType.Attribute().Type)
 	changed := pruneAttributeForSchemaUsage(userType.Attribute(), usage, seen)
 	delete(seen, key)
 	if !changed {
@@ -51,7 +60,7 @@ func pruneUserTypeForSchemaUsage(attr *expr.AttributeExpr, userType expr.UserTyp
 	}
 	clearUsageSpecificTypeMetadata(attr)
 	clearUsageSpecificTypeMetadata(userType.Attribute())
-	synchronizeRequiredAttributes(attr, userType.Attribute().Type)
+	synchronizeRequiredAttributes(attr, original, userType.Attribute())
 	clearAttributeExamples(attr)
 	clearAttributeExamples(userType.Attribute())
 	renameSchemaUsageType(userType, usage)
@@ -65,10 +74,14 @@ func pruneObjectForSchemaUsage(attr *expr.AttributeExpr, object *expr.Object, us
 	var (
 		changed  bool
 		filtered expr.Object
+		omitted  []string
 	)
 	for _, named := range *object {
 		if shouldOmitAttributeForSchemaUsage(named.Attribute, usage) {
 			changed = true
+			if name := expr.JSONFieldName(expr.ElementName(named.Name), named.Attribute); name != "-" && openapi.MustGenerate(named.Attribute.Meta) {
+				omitted = append(omitted, name)
+			}
 			continue
 		}
 		if pruneAttributeForSchemaUsage(named.Attribute, usage, seen) {
@@ -80,11 +93,49 @@ func pruneObjectForSchemaUsage(attr *expr.AttributeExpr, object *expr.Object, us
 		return false
 	}
 	attr.Type = &filtered
-	if attr.Validation != nil && len(attr.Validation.Required) > 0 {
-		synchronizeRequiredAttributes(attr, attr.Type)
-	}
+	recordUsageOmittedMembers(attr, omitted)
+	synchronizeRequiredAttributes(attr, object, attr)
 	clearAttributeExamples(attr)
 	return true
+}
+
+// recordUsageOmittedMembers adds the JSON names of omitted members to the
+// pruned object attribute.
+func recordUsageOmittedMembers(attr *expr.AttributeExpr, omitted []string) {
+	if len(omitted) == 0 {
+		return
+	}
+	if attr.Meta == nil {
+		attr.Meta = expr.MetaExpr{}
+	}
+	names := attr.Meta[usageOmittedMembersMeta]
+	for _, name := range omitted {
+		if !slices.Contains(names, name) {
+			names = append(names, name)
+		}
+	}
+	slices.Sort(names)
+	attr.Meta[usageOmittedMembersMeta] = names
+}
+
+// usageOmittedMembers returns the sorted JSON names of the members that usage
+// pruning removed from the object attr defines, together with the members a
+// transport projection removed from a typed body, such as attributes bound to
+// path parameters. The service type still declares both, so a typed schema
+// forbids them.
+func usageOmittedMembers(attr *expr.AttributeExpr) []string {
+	if attr == nil {
+		return nil
+	}
+	names := slices.Clone(attr.Meta[usageOmittedMembersMeta])
+	for _, member := range attr.OmittedMembers() {
+		name := expr.JSONFieldName(expr.ElementName(member.Name), member.Attribute)
+		if name != "-" && !slices.Contains(names, name) {
+			names = append(names, name)
+		}
+	}
+	slices.Sort(names)
+	return names
 }
 
 func shouldOmitAttributeForSchemaUsage(attr *expr.AttributeExpr, usage schemaUsage) bool {
@@ -121,17 +172,25 @@ func clearAttributeExamples(attr *expr.AttributeExpr) {
 	attr.DefaultValue = nil
 }
 
-func synchronizeRequiredAttributes(attr *expr.AttributeExpr, dataType expr.DataType) {
-	if attr == nil || attr.Validation == nil || len(attr.Validation.Required) == 0 {
+// synchronizeRequiredAttributes removes from the required names of attr the
+// members that pruning omitted from owner, the attribute that defines the
+// object. original is the object before pruning. A name that original does not
+// declare names a typed additional member when owner has AdditionalAttributes;
+// pruning never omits those, so they stay required.
+func synchronizeRequiredAttributes(attr *expr.AttributeExpr, original *expr.Object, owner *expr.AttributeExpr) {
+	if attr == nil || attr.Validation == nil || len(attr.Validation.Required) == 0 || owner == nil {
 		return
 	}
-	object := expr.AsObject(dataType)
+	object := expr.AsObject(owner.Type)
 	if object == nil {
 		return
 	}
-	required := attr.Validation.Required[:0]
+	typed := owner.AdditionalAttributes != nil
+	required := make([]string, 0, len(attr.Validation.Required))
 	for _, name := range attr.Validation.Required {
-		if object.Attribute(name) != nil {
+		declared := object.Attribute(name) != nil
+		undeclared := original == nil || original.Attribute(name) == nil
+		if declared || typed && undeclared {
 			required = append(required, name)
 		}
 	}
@@ -173,4 +232,67 @@ func schemaUsageTypeSuffix(usage schemaUsage) string {
 	default:
 		return ""
 	}
+}
+
+// usagePrunedExample removes from an example value the members that usage
+// pruning omitted from attr's schemas. Prepared examples are projected from the
+// unpruned value plan, so without this they would carry members that a closed
+// or typed pruned schema rejects. Values the pruning did not reach are
+// returned unchanged; changed containers are copied.
+func usagePrunedExample(value any, attr *expr.AttributeExpr) any {
+	if attr == nil || attr.Type == nil {
+		return value
+	}
+	switch actual := attr.Type.(type) {
+	case expr.UserType:
+		return usagePrunedExample(value, actual.Attribute())
+	case *expr.Array:
+		elements, ok := value.([]any)
+		if !ok {
+			return value
+		}
+		pruned := make([]any, len(elements))
+		for index, element := range elements {
+			pruned[index] = usagePrunedExample(element, actual.ElemType)
+		}
+		return pruned
+	case *expr.Map:
+		members, ok := value.(map[string]any)
+		if !ok {
+			return value
+		}
+		pruned := make(map[string]any, len(members))
+		for key, member := range members {
+			pruned[key] = usagePrunedExample(member, actual.ElemType)
+		}
+		return pruned
+	case *expr.Object:
+		members, ok := value.(map[string]any)
+		if !ok {
+			return value
+		}
+		return usagePrunedObjectExample(members, attr, actual)
+	default:
+		return value
+	}
+}
+
+func usagePrunedObjectExample(members map[string]any, attr *expr.AttributeExpr, object *expr.Object) map[string]any {
+	declared := make(map[string]*expr.AttributeExpr, len(*object))
+	for _, named := range *object {
+		declared[expr.JSONFieldName(expr.ElementName(named.Name), named.Attribute)] = named.Attribute
+	}
+	omitted := usageOmittedMembers(attr)
+	pruned := make(map[string]any, len(members))
+	for key, member := range members {
+		if slices.Contains(omitted, key) {
+			continue
+		}
+		if child, ok := declared[key]; ok {
+			pruned[key] = usagePrunedExample(member, child)
+			continue
+		}
+		pruned[key] = usagePrunedExample(member, attr.AdditionalAttributes)
+	}
+	return pruned
 }

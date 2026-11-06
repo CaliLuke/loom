@@ -69,10 +69,9 @@ func generatedRequiredValidationFrom(att *expr.AttributeExpr, validation *expr.V
 	if validation == nil || len(validation.Required) == 0 {
 		return
 	}
-	obj := expr.AsObject(att.Type)
 	fields := expr.NewObjectFields(att)
 	for _, req := range validation.Required {
-		reqAtt := obj.Attribute(req)
+		_, reqAtt := att.FindPhysicalMember(req)
 		if reqAtt == nil {
 			continue
 		}

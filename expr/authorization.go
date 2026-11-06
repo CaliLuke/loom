@@ -317,7 +317,11 @@ func authorizationAttributesEqual(left, right *AttributeExpr) bool {
 				return false
 			}
 		}
-		return true
+		if left.AdditionalAttributes == nil || right.AdditionalAttributes == nil {
+			return left.AdditionalAttributes == right.AdditionalAttributes
+		}
+		return slices.Equal(memberNames(left.SynthesizedMembers()), memberNames(right.SynthesizedMembers())) &&
+			authorizationAttributesEqual(left.AdditionalAttributes, right.AdditionalAttributes)
 	case *Union:
 		// Anonymous sums have separately generated identities. Reuse a named
 		// union when the complete sum is an authorization input.

@@ -29,13 +29,20 @@ func preparedDeclaredExampleValue(example transportir.ValueExample) (any, bool) 
 func initPreparedExamples(target interface {
 	setExample(any)
 	setExamples(map[string]*ExampleRef)
-}, prepared *transportir.ValueTarget) bool {
+}, attr *expr.AttributeExpr, prepared *transportir.ValueTarget) bool {
+	project := func(example transportir.ValueExample) (any, bool) {
+		value, ok := preparedOpenAPIExampleValue(example)
+		if !ok {
+			return nil, false
+		}
+		return usagePrunedExample(value, attr), true
+	}
 	if prepared == nil || !prepared.ExamplesPrepared {
 		return false
 	}
 	if len(prepared.Examples) == 0 {
 		if prepared.Representative != nil {
-			if value, ok := preparedOpenAPIExampleValue(*prepared.Representative); ok {
+			if value, ok := project(*prepared.Representative); ok {
 				target.setExample(value)
 			}
 		}
@@ -45,14 +52,14 @@ func initPreparedExamples(target interface {
 	if len(examples) == 1 &&
 		!hasStructuredExampleMetadata(examples[0].Meta) &&
 		metaValue(examples[0].Meta, "openapi:component:example") == "" {
-		if value, ok := preparedOpenAPIExampleValue(examples[0]); ok {
+		if value, ok := project(examples[0]); ok {
 			target.setExample(value)
 		}
 		return true
 	}
 	references := make(map[string]*ExampleRef, len(examples))
 	for _, example := range examples {
-		value, ok := preparedOpenAPIExampleValue(example)
+		value, ok := project(example)
 		if !ok {
 			continue
 		}

@@ -402,6 +402,94 @@ Loom does not inspect external type definitions. Transport codecs may restrict
 keys further, including gRPC's scalar-key rules. Correct an invalid key design
 and regenerate; do not edit the generated map declaration.
 
+#### Additional Attributes
+
+`AdditionalAttributes` gives an object declared attributes and also admits
+attributes it does not declare. Each undeclared attribute must hold a value of
+the given type and pass its validations. This is JSON Schema
+`additionalProperties` with a schema value, next to `properties`:
+
+```go
+var Labels = Type("Labels", func() {
+    Attribute("id", String)
+    AdditionalAttributes(Int, func() {
+        Minimum(0)
+    })
+    Required("id", "count")
+})
+```
+
+`Required` can name an attribute that the object does not declare, such as
+`count` above. That attribute must be present and its value must satisfy the
+`AdditionalAttributes` type. OpenAPI lists it in `required` and not in
+`properties`. Without `AdditionalAttributes`, `Required` must name declared
+attributes.
+
+Use `AdditionalAttributes` in a `Type`, in an inline object of a `Payload`,
+`Result` or `Attribute`, or in the `Attributes` of a `ResultType`. An object
+can declare only `AdditionalAttributes`, for example
+`Attribute("labels", func() { AdditionalAttributes(String) })`. Each object
+declares `AdditionalAttributes` at most once. It cannot be used with
+`Meta("openapi:additionalProperties", ...)` on the same object, on a use of a
+named type, or on a use of a type that has `AdditionalAttributes`. The
+`AdditionalAttributes` type cannot set a JSON tag, because each undeclared
+attribute is named by its key. A required attribute that the object does not
+declare cannot use the JSON name of a declared attribute.
+
+The generated Go struct has a field for each declared attribute, a field for
+each required attribute that the object does not declare, and an
+`AdditionalAttributes` map for all other attributes:
+
+```go
+type Labels struct {
+    ID                   string         `json:"id,case:strict"`
+    Count                int            `json:"count,case:strict"`
+    AdditionalAttributes map[string]int `json:",embed"`
+}
+```
+
+JSON v2 encodes the map entries as members of the object. The fields use
+`case:strict`, so a member that differs only in case, such as `ID`, goes to the
+map, also when the decoder matches names case-insensitively. Transport request
+types reject `null` values unless the `AdditionalAttributes` type is nullable.
+Generated validation checks every map value. When generated code encodes a
+value, a map key that equals a declared or required attribute name is an error,
+because the encoded object would contain that member twice.
+
+With `Extend`, each source applies its policy to the attributes it does not
+declare, as JSON Schema `allOf` does:
+
+- A typed base constrains attributes that the derived type or a peer base adds.
+  Their types must be compatible with the base's `AdditionalAttributes` type,
+  and its validations also apply to them.
+- The derived type gets the conjunction of all inherited `AdditionalAttributes`.
+  Its own `AdditionalAttributes` refines them. `AdditionalAttributes(Any)`
+  without validations admits every value, so it does not change the
+  conjunction.
+- When the types have disjoint JSON kinds, such as `Int` and `String`, or their
+  validations leave no value, such as `Minimum(5)` and `Maximum(3)` or enums
+  with no common member, no value satisfies every source. The
+  derived object then admits no undeclared attributes, as if it were closed. A
+  required attribute that no source declares is then a design error. When only
+  `null` satisfies every source, the composition is rejected.
+- Types that overlap but do not refine one another, such as `Int` and `Float64`
+  or `Int` and `Int32`, are rejected, as they are for declared attributes. So is
+  an `Enum` member of the derived type that an inherited validation rejects.
+- A derived type cannot add `AdditionalAttributes` over a closed base, and
+  cannot set `Meta("openapi:additionalProperties", "true")` over a typed base.
+
+When an HTTP endpoint maps a declared attribute to a path parameter, a header
+or a cookie, the request or response body no longer contains it. The body does
+not require it, and its undeclared attributes cannot use its name. OpenAPI
+forbids that name in the body schema, and the generated server rejects such a
+body as invalid.
+
+Objects with `AdditionalAttributes` are not supported in gRPC messages, form
+and multipart bodies, URL parameters, headers and cookies, untagged `OneOf`
+branches, or result types that declare views. Members cannot use the
+`case:ignore` JSON tag option. As with `MapOf`, the XML encoder cannot encode
+the map of undeclared attributes.
+
 ### Type Composition
 
 #### Reference

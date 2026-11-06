@@ -50,6 +50,7 @@ func collectViewUnionTypes(att *expr.AttributeExpr, scope *codegen.NameScope, lo
 		for _, nat := range sortedNamedAttributes(*dt) {
 			collectViewUnionTypes(nat.Attribute, scope, loc, unions, seen)
 		}
+		collectViewUnionTypes(att.AdditionalAttributes, scope, loc, unions, seen)
 	case *expr.Array:
 		collectViewUnionTypes(dt.ElemType, scope, loc, unions, seen)
 	case *expr.Map:

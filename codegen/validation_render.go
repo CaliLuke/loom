@@ -276,11 +276,10 @@ func appendRequiredValidations(res *[]string, att *expr.AttributeExpr, validatio
 	if len(required) == 0 {
 		return
 	}
-	obj := expr.AsObject(att.Type)
 	data.Fields = expr.NewObjectFields(att)
 	for _, r := range required {
 		data.RequiredName = r
-		data.RequiredAttr = obj.Attribute(r)
+		_, data.RequiredAttr = att.FindPhysicalMember(r)
 		appendRenderedValidation(res, renderRequiredValidation(data))
 	}
 }
@@ -442,6 +441,12 @@ func renderArrayValidation(target, validation string, rejectNativeNil, jsonPrese
 	}
 	b.WriteString("}")
 	return b.String()
+}
+
+// renderOmittedMemberValidation rejects the undeclared member name of the
+// carrier target.
+func renderOmittedMemberValidation(target, name, context string) string {
+	return fmt.Sprintf("if _, ok := %s[%s]; ok {\n\terr = loom.MergeErrors(err, loom.InvalidAdditionalMemberError(%s))\n}", target, quoteString(name), context)
 }
 
 func renderMapValidation(target, keyValidation, valueValidation string, jsonPresence bool, context string) string {

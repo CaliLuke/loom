@@ -39,6 +39,20 @@ func (o ValueOccurrence) Members() []ValueMember {
 	return members
 }
 
+// Additional returns the occurrence of the typed AdditionalAttributes that the
+// object's undeclared members satisfy, following named declarations. It
+// reports false for objects without a typed policy.
+func (o ValueOccurrence) Additional() (ValueOccurrence, bool) {
+	if o.node == nil {
+		return ValueOccurrence{}, false
+	}
+	node := valueUnderlyingOccurrence(o.node)
+	if node.additional == nil {
+		return ValueOccurrence{}, false
+	}
+	return o.child(node.additional), true
+}
+
 // Branches returns ordered union alternatives, transparently following named declarations.
 func (o ValueOccurrence) Branches() []ValueBranch {
 	if o.node == nil {

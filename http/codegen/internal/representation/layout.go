@@ -87,7 +87,7 @@ func (l Layout) RecordRoot(attribute *expr.AttributeExpr, presence, pointer, def
 // RecordAll records every declaration reachable from an attribute.
 func (l Layout) RecordAll(attribute *expr.AttributeExpr, presence, pointer, defaults bool) {
 	if attribute != nil {
-		WalkUserTypes(attribute.Type, func(typ expr.UserType) {
+		WalkUserTypes(attribute, func(typ expr.UserType) {
 			l.Record(typ, presence, pointer, defaults)
 		})
 	}
@@ -102,7 +102,7 @@ func (l Layout) RecordNested(attribute *expr.AttributeExpr, presence, pointer, d
 	if typ, ok := attribute.Type.(expr.UserType); ok {
 		root = typ.Hash()
 	}
-	WalkUserTypes(attribute.Type, func(typ expr.UserType) {
+	WalkUserTypes(attribute, func(typ expr.UserType) {
 		if typ.Hash() != root {
 			l.Record(typ, presence, pointer, defaults)
 		}

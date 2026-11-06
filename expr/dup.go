@@ -88,6 +88,9 @@ func (d *dupper) DupAttribute(att *AttributeExpr) *AttributeExpr {
 	// Declaration references remain governed by DupType/keep. Mutable local
 	// occurrence data and builtin authored values belong to this copy.
 	dup.References, dup.Bases = att.References, att.Bases
+	if att.AdditionalAttributes != nil {
+		dup.AdditionalAttributes = d.DupAttribute(att.AdditionalAttributes)
+	}
 	d.ats[&dup] = struct{}{}
 	if d.isKept(dup.Type) {
 		d.kept = append(d.kept, &dup)

@@ -159,8 +159,7 @@ func (p *documentPlanner) mediaBranchSchema(branch *Schema, media, path string) 
 	if !isFormMediaType(media) && !isMultipartMediaType(media) {
 		return
 	}
-	representation, representationErr := classifyObject(resolved)
-	if resolved.Type != "object" || representationErr != nil || representation != objectStructured || !p.mediaFormSchemaSupported(branch, make(map[*Schema]bool)) {
+	if resolved.Type != "object" || classifyObject(resolved) != objectStructured || !p.mediaFormSchemaSupported(branch, make(map[*Schema]bool)) {
 		p.unsupported("media-schema", path, "form and multipart media require object schemas without nullable values or untagged unions")
 		return
 	}

@@ -6,8 +6,11 @@ func (r *renderer) schemaRequired(schema *Schema, path string) error {
 	if len(schema.Required) == 0 {
 		return nil
 	}
+	typed := r.objectAdmitsTypedMembers(schema)
 	for _, name := range schema.Required {
-		if !r.schemaDefinesProperty(schema, name, make(map[*Schema]bool)) {
+		// A typed policy, authored or inherited, supplies the value of an
+		// undeclared required member.
+		if !typed && !r.schemaDefinesProperty(schema, name, make(map[*Schema]bool)) {
 			return fmt.Errorf("render OpenAPI design: %s required property %q is not defined", path, name)
 		}
 	}

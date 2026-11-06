@@ -46,6 +46,11 @@ type (
 		enumClauses       [][]valueSourceSnapshot
 		constraints       *EffectiveConstraints
 		constraintParents []*valueOccurrenceNode
+		// additional is the occurrence of the object's AdditionalAttributes,
+		// which every undeclared member must satisfy. additionalRequired
+		// lists the required members the object does not declare.
+		additional         *valueOccurrenceNode
+		additionalRequired []string
 	}
 
 	valueOccurrenceExample struct {
@@ -208,6 +213,19 @@ func (b *valueOccurrenceBuilder) occurrence(source *AttributeExpr) (*valueOccurr
 	}
 	node.declaration = declaration
 	attribute.Type = declaration.typ
+	if source.AdditionalAttributes != nil {
+		additional, err := b.occurrence(source.AdditionalAttributes)
+		if err != nil {
+			return nil, fmt.Errorf("additional attributes: %w", err)
+		}
+		node.additional = additional
+		attribute.AdditionalAttributes = additional.attribute
+		for _, name := range source.AllRequired() {
+			if object := AsObject(source.Type); object == nil || object.Attribute(name) == nil {
+				node.additionalRequired = append(node.additionalRequired, name)
+			}
+		}
+	}
 	if !b.structuralOnly {
 		for _, parent := range source.constraintParents {
 			inherited, err := b.occurrence(parent)

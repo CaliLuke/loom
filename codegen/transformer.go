@@ -298,7 +298,7 @@ func (a *AttributeContext) IsPrimitivePointer(name string, att *expr.AttributeEx
 	if att == nil || name == "" {
 		return false
 	}
-	key, field := att.FindAttribute(name)
+	key, field := att.FindPhysicalMember(name)
 	if field == nil || !expr.IsPrimitive(field.Type) {
 		return false
 	}

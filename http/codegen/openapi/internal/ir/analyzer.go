@@ -394,6 +394,26 @@ func (a *Analyzer) analyzeInlineObject(s *Schema, attr *expr.AttributeExpr, obj 
 	// see no properties and reject every member, so occurrences select a
 	// component variant instead (see expr ownOccurrenceOpenness).
 	switch attr.ObjectOpenness() {
+	case expr.ObjectTyped:
+		// A member that read/write pruning omitted is still declared, so it
+		// must not fall under the typed policy. The pruned schema forbids it,
+		// as a closed object's additionalProperties: false does.
+		for _, name := range usageOmittedMembers(attr) {
+			if s.Properties == nil {
+				s.Properties = make(map[string]*Schema)
+			}
+			s.Properties[name] = &Schema{Not: &Schema{}}
+		}
+		// Value plans do not model undeclared members, so the typed
+		// policy is analyzed without plan positions.
+		s.AdditionalProperties = &BoolOrSchema{
+			Schema: a.analyzeSchemaPositions(
+				attr.AdditionalAttributes,
+				childExampleContext(context, "additional-properties"),
+				expr.ValuePlanNode{},
+				expr.ValuePlanNode{},
+			),
+		}
 	case expr.ObjectClosed:
 		s.AdditionalProperties = &BoolOrSchema{Bool: boolPtr(false)}
 	case expr.ObjectOpennessUnset:

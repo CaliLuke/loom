@@ -85,6 +85,9 @@ func (e *HTTPEndpointExpr) validateNullableTransportLocations(verr *eval.Validat
 	if (e.FormRequest || e.MultipartRequest) && containsNullable(body) {
 		verr.Add(e, "HTTP form and multipart bodies do not support nullable attributes")
 	}
+	if (e.FormRequest || e.MultipartRequest) && containsTypedObject(body, make(map[*AttributeExpr]bool)) {
+		verr.Add(e, "HTTP form and multipart bodies do not support objects with AdditionalAttributes")
+	}
 	for _, response := range e.Responses {
 		validateNullableHTTPResponse(response, verr)
 	}

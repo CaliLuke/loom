@@ -1,6 +1,9 @@
 package encodingmeta
 
-import "strings"
+import (
+	"slices"
+	"strings"
+)
 
 type (
 	// JSONStorage identifies the field carrier selected by its declaration owner.
@@ -19,6 +22,11 @@ type (
 		Presence bool
 		// ForceOmission retains protocol-mandated omission, including RPC IDs.
 		ForceOmission bool
+		// CaseStrict requires exact member names even when a decoder matches
+		// names case-insensitively. Objects that carry undeclared members in a
+		// map use it so that a near-miss spelling reaches the map instead of a
+		// declared field.
+		CaseStrict bool
 	}
 
 	// JSONField is the immutable result shared by tags and value projection.
@@ -101,6 +109,9 @@ func ResolveJSONField(meta map[string][]string, defaultName string, policy JSONF
 	omit := policy.Optional && (zero || policy.Storage == JSONCustom || policy.ForceOmission)
 	if tag != "-" && omit && (!full || policy.Presence || policy.ForceOmission) {
 		tag = appendJSONOmitOption(tag, zero && !policy.ForceOmission || policy.Presence)
+	}
+	if tag != "-" && policy.CaseStrict && !slices.Contains(strings.Split(tag, ",")[1:], "case:strict") {
+		tag += ",case:strict"
 	}
 	field := JSONField{Tag: tag, Present: true}
 	if policy.Storage == JSONCustom {

@@ -1,5 +1,7 @@
 package expr
 
+import "slices"
+
 // typeComparer compares data types structurally. It records the pairs of
 // user types and objects under comparison so that recursive types terminate:
 // a pair met again is assumed equal, and any difference found elsewhere still
@@ -26,6 +28,8 @@ type typeComparer struct {
 //     types are equal, whatever their names
 //   - objects have the same attribute names and the attribute types are equal
 //   - attributes being compared have the same nullability
+//   - objects have equal AdditionalAttributes and require the same undeclared
+//     members
 //
 // Equal ignores type names, struct field tags, and validations. Recursive
 // types are compared coinductively, so a type that references itself is never
@@ -69,7 +73,7 @@ func (c *typeComparer) equal(a, b DataType) bool {
 			return true
 		}
 		ua, ub := a.(UserType).Attribute(), b.(UserType).Attribute()
-		return IsNullable(ua) == IsNullable(ub) && c.equal(ua.Type, ub.Type)
+		return IsNullable(ua) == IsNullable(ub) && c.equal(ua.Type, ub.Type) && c.equalAdditional(ua, ub)
 	case ka != kb:
 		return false
 	}
@@ -123,5 +127,23 @@ func (c *typeComparer) equalNamedAttributes(a, b []*NamedAttributeExpr) bool {
 }
 
 func (c *typeComparer) equalAttributes(a, b *AttributeExpr) bool {
-	return IsNullable(a) == IsNullable(b) && c.equal(a.Type, b.Type)
+	return IsNullable(a) == IsNullable(b) && c.equal(a.Type, b.Type) && c.equalAdditional(a, b)
+}
+
+// equalAdditional compares the typed AdditionalAttributes of two objects and
+// the members they synthesize, which shape their generated structs.
+func (c *typeComparer) equalAdditional(a, b *AttributeExpr) bool {
+	if a.AdditionalAttributes == nil || b.AdditionalAttributes == nil {
+		return a.AdditionalAttributes == b.AdditionalAttributes
+	}
+	return c.equalAttributes(a.AdditionalAttributes, b.AdditionalAttributes) &&
+		slices.Equal(memberNames(a.SynthesizedMembers()), memberNames(b.SynthesizedMembers()))
+}
+
+func memberNames(members []*NamedAttributeExpr) []string {
+	names := make([]string, len(members))
+	for i, member := range members {
+		names[i] = member.Name
+	}
+	return names
 }

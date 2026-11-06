@@ -73,6 +73,7 @@ func (promoter *sharedTypePromoter) walk(att *expr.AttributeExpr, inherited *cod
 		for _, named := range *dataType {
 			promoter.walk(named.Attribute, inherited)
 		}
+		promoter.walk(att.AdditionalAttributes, inherited)
 	case *expr.Array:
 		promoter.walk(dataType.ElemType, inherited)
 	case *expr.Map:

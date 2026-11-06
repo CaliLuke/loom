@@ -88,6 +88,11 @@ func (ma *MappedAttributeExpr) Remap() {
 		// the original effective-constraint traversal. A copied public carrier
 		// would re-author inherited enums against the refined physical shape.
 		ma.constraintParents = append([]*AttributeExpr{DupAtt(named.Attribute())}, ma.constraintParents...)
+		// The flattened object keeps the typed policy that owns its
+		// undeclared and synthesized members.
+		if declaration := ma.TypedObjectDeclaration(); declaration != nil && ma.AdditionalAttributes == nil {
+			ma.AdditionalAttributes = declaration.AdditionalAttributes
+		}
 	}
 	var (
 		n = &Object{}

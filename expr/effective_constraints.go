@@ -510,16 +510,19 @@ func effectiveRequiredFields(context *ValueContext, graph *valueOccurrenceGraph,
 		return nil
 	}
 	seen := make(map[uint64]bool)
+	undeclared := make(map[string]bool)
 	var required []EffectiveRequired
 	for _, layer := range layers {
 		if layer.attribute.Validation == nil {
 			continue
 		}
 		for _, authored := range layer.attribute.Validation.Required {
+			declared := false
 			for _, member := range objectNode.declaration.members {
 				if !requiredNameMatches(member.name, authored) {
 					continue
 				}
+				declared = true
 				if !seen[member.id] {
 					seen[member.id] = true
 					required = append(required, EffectiveRequired{
@@ -529,6 +532,16 @@ func effectiveRequiredFields(context *ValueContext, graph *valueOccurrenceGraph,
 					})
 				}
 				break
+			}
+			// A typed object requires members it does not declare; their
+			// values satisfy its AdditionalAttributes.
+			if name := AttributeName(authored); !declared && objectNode.additional != nil && !undeclared[name] {
+				undeclared[name] = true
+				required = append(required, EffectiveRequired{
+					Name: name, WireName: name,
+					Member:     ValueIdentity{context: context.identity, graph: graph, index: objectNode.additional.id},
+					Provenance: constraintSource(context, graph, layer),
+				})
 			}
 		}
 	}

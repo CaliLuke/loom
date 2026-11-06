@@ -43,7 +43,7 @@ func goValueTypeDef(scope *codegen.NameScope, att *expr.AttributeExpr, ptr, useD
 	case *expr.Map:
 		return goMapTypeDef(scope, actual, ptr, useDefault, jsonPresence)
 	case *expr.Object:
-		return goObjectTypeDef(scope, att, actual, ptr, useDefault, jsonPresence)
+		return goObjectTypeDef(scope, att, ptr, useDefault, jsonPresence)
 	case expr.UserType, *expr.Union:
 		return scope.GoValueTypeName(att)
 	default:
@@ -108,15 +108,24 @@ func goBodyTypeRef(scope *codegen.NameScope, attribute *expr.AttributeExpr, cont
 	return scope.GoTypeRef(attribute)
 }
 
-func goObjectTypeDef(scope *codegen.NameScope, att *expr.AttributeExpr, actual *expr.Object, ptr, useDefault, jsonPresence bool) string {
+func goObjectTypeDef(scope *codegen.NameScope, att *expr.AttributeExpr, ptr, useDefault, jsonPresence bool) string {
 	lines := []string{"struct {"}
 	ma := expr.NewObjectFields(att)
 	for name, selection := range ma.Fields() {
-		at := (*actual)[selection.Index].Attribute
+		at := att.PhysicalMemberAttribute(selection)
 		lines = append(lines, goObjectFieldDef(scope, ma, name, at, ptr, useDefault, jsonPresence))
+	}
+	if carrier := att.AdditionalMembersCarrier(); carrier != nil {
+		lines = append(lines, goAdditionalMembersFieldDef(scope, carrier, ptr, useDefault, jsonPresence))
 	}
 	lines = append(lines, "}")
 	return strings.Join(lines, "\n")
+}
+
+// goAdditionalMembersFieldDef declares the map that carries a typed object's
+// undeclared members. JSON v2 inlines it as the object's remaining members.
+func goAdditionalMembersFieldDef(scope *codegen.NameScope, carrier *expr.AttributeExpr, ptr, useDefault, jsonPresence bool) string {
+	return fmt.Sprintf("\t%s %s `json:\",embed\"`", expr.AdditionalAttributesFieldName, goTypeDef(scope, carrier, ptr, useDefault, jsonPresence))
 }
 
 func goObjectFieldDef(scope *codegen.NameScope, ma *expr.ObjectFields, name string, att *expr.AttributeExpr, ptr, useDefault, jsonPresence bool) string {

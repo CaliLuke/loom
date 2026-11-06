@@ -27,6 +27,11 @@ type (
 		Title string
 		// Docs points to external documentation
 		Docs *DocsExpr
+		// AdditionalAttributes describes the value of every member an object
+		// does not declare. Setting it gives the object the ObjectTyped
+		// openness policy, which admits undeclared members whose values
+		// satisfy it. Nil leaves the policy to openapi:additionalProperties.
+		AdditionalAttributes *AttributeExpr
 		// Optional validations
 		Validation *ValidationExpr
 		// Meta is a list of key/value pairs
@@ -48,6 +53,14 @@ type (
 		constraintLocal   *AttributeExpr
 		compositionName   string
 		removedMeta       map[string]bool
+		// additionalCarrier caches the map attribute that carries undeclared
+		// members, so its identity is stable for code generation. Copies
+		// reset it because they own their AdditionalAttributes.
+		additionalCarrier *AttributeExpr
+		// omittedMembers lists the members a transport projection removed
+		// from a typed object, such as attributes bound to path parameters.
+		// They are neither required nor admitted as undeclared members.
+		omittedMembers []*NamedAttributeExpr
 		// valueOrigin records structural copy ancestry, never a semantic value
 		// context or resolution. Effective occurrences always receive fresh IDs.
 		valueOrigin *AttributeExpr
@@ -317,6 +330,9 @@ func (a *AttributeExpr) Finalize() {
 
 		for _, nat := range *AsObject(a.Type) {
 			nat.Attribute.Finalize()
+		}
+		if a.AdditionalAttributes != nil {
+			a.AdditionalAttributes.Finalize()
 		}
 	case IsUnion(a.Type):
 		union := AsUnion(a.Type)

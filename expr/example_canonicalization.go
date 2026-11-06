@@ -214,13 +214,14 @@ func exampleMatchesObject(attribute *AttributeExpr, object *Object, example map[
 		fields[wireName] = field.Attribute
 	}
 	allowsUnknown := attribute.ObjectOpenness().AdmitsUndeclared()
-	if len(fields) == 0 {
+	additional := attribute.AdditionalAttributes
+	if len(fields) == 0 && additional == nil {
 		return len(example) == 0 || allowsUnknown
 	}
 	for key, value := range example {
 		field, ok := fields[key]
 		if !ok {
-			if !allowsUnknown {
+			if !allowsUnknown || additional != nil && !exampleMatchesAttribute(additional, value) {
 				return false
 			}
 			continue
@@ -235,6 +236,9 @@ func exampleMatchesObject(attribute *AttributeExpr, object *Object, example map[
 	for _, name := range attribute.Validation.Required {
 		fieldName, field := objectExampleField(object, name)
 		if field == nil {
+			if _, present := example[name]; additional != nil && present {
+				continue
+			}
 			return false
 		}
 		wireName := JSONFieldName(ElementName(fieldName), field)

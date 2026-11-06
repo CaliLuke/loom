@@ -139,7 +139,7 @@ func buildUserRequestBodyTypeDetails(
 	details.definition = goValueTypeDef(sd.Scope, userType.Attribute(), httpctx.Pointer, httpctx.UseDefault, httpctx.JSONPresence)
 	details.flatFormUnionField, details.flatFormUnionPointer, details.flatFormUnionTypeKey, details.flatFormUnionRef =
 		flatFormUnionMetadata(userType.Attribute(), formEncoded, sd.Scope)
-	if decode || containsUnionType(body.Type) {
+	if decode || containsUnionType(body) {
 		validationContext := httpctx
 		if expr.IsPrimitive(userType) {
 			// The body of an alias of a primitive is a value, not a pointer.
@@ -430,7 +430,7 @@ func applyPrimitiveResponseBodyTypeData(
 
 func collectServerResponseBodyTypes(sds *ServicesData, body *expr.AttributeExpr, name string, sd *ServiceData) {
 	sd.ServerTypeNames[name] = false
-	representation.WalkUserTypes(body.Type, func(ut expr.UserType) {
+	representation.WalkUserTypes(body, func(ut expr.UserType) {
 		if d := sds.attributeTypeData(ut, false, false, true, false, sd); d != nil {
 			sd.ServerBodyAttributeTypes = append(sd.ServerBodyAttributeTypes, d)
 		}

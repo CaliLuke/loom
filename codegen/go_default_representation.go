@@ -3,6 +3,7 @@ package codegen
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/CaliLuke/loom/expr"
@@ -176,45 +177,94 @@ func (r *defaultRenderer) object(att *expr.AttributeExpr, occurrence expr.ValueO
 	}
 	mapped := expr.NewObjectFields(att)
 	fields := make([]string, 0, len(value.Fields()))
+	var extras []string
 	for _, field := range value.Fields() {
 		member, known := members[field.Member]
 		if !known {
-			return "", fmt.Errorf("%s.%s: authored default member has no native Go field", path, field.Name)
-		}
-		child := expr.AsObject(att.Type).Attribute(member.Name)
-		name := expr.AttributeName(member.Name)
-		facts := mapped.FieldFacts(name)
-		winner := (*expr.AsObject(att.Type))[facts.Index]
-		childValue := field.Value
-		expanded := false
-		if childValue.Presence() == expr.ValueAbsent {
-			// Query the mapped winner without copying its default or descendants.
-			raw := (&expr.AttributeExpr{Type: &expr.Object{winner}}).GetDefault(winner.Name)
-			if raw == nil || !context.UseDefault || context.Pointer {
-				continue
+			literal, extra, err := r.additionalMember(att, occurrence, field, mapped, context, path)
+			if err != nil {
+				return "", err
 			}
-			if r.active[member.Occurrence.ID()] {
-				return "", fmt.Errorf("%s.%s: nested defaults require an infinite object value", path, name)
+			if extra {
+				extras = append(extras, literal)
+			} else {
+				fields = append(fields, literal)
 			}
-			r.active[member.Occurrence.ID()] = true
-			expanded = true
-			result := r.values.Resolve(member.Occurrence, r.values.SupplyValue(expr.ValueInput{Raw: raw}), expr.ValueRoleDefault)
-			var ok bool
-			childValue, ok = result.RepresentationValue()
-			if !ok {
-				return "", fmt.Errorf("%s.%s: invalid nested default: %v", path, name, result.Diagnostics())
-			}
+			continue
 		}
-		literal, err := r.render(child, member.Occurrence, childValue, context, path+"."+name)
-		if expanded {
-			delete(r.active, member.Occurrence.ID())
-		}
+		literal, present, err := r.declaredMember(att, member, field.Value, mapped, context, path)
 		if err != nil {
 			return "", err
 		}
-		literal = defaultFieldLiteral(child, winner.Attribute, facts, context, context.FieldPresence(mapped, name, child), literal)
-		fields = append(fields, context.Scope.Field(child, name, true)+": "+literal)
+		if present {
+			fields = append(fields, literal)
+		}
+	}
+	if len(extras) > 0 {
+		sort.Strings(extras)
+		carrier := att.AdditionalMembersCarrier()
+		fields = append(fields, expr.AdditionalAttributesFieldName+": "+collectionTypeRef(carrier, context, false)+"{"+strings.Join(extras, ", ")+"}")
 	}
 	ref := context.Scope.Name(att, context.Pkg(att), context.Pointer, context.UseDefault)
 	return "&" + ref + "{" + strings.Join(fields, ", ") + "}", nil
+}
+
+// declaredMember renders the default of a declared member. An absent member
+// renders its own default when the context uses defaults; present reports
+// whether the member renders at all.
+func (r *defaultRenderer) declaredMember(att *expr.AttributeExpr, member expr.ValueMember, childValue expr.ResolvedValue, mapped *expr.ObjectFields, context *AttributeContext, path string) (literal string, present bool, err error) {
+	child := expr.AsObject(att.Type).Attribute(member.Name)
+	name := expr.AttributeName(member.Name)
+	facts := mapped.FieldFacts(name)
+	winner := (*expr.AsObject(att.Type))[facts.Index]
+	expanded := false
+	if childValue.Presence() == expr.ValueAbsent {
+		// Query the mapped winner without copying its default or descendants.
+		raw := (&expr.AttributeExpr{Type: &expr.Object{winner}}).GetDefault(winner.Name)
+		if raw == nil || !context.UseDefault || context.Pointer {
+			return "", false, nil
+		}
+		if r.active[member.Occurrence.ID()] {
+			return "", false, fmt.Errorf("%s.%s: nested defaults require an infinite object value", path, name)
+		}
+		r.active[member.Occurrence.ID()] = true
+		expanded = true
+		result := r.values.Resolve(member.Occurrence, r.values.SupplyValue(expr.ValueInput{Raw: raw}), expr.ValueRoleDefault)
+		var ok bool
+		childValue, ok = result.RepresentationValue()
+		if !ok {
+			return "", false, fmt.Errorf("%s.%s: invalid nested default: %v", path, name, result.Diagnostics())
+		}
+	}
+	literal, err = r.render(child, member.Occurrence, childValue, context, path+"."+name)
+	if expanded {
+		delete(r.active, member.Occurrence.ID())
+	}
+	if err != nil {
+		return "", false, err
+	}
+	literal = defaultFieldLiteral(child, winner.Attribute, facts, context, context.FieldPresence(mapped, name, child), literal)
+	return context.Scope.Field(child, name, true) + ": " + literal, true, nil
+}
+
+// additionalMember renders a default member that a typed object does not
+// declare: a field of its own when the object requires the member, or else an
+// entry of the map that carries undeclared members. extra reports the latter.
+func (r *defaultRenderer) additionalMember(att *expr.AttributeExpr, occurrence expr.ValueOccurrence, field expr.ResolvedField, mapped *expr.ObjectFields, context *AttributeContext, path string) (literal string, extra bool, err error) {
+	declaration := att.TypedObjectDeclaration()
+	additional, typed := occurrence.Additional()
+	if declaration == nil || !typed {
+		return "", false, fmt.Errorf("%s.%s: authored default member has no native Go field", path, field.Name)
+	}
+	value, err := r.render(declaration.AdditionalAttributes, additional, field.Value, context, path+"."+field.Name)
+	if err != nil {
+		return "", false, err
+	}
+	facts := mapped.FieldFacts(field.Name)
+	if !facts.Synthesized {
+		return strconv.Quote(field.Name) + ": " + value, true, nil
+	}
+	member := declaration.AdditionalAttributes
+	value = defaultFieldLiteral(member, member, facts, context, context.FieldPresence(mapped, field.Name, member), value)
+	return context.Scope.Field(member, field.Name, true) + ": " + value, false, nil
 }

@@ -240,6 +240,9 @@ func referencesAttribute(dataType expr.DataType, target *expr.AttributeExpr) boo
 			if referencesAttribute(nat.Attribute.Type, target) {
 				return true
 			}
+			if additional := nat.Attribute.AdditionalAttributes; additional != nil && referencesAttribute(additional.Type, target) {
+				return true
+			}
 		}
 	}
 	return false

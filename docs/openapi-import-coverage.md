@@ -317,8 +317,26 @@ The following constructs are conditional:
   object map values receive deterministic named types so every DSL constructor
   has a concrete type. Existing named objects retain their names. Reimport and
   regenerate to replace earlier String fields or incomplete map constructors.
-  Objects that combine declared members with free-form additional properties
-  remain outside the supported subset.
+- An object that declares `properties` and also has schema-valued or `true`
+  `additionalProperties` maps to a type with `AdditionalAttributes`. A
+  `required` name that `properties` does not declare is supported when
+  `additionalProperties` describes its value, including an object with only
+  `required` and `additionalProperties`; an open object without
+  `additionalProperties` uses `AdditionalAttributes(Any)` for it only when it
+  has no `allOf` base. Beside an `allOf` base, an undeclared required name needs
+  an `additionalProperties` policy of its own or one inherited from a base,
+  including `true` or an empty schema. A form body with such an object, or
+  with an object that inherits such a policy through `allOf`, stays a raw body
+  (`SkipRequestBodyEncodeDecode()`), because typed form decoding has no carrier
+  for undeclared members. URL parameters and URL-serialized form fields do not
+  support these objects either.
+- A property whose Go field name is `AdditionalAttributes`, the field that
+  carries undeclared members, keeps its JSON name and receives a distinct Go
+  field name through `struct:field:name`. A declared property whose Go name
+  collides with the Go field of an undeclared required name is renamed the
+  same way. Those generated names are fixed. Two undeclared required names
+  with the same Go name, such as `foo` and `Foo`, are reported. So is an
+  undeclared required name whose Go name is `AdditionalAttributes`.
 - A form request whose object has only schema-valued `additionalProperties`
   maps to a typed root map. A body-only optional form also emits
   `OptionalRequestBody()`.
@@ -354,8 +372,13 @@ OpenAPI 3.1 and 3.2 Schema Objects can place supported scalar assertions,
 array length bounds, required property names and annotations beside a local
 `$ref`. Loom retains the reference and occurrence constraints independently:
 `{$ref: '#/components/schemas/Name', minLength: 2}` enforces both the Name
-contract and the extra minimum, without changing other uses of Name. Required
-names must exist in the referenced object. Regenerate imported designs to pick
+contract and the extra minimum, without changing other uses of Name. A
+required name must be a property of the referenced object or of its `allOf`
+bases, unless the referenced object has `additionalProperties` that is a
+schema or `true`. A policy inherited from an `allOf` base also qualifies,
+including `true` or an empty schema, which Extend keeps as an `Any` carrier. A
+required name is rejected when any source of the object sets
+`additionalProperties: false`. Regenerate imported designs to pick
 up corrected validation of optional fields required by a named occurrence.
 
 Object `properties` beside a reference refine the inherited fields and can add
@@ -363,8 +386,31 @@ fields to an open object. Omitted property types use the inherited carrier.
 Regeneration retains the base reference in `allOf` alongside the composed
 object. A closed base cannot gain fields, and a closed sibling must declare all
 inherited property names; these checks prevent changing the accepted key set.
+A sibling with schema-valued `additionalProperties` constrains the inherited
+properties it does not declare: the importer redeclares each of them with that
+schema as a refinement and gives the object `AdditionalAttributes`. Over a
+closed base, that policy can only apply to keys the base already rejects, so
+the importer keeps the redeclarations, drops the policy, and the object
+inherits the closure. Schema-valued `additionalProperties` on the base
+constrains every property that only the sibling declares: such a property
+takes its omitted type and format from that policy, and a property whose type
+or numeric format differs from the policy is reported. The same rule applies
+to `allOf` with one reference and one inline object. A referenced property, or
+an array property with its own `items`, keeps its own type, so that type must
+be the policy's type or a named alias of it. When both the sibling and the
+base have schema-valued `additionalProperties`, one policy type must refine
+the other: the sibling's policy must be the base policy's type or a named
+alias of it, and it cannot admit null when the base policy does not. A
+non-nullable sibling policy over a nullable base policy is accepted. Policies
+whose JSON kinds are disjoint, such as integer and
+string, admit no undeclared member, so the object is closed. Overlapping
+policies where neither type refines the other, such as integer and number,
+`int32` and `int64`, or two different inline objects, are reported. A
+policy of `true` or an empty schema constrains nothing and passes these
+checks. These diagnostics use the `schema-reference-siblings` code.
 
-Reference-level `items`, typed `additionalProperties`, arbitrary composition,
+Reference-level `items`, typed `additionalProperties` on property
+refinements, arbitrary composition,
 type changes, removal of inherited nullability and changes to numeric carrier
 formats remain blocked. `--allow-lossy` cannot bypass these boundaries. OpenAPI
 3.0 direct reference siblings remain unsupported.

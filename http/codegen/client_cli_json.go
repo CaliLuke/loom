@@ -14,6 +14,11 @@ func cliJSONPackageName(service *ServiceData) string {
 func containsBooleanMapKeys(datatype expr.DataType) bool {
 	seen := make(map[expr.DataType]bool)
 	var visit func(expr.DataType) bool
+	// visitAdditional visits the typed additional members of the object
+	// attribute declares, which its data type does not carry.
+	visitAdditional := func(attribute *expr.AttributeExpr) bool {
+		return attribute.AdditionalAttributes != nil && visit(attribute.AdditionalAttributes.Type)
+	}
 	visit = func(datatype expr.DataType) bool {
 		if seen[datatype] {
 			return false
@@ -21,7 +26,7 @@ func containsBooleanMapKeys(datatype expr.DataType) bool {
 		seen[datatype] = true
 		switch actual := datatype.(type) {
 		case expr.UserType:
-			return visit(actual.Attribute().Type)
+			return visit(actual.Attribute().Type) || visitAdditional(actual.Attribute())
 		case *expr.Map:
 			key := actual.KeyType.Type
 			for {
@@ -36,7 +41,7 @@ func containsBooleanMapKeys(datatype expr.DataType) bool {
 			return visit(actual.ElemType.Type)
 		case *expr.Object:
 			for _, field := range *actual {
-				if visit(field.Attribute.Type) {
+				if visit(field.Attribute.Type) || visitAdditional(field.Attribute) {
 					return true
 				}
 			}

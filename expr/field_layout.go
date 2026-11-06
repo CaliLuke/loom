@@ -7,18 +7,22 @@ import "github.com/CaliLuke/loom/internal/encodingmeta"
 // been finalized. Type names remain the code generator's responsibility.
 func ServiceFieldLayout(parent *AttributeExpr, name string, attribute *AttributeExpr, pointer, useDefault bool) encodingmeta.FieldLayout {
 	parent = fieldLayoutDeclaration(parent)
-	return serviceFieldLayout(attribute, parent.IsRequired(name), pointer, func() bool {
+	layout := serviceFieldLayout(attribute, parent.IsRequired(name), pointer, func() bool {
 		return parent.IsPrimitivePointer(name, useDefault)
 	})
+	layout.JSON.CaseStrict = parent.TypedObjectDeclaration() != nil
+	return layout
 }
 
 // ServiceLayout resolves native declaration storage from captured field facts.
 // The attribute supplies current explicit type and codec decisions; callers must
 // pair facts and attributes from the same stable object analysis.
 func (f ObjectFieldFacts) ServiceLayout(attribute *AttributeExpr, pointer, useDefault bool) encodingmeta.FieldLayout {
-	return serviceFieldLayout(attribute, f.LayoutRequired, pointer, func() bool {
+	layout := serviceFieldLayout(attribute, f.LayoutRequired, pointer, func() bool {
 		return f.PrimitivePointer(useDefault)
 	})
+	layout.JSON.CaseStrict = f.CaseStrict
+	return layout
 }
 
 // JSONFieldStorage classifies an actual declaration's pointer and presence

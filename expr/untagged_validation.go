@@ -54,6 +54,9 @@ func validateUntaggedShape(att *AttributeExpr, ctx, branch string, parent eval.E
 	if object == nil {
 		return
 	}
+	if att.TypedObjectDeclaration() != nil {
+		errors.Add(parent, "%suntagged OneOf branch %q cannot use AdditionalAttributes", ctx, branch)
+	}
 	if att.ObjectOpenness() == ObjectOpen {
 		errors.Add(parent, "%suntagged OneOf branch %q must use the default open object or openapi:additionalProperties false", ctx, branch)
 	}

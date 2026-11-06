@@ -127,7 +127,21 @@ func (a *AttributeExpr) generatedCandidate(
 	if hasLength {
 		return byLength(a, r)
 	}
-	return a.Type.Example(r)
+	example = a.Type.Example(r)
+	if object, ok := example.(map[string]any); ok && a.AdditionalAttributes != nil {
+		declared := AsObject(a.Type)
+		for _, name := range a.AllRequired() {
+			if declared != nil && declared.Attribute(name) != nil {
+				continue
+			}
+			// A required member the object does not declare takes a value
+			// of its typed policy.
+			if value := a.AdditionalAttributes.Example(r); value != nil {
+				object[name] = value
+			}
+		}
+	}
+	return example
 }
 
 func hasEnumValidation(a *AttributeExpr) bool {

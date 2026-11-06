@@ -90,6 +90,7 @@ func (n *unionBranchNames) walkAttribute(attribute *AttributeExpr, path string) 
 		return
 	}
 	n.walkType(attribute.Type, path)
+	n.walkAttribute(attribute.AdditionalAttributes, path+"/additional")
 	for i, base := range attribute.Bases {
 		n.walkType(base, unionBranchPath(path, "base", strconv.Itoa(i)))
 	}

@@ -41,7 +41,7 @@ func TestCollectUserTypesKeepsDistinctBodyVariants(t *testing.T) {
 			{Name: "second", Attribute: &expr.AttributeExpr{Type: order[1]}},
 		}
 		var names []string
-		representation.WalkUserTypes(root, func(userType expr.UserType) {
+		representation.WalkUserTypes(&expr.AttributeExpr{Type: root}, func(userType expr.UserType) {
 			names = append(names, userType.Name())
 		})
 		require.ElementsMatch(t, []string{"FirstBody", "SecondBody"}, names)
@@ -56,7 +56,7 @@ func TestContainsUnionKeepsDistinctBodyVariants(t *testing.T) {
 			{Name: "first", Attribute: &expr.AttributeExpr{Type: order[0]}},
 			{Name: "second", Attribute: &expr.AttributeExpr{Type: order[1]}},
 		}
-		require.True(t, containsUnionType(root))
+		require.True(t, containsUnionType(&expr.AttributeExpr{Type: root}))
 	}
 }
 
@@ -94,11 +94,11 @@ func TestGeneratedTypeTraversalTerminatesOnRecursion(t *testing.T) {
 	expr.AsObject(first.Type).Set("child", &expr.AttributeExpr{Type: second})
 	expr.AsObject(second.Type).Set("parent", &expr.AttributeExpr{Type: first})
 	var names []string
-	representation.WalkUserTypes(first, func(userType expr.UserType) {
+	representation.WalkUserTypes(&expr.AttributeExpr{Type: first}, func(userType expr.UserType) {
 		names = append(names, userType.Name())
 	})
 	require.ElementsMatch(t, []string{"FirstBody", "SecondBody"}, names)
-	require.True(t, containsUnionType(first))
+	require.True(t, containsUnionType(&expr.AttributeExpr{Type: first}))
 }
 
 func identityResultType(name string, value expr.DataType) *expr.ResultTypeExpr {

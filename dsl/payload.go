@@ -217,7 +217,7 @@ func methodDSL(m *expr.MethodExpr, suffix string, p any, args ...any) *expr.Attr
 			att.Bases = nil
 		}
 		if obj, ok := att.Type.(*expr.Object); ok {
-			if len(*obj) == 0 {
+			if len(*obj) == 0 && att.AdditionalAttributes == nil {
 				att.Type = expr.Empty
 			}
 		}

@@ -269,6 +269,13 @@ func (a *AttributeExpr) allRequired(active map[*AttributeExpr]bool) []string {
 			appendFinalizedRequired(&required, object, name)
 		}
 	}
+	if len(a.omittedMembers) > 0 {
+		required = slices.DeleteFunc(required, func(name string) bool {
+			return slices.ContainsFunc(a.omittedMembers, func(member *NamedAttributeExpr) bool {
+				return member.Name == name
+			})
+		})
+	}
 	if len(a.References) == 0 && len(a.Bases) == 0 {
 		return required
 	}

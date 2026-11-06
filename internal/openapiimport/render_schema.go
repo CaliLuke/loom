@@ -148,14 +148,10 @@ func (r *renderer) schemaReferenceExpression(ref, path string) (string, bool, er
 }
 
 func (r *renderer) objectSchemaExpression(schema *Schema, path string) (string, bool, error) {
-	representation, err := classifyObject(schema)
-	if err != nil {
-		return "", false, fmt.Errorf("render OpenAPI design: %s %w", path, err)
-	}
-	switch representation {
+	switch classifyObject(schema) {
 	case objectFreeMap:
 		return "MapOf(String, Any)", false, nil
-	case objectStructured:
+	case objectStructured, objectTypedRecord:
 		return "", true, nil
 	}
 	value, object, err := r.schemaExpression(schema.AdditionalProperties.Schema, path+"/additionalProperties")
@@ -273,7 +269,45 @@ func (r *renderer) schemaBlock(schema *Schema, path string, errorType bool, desc
 	if err := r.objectFieldAttributes(schema, path, errorType); err != nil {
 		return err
 	}
+	if err := r.additionalAttributes(schema, path); err != nil {
+		return err
+	}
 	return r.schemaAttributeBlock(schema, path, description)
+}
+
+// additionalAttributes renders the typed policy of an object that declares
+// members and admits others: the additionalProperties schema, or Any when
+// additionalProperties is true or absent.
+func (r *renderer) additionalAttributes(schema *Schema, path string) error {
+	if classifyObject(schema) != objectTypedRecord {
+		return nil
+	}
+	valueSchema := schema.AdditionalProperties.typedSchema()
+	if valueSchema == nil {
+		r.line("AdditionalAttributes(Any)")
+		return nil
+	}
+	valuePath := path + "/additionalProperties"
+	value, object, err := r.schemaExpression(valueSchema, valuePath)
+	if err != nil {
+		return err
+	}
+	if object {
+		return fmt.Errorf("render OpenAPI design: %s inline object requires a named type", valuePath)
+	}
+	if !r.hasSchemaBlock(valueSchema) && !r.effectiveNullable(valueSchema) {
+		r.line("AdditionalAttributes(%s)", value)
+		return nil
+	}
+	r.open("AdditionalAttributes(%s, func()", value)
+	if err := r.emitNullableGoType(valueSchema, valuePath); err != nil {
+		return err
+	}
+	if err := r.schemaAttributeBlock(valueSchema, valuePath, nil); err != nil {
+		return err
+	}
+	r.close()
+	return nil
 }
 
 func (r *renderer) schemaAttributeBlock(schema *Schema, path string, description *string) error {

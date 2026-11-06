@@ -66,7 +66,7 @@ func renderObjectValidation(buf *bytes.Buffer, first *bool, att *expr.AttributeE
 	mapped := expr.NewObjectFields(att)
 	parentRequired := parentRequiredValidationFields(att, attCtx)
 	messageScope, isMessage := attCtx.Scope.(messageFieldScope)
-	for _, nat := range *(expr.AsObject(att.Type)) {
+	for _, nat := range att.PhysicalMembers() {
 		field := attCtx.Scope.Field(nat.Attribute, nat.Name, true)
 		fieldCtx := attCtx.Dup()
 		fieldCtx.validationValue = false
@@ -88,6 +88,27 @@ func renderObjectValidation(buf *bytes.Buffer, first *bool, att *expr.AttributeE
 		}
 		appendValidationBlock(buf, first, val)
 	}
+	if carrier := att.AdditionalMembersCarrier(); carrier != nil {
+		// Every undeclared member satisfies the typed policy.
+		renderMapValidationCode(buf, first, expr.AsMap(carrier.Type), put, attCtx, view, target+"."+expr.AdditionalAttributesFieldName, context)
+		// A member that the transport bound elsewhere, such as to a path
+		// parameter, is still declared and so is not an undeclared member.
+		for _, name := range omittedMemberWireNames(att) {
+			appendValidationBlock(buf, first, renderOmittedMemberValidation(target+"."+expr.AdditionalAttributesFieldName, name, validationContextExpr(attCtx, context+"."+name)))
+		}
+	}
+}
+
+// omittedMemberWireNames returns the JSON names of the members that a
+// transport projection removed from the typed object att refers to.
+func omittedMemberWireNames(att *expr.AttributeExpr) []string {
+	var names []string
+	for _, member := range att.OmittedMembers() {
+		if name := expr.JSONFieldName(expr.ElementName(member.Name), member.Attribute); name != "-" {
+			names = append(names, name)
+		}
+	}
+	return names
 }
 
 func parentRequiredValidationFields(att *expr.AttributeExpr, attCtx *AttributeContext) map[string]struct{} {

@@ -2,6 +2,12 @@ package expr
 
 import "fmt"
 
+// emptyConstraintDomainError reports that the combined constraints of an
+// occurrence admit no value, as opposed to an invalid authored constraint.
+type emptyConstraintDomainError struct {
+	err error
+}
+
 // validationDomainErrors checks authored endpoint eligibility and interval
 // consistency without imposing a concrete machine representation on numbers.
 // Effective constraints use it both before and after folding inherited rules.
@@ -56,9 +62,19 @@ func validateEffectiveDomain(context *ValueContext, graph *valueOccurrenceGraph,
 	if errs := validationDomainErrors(&constraints.validation.rules); len(errs) > 0 {
 		lower, upper := constraints.LowerBound(), constraints.UpperBound()
 		if lower.Present && upper.Present {
-			return fmt.Errorf("%scontradictory bounds from %q and %q: %s", effectiveConstraintPrefix(node), lower.Provenance.Declaration, upper.Provenance.Declaration, errs[0])
+			return emptyConstraintDomainError{fmt.Errorf("%scontradictory bounds from %q and %q: %s", effectiveConstraintPrefix(node), lower.Provenance.Declaration, upper.Provenance.Declaration, errs[0])}
 		}
-		return fmt.Errorf("%scontradictory inherited length bounds: %s", effectiveConstraintPrefix(node), errs[0])
+		return emptyConstraintDomainError{fmt.Errorf("%scontradictory inherited length bounds: %s", effectiveConstraintPrefix(node), errs[0])}
 	}
 	return nil
+}
+
+// Error returns the description of the contradiction.
+func (e emptyConstraintDomainError) Error() string {
+	return e.err.Error()
+}
+
+// Unwrap returns the underlying error.
+func (e emptyConstraintDomainError) Unwrap() error {
+	return e.err
 }

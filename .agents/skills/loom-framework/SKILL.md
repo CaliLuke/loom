@@ -126,6 +126,24 @@ consumer validation.
   belongs on object schemas, never beside a `$ref`. Keep the object openness
   model aligned.
 
+- Typed objects (`AttributeExpr.AdditionalAttributes`, `ObjectTyped`) keep
+  semantic declarations separate from physical members. `PhysicalMembers`,
+  `SynthesizedMembers`, `AdditionalMembersCarrier` and `ObjectFields` facts
+  (`Synthesized`, `CaseStrict`) are the only enumeration of struct fields;
+  struct emitters, transforms, validation, defaults and value resolution
+  consume them. Composition applies each typed base to the members it does not
+  declare and conjoins policies: unvalidated `Any` is neutral, disjoint JSON
+  kinds and contradictory validations close the object (decided during the
+  walk, before dependants copy the policy), and overlapping non-refining types
+  are rejected. Transport projections record removed members as
+  `OmittedMembers`; they are neither required nor admitted as extras, and
+  `PhysicalWireNames` includes them. Outbound conversions fail on extras that
+  collide with physical wire names (`loom.CheckAdditionalMembers`). Type
+  walkers that collect, rename or hash types must visit
+  `AdditionalAttributes`. The importer translates typed reference siblings by
+  redeclaring base-only properties. Keep the additional attributes models
+  aligned.
+
 - OpenAPI import normalizes reference assertions with the target's carrier
   context, retaining separate reference identity and local constraints. Persist
   rejected intersections for planner and renderer admission. Normalize effective

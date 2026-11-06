@@ -56,7 +56,7 @@ func newJSONBodyInput(attribute *expr.AttributeExpr, endpoint string, sd *Servic
 	attribute = expr.DupAtt(attribute)
 	// Names are allocated after all wire types. Renaming the detached graph
 	// preserves recursive edges while keeping encoder declarations untouched.
-	walkBodyTypes(attribute.Type, func(typ expr.DataType) {
+	walkBodyTypes(attribute, func(typ expr.DataType) {
 		key := bodyTypeIdentity(typ)
 		if key == (bodyTypeKey{}) {
 			return
@@ -86,7 +86,7 @@ func newJSONBodyInput(attribute *expr.AttributeExpr, endpoint string, sd *Servic
 	branches := make(map[string]struct{})
 	collectUnionBranchUserTypes(attribute, branches)
 	seen := map[string]bool{input.root.VarName: true}
-	representation.WalkUserTypes(attribute.Type, func(typ expr.UserType) {
+	representation.WalkUserTypes(attribute, func(typ expr.UserType) {
 		att := &expr.AttributeExpr{Type: typ}
 		ref := sd.Scope.GoValueTypeName(att)
 		if seen[ref] {

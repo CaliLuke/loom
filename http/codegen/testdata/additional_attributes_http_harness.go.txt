@@ -1,0 +1,235 @@
+package additionalit_test
+
+import (
+	"bytes"
+	"context"
+	"errors"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"sync"
+	"testing"
+
+	loomhttp "github.com/CaliLuke/loom/http"
+	loom "github.com/CaliLuke/loom/pkg"
+
+	client "example.com/additionalit/gen/http/records/client"
+	server "example.com/additionalit/gen/http/records/server"
+	records "example.com/additionalit/gen/records"
+)
+
+type service struct {
+	mu      sync.Mutex
+	calls   []any
+	nest    *records.NestResult
+	opt     *records.Opt
+}
+
+func (s *service) record(payload any) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.calls = append(s.calls, payload)
+}
+
+func (s *service) take() []any {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	calls := s.calls
+	s.calls = nil
+	return calls
+}
+
+func (s *service) Put(_ context.Context, p *records.PutPayload) (*records.Labels, error) {
+	s.record(p)
+	return p.Labels, nil
+}
+
+func (s *service) Bag(_ context.Context, p *records.Bag) (*records.Bag, error) {
+	s.record(p)
+	return p, nil
+}
+
+func (s *service) Nest(_ context.Context, p *records.NestPayload) (*records.NestResult, error) {
+	s.record(p)
+	if s.nest != nil {
+		return s.nest, nil
+	}
+	return &records.NestResult{Lists: p.Lists, Node: p.Node}, nil
+}
+
+func (s *service) Opt(_ context.Context, p *records.Opt) (*records.Opt, error) {
+	s.record(p)
+	if s.opt != nil {
+		return s.opt, nil
+	}
+	return p, nil
+}
+
+func (s *service) Bound(_ context.Context, p *records.Labels) error {
+	s.record(p)
+	return nil
+}
+
+func serve(t *testing.T) (*service, *httptest.Server, *client.Client) {
+	t.Helper()
+	svc := &service{}
+	mux := loomhttp.NewMuxer()
+	server.Mount(mux, server.New(records.NewEndpoints(svc), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil))
+	hs := httptest.NewServer(mux)
+	t.Cleanup(hs.Close)
+	c := client.NewClient("http", strings.TrimPrefix(hs.URL, "http://"), hs.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
+	return svc, hs, c
+}
+
+func post(t *testing.T, hs *httptest.Server, path, body string) (int, string) {
+	t.Helper()
+	resp, err := hs.Client().Post(hs.URL+path, "application/json", strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return resp.StatusCode, string(raw)
+}
+
+func ptr[T any](v T) *T {
+	return &v
+}
+
+func TestGeneratedAdditionalAttributesHTTP(t *testing.T) {
+	svc, hs, _ := serve(t)
+	for _, tc := range []struct {
+		name, path, body string
+		status           int
+		detail           string
+	}{
+		{"extra-only type accepted", "/bag", `{"must":{"sku":"a"},"x":{"sku":"b"}}`, http.StatusOK, ""},
+		{"extra-only type validated", "/bag", `{"must":{"sku":"a"},"x":{"sku":""}}`, http.StatusBadRequest, "invalid_length"},
+		{"extra-only type requires its members", "/bag", `{"must":{"sku":"a"},"x":{}}`, http.StatusBadRequest, "sku"},
+		{"required extra-only type", "/bag", `{"x":{"sku":"b"}}`, http.StatusBadRequest, "must"},
+		{"extra-only element validation", "/nest", `{"lists":{"a":[""]}}`, http.StatusBadRequest, "invalid_length"},
+		{"extra-only element valid", "/nest", `{"lists":{"kind":"k","a":["x"]}}`, http.StatusOK, ""},
+		{"recursive extra validated", "/nest", `{"node":{"a":{"value":-1}}}`, http.StatusBadRequest, "invalid_range"},
+		{"deep recursive extra validated", "/nest", `{"node":{"a":{"b":{"value":-1}}}}`, http.StatusBadRequest, "invalid_range"},
+		{"recursive extras valid", "/nest", `{"node":{"value":0,"a":{"b":{"value":1}}}}`, http.StatusOK, ""},
+		{"path-bound member in body", "/o/5", `{"id":5,"name":"n"}`, http.StatusBadRequest, `"code":"invalid_field_type"`},
+		{"path-bound member absent", "/o/5", `{"name":"n","x":1}`, http.StatusOK, ""},
+		{"path-bound required member not required", "/p/abc", `{"count":1}`, http.StatusNoContent, ""},
+		{"path-bound required member in body", "/p/abc", `{"count":1,"id":3}`, http.StatusBadRequest, `invalid member \"body.id\"`},
+		{"synthesized member still required", "/p/abc", `{}`, http.StatusBadRequest, "count"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			status, body := post(t, hs, tc.path, tc.body)
+			if status != tc.status {
+				t.Fatalf("status %d, want %d: %s", status, tc.status, body)
+			}
+			if !strings.Contains(body, tc.detail) {
+				t.Errorf("body %s does not mention %q", body, tc.detail)
+			}
+			calls := svc.take()
+			if invoked := len(calls) == 1; invoked != (tc.status < 300) {
+				t.Errorf("service calls %#v", calls)
+			}
+		})
+	}
+	t.Run("path-bound members reach the payload", func(t *testing.T) {
+		if status, body := post(t, hs, "/p/abc", `{"count":0,"x":2}`); status != http.StatusNoContent {
+			t.Fatalf("status %d: %s", status, body)
+		}
+		calls := svc.take()
+		if len(calls) != 1 {
+			t.Fatalf("calls %#v", calls)
+		}
+		got := calls[0].(*records.Labels)
+		if got.ID != "abc" || got.Count != 0 || len(got.AdditionalAttributes) != 1 || got.AdditionalAttributes["x"] != 2 {
+			t.Fatalf("payload %#v", got)
+		}
+		if status, body := post(t, hs, "/o/7", `{"name":"n","x":1}`); status != http.StatusOK {
+			t.Fatalf("status %d: %s", status, body)
+		}
+		opt := svc.take()[0].(*records.Opt)
+		if opt.ID == nil || *opt.ID != 7 || opt.AdditionalAttributes["x"] != 1 {
+			t.Fatalf("payload %#v", opt)
+		}
+	})
+}
+
+func TestGeneratedAdditionalAttributesClient(t *testing.T) {
+	svc, _, c := serve(t)
+	ctx := context.Background()
+	t.Run("round trip of extra-only type", func(t *testing.T) {
+		bag := &records.Bag{Must: &records.Item{Sku: "a"}, AdditionalAttributes: map[string]*records.Item{"x": {Sku: "b"}}}
+		res, err := c.Bag()(ctx, bag)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := res.(*records.Bag)
+		if got.Must.Sku != "a" || got.AdditionalAttributes["x"].Sku != "b" {
+			t.Fatalf("result %#v", got)
+		}
+		svc.take()
+	})
+	t.Run("client rejects invalid extra in response", func(t *testing.T) {
+		svc.nest = &records.NestResult{
+			Lists: &records.Lists{AdditionalAttributes: map[string][]string{"a": {""}}},
+		}
+		defer func() { svc.nest = nil }()
+		_, err := c.Nest()(ctx, &records.NestPayload{})
+		var serviceErr *loom.ServiceError
+		if !errors.As(err, &serviceErr) || serviceErr.Name != loom.InvalidLength {
+			t.Fatalf("err %v", err)
+		}
+		svc.nest = &records.NestResult{
+			Node: &records.Node{AdditionalAttributes: map[string]*records.Node{"a": {AdditionalAttributes: map[string]*records.Node{"b": {Value: ptr(-1)}}}}},
+		}
+		_, err = c.Nest()(ctx, &records.NestPayload{})
+		if !errors.As(err, &serviceErr) || serviceErr.Name != loom.InvalidRange {
+			t.Fatalf("err %v", err)
+		}
+		svc.take()
+	})
+	t.Run("client rejects extra named after a path-bound member", func(t *testing.T) {
+		_, err := c.Opt()(ctx, &records.Opt{ID: ptr(5), Name: ptr("n"), AdditionalAttributes: map[string]int{"id": 1}})
+		if err == nil || !strings.Contains(err.Error(), `OptRequestBody: additional member "id" collides`) {
+			t.Fatalf("err %v", err)
+		}
+		if calls := svc.take(); len(calls) != 0 {
+			t.Fatalf("service invoked with %#v", calls)
+		}
+		res, err := c.Opt()(ctx, &records.Opt{ID: ptr(5), Name: ptr("n"), AdditionalAttributes: map[string]int{"x": 1}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := res.(*records.Opt)
+		if got.ID == nil || *got.ID != 5 || got.AdditionalAttributes["x"] != 1 {
+			t.Fatalf("result %#v", got)
+		}
+		svc.take()
+	})
+	t.Run("server rejects result extra named after a header-bound member", func(t *testing.T) {
+		svc.opt = &records.Opt{ID: ptr(5), AdditionalAttributes: map[string]int{"id": 1}}
+		defer func() { svc.opt = nil }()
+		if _, err := c.Opt()(ctx, &records.Opt{ID: ptr(5)}); err == nil {
+			t.Fatal("expected encoding failure")
+		}
+		svc.take()
+	})
+	t.Run("client rejects response extra named after a header-bound member", func(t *testing.T) {
+		raw := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("Id", "5")
+			_, _ = io.Copy(w, bytes.NewReader([]byte(`{"name":"n","id":3}`)))
+		}))
+		defer raw.Close()
+		rc := client.NewClient("http", strings.TrimPrefix(raw.URL, "http://"), raw.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
+		_, err := rc.Opt()(ctx, &records.Opt{ID: ptr(5)})
+		var serviceErr *loom.ServiceError
+		if !errors.As(err, &serviceErr) || serviceErr.Name != loom.InvalidFieldType || serviceErr.Field == nil || *serviceErr.Field != "body.id" {
+			t.Fatalf("err %v", err)
+		}
+	})
+}

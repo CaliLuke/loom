@@ -86,6 +86,9 @@ func (g *valueSynthesisGraph) attribute(node *valueOccurrenceNode) *AttributeExp
 		copy.Validation = nil
 	}
 	g.nodes[node] = &copy
+	if node.additional != nil {
+		copy.AdditionalAttributes = g.attribute(node.additional)
+	}
 	if node.declaration.kind == UnionKind {
 		union := *node.declaration.typ.(*Union)
 		union.Values = nil

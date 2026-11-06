@@ -136,11 +136,7 @@ func (r *renderer) responseMappingBody(response renderedResponse, failure bool, 
 			}
 			schema = resolved
 		}
-		representation, err := classifyObject(schema)
-		if err != nil {
-			return fmt.Errorf("render OpenAPI design: %s %w", path, err)
-		}
-		if representation == objectStructured {
+		if representation := classifyObject(schema); representation == objectStructured || representation == objectTypedRecord {
 			if err := r.responseSchemaBody("Body", schemaWithExamples(response.response.Schema, response.response.Examples), path+"/content/schema"); err != nil {
 				return err
 			}

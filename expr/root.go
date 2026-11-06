@@ -342,6 +342,7 @@ func (r *RootExpr) walkAttributeUserTypes(att *AttributeExpr, seen map[string]st
 			}
 			r.walkAttributeUserTypes(nat.Attribute, seen, next, visit)
 		}
+		r.walkAttributeUserTypes(att.AdditionalAttributes, seen, path+"[additional]", visit)
 	case *Array:
 		next := path + "[]"
 		r.walkAttributeUserTypes(t.ElemType, seen, next, visit)

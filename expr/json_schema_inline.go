@@ -165,7 +165,7 @@ func populateInlineJSONSchemaType(
 			return nil, err
 		}
 	case *Object:
-		if err := populateInlineObjectSchema(schema, constraints, dt, visited, context); err != nil {
+		if err := populateInlineObjectSchema(schema, attr, constraints, dt, visited, context); err != nil {
 			return nil, err
 		}
 	case UserType:
@@ -306,7 +306,10 @@ func populateInlineUnionSchema(schema *InlineSchema, dt *Union, visited map[any]
 	return nil
 }
 
-func populateInlineObjectSchema(schema *InlineSchema, constraints EffectiveConstraints, dt *Object, visited map[any]struct{}, context inlineSchemaContext) error {
+// populateInlineObjectSchema describes the object declared by attr. Undeclared
+// members are forbidden unless attr has typed AdditionalAttributes, which then
+// describe them and may be required by name.
+func populateInlineObjectSchema(schema *InlineSchema, attr *AttributeExpr, constraints EffectiveConstraints, dt *Object, visited map[any]struct{}, context inlineSchemaContext) error {
 	schema.Type = jsonTypeObject
 	schema.Properties = make(map[string]*InlineSchema, len(*dt))
 	designNames := make(map[string]struct{}, len(*dt))
@@ -336,7 +339,18 @@ func populateInlineObjectSchema(schema *InlineSchema, constraints EffectiveConst
 			schema.Required = append(schema.Required, name)
 		}
 	}
-	schema.AdditionalProperties = false
+	if attr.AdditionalAttributes == nil {
+		schema.AdditionalProperties = false
+		return nil
+	}
+	additional, err := buildInlineJSONSchema(attr.AdditionalAttributes, visited, context)
+	if err != nil {
+		return fmt.Errorf("additional attributes: %w", err)
+	}
+	schema.AdditionalProperties = additional
+	for _, member := range attr.SynthesizedMembers() {
+		schema.Required = append(schema.Required, JSONFieldName(ElementName(member.Name), member.Attribute))
+	}
 	return nil
 }
 

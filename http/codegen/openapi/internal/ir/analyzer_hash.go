@@ -247,6 +247,17 @@ func (e *canonicalSchemaEncoder) writeObject(att *expr.AttributeExpr, object *ex
 		member := members[name]
 		e.writeAttribute(member, closeObjects, e.childInput(member, occurrences[name]))
 	}
+	if additional := att.AdditionalAttributes; additional != nil {
+		e.writeString("typed-additional-properties")
+		e.writeAttribute(additional, closeObjects, e.captureInput(additional))
+		// Typed schemas forbid the members usage pruning omitted.
+		omitted := usageOmittedMembers(att)
+		e.writeInt(len(omitted))
+		for _, name := range omitted {
+			e.writeString(name)
+		}
+		return
+	}
 	// Encode the emitted policy. API closed-object mode renders an explicitly
 	// closed object exactly like an unset one, so both share the encoding the
 	// unset object already had; all other encodings are unchanged.

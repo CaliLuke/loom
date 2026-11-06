@@ -288,7 +288,8 @@ func (b *valuePlanBuilder) nodeChildren(node *valuePlanNode, source, target *val
 			return nil, err
 		}
 		node.runtimeUnknown = !policy.RejectUnknownMembers
-		node.preserveAdditional = policy.PreserveAdditional
+		// A typed object's undeclared members are part of its wire value.
+		node.preserveAdditional = policy.PreserveAdditional || target.additional != nil
 	}
 	var err error
 	switch decl.kind {

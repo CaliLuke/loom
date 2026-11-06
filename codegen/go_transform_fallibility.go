@@ -178,25 +178,42 @@ func (graph *transformFailures) discover(source, target *expr.AttributeExpr, ta 
 			}
 		}
 	case expr.IsObject(source.Type) && expr.IsObject(target.Type):
-		var err error
-		walkMatches(source, target, func(srcParent, tgtParent *expr.MappedAttributeExpr, src, tgt *expr.AttributeExpr, name string) {
+		return graph.discoverObject(source, target, ta, node, child)
+	}
+	return nil
+}
+
+// discoverObject records the fallible conversions of the members of an object
+// pair, including the map of undeclared members of typed objects, whose keys
+// may collide with declared names.
+func (graph *transformFailures) discoverObject(source, target *expr.AttributeExpr, ta *TransformAttrs, node *transformFailureNode, child func(src, tgt *expr.AttributeExpr) error) error {
+	if srcCarrier, tgtCarrier := source.AdditionalMembersCarrier(), target.AdditionalMembersCarrier(); srcCarrier != nil && tgtCarrier != nil {
+		node.fails = true
+		if err := child(srcCarrier, tgtCarrier); err != nil {
+			return err
+		}
+	}
+	var err error
+	walkMatches(source, target, func(srcParent, tgtParent *expr.MappedAttributeExpr, src, tgt *expr.AttributeExpr, name string) {
+		if err != nil {
+			return
+		}
+		application := ta.DefaultForField(srcParent, tgtParent, name)
+		if application.Apply {
+			var value DefaultValueCode
+			value, err = ta.TargetCtx.DefaultValue(tgt, application.Value)
 			if err != nil {
 				return
 			}
-			application := ta.DefaultForField(srcParent, tgtParent, name)
-			if application.Apply {
-				var value DefaultValueCode
-				value, err = ta.TargetCtx.DefaultValue(tgt, application.Value)
-				if err != nil {
-					return
-				}
-				node.fails = node.fails || value.ErrorAware
-			}
-			_, canonicalSource := source.FindAttribute(name)
-			_, canonicalTarget := target.FindAttribute(name)
-			err = child(canonicalSource, canonicalTarget)
-		})
-		return err
-	}
-	return nil
+			node.fails = node.fails || value.ErrorAware
+		}
+		_, canonicalSource := source.FindAttribute(name)
+		_, canonicalTarget := target.FindAttribute(name)
+		if canonicalSource == nil || canonicalTarget == nil {
+			// Synthesized members have no declared field to canonicalize.
+			canonicalSource, canonicalTarget = src, tgt
+		}
+		err = child(canonicalSource, canonicalTarget)
+	})
+	return err
 }

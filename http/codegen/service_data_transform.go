@@ -180,12 +180,15 @@ func addInlineMarshalTags(att *expr.AttributeExpr) {
 	}
 }
 
-func containsUnionType(dt expr.DataType) bool {
-	return containsUnionTypeRecursive(dt, make(map[string]struct{}))
+func containsUnionType(att *expr.AttributeExpr) bool {
+	return containsUnionTypeRecursive(att, make(map[string]struct{}))
 }
 
-func containsUnionTypeRecursive(dt expr.DataType, seen map[string]struct{}) bool {
-	switch actual := dt.(type) {
+func containsUnionTypeRecursive(att *expr.AttributeExpr, seen map[string]struct{}) bool {
+	if att == nil {
+		return false
+	}
+	switch actual := att.Type.(type) {
 	case nil:
 		return false
 	case *expr.Union:
@@ -195,17 +198,18 @@ func containsUnionTypeRecursive(dt expr.DataType, seen map[string]struct{}) bool
 			return false
 		}
 		seen[actual.Hash()] = struct{}{}
-		return containsUnionTypeRecursive(actual.Attribute().Type, seen)
+		return containsUnionTypeRecursive(actual.Attribute(), seen)
 	case *expr.Object:
 		for _, nat := range *actual {
-			if containsUnionTypeRecursive(nat.Attribute.Type, seen) {
+			if containsUnionTypeRecursive(nat.Attribute, seen) {
 				return true
 			}
 		}
+		return containsUnionTypeRecursive(att.AdditionalAttributes, seen)
 	case *expr.Array:
-		return containsUnionTypeRecursive(actual.ElemType.Type, seen)
+		return containsUnionTypeRecursive(actual.ElemType, seen)
 	case *expr.Map:
-		return containsUnionTypeRecursive(actual.KeyType.Type, seen) || containsUnionTypeRecursive(actual.ElemType.Type, seen)
+		return containsUnionTypeRecursive(actual.KeyType, seen) || containsUnionTypeRecursive(actual.ElemType, seen)
 	}
 	return false
 }
@@ -216,30 +220,30 @@ func needInit(att *expr.AttributeExpr) bool {
 	if att == nil {
 		return false
 	}
-	return needInitType(att, att.Type)
+	return needInitAttribute(att, att)
 }
 
-func needInitType(root *expr.AttributeExpr, dt expr.DataType) bool {
-	if dt == expr.Empty {
+func needInitAttribute(root, att *expr.AttributeExpr) bool {
+	if att.Type == expr.Empty {
 		return false
 	}
-	switch actual := dt.(type) {
+	switch actual := att.Type.(type) {
 	case expr.Primitive:
 		return false
 	case *expr.Array:
-		return needInitType(root, actual.ElemType.Type)
+		return needInitAttribute(root, actual.ElemType)
 	case *expr.Map:
-		return needInitType(root, actual.KeyType.Type) ||
-			needInitType(root, actual.ElemType.Type)
+		return needInitAttribute(root, actual.KeyType) ||
+			needInitAttribute(root, actual.ElemType)
 	case *expr.Union:
 		return true
 	case *expr.Object:
 		for _, nat := range *actual {
-			if needInitType(root, nat.Attribute.Type) {
+			if needInitAttribute(root, nat.Attribute) {
 				return true
 			}
 		}
-		return false
+		return att.AdditionalAttributes != nil && needInitAttribute(root, att.AdditionalAttributes)
 	case expr.UserType:
 		return true
 	default:

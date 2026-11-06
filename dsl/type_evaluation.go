@@ -86,13 +86,20 @@ func isKeptReference(att *expr.AttributeExpr) bool {
 }
 
 // evaluateReferencedTypes returns the types declared with Type that dt
-// references and whose DSL has not completed. When evaluate is true it first
-// runs the DSL of the referenced types that have not been evaluated yet, so
-// that only the types whose DSL is running remain incomplete.
+// references, including through typed AdditionalAttributes, and whose DSL has
+// not completed. When evaluate is true it first runs the DSL of the referenced
+// types that have not been evaluated yet, so that only the types whose DSL is
+// running remain incomplete.
 func evaluateReferencedTypes(dt expr.DataType, evaluate bool) []expr.UserType {
 	var incomplete []expr.UserType
 	seen := make(map[expr.UserType]struct{})
 	var walk func(expr.DataType)
+	walkAttribute := func(att *expr.AttributeExpr) {
+		walk(att.Type)
+		if att.AdditionalAttributes != nil {
+			walk(att.AdditionalAttributes.Type)
+		}
+	}
 	walk = func(dt expr.DataType) {
 		switch actual := dt.(type) {
 		case expr.UserType:
@@ -109,19 +116,19 @@ func evaluateReferencedTypes(dt expr.DataType, evaluate bool) []expr.UserType {
 					eval.Execute(actual.Attribute().DSLFunc, actual.Attribute())
 				}
 			}
-			walk(actual.Attribute().Type)
+			walkAttribute(actual.Attribute())
 		case *expr.Array:
-			walk(actual.ElemType.Type)
+			walkAttribute(actual.ElemType)
 		case *expr.Map:
-			walk(actual.KeyType.Type)
-			walk(actual.ElemType.Type)
+			walkAttribute(actual.KeyType)
+			walkAttribute(actual.ElemType)
 		case *expr.Object:
 			for _, nat := range *actual {
-				walk(nat.Attribute.Type)
+				walkAttribute(nat.Attribute)
 			}
 		case *expr.Union:
 			for _, nat := range actual.Values {
-				walk(nat.Attribute.Type)
+				walkAttribute(nat.Attribute)
 			}
 		}
 	}

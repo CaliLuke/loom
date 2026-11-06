@@ -499,7 +499,7 @@ func initExamples(target interface {
 		return
 	}
 	requirePreparedExampleTarget(prepared)
-	if !initPreparedExamples(target, prepared) {
+	if !initPreparedExamples(target, attr, prepared) {
 		panic("OpenAPI example surface did not consume its prepared value target")
 	}
 }

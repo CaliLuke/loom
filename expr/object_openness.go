@@ -16,6 +16,10 @@ const (
 	ObjectOpen
 	// ObjectClosed rejects undeclared members.
 	ObjectClosed
+	// ObjectTyped admits undeclared members whose values satisfy the object's
+	// AdditionalAttributes, and lets Required name members it does not
+	// declare.
+	ObjectTyped
 )
 
 // objectOpennessMeta is the authored DSL spelling of the policy. Only this
@@ -31,6 +35,9 @@ func (o ObjectOpenness) AdmitsUndeclared() bool {
 func (a *AttributeExpr) ObjectOpenness() ObjectOpenness {
 	if a == nil {
 		return ObjectOpennessUnset
+	}
+	if a.AdditionalAttributes != nil {
+		return ObjectTyped
 	}
 	value, ok := a.Meta.Last(objectOpennessMeta)
 	switch {
@@ -67,6 +74,43 @@ func (a *AttributeExpr) effectiveObjectOpenness() ObjectOpenness {
 	return effective
 }
 
+// effectiveAdditionalAttributes returns the typed policy governing the
+// attribute's value through the chain of named types it references, or nil
+// when the effective policy is not typed.
+func (a *AttributeExpr) effectiveAdditionalAttributes() *AttributeExpr {
+	if a.effectiveObjectOpenness() != ObjectTyped {
+		return nil
+	}
+	seen := make(map[*AttributeExpr]bool)
+	for a != nil && !seen[a] {
+		seen[a] = true
+		if a.AdditionalAttributes != nil {
+			return a.AdditionalAttributes
+		}
+		named, ok := a.Type.(UserType)
+		if !ok {
+			break
+		}
+		a = named.Attribute()
+	}
+	return nil
+}
+
+// undeclaredMemberPolicies returns the typed policies of the bases that do
+// not declare the member name: each constrains that member's value.
+func undeclaredMemberPolicies(bases []*AttributeExpr, name string) []*AttributeExpr {
+	var policies []*AttributeExpr
+	for _, base := range bases {
+		if object := AsObject(base.Type); object != nil && object.Attribute(name) != nil {
+			continue
+		}
+		if additional := base.effectiveAdditionalAttributes(); additional != nil && !admitsAnyValue(additional) {
+			policies = append(policies, additional)
+		}
+	}
+	return policies
+}
+
 // CloseObject sets the attribute's openness policy to ObjectClosed.
 func (a *AttributeExpr) CloseObject() {
 	if a.Meta == nil {
@@ -85,8 +129,13 @@ func IsObjectOpennessMeta(key string) bool {
 // CopyObjectOpenness gives target the authored policy of source, as when a
 // transport body is derived from a payload or result user type, or when a
 // representation applies a named-type occurrence's policy to its own copy of
-// the type. It does nothing when source authors no policy.
+// the type. It does nothing when source authors no policy. A typed policy
+// that target already carries, such as a transport body's renamed copy, is
+// kept.
 func CopyObjectOpenness(target *AttributeExpr, source *AttributeExpr) {
+	if source.AdditionalAttributes != nil && target.AdditionalAttributes == nil {
+		target.AdditionalAttributes = DupAtt(source.AdditionalAttributes)
+	}
 	values, ok := source.Meta[objectOpennessMeta]
 	if !ok {
 		return
@@ -102,7 +151,7 @@ func CopyObjectOpenness(target *AttributeExpr, source *AttributeExpr) {
 // without a value counts, because composition closes the object before
 // validation could report it.
 func (a *AttributeExpr) reopensClosedObject() bool {
-	if a.removedMeta[objectOpennessMeta] {
+	if a.removedMeta[objectOpennessMeta] || a.AdditionalAttributes != nil {
 		return true
 	}
 	values, ok := a.Meta[objectOpennessMeta]
@@ -119,6 +168,15 @@ func (a *AttributeExpr) validateObjectOpenness(ctx string, parent eval.Expressio
 		sources = append(sources, named.Attribute())
 	}
 	for _, source := range sources {
+		if source.AdditionalAttributes != nil {
+			switch {
+			case AsObject(source.Type) == nil:
+				verr.Add(parent, `%sAdditionalAttributes applies only to objects`, ctx)
+			case source.Meta[objectOpennessMeta] != nil || source.removedMeta[objectOpennessMeta]:
+				verr.Add(parent, `%sAdditionalAttributes cannot be combined with %s`, ctx, objectOpennessMeta)
+			}
+			continue
+		}
 		values, ok := source.Meta[objectOpennessMeta]
 		switch {
 		case !ok:
@@ -128,6 +186,10 @@ func (a *AttributeExpr) validateObjectOpenness(ctx string, parent eval.Expressio
 			verr.Add(parent, `%s%s must be "true" or "false", got %q`, ctx, objectOpennessMeta, values[len(values)-1])
 		case AsObject(source.Type) == nil:
 			verr.Add(parent, `%s%s applies only to objects`, ctx, objectOpennessMeta)
+		case source.Type != nil && source.TypedObjectDeclaration() != nil:
+			// A typed declaration fixes the physical layout of every
+			// occurrence: its members, synthesized fields and extras carrier.
+			verr.Add(parent, `%s%s cannot override the AdditionalAttributes of %q`, ctx, objectOpennessMeta, source.Type.Name())
 		case values[len(values)-1] == "true":
 			if named, ok := source.Type.(UserType); ok && named.Attribute().effectiveObjectOpenness() == ObjectClosed {
 				verr.Add(parent, `%scannot reopen closed type %q with %s "true"`, ctx, named.Name(), objectOpennessMeta)

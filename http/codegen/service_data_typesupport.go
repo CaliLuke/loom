@@ -71,6 +71,9 @@ func makeHTTPTypeRecursive(att *expr.AttributeExpr, seen map[string]struct{}) *e
 			obj[i] = &expr.NamedAttributeExpr{Name: nat.Name, Attribute: makeHTTPTypeRecursive(nat.Attribute, seen)}
 		}
 		att.Type = &obj
+		if att.AdditionalAttributes != nil {
+			att.AdditionalAttributes = makeHTTPTypeRecursive(att.AdditionalAttributes, seen)
+		}
 	case *expr.Union:
 	}
 	return att
@@ -127,7 +130,7 @@ func collectUnionBranchUserTypesSeen(att *expr.AttributeExpr, hashes, seen map[s
 		collectUnionBranchUserTypesSeen(actual.ElemType, hashes, seen)
 	case *expr.Union:
 		for _, nat := range actual.Values {
-			representation.WalkUserTypes(nat.Attribute.Type, func(ut expr.UserType) {
+			representation.WalkUserTypes(nat.Attribute, func(ut expr.UserType) {
 				hashes[ut.Hash()] = struct{}{}
 			})
 			collectUnionBranchUserTypesSeen(nat.Attribute, hashes, seen)

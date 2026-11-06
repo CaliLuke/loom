@@ -113,7 +113,7 @@ func httpRequestBody(a *HTTPEndpointExpr) *AttributeExpr {
 		return scalarHTTPBody(a, payload, name, suffix)
 	}
 	body := objectHTTPBody(a, payload)
-	if len(*AsObject(body.Type)) == 0 {
+	if emptyHTTPBodyObject(body.AttributeExpr) {
 		return &AttributeExpr{Type: Empty}
 	}
 	att := body.Attribute()
@@ -123,7 +123,7 @@ func httpRequestBody(a *HTTPEndpointExpr) *AttributeExpr {
 		UID:           a.Service.Name() + "#" + a.Name(),
 		httpBody:      true,
 	}
-	appendSuffix(ut.Attribute().Type, suffix)
+	appendSuffix(ut.Attribute(), suffix)
 
 	if t, ok := payload.Type.(UserType); ok {
 		// Remember openapi typename for example to generate friendly OpenAPI specs.
@@ -198,7 +198,7 @@ func httpStreamingBody(e *HTTPEndpointExpr) *AttributeExpr {
 		body := NewMappedAttributeExpr(dupped)
 		removeAttribute(body, AttributeName(e.JSONRPCID.Name))
 		dupped = body.Attribute()
-		if len(*AsObject(dupped.Type)) == 0 {
+		if emptyHTTPBodyObject(dupped) {
 			return &AttributeExpr{Type: Empty}
 		}
 	}
@@ -207,7 +207,7 @@ func httpStreamingBody(e *HTTPEndpointExpr) *AttributeExpr {
 		return dupped
 	}
 	const suffix = "StreamingBody"
-	appendSuffix(dupped.Type, suffix)
+	appendSuffix(dupped, suffix)
 	ut := &UserTypeExpr{
 		AttributeExpr: dupped,
 		TypeName:      concat(e.Name(), "Streaming", "Body"),
@@ -262,7 +262,7 @@ func buildHTTPResponseBody(name string, attr *AttributeExpr, resp *HTTPResponseE
 		return primitiveHTTPResponseBody(attr, resp, name)
 	}
 	body := responseBodyObject(attr, resp)
-	if len(*AsObject(body.Type)) == 0 {
+	if emptyHTTPBodyObject(body.AttributeExpr) {
 		return &AttributeExpr{Type: Empty}
 	}
 	userType := &UserTypeExpr{
@@ -272,7 +272,7 @@ func buildHTTPResponseBody(name string, attr *AttributeExpr, resp *HTTPResponseE
 		httpBody:      true,
 	}
 	copyHTTPResponseBodyMeta(userType, attr)
-	appendSuffix(userType.Attribute().Type, suffix)
+	appendSuffix(userType.Attribute(), suffix)
 	rt, isrt := attr.Type.(*ResultTypeExpr)
 	if !isrt {
 		return &AttributeExpr{
@@ -431,15 +431,9 @@ func renameType(att *AttributeExpr, name, suffix string) {
 	switch rtt := rt.(type) {
 	case UserType:
 		rtt.Rename(name)
-		appendSuffix(rtt.Attribute().Type, suffix)
-	case *Object:
-		appendSuffix(rt, suffix)
-	case *Array:
-		appendSuffix(rt, suffix)
-	case *Map:
-		appendSuffix(rt, suffix)
-	case *Union:
-		appendSuffix(rt, suffix)
+		appendSuffix(rtt.Attribute(), suffix)
+	case *Object, *Array, *Map, *Union:
+		appendSuffix(att, suffix)
 	}
 }
 
@@ -506,10 +500,16 @@ func setHTTPBodyUID(dt DataType, uid string) {
 	}
 }
 
+// emptyHTTPBodyObject reports whether a body object has no member to carry:
+// no declared member and no typed AdditionalAttributes.
+func emptyHTTPBodyObject(att *AttributeExpr) bool {
+	return len(*AsObject(att.Type)) == 0 && att.TypedObjectDeclaration() == nil
+}
+
 // RemovePkgPath traverses the given data type and removes the "struct:pkg:path"
 // metadata from all the user type attributes.
 func RemovePkgPath(attr *AttributeExpr) {
-	walk(attr.Type, func(ut UserType) {
+	walkUserTypes(attr, func(ut UserType) {
 		delete(ut.Attribute().Meta, "struct:pkg:path")
 	})
 	for _, pt := range attr.Bases {
@@ -519,10 +519,11 @@ func RemovePkgPath(attr *AttributeExpr) {
 	}
 }
 
-// appendSuffix recursively traverses the given data type and appends the given
-// suffix to all the user type names.
-func appendSuffix(dt DataType, suffix string) {
-	walk(dt, func(ut UserType) {
+// appendSuffix recursively traverses the type of att, including its typed
+// AdditionalAttributes, and appends the given suffix to all the user type
+// names.
+func appendSuffix(att *AttributeExpr, suffix string) {
+	walkUserTypes(att, func(ut UserType) {
 		ut.Rename(ut.Name() + suffix)
 	})
 }
@@ -546,6 +547,7 @@ func removeResponseCookieAttributes(attr *MappedAttributeExpr, cookies []*HTTPRe
 }
 
 func removeAttribute(attr *MappedAttributeExpr, name string) {
+	attr.omitMember(name)
 	attr.Delete(name)
 	if attr.Validation != nil {
 		attr.Validation.RemoveRequired(name)
@@ -584,6 +586,22 @@ func walk(dt DataType, do func(UserType)) {
 	walkrec(dt, do, make(map[string]struct{}))
 }
 
+// walkUserTypes traverses the type of att and its typed AdditionalAttributes
+// and invokes the given function once for each user type it finds.
+func walkUserTypes(att *AttributeExpr, do func(UserType)) {
+	walkAttributeRec(att, do, make(map[string]struct{}))
+}
+
+func walkAttributeRec(att *AttributeExpr, do func(UserType), seen map[string]struct{}) {
+	if att == nil {
+		return
+	}
+	walkrec(att.Type, do, seen)
+	if att.AdditionalAttributes != nil {
+		walkrec(att.AdditionalAttributes.Type, do, seen)
+	}
+}
+
 func walkrec(dt DataType, do func(UserType), seen map[string]struct{}) {
 	switch dt := dt.(type) {
 	case UserType:
@@ -592,19 +610,19 @@ func walkrec(dt DataType, do func(UserType), seen map[string]struct{}) {
 		}
 		do(dt)
 		seen[dt.ID()] = struct{}{}
-		walkrec(dt.Attribute().Type, do, seen)
+		walkAttributeRec(dt.Attribute(), do, seen)
 	case *Object:
 		for _, nat := range *dt {
-			walkrec(nat.Attribute.Type, do, seen)
+			walkAttributeRec(nat.Attribute, do, seen)
 		}
 	case *Array:
-		walkrec(dt.ElemType.Type, do, seen)
+		walkAttributeRec(dt.ElemType, do, seen)
 	case *Map:
-		walkrec(dt.KeyType.Type, do, seen)
-		walkrec(dt.ElemType.Type, do, seen)
+		walkAttributeRec(dt.KeyType, do, seen)
+		walkAttributeRec(dt.ElemType, do, seen)
 	case *Union:
 		for _, nat := range dt.Values {
-			walkrec(nat.Attribute.Type, do, seen)
+			walkAttributeRec(nat.Attribute, do, seen)
 		}
 	}
 }

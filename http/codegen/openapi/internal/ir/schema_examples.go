@@ -1,6 +1,9 @@
 package ir
 
-import "github.com/CaliLuke/loom/expr"
+import (
+	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
+)
 
 func (a *Analyzer) applySchemaExample(s *Schema, attr *expr.AttributeExpr, context string) {
 	if a.annotationOwner != nil {
@@ -23,7 +26,7 @@ func (a *Analyzer) applySchemaExample(s *Schema, attr *expr.AttributeExpr, conte
 		a.applyCustomSchemaExamples(s, attr, context)
 		return
 	}
-	a.applyPreparedSchemaExamples(s)
+	a.applyPreparedSchemaExamples(s, attr)
 }
 
 func (a *Analyzer) applyCustomSchemaExamples(s *Schema, attr *expr.AttributeExpr, context string) {
@@ -52,7 +55,7 @@ func (a *Analyzer) applyCustomSchemaExamples(s *Schema, attr *expr.AttributeExpr
 	}
 }
 
-func (a *Analyzer) applyPreparedSchemaExamples(s *Schema) {
+func (a *Analyzer) applyPreparedSchemaExamples(s *Schema, attr *expr.AttributeExpr) {
 	if a.preparedExamples == nil {
 		return
 	}
@@ -60,9 +63,16 @@ func (a *Analyzer) applyPreparedSchemaExamples(s *Schema) {
 	if !prepared || set == nil || !set.Prepared {
 		return
 	}
-	project := preparedOpenAPIExampleValue
+	projectValue := preparedOpenAPIExampleValue
 	if a.declaredExampleValue {
-		project = preparedDeclaredExampleValue
+		projectValue = preparedDeclaredExampleValue
+	}
+	project := func(example transportir.ValueExample) (any, bool) {
+		value, ok := projectValue(example)
+		if !ok {
+			return nil, false
+		}
+		return usagePrunedExample(value, attr), true
 	}
 	if len(set.Examples) > 0 {
 		examples := scopedPreparedExamples(set.Examples, "schema")

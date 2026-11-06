@@ -21,7 +21,7 @@ func (sds *ServicesData) collectBodyAttributeTypes(sd *ServiceData) {
 		if root.server {
 			target = &sd.ServerBodyAttributeTypes
 		}
-		representation.WalkUserTypes(root.attribute.Type, func(ut expr.UserType) {
+		representation.WalkUserTypes(root.attribute, func(ut expr.UserType) {
 			data := sds.attributeTypeData(ut, root.request, root.request == root.server, root.server, root.jsonPresence, sd)
 			if data == nil {
 				return
@@ -55,7 +55,7 @@ func recordServerRequestValidationTypes(sd *ServiceData, attribute *expr.Attribu
 	if sd.ServerRequestValidationTypes == nil {
 		sd.ServerRequestValidationTypes = make(map[string]bool)
 	}
-	representation.WalkUserTypes(attribute.Type, func(userType expr.UserType) {
+	representation.WalkUserTypes(attribute, func(userType expr.UserType) {
 		sd.ServerRequestValidationTypes[userType.Hash()] = true
 	})
 }

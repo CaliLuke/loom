@@ -406,7 +406,7 @@ func isEmpty(a *AttributeExpr) bool {
 		}
 		return false
 	}
-	if len(a.Bases) != 0 || len(a.References) != 0 {
+	if len(a.Bases) != 0 || len(a.References) != 0 || a.TypedObjectDeclaration() != nil {
 		return false
 	}
 	if ut, ok := a.Type.(UserType); ok {

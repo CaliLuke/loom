@@ -75,6 +75,7 @@ func walk(at *expr.AttributeExpr, walker func(*expr.AttributeExpr) error, seen m
 				return err
 			}
 		}
+		return walk(at.AdditionalAttributes, walker, seen)
 	case *expr.ResultTypeExpr:
 		return walkUt(actual.UserTypeExpr)
 	case expr.UserType:

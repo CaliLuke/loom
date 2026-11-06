@@ -374,6 +374,13 @@ func buildTransformObjectFieldCode(source, target *expr.AttributeExpr, sourceVar
 			stmts = append(stmts, code)
 		}
 	})
+	if err != nil {
+		return nil, err
+	}
+	additional, err := transformAdditionalMembers(source, target, sourceVar, targetVar, ta)
+	if additional != nil {
+		stmts = append(stmts, additional)
+	}
 	return stmts, err
 }
 

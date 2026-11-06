@@ -153,11 +153,11 @@ func (r *renderer) formBodyRequiresRaw(schema *Schema, path string, seen map[str
 			return requiresRaw, err
 		}
 	}
-	representation, err := classifyObject(schema)
-	if err != nil {
-		return false, fmt.Errorf("render OpenAPI design: %s %w", path, err)
-	}
-	if representation == objectFreeMap {
+	// Typed form decoding has no carrier for the undeclared members of a
+	// record, including members admitted by a policy inherited through
+	// allOf. A typed map is decoded as a map and checked by its values.
+	representation := classifyObject(schema)
+	if representation == objectFreeMap || representation != objectTypedMap && r.objectAdmitsTypedMembers(schema) {
 		return true, nil
 	}
 	if schema.AdditionalProperties != nil && schema.AdditionalProperties.Schema != nil {

@@ -4,6 +4,7 @@ package expr
 // declarations. The graph builder supplies owned type and source edges.
 func copyValueOccurrenceAttribute(source *AttributeExpr) *AttributeExpr {
 	copy := *source
+	copy.additionalCarrier = nil
 	copy.valueOrigin = valueAttributeOrigin(source)
 	copy.valueSourceOrigin = valueCopiedSourceOrigin(source)
 	copy.Type, copy.Bases, copy.References = nil, nil, nil

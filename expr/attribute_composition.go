@@ -1,6 +1,7 @@
 package expr
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"slices"
@@ -18,6 +19,16 @@ type designComposer struct {
 	declarations map[*AttributeExpr]UserType
 	jsonTags     []compositionJSONTags
 }
+
+// additionalPolicyOverlap classifies the conjunction of typed
+// additional-member policies.
+type additionalPolicyOverlap int
+
+const (
+	policiesRefine additionalPolicyOverlap = iota
+	policiesDisjoint
+	policiesIncomparable
+)
 
 // SetDSLSource retains the authored callback for diagnostics independently of
 // evaluator wrappers that execute a declaration at most once.
@@ -141,6 +152,7 @@ func (c *designComposer) walk(attribute *AttributeExpr, path string) {
 		for _, field := range *typ {
 			c.walk(field.Attribute, path+"."+field.Name)
 		}
+		c.walk(attribute.AdditionalAttributes, path+"[additional]")
 	case *Array:
 		c.walk(typ.ElemType, path+"[]")
 	case *Map:
@@ -178,12 +190,10 @@ func (c *designComposer) object(attribute *AttributeExpr, bases []*AttributeExpr
 		local[field.Name] = field.Attribute
 	}
 	inherited, order := inheritedCompositionFields(bases)
+	c.refineLocalMembers(attribute, object, bases, inherited, path)
 	for _, name := range order {
-		parents := inherited[name]
-		optional := !attribute.IsRequired(name)
-		for _, base := range bases {
-			optional = optional && !base.IsRequired(name)
-		}
+		parents := slices.Concat(inherited[name], undeclaredMemberPolicies(bases, name))
+		optional := optionalCompositionField(attribute, bases, name)
 		if own := local[name]; own != nil {
 			c.refine(own, parents, path+"."+name, true, name, optional)
 			continue
@@ -201,6 +211,7 @@ func (c *designComposer) object(attribute *AttributeExpr, bases []*AttributeExpr
 	if !closedBasesDeclare(attribute, bases, fields, path) {
 		return
 	}
+	c.composeAdditionalAttributes(attribute, bases, path)
 	if named, ok := attribute.Type.(UserType); ok && named != Empty {
 		owned := named.Dup(c.copyAttribute(named.Attribute(), c.owner))
 		owned.Attribute().Type = fields
@@ -214,6 +225,34 @@ func (c *designComposer) object(attribute *AttributeExpr, bases []*AttributeExpr
 		}
 	}
 	c.retainConstraints(attribute, bases, path)
+}
+
+// refineLocalMembers applies the typed policy of each base to the members
+// only the derived type declares: a typed base constrains every member it does
+// not declare.
+func (c *designComposer) refineLocalMembers(attribute *AttributeExpr, object *Object, bases []*AttributeExpr, inherited map[string][]*AttributeExpr, path string) {
+	for _, field := range *object {
+		if _, shared := inherited[field.Name]; shared {
+			continue
+		}
+		if policies := undeclaredMemberPolicies(bases, field.Name); len(policies) > 0 {
+			c.refine(field.Attribute, policies, path+"."+field.Name, true, field.Name, optionalCompositionField(attribute, bases, field.Name))
+		}
+	}
+}
+
+// optionalCompositionField reports whether neither the derived attribute nor
+// any base requires the member name.
+func optionalCompositionField(attribute *AttributeExpr, bases []*AttributeExpr, name string) bool {
+	if attribute.IsRequired(name) {
+		return false
+	}
+	for _, base := range bases {
+		if base.IsRequired(name) {
+			return false
+		}
+	}
+	return true
 }
 
 // closedBasesDeclare applies each closed base per source: the base rejects
@@ -390,4 +429,194 @@ func compositionSources(attributes []*AttributeExpr) string {
 func compositionError(attribute *AttributeExpr, format string, args ...any) {
 	file, line, _ := eval.ExpressionLocation(attribute)
 	eval.Context.Record(&eval.Error{GoError: fmt.Errorf(format, args...), File: file, Line: line})
+}
+
+// composeAdditionalAttributes gives the derived object the conjunction of the
+// typed policies of its sources for members no source declares. An unvalidated
+// Any policy admits every value and does not constrain the conjunction. The
+// derived type's own AdditionalAttributes refines every inherited one; without
+// it, the first inherited policy is copied and refined by its peers. Policies
+// whose JSON value kinds are disjoint admit no value, so the conjunction is a
+// closed object, unless all are nullable: then only null remains, which no
+// carrier represents. Overlapping policies whose types do not refine one another
+// are rejected like incompatible Extend field types. A closed source keeps the
+// object closed; reopening it was rejected earlier.
+func (c *designComposer) composeAdditionalAttributes(attribute *AttributeExpr, bases []*AttributeExpr, path string) {
+	inherited, unconstrained := inheritedAdditionalPolicies(bases)
+	switch attribute.ObjectOpenness() {
+	case ObjectClosed:
+		return
+	case ObjectOpen:
+		if typed := slices.Concat(inherited, unconstrained); len(typed) > 0 {
+			compositionError(attribute, "%s: cannot reopen inherited typed object from %s; its AdditionalAttributes still apply", path, compositionSources(typed))
+			return
+		}
+	}
+	if len(inherited) == 0 {
+		// Only Any policies remain: keep typed extras, which an open object
+		// would not carry.
+		if len(unconstrained) > 0 && attribute.ObjectOpenness() == ObjectOpennessUnset {
+			attribute.AdditionalAttributes = c.copyAttribute(unconstrained[0], c.owner)
+		}
+		return
+	}
+	if attribute.AdditionalAttributes != nil && admitsAnyValue(attribute.AdditionalAttributes) {
+		attribute.AdditionalAttributes = nil
+	}
+	authored := attribute.AdditionalAttributes != nil
+	policies := inherited
+	if authored {
+		policies = append([]*AttributeExpr{attribute.AdditionalAttributes}, inherited...)
+	}
+	if !composablePolicies(attribute, policies, path) {
+		return
+	}
+	additional := attribute.AdditionalAttributes
+	if !authored {
+		additional = c.copyAttribute(inherited[0], c.owner)
+		attribute.AdditionalAttributes = additional
+		if len(inherited) == 1 {
+			return
+		}
+		// As for a member that several bases declare, the first inherited
+		// policy is a peer, never a local override of the others.
+		additional = &AttributeExpr{Type: additional.Type}
+		additional.SetDSLSource(attribute.DSLSource())
+		attribute.AdditionalAttributes = additional
+	}
+	c.refine(additional, inherited, path+"[additional]", authored, "", true)
+	// Decide emptiness now, before any type extending this one copies the
+	// policy: when no value satisfies every typed policy, the object admits
+	// no undeclared member.
+	empty, err := emptyPolicy(additional)
+	if err != nil {
+		compositionError(attribute, "%s[additional]: %v", path, err)
+		return
+	}
+	if !empty {
+		return
+	}
+	c.composed = slices.DeleteFunc(c.composed, func(composed *AttributeExpr) bool {
+		return composed == additional
+	})
+	attribute.AdditionalAttributes = nil
+	attribute.CloseObject()
+}
+
+// inheritedAdditionalPolicies returns the typed policies of the bases that
+// constrain values, then the unvalidated Any policies, which do not.
+func inheritedAdditionalPolicies(bases []*AttributeExpr) (constraining, unconstrained []*AttributeExpr) {
+	for _, base := range bases {
+		additional := base.effectiveAdditionalAttributes()
+		switch {
+		case additional == nil:
+		case admitsAnyValue(additional):
+			unconstrained = append(unconstrained, additional)
+		default:
+			constraining = append(constraining, additional)
+		}
+	}
+	return constraining, unconstrained
+}
+
+// composablePolicies reports whether the policies can be conjoined by
+// refinement. Disjoint policies close the object instead, and policies whose
+// conjunction Loom cannot carry are rejected.
+func composablePolicies(attribute *AttributeExpr, policies []*AttributeExpr, path string) bool {
+	switch policyOverlap(policies) {
+	case policiesDisjoint:
+		if allNullable(policies) {
+			compositionError(attribute, "%s: unsupported Extend composition: additional attributes from %s admit only null", path, compositionSources(policies))
+			return false
+		}
+		attribute.AdditionalAttributes = nil
+		attribute.CloseObject()
+		return false
+	case policiesIncomparable:
+		compositionError(attribute, "%s: unsupported Extend composition: additional attribute types from %s overlap but neither refines the other", path, compositionSources(policies))
+		return false
+	}
+	return true
+}
+
+// emptyPolicy reports whether the effective constraints of a composed policy
+// admit no value: contradictory bounds or an empty enum intersection. Other
+// constraint errors, such as an enum member that an inherited bound rejects,
+// are design errors, as they are for declared members.
+func emptyPolicy(policy *AttributeExpr) (bool, error) {
+	constraints, err := EffectiveConstraintsFor(policy)
+	if err != nil {
+		var empty emptyConstraintDomainError
+		if errors.As(err, &empty) {
+			return true, nil
+		}
+		return false, err
+	}
+	values, present := constraints.EnumCandidates()
+	return present && len(values) == 0, nil
+}
+
+// policyOverlap classifies the conjunction of typed additional-member
+// policies: every pair refines one way, some pair has disjoint JSON value
+// kinds, or some pair overlaps without either type refining the other.
+func policyOverlap(policies []*AttributeExpr) additionalPolicyOverlap {
+	overlap := policiesRefine
+	for i, left := range policies {
+		for _, right := range policies[i+1:] {
+			if refinesType(left.Type, right.Type, make(map[[2]DataType]bool)) ||
+				refinesType(right.Type, left.Type, make(map[[2]DataType]bool)) {
+				continue
+			}
+			if disjointJSONKinds(left.Type, right.Type) {
+				return policiesDisjoint
+			}
+			overlap = policiesIncomparable
+		}
+	}
+	return overlap
+}
+
+// admitsAnyValue reports whether a typed additional-member policy is Any
+// without validations, so it admits every JSON value.
+func admitsAnyValue(policy *AttributeExpr) bool {
+	return policy.Type == Any && policy.Validation == nil
+}
+
+// disjointJSONKinds reports whether no JSON value can have both types' JSON
+// kinds. Integers are numbers, bytes are strings, and maps and objects are
+// both JSON objects; Any and unions are not classified.
+func disjointJSONKinds(left, right DataType) bool {
+	l, r := jsonValueKind(left), jsonValueKind(right)
+	return l != "" && r != "" && l != r
+}
+
+func jsonValueKind(t DataType) string {
+	seen := make(map[DataType]bool)
+	for named, ok := t.(UserType); ok && !seen[t]; named, ok = t.(UserType) {
+		seen[t] = true
+		t = named.Attribute().Type
+	}
+	switch t.Kind() {
+	case BooleanKind:
+		return "boolean"
+	case IntKind, Int32Kind, Int64Kind, UIntKind, UInt32Kind, UInt64Kind, Float32Kind, Float64Kind:
+		return "number"
+	case StringKind, BytesKind:
+		return "string"
+	case ArrayKind:
+		return "array"
+	case MapKind, ObjectKind:
+		return "object"
+	default:
+		return ""
+	}
+}
+
+func allNullable(attributes []*AttributeExpr) bool {
+	for _, attribute := range attributes {
+		if !IsNullable(attribute) {
+			return false
+		}
+	}
+	return true
 }

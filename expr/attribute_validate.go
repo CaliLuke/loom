@@ -52,6 +52,16 @@ func (v *attributeValidator) validate(a *AttributeExpr, ctx string, parent eval.
 	verr.Merge(a.validateStructTagKeys(ctx, parent))
 	verr.Merge(validateStructMeta(ctx, a.Meta, parent))
 	verr.Merge(a.validateObjectOpenness(ctx, parent))
+	// The validator reaches named types through their occurrences; validate
+	// the declaring attribute's typed policy once.
+	if declaration := a.TypedObjectDeclaration(); declaration != nil && !v.seen[declaration.AdditionalAttributes] {
+		verr.Merge(declaration.validateTypedObject(ctx, parent))
+		verr.Merge(v.validate(declaration.AdditionalAttributes, ctx+"additional attributes", parent))
+	}
+	if rt, ok := a.Type.(*ResultTypeExpr); ok && rt.AdditionalAttributes != nil && len(rt.Views) > 0 {
+		// Views project declared attributes and would drop undeclared members.
+		verr.Add(parent, "%sresult type %q with AdditionalAttributes cannot declare views", ctx, rt.Name())
+	}
 	verr.Merge(v.validateChildTypes(a, ctx, parent))
 	verr.Merge(a.validateViewReference(ctx, parent))
 
@@ -177,6 +187,9 @@ func (a *AttributeExpr) normalizeLegacyPresence(seen map[*AttributeExpr]struct{}
 		for _, named := range *actual {
 			named.Attribute.normalizeLegacyPresence(seen)
 		}
+		if a.AdditionalAttributes != nil {
+			a.AdditionalAttributes.normalizeLegacyPresence(seen)
+		}
 	case *Union:
 		for _, named := range actual.Values {
 			named.Attribute.normalizeLegacyPresence(seen)
@@ -248,6 +261,9 @@ func (a *AttributeExpr) preparePkgPath(pkgPath string, t DataType, seen map[*Att
 				continue
 			}
 			a.preparePkgPath(pkgPath, nat.Attribute.Type, seen)
+			if additional := nat.Attribute.AdditionalAttributes; additional != nil {
+				a.preparePkgPath(pkgPath, additional.Type, seen)
+			}
 		}
 	}
 	ut, ok := t.(UserType)
@@ -266,6 +282,9 @@ func (a *AttributeExpr) preparePkgPath(pkgPath string, t DataType, seen map[*Att
 		att.AddMeta("struct:pkg:path", pkgPath)
 	}
 	a.preparePkgPath(pkgPath, att.Type, seen)
+	if att.AdditionalAttributes != nil {
+		a.preparePkgPath(pkgPath, att.AdditionalAttributes.Type, seen)
+	}
 }
 
 func (a *AttributeExpr) validatePkgPath(pkgPath string, t DataType) *eval.ValidationErrors {
@@ -382,8 +401,13 @@ func attributeJSONTag(attribute *AttributeExpr) (string, bool) {
 // that HTTP and JSON-RPC bodies use.
 func (v *attributeValidator) validateObjectChildren(a *AttributeExpr, ctx string, parent eval.Expression, obj *Object) *eval.ValidationErrors {
 	verr := new(eval.ValidationErrors)
+	policy := a.effectiveObjectOpenness()
 	for _, name := range a.AllRequired() {
-		if a.Find(name) == nil {
+		if a.Find(name) == nil && policy == ObjectClosed {
+			verr.Add(parent, `%srequired member %q is unsatisfiable: no source declares it and type %s admits no additional members`, ctx, name, a.Type.Name())
+			continue
+		}
+		if a.Find(name) == nil && policy != ObjectTyped {
 			verr.Add(parent, `%srequired field %q does not exist in type %s`, ctx, name, a.Type.Name())
 		}
 	}

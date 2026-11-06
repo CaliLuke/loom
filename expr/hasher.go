@@ -44,6 +44,7 @@ var (
 	tagPrefix                = "+"
 	userTypePrefix           = "_t_"
 	nullablePrefix           = "?"
+	additionalPrefix         = "_+_"
 )
 
 // Hash returns a hash value for the given data type. The hash of a primitive
@@ -142,12 +143,21 @@ func hashObject(o *Object, ignoreTags bool, seen map[*Object]*string) *string {
 	return ph
 }
 
+// hashAttribute hashes the type of attribute. A typed inline object also hashes
+// its AdditionalAttributes and synthesized members, which shape its struct.
 func hashAttribute(attribute *AttributeExpr, ignoreTags bool, seen map[*Object]*string) string {
 	prefix := ""
 	if IsNullable(attribute) {
 		prefix = nullablePrefix
 	}
-	return prefix + *hash(attribute.Type, ignoreTags, seen)
+	h := prefix + *hash(attribute.Type, ignoreTags, seen)
+	if attribute.AdditionalAttributes != nil {
+		h += additionalPrefix + hashAttribute(attribute.AdditionalAttributes, ignoreTags, seen)
+		for _, member := range attribute.SynthesizedMembers() {
+			h += attributePrefix + member.Name
+		}
+	}
+	return h
 }
 
 func sortedStructFieldMetaKeys(meta MetaExpr) []string {
@@ -273,6 +283,10 @@ func (h *fieldHasher) writeAttribute(label *strings.Builder, children *[]int, at
 		writeHashToken(label, nullablePrefix)
 	}
 	h.writeType(label, children, att.Type)
+	if att.AdditionalAttributes != nil {
+		writeHashToken(label, additionalPrefix)
+		h.writeAttribute(label, children, att.AdditionalAttributes)
+	}
 }
 
 // writeTags writes the "struct:field:" metadata of meta into label unless tags

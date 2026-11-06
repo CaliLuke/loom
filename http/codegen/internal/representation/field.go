@@ -48,6 +48,7 @@ func ResolveField(parent *expr.ObjectFields, name string, attribute *expr.Attrib
 		Optional:      optional || normalize,
 		Presence:      normalize,
 		ForceOmission: isJSONRPCID(attribute),
+		CaseStrict:    facts.CaseStrict,
 	}
 	return Field{Layout: layout, Encoding: FieldTags(attribute, facts.ElementName, optional, layout.JSON)}
 }

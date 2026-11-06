@@ -125,12 +125,15 @@ func TestImportedEmptyObjectAdmissionControls(t *testing.T) {
 				`{"type":"object","required":["name"],"additionalProperties":true}`,
 				`{"type":"object","properties":{"name":{"type":"string"}},"additionalProperties":{"type":"string"}}`,
 			} {
+				// Objects with members and additional properties are typed
+				// records, not free-form maps.
 				document, diagnostics, err := Analyze(schemaAdmissionSource(version, schema, "property"))
 				require.NoError(t, err)
 				fatal, _ := diagnostics.Classify(false)
-				require.NotEmpty(t, fatal, "mixed object must retain admission: %s", schema)
-				_, err = Render(document, Options{PackageName: "design"})
-				require.Error(t, err)
+				require.Empty(t, fatal, "mixed object is a typed record: %s", schema)
+				rendered, err := Render(document, Options{PackageName: "design"})
+				require.NoError(t, err)
+				require.Contains(t, string(rendered), "AdditionalAttributes(")
 			}
 			document, diagnostics, err := Analyze(schemaAdmissionSource(version, `{"type":"object","additionalProperties":false}`, "items"))
 			require.NoError(t, err)

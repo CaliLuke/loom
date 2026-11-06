@@ -582,8 +582,17 @@ A memberless OpenAPI `type: object` with absent, true or empty-schema
 `map[string]loom.JSONValue`. Closed empty objects retain the `{}` contract and
 separate nullable intent. Inline closed-empty fields and structured object map
 values become deterministic named types. Reimport and regenerate to replace
-previous String fields or incomplete map constructors. Combining declared
-members with free-form additional properties remains unsupported.
+previous String fields or incomplete map constructors.
+
+Objects that declare attributes and admit others use
+`AdditionalAttributes(T, func() { ... })`; OpenAPI `properties` with typed or
+`true` `additionalProperties` import this way. `Required` may then name an
+undeclared attribute, which gets its own Go field. Other undeclared attributes
+live in the `AdditionalAttributes map[string]T` field, which JSON encodes
+inline; generated encoding fails if a map key equals a declared name. Not
+supported in gRPC, form/multipart bodies, URL bindings, untagged unions or
+result types with views. With `Extend`, a typed base constrains attributes the
+derived type adds.
 
 An OpenAPI form body with only schema-valued `additionalProperties` imports as
 a typed map. Body-only methods keep the map payload and use

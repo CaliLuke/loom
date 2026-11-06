@@ -251,10 +251,15 @@ func (s *NameScope) collectionElemTypeDef(att *expr.AttributeExpr, ptr, useDefau
 }
 
 func (s *NameScope) objectTypeDefWithPkgOverride(att *expr.AttributeExpr, actual *expr.Object, ptr, useDefault bool, pkg, targetPkg string) string {
-	ss := make([]string, 0, 1+len(*actual)+1)
+	ss := make([]string, 0, 1+len(*actual)+2)
 	ss = append(ss, "struct {")
-	for _, nat := range *actual {
+	for _, nat := range att.PhysicalMembers() {
 		ss = append(ss, s.objectFieldTypeDef(att, nat.Name, nat.Attribute, ptr, useDefault, pkg, targetPkg))
+	}
+	if carrier := att.AdditionalMembersCarrier(); carrier != nil {
+		// JSON v2 inlines the map as the object's undeclared members.
+		ss = append(ss, fmt.Sprintf("\t%s %s `json:\",embed\"`", expr.AdditionalAttributesFieldName,
+			s.goTypeDefWithPkgOverride(carrier, ptr, useDefault, pkg, targetPkg)))
 	}
 	ss = append(ss, "}")
 	return strings.Join(ss, "\n")

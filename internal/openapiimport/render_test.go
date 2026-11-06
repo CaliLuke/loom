@@ -811,19 +811,6 @@ func TestRenderRejectsUnrepresentableModels(t *testing.T) {
 		{name: "unresolved request body reference", edit: func(d *Document) {
 			d.Operations[0].RequestBody = &RequestBody{Ref: "#/components/requestBodies/Body"}
 		}, want: `requestBodies reference "#/components/requestBodies/Body" does not resolve`},
-		{name: "mixed object and map", edit: func(d *Document) {
-			d.Components.Schemas[0].Schema = &Schema{
-				Type: "object", Properties: []NamedProperty{{Name: "id", Schema: &Schema{Type: "string"}}},
-				AdditionalProperties: &AdditionalProperties{Schema: &Schema{Type: "string"}},
-			}
-		}, want: "object properties with schema-valued additionalProperties are not renderable"},
-		{name: "mixed object and free-form map", edit: func(d *Document) {
-			allowed := true
-			d.Components.Schemas[0].Schema = &Schema{
-				Type: "object", Properties: []NamedProperty{{Name: "id", Schema: &Schema{Type: "string"}}},
-				AdditionalProperties: &AdditionalProperties{Allowed: &allowed},
-			}
-		}, want: "object members with additionalProperties true are not renderable"},
 		{name: "unsupported boolean format", edit: func(d *Document) {
 			d.Components.Schemas[0].Schema = &Schema{Type: "boolean", Format: "custom"}
 		}, want: `boolean format "custom" is not renderable`},

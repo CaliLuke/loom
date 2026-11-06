@@ -97,7 +97,7 @@ func bodyTypeNameScope(bodies []bodyTypeName) (*codegen.NameScope, map[string]bo
 		if body.key != (bodyTypeKey{}) {
 			reserve(body.name)
 		}
-		walkBodyTypes(body.body.Type, func(dt expr.DataType) {
+		walkBodyTypes(body.body, func(dt expr.DataType) {
 			if key := bodyTypeIdentity(dt); key != (bodyTypeKey{}) && dt != body.body.Type {
 				name := codegen.Goify(dt.Name(), true)
 				nested[name] = true
@@ -123,13 +123,14 @@ func bodyTypeIdentity(dt expr.DataType) bodyTypeKey {
 
 // walkBodyTypes uses object identity because name hashes are not unique until
 // nameBodyTypes has resolved collisions. Pointer identity also bounds cycles.
-func walkBodyTypes(dt expr.DataType, visit func(expr.DataType)) {
+func walkBodyTypes(att *expr.AttributeExpr, visit func(expr.DataType)) {
 	seen := make(map[expr.DataType]bool)
-	var walk func(expr.DataType)
-	walk = func(dt expr.DataType) {
-		if dt == nil || seen[dt] {
+	var walk func(*expr.AttributeExpr)
+	walk = func(att *expr.AttributeExpr) {
+		if att == nil || att.Type == nil || seen[att.Type] {
 			return
 		}
+		dt := att.Type
 		seen[dt] = true
 		visit(dt)
 		switch actual := dt.(type) {
@@ -138,25 +139,26 @@ func walkBodyTypes(dt expr.DataType, visit func(expr.DataType)) {
 				// A named union declares its wrapper's name, not a second
 				// type under the underlying union's name.
 				for _, branch := range union.Values {
-					walk(branch.Attribute.Type)
+					walk(branch.Attribute)
 				}
 			} else {
-				walk(actual.Attribute().Type)
+				walk(actual.Attribute())
 			}
 		case *expr.Object:
 			for _, field := range *actual {
-				walk(field.Attribute.Type)
+				walk(field.Attribute)
 			}
+			walk(att.AdditionalAttributes)
 		case *expr.Union:
 			for _, branch := range actual.Values {
-				walk(branch.Attribute.Type)
+				walk(branch.Attribute)
 			}
 		case *expr.Array:
-			walk(actual.ElemType.Type)
+			walk(actual.ElemType)
 		case *expr.Map:
-			walk(actual.KeyType.Type)
-			walk(actual.ElemType.Type)
+			walk(actual.KeyType)
+			walk(actual.ElemType)
 		}
 	}
-	walk(dt)
+	walk(att)
 }

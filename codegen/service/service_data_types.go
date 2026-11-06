@@ -83,6 +83,7 @@ func collectTypes(at *expr.AttributeExpr, scope *codegen.NameScope, seen map[str
 		for _, nat := range *dt {
 			data = append(data, collect(nat.Attribute, loc)...)
 		}
+		data = append(data, collect(at.AdditionalAttributes, loc)...)
 	case *expr.Array:
 		data = append(data, collect(dt.ElemType, loc)...)
 	case *expr.Map:
@@ -126,6 +127,7 @@ func collectUnionTypes(att *expr.AttributeExpr, scope *codegen.NameScope, loc *c
 		for _, nat := range sortedNamedAttributes(*dt) {
 			collectUnionTypes(nat.Attribute, scope, loc, unions, seen)
 		}
+		collectUnionTypes(att.AdditionalAttributes, scope, loc, unions, seen)
 	case *expr.Array:
 		collectUnionTypes(dt.ElemType, scope, loc, unions, seen)
 	case *expr.Map:
@@ -414,6 +416,7 @@ func hasResultType(att *expr.AttributeExpr, seens ...map[string]struct{}) bool {
 				return true
 			}
 		}
+		return att.AdditionalAttributes != nil && hasResultType(att.AdditionalAttributes, seen)
 	case *expr.Union:
 		for _, nat := range a.Values {
 			if hasResultType(nat.Attribute, seen) {
