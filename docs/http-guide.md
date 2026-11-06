@@ -233,6 +233,10 @@ joining members. Exploded-label values whose dots cannot survive the server's
 path decoding are rejected. Newly styled path helpers return `(string, error)`;
 ordinary simple-path helper signatures are unchanged.
 
+Scalar header codecs reject leading or trailing spaces and tabs because HTTP
+framing removes them. Interior spaces and tabs remain data; list and object
+values also follow the simple-list delimiter rules.
+
 Raw `cookie` style sends cookie data verbatim. It rejects commas, quotes,
 semicolons, backslashes, non-ASCII data and leading/trailing whitespace; interior
 spaces remain unquoted. Choose `form` for percent-encoded cookie values. Form

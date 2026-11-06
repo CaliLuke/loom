@@ -8,6 +8,8 @@ import (
 )
 
 // EncodeHeaderParam frames an admitted value as one simple header field.
+// It rejects data that HTTP field or list framing would discard, including
+// leading or trailing SP/HTAB in scalar values. Interior spaces and tabs remain.
 func EncodeHeaderParam(name string, codec ParamCodec, value ParamValue) (string, error) {
 	if codec.Style != ParamSimple || !paramKindValid(value.Kind) {
 		return "", fmt.Errorf("parameter %q: invalid header codec", name)
@@ -16,7 +18,7 @@ func EncodeHeaderParam(name string, codec ParamCodec, value ParamValue) (string,
 		return "", nil
 	}
 	if value.Kind == ParamScalar {
-		if strings.ContainsAny(value.Text, "\r\n") {
+		if strings.ContainsAny(value.Text, "\r\n") || strings.Trim(value.Text, " \t") != value.Text {
 			return "", paramError(name, "invalid header scalar")
 		}
 		return value.Text, nil

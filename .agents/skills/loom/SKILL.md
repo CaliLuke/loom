@@ -1088,6 +1088,9 @@ clients and servers after upgrading to adopt typed Tag binding.
   remains supported. Bytes use raw text with location-specific escaping and
   alphabet checks; JSON Bytes retain base64 encoding. See
   `docs/http-guide.md#parameter-serialization`.
+- Scalar header codecs reject leading/trailing spaces and tabs that HTTP
+  framing would remove. Interior whitespace remains data; collection values
+  also follow the simple-list delimiter rules.
 - Request cookies default to raw cookie style. Values are sent verbatim and
   cannot contain commas, quotes, semicolons, backslashes, non-ASCII data or edge
   whitespace. Form style percent-encodes values and supports scalars and

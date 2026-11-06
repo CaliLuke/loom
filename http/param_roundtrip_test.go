@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -37,10 +38,10 @@ func TestParamCodecAlphabet(t *testing.T) {
 							require.NoError(t, err)
 							require.Equal(t, value, got)
 						}
-						if style == ParamSimple && value.Kind != ParamScalar {
+						if style == ParamSimple {
 							raw, err := EncodeHeaderParam("X-N", codec, value)
 							if err == nil {
-								got, err := DecodeHeaderParam("X-N", []string{raw}, true, codec, value.Kind)
+								got, err := DecodeHeaderParam("X-N", []string{strings.Trim(raw, " \t")}, true, codec, value.Kind)
 								require.NoError(t, err)
 								require.Equal(t, value, got)
 							}

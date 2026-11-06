@@ -191,3 +191,38 @@ property-name and tagged-form controls exercise accepted designs, credentials,
 residual maps and field namespaces. Scratch evidence is under
 `/tmp/loom-fresh-audit/binding-identity`; temporary checker state is removed
 after independent review.
+
+## Header scalar framing correction
+
+The previous codec model excluded header scalars. `CodecRoundTrip` now spells
+and decodes them separately from comma-list values, and its transport step
+explicitly trims HTTP field-edge whitespace. `codec-header-scalar-ows.cfg`
+models the old admission rule: a scalar containing one space is admitted, then
+arrives as an empty value. `RoundTrip` fails at depth 4 (225,969 generated and
+distinct states). The corrected `codec-checked.cfg` passes `RoundTrip`,
+`RequiredPresent`, and `DomainMaximal` with 59,240 initial states, 296,200
+generated / 236,960 distinct states, and depth 4. All twelve existing codec
+negative controls were rerun against the expanded model; each still fails its
+intended invariant with exit 12.
+
+Run these configurations explicitly with the pinned toolchain and commands
+above. The negative control must exit 12 on `RoundTrip`; the checked policy must
+exit 0. No proof command is part of ordinary tests, hooks, CI, or release gates.
+The finite alphabet models SP but not HTAB. Both obey the same HTTP OWS rule;
+implementation tests cover SP/HTAB edges and interior whitespace, empty scalar
+values, literal quotes, non-OWS Unicode, and list/object framing.
+
+`http.EncodeHeaderParam` owns this admission rule. It rejects scalar values whose
+SP/HTAB edges would be discarded by HTTP framing. Existing list-item admission
+continues to preserve internal spaces, including spaces inside exploded `k=v`
+items. No union-specific check or decoder normalization compensates for loss.
+`TestHeaderParamHTTPFraming` checks accepted values through an actual net/http
+request and response; `TestHeaderParamScalarWhitespaceIsLostOnWire` confirms the
+transport loss independently. The scalar-edge cases failed before the fix.
+`TestParamCodecAlphabet` now includes header scalars and models field trimming.
+
+Focused header/alphabet tests and the full `http` and `internal/headerlist`
+packages pass. Scoped runtime and model evidence is retained under
+`/tmp/loom-fresh-audit/header-domain`. Temporary checker state must be removed
+after independent review. No generated source changes: consumers of this shared
+runtime helper receive the corrected admission rule directly.

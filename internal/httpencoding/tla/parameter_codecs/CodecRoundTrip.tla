@@ -32,7 +32,6 @@ Codecs == {C("path", s, e) : s \in {"simple", "matrix", "label"}, e \in BOOLEAN}
           \cup {C("cookie", "form", FALSE)}
 Shapes(c) == CASE c.style \in {"spaceDelimited", "pipeDelimited"} -> {"sequence", "object", "map"}
               [] c.style = "deepObject" -> {"object", "map"}
-              [] c.loc = "header" -> {"sequence", "object", "map"}
               [] OTHER -> {"scalar", "sequence", "object", "map"}
 Values(c) == UNION {CASE sh = "scalar" -> {Sc(s) : s \in Str}
                       [] sh = "sequence" -> {Li(l) : l \in Lists}
@@ -162,14 +161,16 @@ QueryAdmit(c, v) ==
   /\ (SingletonCollides(c) /\ v.shape = "sequence") => v.l # << <<>> >>
 
 HeaderEncode(c, v) ==
-  CASE v.shape = "sequence" -> Join(v.l, <<",", " ">>)
+  CASE v.shape = "scalar" -> v.s
+    [] v.shape = "sequence" -> Join(v.l, <<",", " ">>)
     [] OTHER -> Join(Map(LAMBDA e: IF c.explode THEN e[1] \o <<"=">> \o e[2] ELSE e[1] \o <<",">> \o e[2],
                          Entries(v)), <<",", " ">>)
 \* Exploded members are "k=v": an empty or leading-space value survives the
 \* RFC 9110 list framing, a trailing space does not. Exploded map keys end at
 \* the first "=" and must not begin with whitespace.
 HeaderAdmit(c, v) ==
-  IF v.shape \in {"object", "map"} /\ c.explode
+  IF v.shape = "scalar" THEN Policy = "header-scalar-ows" \/ Trim(v.s) = v.s
+  ELSE IF v.shape \in {"object", "map"} /\ c.explode
   THEN /\ \A s \in Items(v) : ~Contains(s, ",") /\ TrimR(s) = s
        /\ Policy # "map-key-unchecked" => \A k \in MapKeys(v) : ~Contains(k, "=") /\ TrimL(k) = k
   ELSE \A s \in Items(v) : s # <<>> /\ ~Contains(s, ",") /\ Trim(s) = s
@@ -320,7 +321,8 @@ QueryDecode(c, shape, pairs) ==
 
 HeaderDecode(c, shape, field) ==
   LET items == SelectSeq(Map(LAMBDA s: Trim(s), SplitOn(Trim(field), ",")), LAMBDA s: s # <<>>) IN
-  CASE shape = "sequence" -> Li(items)
+  CASE shape = "scalar" -> Sc(field)
+    [] shape = "sequence" -> Li(items)
     [] c.explode -> PairsOf(shape, Map(LAMBDA s: <<Before(s, "="), After(s, "=")>>, items), LAMBDA t: t)
     [] OTHER -> FlatOf(shape, Join(items, <<",">>), ",", LAMBDA t: t)
 
@@ -348,6 +350,7 @@ Encode(c, v) ==
     [] OTHER -> [ok |-> CookieAdmit(c, v), w |-> CookieLine(c, v), p |-> <<>>]
 Transport(c, e, pr, hc) ==
   CASE c.loc = "cookie" -> [w |-> <<>>, p |-> ParsePairs(e.w, pr)]
+    [] c.loc = "header" -> [w |-> Trim(e.w), p |-> e.p]
     [] c.loc = "path" /\ hc = "lower" -> [w |-> Lower(e.w), p |-> e.p]
     [] OTHER -> [w |-> e.w, p |-> e.p]
 Decode(c, shape, t, n) ==
