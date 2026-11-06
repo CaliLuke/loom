@@ -155,7 +155,7 @@ func httpValueDomain(attribute *AttributeExpr) httpencoding.ValueDomain {
 	}
 	if kind == httpencoding.String {
 		for _, format := range constraints.Validation().Lowered().Formats() {
-			if format == FormatUUID || format == FormatDate {
+			if format == FormatDate {
 				return httpencoding.ValueDomain{Unreserved: true}
 			}
 		}

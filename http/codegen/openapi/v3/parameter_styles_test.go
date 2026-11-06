@@ -57,3 +57,54 @@ func TestCookie31RejectsUnrestrictedCookieStyle(t *testing.T) {
 		}
 	}
 }
+
+func TestUUIDCookieProjection(t *testing.T) {
+	for _, target := range []string{"3.1", "3.2"} {
+		for _, tc := range []struct {
+			name, style string
+			enum        bool
+		}{
+			{"raw format", "cookie", false},
+			{"raw restricted enum", "cookie", true},
+			{"form format", "form", false},
+		} {
+			t.Run(target+"/"+tc.name, func(t *testing.T) {
+				design := func() {
+					API("uuid-cookie", func() {
+						Meta("openapi:version", target)
+					})
+					Service("cookies", func() {
+						Method("read", func() {
+							Payload(func() {
+								Attribute("id", String, func() {
+									Format(FormatUUID)
+									if tc.enum {
+										Enum("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
+									}
+								})
+							})
+							HTTP(func() {
+								GET("/")
+								Cookie("id", func() {
+									Meta("openapi:style", tc.style)
+								})
+							})
+						})
+					})
+				}
+				if target == "3.1" && tc.style == "cookie" && !tc.enum {
+					root := httpgen.RunHTTPDSL(t, design)
+					_, err := openapiv3.Files(root)
+					require.ErrorContains(t, err, "id")
+					return
+				}
+				version := "3.2.0"
+				if target == "3.1" {
+					version = "3.1.1"
+				}
+				artifacts := renderOpenAPIArtifactsForVersion(t, design, target, version)
+				lintRenderedContract(t, decodeOpenAPIJSON(t, artifacts.JSON))
+			})
+		}
+	}
+}

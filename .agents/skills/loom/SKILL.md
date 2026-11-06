@@ -1092,7 +1092,9 @@ clients and servers after upgrading to adopt typed Tag binding.
   cannot contain commas, quotes, semicolons, backslashes, non-ASCII data or edge
   whitespace. Form style percent-encodes values and supports scalars and
   non-exploded collections. OpenAPI 3.1 export rejects raw-cookie contracts whose
-  entire key/value domains are not equivalent to form encoding.
+  entire key/value domains are not equivalent to form encoding. `FormatUUID`
+  alone is insufficient because URN and brace spellings are valid; an enum of
+  unreserved UUID spellings can establish equivalence.
 - Exploded objects and maps share a namespace with sibling parameters and
   credentials. Overlapping claims and multiple residual maps are rejected.
   Required values that emit no wire key fail before publication; optional

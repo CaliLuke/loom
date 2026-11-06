@@ -263,8 +263,10 @@ entry point. `Serialization` retains explicit-presence pointers.
 value and key facts for the 3.1.1 cookie projection (section 7). Both adapters
 populate them; the resolved style and explode select the projection rule. `KeyDomain` and
 `ValueDomain` distinguish values that are unreserved-only (integers, booleans,
-`uuid` and `date` strings, and enums whose literals are all RFC 3986
-unreserved) from every other value. They are input facts, not policy.
+`date` strings, and enums whose literals are all RFC 3986
+unreserved) from every other value. UUID format alone does not establish that
+domain: validation also accepts URN and brace spellings. An explicit enum of
+unreserved UUID spellings can establish it. They are input facts, not policy.
 
 Adapter placement. Expr validation calls `Resolve`, and `transportir` imports
 `expr`, so the expr-type adapter lives in `expr` as
@@ -644,7 +646,8 @@ Export:
   binding can send:
   - The binding is a scalar, or uses `explode: false`.
   - Every value domain is unreserved-only: integers, booleans, enums whose
-    literals are all RFC 3986 unreserved, `uuid` or `date` strings.
+    literals are all RFC 3986 unreserved, or `date` strings. UUID format alone
+    is insufficient because accepted URN and brace spellings contain reserved characters.
   - Every key is unreserved-only. That means fixed property wire names checked
     one by one, and a `ScalarMap` key attribute that is an integer or an
     enum of unreserved literals.

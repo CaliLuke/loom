@@ -1,6 +1,7 @@
 package ir
 
 import (
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -8,9 +9,11 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
+	loomhttp "github.com/CaliLuke/loom/http"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
 	"github.com/CaliLuke/loom/internal/httpencoding"
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 func TestParameterCodecExport(t *testing.T) {
@@ -71,7 +74,7 @@ func TestCookieFormEquivalence31(t *testing.T) {
 	}{
 		{"integer", integer, true, true},
 		{"enum", unreserved, true, true},
-		{"uuid", &expr.AttributeExpr{Type: expr.String, Validation: &expr.ValidationExpr{Format: "uuid"}}, true, true},
+		{"uuid", &expr.AttributeExpr{Type: expr.String, Validation: &expr.ValidationExpr{Format: "uuid"}}, true, false},
 		{"date", &expr.AttributeExpr{Type: expr.String, Validation: &expr.ValidationExpr{Format: "date"}}, true, true},
 		{"string", unrestricted, true, false},
 		{"integer map keys", &expr.AttributeExpr{Type: &expr.Map{KeyType: integer, ElemType: unreserved}}, false, true},
@@ -106,6 +109,27 @@ func TestValidateURLFieldEncodingAllLocations(t *testing.T) {
 			}
 			err := validateURLFieldEncoding(&transportir.Endpoint{Request: request})
 			require.ErrorContains(t, err, location+" parameter \"value\"")
+		})
+	}
+}
+
+func TestUUIDCookieDomainIncludesReservedSpellings(t *testing.T) {
+	for _, value := range []string{"urn:uuid:6ba7b810-9dad-11d1-80b4-00c04fd430c8", "{6ba7b810-9dad-11d1-80b4-00c04fd430c8}"} {
+		t.Run(value, func(t *testing.T) {
+			require.NoError(t, loom.ValidateFormat("id", value, loom.FormatUUID))
+			raw := httptest.NewRequest("GET", "/", nil)
+			form := httptest.NewRequest("GET", "/", nil)
+			carrier := loomhttp.ParamValue{Kind: loomhttp.ParamScalar, Present: true, Text: value}
+			rawCodec := loomhttp.ParamCodec{Style: loomhttp.ParamCookie, Explode: true}
+			formCodec := loomhttp.ParamCodec{Style: loomhttp.ParamForm, Explode: true}
+			require.NoError(t, loomhttp.AddRequestCookieParam(raw, "id", rawCodec, carrier, loomhttp.ParamNamespace{}))
+			require.NoError(t, loomhttp.AddRequestCookieParam(form, "id", formCodec, carrier, loomhttp.ParamNamespace{}))
+			require.NotEqual(t, raw.Header.Get("Cookie"), form.Header.Get("Cookie"))
+			decoded, err := loomhttp.DecodeCookieParam(form.Cookies(), "id", rawCodec, loomhttp.ParamScalar, loomhttp.ParamNamespace{})
+			require.NoError(t, err)
+			require.Error(t, loom.ValidateFormat("id", decoded.Text, loom.FormatUUID))
+			shape := expr.HTTPValueShape(&expr.AttributeExpr{Type: expr.String, Validation: &expr.ValidationExpr{Format: expr.FormatUUID}})
+			require.False(t, cookieFormEquivalent31(httpencoding.Codec{Style: httpencoding.CookieStyle, Shape: shape.Shape, Explode: true}, shape))
 		})
 	}
 }

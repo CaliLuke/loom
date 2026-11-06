@@ -600,3 +600,24 @@ The final bounded compile tier also passes (27.561s): the existing query-map,
 path-array and form-body specimens, ParameterStylesDSL and the new parent's
 AdditionalAttributesTypedDSL. Each generated module is built, vetted and tested.
 Final documentation lint and whitespace checks pass after recording this evidence.
+
+## UUID raw-cookie domain correction
+
+UUID format validation accepts canonical, URN and brace spellings. The latter
+two contain characters that form encoding percent-escapes, so the shared
+`expr.httpValueDomain` must not claim an unreserved alphabet from UUID format
+alone. Explicit enums still establish a narrower unreserved domain. Runtime
+UUID validation and the raw-cookie codec retain their existing behavior.
+
+Direct shape and cookie-equivalence tests failed before removing the unsound
+format inference. Runtime witnesses show that raw/form cookie spellings differ
+for URN and brace UUIDs and that reading the form spelling as raw fails UUID
+validation. Export regressions cover both 3.1 and 3.2 targets, explicit form
+encoding and a canonical UUID enum. Full expr, OpenAPI IR and v3 package tests
+pass. Accepted JSON/YAML artifacts parse with libopenapi and pass pinned Vacuum
+v0.36.2 rules. Parent/candidate comparison preserves all ten accepted artifacts
+byte for byte; only the unrestricted raw UUID 3.1 case changes from two emitted
+artifacts to a named rejection. Two independent candidate processes agree.
+The existing 25-design representative output remains unchanged; its prior
+mounted compilation evidence remains applicable. No checked-in fixture changes.
+Scratch reproduction inputs and logs: `/tmp/loom-fresh-audit/uuid-cookie`.

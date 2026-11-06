@@ -240,7 +240,9 @@ cookies support scalars and non-exploded collections; exploded form collections
 have no equivalent cookie-pair grammar. OpenAPI 3.2 represents raw cookies
 explicitly. Export to 3.1 requires proof that the complete raw-cookie value and
 key domains are equivalent to form encoding; otherwise generation fails. An
-unrestricted raw string does not meet that condition.
+unrestricted raw string does not meet that condition. Neither does `FormatUUID`
+alone: validation accepts URN and brace spellings that form encoding changes.
+A UUID enum containing only unreserved spellings can meet the condition.
 
 Regenerate clients and servers together when changing a style. In particular,
 old bracket-style requests require explicit `deepObject`, and text `Any`
