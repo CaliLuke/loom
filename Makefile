@@ -35,7 +35,7 @@ PROTOC_GEN_GO_GRPC_VERSION?=v1.6.2
 PROTOC_BIN=protoc
 PROTOC_DEST=$(GOBIN_DIR)/$(PROTOC_BIN)
 
-.PHONY: all all-tests ci ci-local clean coverage-baseline coverage-ratchet depend depend-test depend-lint fmt install-hooks lint lint-docs lint-filesize lint-gofmt lint-json-v2 lint-legacy-middleware lint-namescope lint-test-sources lint-toolchain test test-ci test-ci-lane test-ci-merge test-race test-pulse-redis test-testdata-compile integration-test integration-test-fast generated-code-quality openapi-contract value-contract-proof value-contract-conformance build-loom build-loom-cached loom-local loom-remote loom-status release release-promote
+.PHONY: all all-tests ci ci-local clean coverage-baseline coverage-ratchet depend depend-test depend-lint fmt install-hooks lint lint-docs lint-filesize lint-gofmt lint-json-v2 lint-legacy-middleware lint-namescope lint-test-sources lint-toolchain test test-ci test-ci-lane test-ci-merge test-race test-workflow-postgres test-pulse-redis test-testdata-compile integration-test integration-test-fast generated-code-quality openapi-contract value-contract-proof value-contract-conformance build-loom build-loom-cached loom-local loom-remote loom-status release release-promote
 .NOTPARALLEL: release ci-local
 
 # Only list test and build dependencies
@@ -209,6 +209,10 @@ ifneq ($(GOOS),windows)
 else
 	go test -race -shuffle=on -count=1 -timeout=$(LOOM_TEST_TIMEOUT) ./...
 endif
+
+# Explicit durable-workflow acceptance; creates only a disposable local container.
+test-workflow-postgres:
+	@bash ./scripts/test_workflow_postgres.sh
 
 # Opt-in real-Redis tier for the pulse suites (issue #383). `make test` runs
 # them against miniredis only. This target starts the latest stable Redis

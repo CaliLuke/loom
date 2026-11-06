@@ -139,13 +139,20 @@ consumer validation.
   the collection-presence model under
   `codegen/tla/validation_carrier` aligned; do not patch individual transports.
 
-- `execution/` owns typed activity names, options, registration/execution
-  contracts, and futures. `execution/adapter` owns concrete-handler reflection;
-  it does not own serialization. `execution/selvedge` uses native generic
-  definitions and captures each future's workflow scope. Selvedge owns codecs,
-  retry execution, storage, and app lifecycle. Agent policies and type-erased
-  agent JSON bridges remain in their consumer. This runtime surface has no DSL
-  or generated workflow API. Keep the binding model and scope tests aligned.
+- `execution/` owns typed activity/workflow contracts, activity options and
+  futures. `execution/adapter` owns handler reflection, not serialization.
+  `execution/selvedge` owns private producer/worker handles, one lifecycle gate,
+  frozen admission identity and identity-first lookup. Worker Activities take
+  the lifecycle gate before their registry lock, even through retained handles.
+  Cleanup drains admitted operations and retries native shutdown only for
+  `ErrShutdownInterrupted`; unmarked results, including context-wrapping errors,
+  are final. Roles cannot restart. Selvedge owns persistence, dispatch, leases,
+  retries and native codecs. The exact native JSON bridge is
+  `workflow_encoding.go`; do not duplicate byte-identity policy elsewhere.
+  `New(app)` retains caller-owned lifecycle and native scope behavior. Keep
+  lifecycle/admission models, race tests, SQLite process restart and explicit
+  PostgreSQL acceptance aligned. No DSL, generated jobs or agent policy belong
+  to this surface.
 
 - `internal/patternsyntax` owns the portable Go/ECMAScript bridge. Export derives
   syntax from the admitted Go tree; import admits a bounded ECMAScript grammar
@@ -1149,7 +1156,10 @@ There is one DSL parser, one shared semantic IR, and one renderer.
   format annotations do not replace runtime or JSON Schema assertions.
 - All Loom-owned runtime, generator, test, fixture, and example JSON uses Go
   1.27 `encoding/json/v2` and `encoding/json/jsontext`. Generated code must use
-  the same packages; do not emit or retain the legacy JSON package.
+  the same packages. The sole native-codec interoperability boundary is
+  `execution/selvedge/workflow_encoding.go`: Selvedge owns its durable input
+  bytes and marshaler semantics. Keep native marshaling, fixed-point validation
+  and raw-input conversion there; all other Loom JSON remains v2.
 - OpenAPI output defaults to both canonical files. API metadata may select JSON
   or YAML alone; `codegen.File.RemovePaths` must remove only the stale sibling
   in the generator's deterministic post-write phase.

@@ -1,6 +1,6 @@
-// Package selvedge binds execution activities to native Selvedge apps and
-// workflow scopes. Applications retain ownership of app lifecycle, workflows,
-// submission, transactions, and backend-specific policies.
+// Package selvedge binds typed activities and durable workflows to Selvedge.
+// Producer and Worker own their private handles and lifecycle; New(app) retains
+// the caller-owned native path. Selvedge owns persistence, dispatch and codecs.
 package selvedge
 
 import (
@@ -9,16 +9,18 @@ import (
 	"fmt"
 	"sync"
 
+	sv "github.com/CaliLuke/selvedge"
+
 	"github.com/CaliLuke/loom/execution"
 	"github.com/CaliLuke/loom/execution/adapter"
-	sv "github.com/CaliLuke/selvedge"
 )
 
 type (
-	// Activities registers named handlers on one caller-owned Selvedge app.
-	// Register all handlers before starting the app so recovery can find them.
+	// Activities registers named handlers on one Selvedge app. A Worker-owned
+	// registry shares its registration gate; New(app) retains caller ownership.
 	Activities struct {
 		app         *sv.App
+		gate        *workflowCore
 		mu          sync.RWMutex
 		definitions map[string]invocation
 	}
@@ -48,6 +50,16 @@ func New(app *sv.App) (*Activities, error) {
 // Its generic signature preserves the input and output types for Selvedge;
 // Activities therefore does not implement execution.ActivityRegistrar.
 func Register[I, O any](activities *Activities, activity execution.Activity[I, O], handler func(context.Context, I) (O, error), options sv.ActivityOptions) error {
+	if activities == nil {
+		return errors.New("selvedge: activity registration requires a registry")
+	}
+	if activities.gate != nil {
+		activities.gate.mu.Lock()
+		defer activities.gate.mu.Unlock()
+		if activities.gate.state != workflowNew {
+			return ErrRegistrationSealed
+		}
+	}
 	if activity.Name == "" {
 		return errors.New("selvedge: activity name is required")
 	}

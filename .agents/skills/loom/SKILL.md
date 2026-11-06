@@ -83,8 +83,17 @@ status, cancellation, and transactions. Futures retain their scheduling scope.
 The typed native registry does not implement `ActivityRegistrar`; that interface
 serves backends able to register a concrete function dynamically. See
 [typed activities](../../../docs/execution.md) for the complete boundary.
-Selvedge v0.7.0 needs Go 1.27.3 and a fresh database; finish old runs and retain
-their database before changing worker storage.
+For owned durable roles, share `execution.Workflow[Input, Output]`, declare it
+on `selvedge.NewProducer` and register its native workflow handler on
+`selvedge.NewWorker`. Register worker activities through `worker.Activities()`.
+Start seals registration; cancellation of its caller after success does not
+stop the role. Submit with a stable ID; retain uncertain input bytes across
+retries and do not infer global absence from a later rejected call. Lookup
+checks identity before typed decoding. Shutdown drains calls and continues
+cleanup after a waiter is cancelled; the roles cannot restart. Native
+transactions and cancellation remain on the caller-owned path. Producers
+instrument operations with wrappers; workers use native hooks.
+Selvedge v0.8.1 needs Go 1.27.3 and preserves the v0.7.0 database schema.
 
 ## Core Workflow
 
