@@ -228,7 +228,7 @@ func TestTransportVarNamesAreUniquePerFunction(t *testing.T) {
 	root := RunHTTPDSL(t, transportVarNameCollisionDSL)
 	services := CreateHTTPServices(root)
 	files := append(ServerFiles("", services), ClientFiles("", services)...)
-	files = append(files, PathFiles(services)...)
+	files = append(files, PathFiles("", services)...)
 	files = append(files, ServerTypeFiles("", services)...)
 	files = append(files, ClientTypeFiles("", services)...)
 	files = append(files, ClientCLIFiles("", services)...)

@@ -73,15 +73,15 @@ func arbitraryJSONDSL() {
 			})
 		})
 
-		Method("Query", func() {
+		Method("Echo", func() {
 			Payload(func() {
 				Attribute("value", Any)
 				Required("value")
 			})
 			Result(Any)
 			HTTP(func() {
-				GET("/query")
-				Param("value")
+				POST("/echo")
+				Body("value")
 				Response(StatusOK)
 			})
 		})
@@ -117,8 +117,8 @@ func TestArbitraryJSONServerAndClientRoundTrip(t *testing.T) {
 			}
 			return &result, nil
 		},
-		Query: func(_ context.Context, payload any) (any, error) {
-			return payload.(*arbitraryjson.QueryPayload).Value, nil
+		Echo: func(_ context.Context, payload any) (any, error) {
+			return payload.(*arbitraryjson.EchoPayload).Value, nil
 		},
 	}
 	mux := loomhttp.NewMuxer()
@@ -177,17 +177,24 @@ func TestArbitraryJSONServerAndClientRoundTrip(t *testing.T) {
 		t.Errorf("client result = %s, want %s", got, serviceResult)
 	}
 
-	queryInput := loom.JSONValueFromString("query-value")
-	queryResult, err := client.Query()(t.Context(), &arbitraryjson.QueryPayload{Value: queryInput})
+	var queryInput loom.JSONValue
+	if err := json.Unmarshal([]byte(arbitraryValue), &queryInput); err != nil {
+		t.Fatal(err)
+	}
+	queryResult, err := client.Echo()(t.Context(), &arbitraryjson.EchoPayload{Value: queryInput})
 	if err != nil {
-		t.Fatalf("call generated scalar Any query client: %v", err)
+		t.Fatalf("call generated Any body client: %v", err)
 	}
 	queryValue, ok := queryResult.(loom.JSONValue)
 	if !ok {
-		t.Fatalf("generated query result type = %T", queryResult)
+		t.Fatalf("generated body result type = %T", queryResult)
 	}
-	if got := loom.JSONValueString(queryValue); got != "query-value" {
-		t.Errorf("generated scalar Any query round trip = %q", got)
+	echoed, err := json.Marshal(queryValue, json.Deterministic(true))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(echoed) != arbitraryValue {
+		t.Errorf("generated Any body round trip = %s", echoed)
 	}
 }
 `

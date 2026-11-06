@@ -7,6 +7,7 @@ import (
 
 	"github.com/CaliLuke/loom/eval"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/httpencoding"
 )
 
 func buildRequest(endpoint *expr.HTTPEndpointExpr) *Request {
@@ -51,7 +52,7 @@ func buildRequest(endpoint *expr.HTTPEndpointExpr) *Request {
 		MapQueryParams:       endpoint.MapQueryParams,
 		Multipart:            endpoint.MultipartRequest,
 		FormEncoded:          endpoint.FormRequest,
-		FormFieldModes:       formFieldModes(body, endpoint.FormRequest),
+		FormFieldCodecs:      formFieldCodecs(body, endpoint.FormRequest),
 		OptionalBody:         endpoint.OptionalRequestBody,
 		MustHaveBody:         mustHaveBody,
 		SkipBodyEncode:       endpoint.SkipRequestBodyEncodeDecode,
@@ -318,7 +319,9 @@ func buildHeaders(mapped *expr.MappedAttributeExpr) []*Header {
 	}
 	headers := make([]*Header, 0)
 	expr.WalkMappedAttr(mapped, func(name, element string, attr *expr.AttributeExpr) error { // nolint: errcheck
+		codec, _ := parameterCodec(httpencoding.Header, element, attr, expr.HTTPParameterSerialization(attr, "openapi:"))
 		headers = append(headers, &Header{
+			Codec:            codec,
 			Name:             name,
 			HTTPName:         element,
 			Attribute:        attr,

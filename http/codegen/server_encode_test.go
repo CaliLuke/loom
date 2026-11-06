@@ -26,7 +26,6 @@ func TestEncode(t *testing.T) {
 		{"header-float64", testdata.ResultHeaderFloat64DSL},
 		{"header-string", testdata.ResultHeaderStringDSL},
 		{"header-bytes", testdata.ResultHeaderBytesDSL},
-		{"header-any", testdata.ResultHeaderAnyDSL},
 		{"header-array-bool", testdata.ResultHeaderArrayBoolDSL},
 		{"header-array-int", testdata.ResultHeaderArrayIntDSL},
 		{"header-array-int32", testdata.ResultHeaderArrayInt32DSL},
@@ -38,7 +37,6 @@ func TestEncode(t *testing.T) {
 		{"header-array-float64", testdata.ResultHeaderArrayFloat64DSL},
 		{"header-array-string", testdata.ResultHeaderArrayStringDSL},
 		{"header-array-bytes", testdata.ResultHeaderArrayBytesDSL},
-		{"header-array-any", testdata.ResultHeaderArrayAnyDSL},
 
 		{"header-bool-default", testdata.ResultHeaderBoolDefaultDSL},
 		{"header-bool-required-default", testdata.ResultHeaderBoolRequiredDefaultDSL},

@@ -11,7 +11,6 @@ import (
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 	"github.com/CaliLuke/loom/http/codegen/openapi"
-	"github.com/CaliLuke/loom/internal/httpencoding"
 )
 
 const defaultOperationIDFormat = "{service}.{method}(.{routeIndex})"
@@ -135,7 +134,9 @@ func buildParameters(endpointIR *transportir.Endpoint, rand *expr.ExampleGenerat
 func paramsFromPath(endpointIR *transportir.Endpoint, rand *expr.ExampleGenerator, closeObjects bool, prepared ...map[*expr.AttributeExpr]*Schema) []*ParameterRef {
 	var params []*ParameterRef
 	for _, parameter := range endpointIR.Request.PathParams {
-		params = append(params, preparedParamFor(parameter.Attribute, parameter.Value, parameter.HTTPName, "path", true, rand, closeObjects, prepared...))
+		ref := preparedParamFor(parameter.Attribute, parameter.Value, parameter.HTTPName, "path", true, rand, closeObjects, prepared...)
+		applyParameterCodec(ref.Value, parameter)
+		params = append(params, ref)
 	}
 	if endpointIR.Request.MapQueryParams != nil {
 		return params
@@ -145,12 +146,7 @@ func paramsFromPath(endpointIR *transportir.Endpoint, rand *expr.ExampleGenerato
 			continue
 		}
 		ref := preparedParamFor(parameter.Attribute, parameter.Value, parameter.HTTPName, "query", parameter.Required, rand, closeObjects, prepared...)
-		if parameter.Encoding == httpencoding.JSON {
-			p := ref.Value
-			p.Content = map[string]*MediaType{"application/json": {Schema: p.Schema, Example: p.Example, Examples: p.Examples}}
-			p.Schema, p.Example, p.Examples = nil, nil, nil
-			p.Style, p.Explode, p.AllowReserved, p.AllowEmptyValue = "", nil, false, false
-		}
+		applyParameterCodec(ref.Value, parameter)
 		params = append(params, ref)
 	}
 	return params
@@ -166,13 +162,17 @@ func paramsFromHeadersAndCookies(endpointIR *transportir.Endpoint, rand *expr.Ex
 		if endpointIR.Security.IsParameter("header", parameter.HTTPName) {
 			continue
 		}
-		params = append(params, preparedParamFor(parameter.Attribute, parameter.Value, parameter.HTTPName, "header", parameter.Required, rand, closeObjects, prepared...))
+		ref := preparedParamFor(parameter.Attribute, parameter.Value, parameter.HTTPName, "header", parameter.Required, rand, closeObjects, prepared...)
+		applyParameterCodec(ref.Value, parameter)
+		params = append(params, ref)
 	}
 	for _, parameter := range endpointIR.Request.Cookies {
 		if endpointIR.Security.IsParameter("cookie", parameter.HTTPName) {
 			continue
 		}
-		params = append(params, preparedParamFor(parameter.Attribute, parameter.Value, parameter.HTTPName, "cookie", parameter.Required, rand, closeObjects, prepared...))
+		ref := preparedParamFor(parameter.Attribute, parameter.Value, parameter.HTTPName, "cookie", parameter.Required, rand, closeObjects, prepared...)
+		applyParameterCodec(ref.Value, parameter)
+		params = append(params, ref)
 	}
 
 	return params
@@ -216,8 +216,7 @@ func preparedParamFor(
 		ComponentName:   componentMetaValue(attr, "openapi:component:parameter"),
 		Description:     attr.Description,
 		AllowEmptyValue: allowEmptyValue,
-		AllowReserved:   metaBool(attr.Meta, "openapi:allowReserved"),
-		Style:           metaValue(attr.Meta, "openapi:style"),
+		AllowReserved:   metaBool(expr.HTTPMediaMetadata(attr), "openapi:allowReserved"),
 		Required:        required,
 		Schema:          schema,
 		Extensions: openapi.MergeExtensions(

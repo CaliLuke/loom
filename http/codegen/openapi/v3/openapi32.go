@@ -33,6 +33,9 @@ func renderOpenAPI(root *expr.RootExpr, spec *OpenAPI, target openAPIVersion) ([
 		versionedPass{
 			versions: versionRange{through: openAPIVersion31},
 			apply: func() ([]string, error) {
+				if err := lowerOpenAPI31Cookies(spec); err != nil {
+					return nil, err
+				}
 				return filterOpenAPI31(spec), nil
 			},
 		},

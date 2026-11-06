@@ -337,8 +337,9 @@ consumer validation.
   at the existing binding and response-cookie owners. Keep query/body names intact;
   do not truncate mappings or reproduce protocol grammar in transport templates.
 
-- `http.AddRequestCookie` owns request-cookie publication: standard `Cookie.Valid`
-  name/value validation precedes header mutation. The shared HTTP request encoder
+- `http.AddRequestCookie` and the shared parameter-cookie owner validate complete
+  raw pairs before publication, then write them verbatim without net/http quoting.
+  Data alphabets, edge whitespace and names are checked before header mutation. The shared HTTP request encoder
   formats values and preserves presence, then calls this owner and wraps failures
   as encoding errors before Do/Dial. JSON-RPC HTTP consumers reuse that encoder.
   Request publication does not apply response attributes or deployment policies;
@@ -1362,13 +1363,14 @@ filter, and serialization rules belong here.
   carrier classification. Keep normalization models and bounded field/map/root/
   nullability/name controls aligned. URL location admission remains separate.
 
-- `documentPlanner.admitParameterShape` owns imported binding admission by
+- `documentPlanner.admitParameter` and `parameterCodec` own imported binding admission by
   location, for request parameters and response headers. Its reference-resolved
-  shape adapter verifies scalar array elements and consumes `classifyObject` for
-  record/map identity. Decode component names through the canonical JSON Pointer
-  helper, retaining cycle protection. Keep query/form serialization with
-  `httpencoding.Match`, existing non-query Any codecs and raw-form delegation;
-  reject an unsupported carrier once before serialization or render planning.
+  shape adapter retains scalar domains, scalar members and record/map identity.
+  Decode component names through the canonical JSON Pointer helper, retaining
+  cycle protection. Normalize OpenAPI defaults before `httpencoding.Resolve`,
+  retain explicit Encoding Object flags, and check sibling namespaces including
+  credentials and each media branch. Text Any is unsupported; JSON content and
+  raw-form delegation retain their separate contracts.
   Analyze and direct Render must share this owner, including selected operations.
 
 - `openapiimport.renderer.schemaAnnotations` owns schema documentation separately
@@ -2351,16 +2353,28 @@ filter, and serialization rules belong here.
   request and response body types of a result type share its identifier and
   have different layouts. OpenAPI keeps the service union names, so do not
   rename the union in `expr` or in the shared IR.
-- `internal/httpencoding` owns named URL field serialization selection and
-  source-format matching. Named query maps and named form objects/maps use one
-  JSON document; scalar and repeated-scalar formats remain unchanged. Whole-query
-  and root-form layouts remain separate boundaries. Transport analysis, runtime
-  encoding, OpenAPI and import admission consume this owner; reject mismatched
-  source serialization instead of silently importing it as a different codec.
-  JSON subtrees use existing Optional/nullability carriers and shared transforms,
-  while their outer form keeps native fields. Apply registered physical layouts
-  at named collection conversion boundaries as well as object helpers. Keep the
-  serialization model and mounted nested-null/import round-trip tests aligned.
+- `internal/httpencoding.Resolve` owns parameter grammar, defaults and key
+  claims. `ResolveUnion` resolves one effective grammar across alternatives;
+  it is a seam for text-union work, not permission to admit text unions today.
+  `expr.HTTPValueShape` and the importer's independent `urlShape` adapter retain
+  scalar property and key/value domain facts. `CheckNamespaces` owns literal,
+  bracket-prefix and residual claims. Keep exporter/importer/expr decisions here.
+  Named query maps and form objects/maps retain JSON defaults; explicit style
+  selection enables scalar collections and objects in the supported text grammars.
+  Whole-query and root-form layouts remain separate. JSON subtrees retain their
+  physical JSON carriers while enclosing forms keep native fields.
+  `http/param_*.go` owns raw tokenization, escaping, alphabet admission and wire
+  operations; generated native adapters own Go types, defaults and validation.
+  Text Bytes preserve raw bytes through location escaping and alphabet checks;
+  JSON Bytes retain base64 encoding.
+  Response constructors consume decoded response bindings, never request fields.
+  Root collections have one payload-owning binding; transport-only session
+  cookies do not count. Parameter metadata is rejected on effective JSON bodies.
+  Typed `MediaFormCodec` callbacks connect resolved form fields to default media
+  factories; keep them scoped to one encoding call and restore request context.
+  Required zero-key values fail before publication or response commitment.
+  Keep the serialization and parameter-codec models, mounted wire controls,
+  namespace/shape agreement and independent regeneration checks aligned.
 - Imported structured response content is explicit in the DSL even without
   headers. Use the shared schema Body/OpenAPIBody renderer and object carrier;
   do not infer body presence from direct or inherited field counts. Constructor

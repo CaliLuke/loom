@@ -66,6 +66,8 @@ func (a *Analyzer) analyzePreparedSchemaPositions(
 		a.preparedExamples = previous
 	}()
 	examplePlan := representationRoot(attribute, target)
+	attribute, restoreSource := a.parameterSchemaTarget(attribute, plan, target.Codec)
+	defer restoreSource()
 	result := a.analyzeSchemaPositions(attribute, context, plan, examplePlan, noRef...)
 	if !a.customExampleValue && result != nil && result.Example == nil && len(result.Examples) == 0 {
 		restore := a.schemaPlanScope(plan, examplePlan)

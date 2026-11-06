@@ -17,7 +17,7 @@ func reusableMetadata(kind string, chain []openapiref.Object) ([]renderedMetadat
 	return []renderedMetadata{{name: "openapi:reference:" + kind, value: string(value)}}, nil
 }
 
-func requestBodyMetadata(body RequestBody) ([]renderedMetadata, error) {
+func (r *renderer) requestBodyMetadata(body RequestBody) ([]renderedMetadata, error) {
 	metadata, err := renderedExtensions("requestBody", body.Extensions)
 	if err != nil {
 		return nil, err
@@ -29,5 +29,10 @@ func requestBodyMetadata(body RequestBody) ([]renderedMetadata, error) {
 	if err != nil {
 		return nil, err
 	}
-	return append(metadata, references...), nil
+	metadata = append(metadata, references...)
+	encoding, err := r.formEncodingMetadata(body)
+	if err != nil {
+		return nil, err
+	}
+	return append(metadata, encoding...), nil
 }

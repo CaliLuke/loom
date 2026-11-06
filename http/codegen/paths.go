@@ -13,51 +13,52 @@ import (
 )
 
 // PathFiles returns the service path files.
-func PathFiles(data *ServicesData) []*codegen.File {
+func PathFiles(genpkg string, data *ServicesData) []*codegen.File {
 	services := data.servicesForGeneration()
 	fw := make([]*codegen.File, 2*len(services))
 	for i, service := range services {
-		fw[i*2] = serverPath(service, data)
-		fw[i*2+1] = clientPath(service, data)
+		fw[i*2] = serverPath(genpkg, service, data)
+		fw[i*2+1] = clientPath(genpkg, service, data)
 	}
 	return fw
 }
 
 // ServerPathFiles returns the service path files used by HTTP servers.
-func ServerPathFiles(data *ServicesData) []*codegen.File {
+func ServerPathFiles(genpkg string, data *ServicesData) []*codegen.File {
 	services := data.servicesForGeneration()
 	files := make([]*codegen.File, len(services))
 	for i, service := range services {
-		files[i] = serverPath(service, data)
+		files[i] = serverPath(genpkg, service, data)
 	}
 	return files
 }
 
 // serverPath returns the server file containing the request path constructors
 // for the given service.
-func serverPath(svc *expr.HTTPServiceExpr, services *ServicesData) *codegen.File {
+func serverPath(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData) *codegen.File {
 	sd := services.Get(svc.Name())
 	path := filepath.Join(codegen.Gendir, "http", sd.Service.PathName, "server", "paths.go")
-	return &codegen.File{Path: path, Sections: pathSections(svc, "server", services)}
+	return &codegen.File{Path: path, Sections: pathSections(genpkg, svc, "server", services)}
 }
 
 // clientPath returns the client file containing the request path constructors
 // for the given service.
-func clientPath(svc *expr.HTTPServiceExpr, services *ServicesData) *codegen.File {
+func clientPath(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData) *codegen.File {
 	sd := services.Get(svc.Name())
 	path := filepath.Join(codegen.Gendir, "http", sd.Service.PathName, "client", "paths.go")
-	return &codegen.File{Path: path, Sections: pathSections(svc, "client", services)}
+	return &codegen.File{Path: path, Sections: pathSections(genpkg, svc, "client", services)}
 }
 
 // pathSections returns the sections of the file of the pkg package that
 // contains the request path constructors for the given service.
-func pathSections(svc *expr.HTTPServiceExpr, pkg string, services *ServicesData) []codegen.Section {
+func pathSections(genpkg string, svc *expr.HTTPServiceExpr, pkg string, services *ServicesData) []codegen.Section {
 	title := fmt.Sprintf("HTTP request path constructors for the %s service.", svc.Name())
 	sections := make([]codegen.Section, 0, 1+len(svc.HTTPEndpoints))
-	sections = append(sections,
-		codegen.Header(title, pkg, pathImports()),
-	)
 	sdata := services.Get(svc.Name())
+	imports := append(pathImports(), &codegen.ImportSpec{Path: genpkg + "/" + sdata.Service.PathName, Name: sdata.Service.PkgName})
+	imports = append(imports, sdata.Service.UserTypeImports...)
+	sdata, imports = services.FileData(svc.Name(), imports)
+	sections = append(sections, codegen.Header(title, pkg, imports))
 	for _, e := range svc.HTTPEndpoints {
 		sections = append(sections, pathSection(sdata.Endpoint(e.Name())))
 	}
@@ -69,6 +70,7 @@ func pathSections(svc *expr.HTTPServiceExpr, pkg string, services *ServicesData)
 func pathImports() []*codegen.ImportSpec {
 	return []*codegen.ImportSpec{
 		{Path: "fmt"},
+		{Path: "sort"},
 		{Path: "strconv"},
 		{Path: "strings"},
 		codegen.LoomImport(""),

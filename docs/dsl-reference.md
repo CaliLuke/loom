@@ -1069,7 +1069,7 @@ All OpenAPI 3.2 additions use the same design and renderer:
 | Optional discriminator and fallback | `openapi:discriminator:optional` and `openapi:discriminator:defaultMapping` on a `OneOf` |
 | XML node mapping | `openapi:xml:name`, `:namespace`, `:prefix`, and `:nodeType`; valid node types are `element`, `attribute`, `text`, `cdata`, and `none` |
 | Response metadata | `openapi:summary`, `openapi:description:omit`, and `openapi:description:errorName` inside `Response(...)` |
-| Reserved characters and cookie serialization | `openapi:allowReserved` on parameters or headers and `openapi:style` set to `cookie` on cookies |
+| Parameter serialization | `openapi:style`, `openapi:explode`, and `openapi:allowReserved` on parameter occurrences; the selected grammar controls runtime and export; see [Parameter serialization](http-guide.md#parameter-serialization) |
 | Server names | The DSL `Server(...)` name is emitted as the OpenAPI Server Object `name` |
 
 Optional discriminator metadata requires an explicit `defaultMapping`. Export

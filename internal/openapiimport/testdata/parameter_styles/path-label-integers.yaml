@@ -1,0 +1,34 @@
+{
+  "openapi": "3.2.0",
+  "info": {
+    "title": "Parameter styles",
+    "version": "1"
+  },
+  "paths": {
+    "/items/{id}": {
+      "get": {
+        "operationId": "show",
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            },
+            "required": true,
+            "style": "label",
+            "explode": true
+          }
+        ]
+      }
+    }
+  }
+}

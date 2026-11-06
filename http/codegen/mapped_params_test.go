@@ -25,7 +25,7 @@ func TestMappedParamsRouteElementNames(t *testing.T) {
 	require.NotPanics(t, func() {
 		server = filesCode(t, ServerFiles("gen", services))
 		client = filesCode(t, ClientFiles("gen", services))
-		paths = filesCode(t, PathFiles(services))
+		paths = filesCode(t, PathFiles("gen", services))
 	})
 	for _, want := range []string{
 		`loomhttp.MountHandler(mux, "GET", "/items/{k}/{id}", h)`,

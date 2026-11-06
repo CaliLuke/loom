@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/internal/exactnum"
+	"github.com/CaliLuke/loom/internal/httpencoding"
 	"github.com/CaliLuke/loom/internal/openapiimport"
 	"github.com/CaliLuke/loom/internal/testingx"
 )
@@ -162,10 +163,48 @@ func TestOpenAPIImportExporterSymmetryRoundTrip(t *testing.T) {
 	regeneratedDocument := analyzeOpenAPIContract(t, regenerated)
 	require.NoError(t, compareOpenAPIContracts(sourceDocument, regeneratedDocument))
 	changed, err := replaceComparisonJSONField(regenerated, []string{
-		"paths", "/items", "get", "responses", "200", "content", "application/json", "schema", "example",
-	}, []byte(`{"id":"unexpected-local-value"}`))
+		"paths", "/items", "get", "responses", "200", "content", "application/json", "examples", "inline", "dataValue", "id",
+	}, []byte(`"unexpected-local-value"`))
 	require.NoError(t, err)
 	require.Error(t, compareOpenAPIContracts(sourceDocument, analyzeOpenAPIContract(t, changed)))
+}
+
+func TestOpenAPIImportParameterStylesRoundTrip(t *testing.T) {
+	if os.Getenv("LOOM_OPENAPI_CONTRACT") == "" {
+		t.Skip("set LOOM_OPENAPI_CONTRACT=1 to run the OpenAPI import contract")
+	}
+
+	repoRoot := testingx.RepoRoot()
+	loomBin := filepath.Join(t.TempDir(), "loom")
+	output, err := testingx.RunCmd(repoRoot, "go", "build", "-o", loomBin, "./cmd/loom")
+	require.NoError(t, err, output)
+	source, err := os.ReadFile(filepath.Join(repoRoot, "internal", "openapiimport", "testdata", "parameter_styles_roundtrip.json"))
+	require.NoError(t, err)
+	sourceDocument := analyzeOpenAPIContract(t, source)
+
+	moduleDir := t.TempDir()
+	modulePath := "example.com/openapi-parameters-roundtrip"
+	writeRoundTripModule(t, moduleDir, modulePath, repoRoot)
+	input := filepath.Join(moduleDir, "openapi.yaml")
+	require.NoError(t, os.WriteFile(input, source, 0o600))
+
+	output, err = testingx.RunCmd(moduleDir, loomBin, "import", "openapi", input, "-o", "design")
+	require.NoError(t, err, output)
+	output, err = testingx.RunCmd(moduleDir, "go", "mod", "tidy")
+	require.NoError(t, err, output)
+	output, err = testingx.RunCmd(moduleDir, loomBin, "gen", modulePath+"/design", "-o", ".")
+	require.NoError(t, err, output)
+	output, err = testingx.RunCmd(moduleDir, "go", "mod", "tidy")
+	require.NoError(t, err, output)
+	output, err = testingx.RunCmd(moduleDir, "go", "test", "./...")
+	require.NoError(t, err, output)
+
+	regenerated, err := os.ReadFile(filepath.Join(moduleDir, "gen", "http", "openapi.json"))
+	require.NoError(t, err)
+	regenerated, err = prepareGeneratedOpenAPIContract(regenerated, sourceDocument.Title)
+	require.NoError(t, err)
+	regeneratedDocument := analyzeOpenAPIContract(t, regenerated)
+	require.NoError(t, compareOpenAPIContracts(sourceDocument, regeneratedDocument))
 }
 
 func TestCompareOpenAPIContractsRejectsLoss(t *testing.T) {
@@ -298,7 +337,13 @@ func compareOpenAPIContracts(expected, actual *openapiimport.Document) error {
 		return fmt.Errorf("marshal actual OpenAPI semantic contract: %w", err)
 	}
 	if string(expectedJSON) != string(actualJSON) {
-		return fmt.Errorf("OpenAPI semantic contract differs:\nexpected: %s\nactual:   %s", expectedJSON, actualJSON)
+		offset := 0
+		for offset < len(expectedJSON) && offset < len(actualJSON) && expectedJSON[offset] == actualJSON[offset] {
+			offset++
+		}
+		start := max(0, offset-100)
+		return fmt.Errorf("OpenAPI semantic contract differs at byte %d:\nexpected: %s\nactual:   %s", offset,
+			expectedJSON[start:min(len(expectedJSON), offset+350)], actualJSON[start:min(len(actualJSON), offset+350)])
 	}
 	return nil
 }
@@ -376,10 +421,46 @@ func normalizeEmptyOpenAPICollections(document *openapiimport.Document) {
 
 func normalizeOpenAPIParameter(parameter *openapiimport.Parameter) {
 	normalizeOpenAPISchema(parameter.Schema)
+	source := parameter.Serialization
+	if source.Style == "" {
+		source.Style = parameter.Style
+	}
+	if source.MediaType == "" && source.Style == "" {
+		source.Style = "form"
+		if parameter.In == "path" || parameter.In == "header" {
+			source.Style = "simple"
+		}
+	}
+	if parameter.Schema != nil && (parameter.Schema.Type == "string" || parameter.Schema.Type == "integer" || parameter.Schema.Type == "number" || parameter.Schema.Type == "boolean") {
+		source.Explode = nil // Scalar expansion does not depend on explode.
+	}
+	parameter.Serialization = normalizeComparisonSerialization(source)
+	parameter.Style = parameter.Serialization.Style
 }
 
 func normalizeOpenAPIRequestBody(body *openapiimport.RequestBody) {
 	normalizeOpenAPISchema(body.Schema)
+	for name, source := range body.FormEncoding {
+		if source.Style != "" || source.Explode != nil || source.AllowReserved != nil {
+			if source.Style == "" {
+				source.Style = "form"
+			}
+			source.MediaType = "" // Style fields override contentType in form encoding.
+		}
+		body.FormEncoding[name] = normalizeComparisonSerialization(source)
+	}
+}
+
+// normalizeComparisonSerialization removes only fields equal to their effective
+// OpenAPI defaults. Distinct array/object codecs remain unequal.
+func normalizeComparisonSerialization(source httpencoding.Serialization) httpencoding.Serialization {
+	if source.Explode != nil && (source.Style == "deepObject" || *source.Explode == (source.Style == "form" || source.Style == "cookie")) {
+		source.Explode = nil
+	}
+	if source.AllowReserved != nil && !*source.AllowReserved {
+		source.AllowReserved = nil
+	}
+	return source
 }
 
 func normalizeOpenAPIResponse(response *openapiimport.Response) {
@@ -473,6 +554,13 @@ func normalizeGeneratedOpenAPIContract(expected, actual *openapiimport.Document)
 		}
 		actualOperation := &normalized.Operations[operationIndex]
 		expectedOperation := expected.Operations[operationIndex]
+		if want, got := expectedOperation.RequestBody, actualOperation.RequestBody; want != nil && got != nil && want.Schema != nil && got.Schema != nil && want.Schema.Ref == "" && got.Schema.Ref != "" {
+			var err error
+			got.Schema, err = resolver.resolve(got.Schema, make(map[string]bool))
+			if err != nil {
+				return nil, err
+			}
+		}
 		if !expectedOperation.SecurityDefined && actualOperation.SecurityDefined &&
 			reflect.DeepEqual(actualOperation.Security, normalized.Security) {
 			actualOperation.SecurityDefined = false

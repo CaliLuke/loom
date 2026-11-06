@@ -21,7 +21,7 @@ func nameJSONFormCarriers(endpoints []*transportir.Endpoint) {
 			continue
 		}
 		promote := func(attribute *expr.AttributeExpr, name string) {
-			if httpencoding.Select(httpencoding.FormField, transportir.URLShape(attribute)) != httpencoding.JSON {
+			if !defaultJSONFormField(attribute) {
 				return
 			}
 			if custom, _ := codegen.GetMetaType(attribute); custom != "" {
@@ -40,7 +40,7 @@ func nameJSONFormCarriers(endpoints []*transportir.Endpoint) {
 		}
 		if object := expr.AsObject(request.Body.Type); object != nil {
 			for _, field := range *object {
-				if request.FormFieldModes[expr.ElementName(field.Name)] == httpencoding.JSON {
+				if request.FormFieldCodecs[expr.ElementName(field.Name)].Style == httpencoding.JSON {
 					promote(field.Attribute, field.Name)
 				}
 			}
@@ -61,11 +61,11 @@ func recordJSONFormCarriers(request *transportir.Request, layout representation.
 	}
 	if object := expr.AsObject(request.Body.Type); object != nil {
 		for _, field := range *object {
-			if request.FormFieldModes[expr.ElementName(field.Name)] == httpencoding.JSON {
+			if request.FormFieldCodecs[expr.ElementName(field.Name)].Style == httpencoding.JSON {
 				record(field.Attribute)
 			}
 		}
-	} else if mapping := expr.AsMap(request.Body.Type); mapping != nil && httpencoding.Select(httpencoding.FormField, transportir.URLShape(mapping.ElemType)) == httpencoding.JSON {
+	} else if mapping := expr.AsMap(request.Body.Type); mapping != nil && defaultJSONFormField(mapping.ElemType) {
 		record(mapping.ElemType)
 	}
 }
@@ -89,4 +89,9 @@ func (b *payloadBuilder) jsonQueryCarrier(parameter *ParamData, attribute *expr.
 	}
 	parameter.JSONDecodeCode = inlineConversionCode(plan)
 	b.sd.ServerTransformHelpers = codegen.AppendHelpers(b.sd.ServerTransformHelpers, plan.Helpers)
+}
+
+func defaultJSONFormField(attribute *expr.AttributeExpr) bool {
+	codec, _, err := httpencoding.Resolve(httpencoding.FormField, "", expr.HTTPValueShape(attribute), httpencoding.Serialization{})
+	return err == nil && codec.Style == httpencoding.JSON
 }

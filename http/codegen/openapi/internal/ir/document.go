@@ -415,7 +415,7 @@ func buildMediaType(
 	mediaType := &MediaType{
 		Schema:        schema,
 		ComponentName: componentMetaValue(attr, "openapi:component:mediaType"),
-		Metadata:      mediaTypeMetadata(attr.Meta),
+		Metadata:      mediaTypeMetadata(expr.HTTPMediaMetadata(attr)),
 		Extensions:    openapi.ScopedExtensionsFromExpr(attr.Meta, "mediaType"),
 	}
 	initExamples(mediaType, attr, closeObjects, prepared)
@@ -462,10 +462,11 @@ func headersFromIR(
 			ReferenceMetadata: componentMetadata(child, "openapi:reference:header"),
 			Description:       child.Description,
 			Required:          child.IsRequiredNoDefault(headerIR.Name),
-			AllowReserved:     metaBool(child.Meta, "openapi:allowReserved"),
+			AllowReserved:     metaBool(expr.HTTPMediaMetadata(child), "openapi:allowReserved"),
 			Schema:            preparedLocationSchema(child, headerContext, rand, closeObjects, prepared),
 			Extensions:        openapi.ScopedExtensionsFromExpr(child.Meta, "header"),
 		}
+		header.Style, header.Explode = parameterCodecFields("header", headerIR.Codec)
 		initExamples(header, child, closeObjects, headerIR.Value)
 		headers[headerIR.HTTPName] = &HeaderRef{Value: header}
 	}

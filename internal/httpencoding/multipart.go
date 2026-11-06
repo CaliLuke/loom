@@ -14,7 +14,7 @@ func MultipartContentType(shape Shape, binary bool, authored string) (string, er
 	media := "text/plain"
 	if binary {
 		media = "application/octet-stream"
-	} else if shape == Object || shape == Map {
+	} else if shape == Object || shape == ScalarMap || shape == Nested {
 		media = "application/json"
 	}
 	if authored == "" {
@@ -32,4 +32,17 @@ func MultipartContentType(shape Shape, binary bool, authored string) (string, er
 		return "", fmt.Errorf("multipart content type %q disagrees with its generated codec", authored)
 	}
 	return authored, nil
+}
+
+// MatchMultipart checks that authored style flags retain the existing native
+// text/repeated-part or JSON-part codec. RFC 6570 multipart expansion is separate.
+func MatchMultipart(value BranchShape, source Serialization) error {
+	codec, _, err := Resolve(FormField, "part", value, source)
+	if err != nil {
+		return err
+	}
+	if codec.Style == JSON || codec.Style == Form && (value.Shape == Scalar || value.Shape == Sequence && codec.Explode) {
+		return nil
+	}
+	return fmt.Errorf("authored serialization does not match the multipart part codec")
 }

@@ -29,10 +29,10 @@ func (e *mediaCodecError) Decode(any) error {
 
 func mediaRequestDecoder(request *http.Request) Decoder {
 	rejectNull, _ := request.Context().Value(nonNullableBodyKey{}).(bool)
-	return mediaDecoder(request.Body, request.Header.Get("Content-Type"), decodeRequest, RequestBodyLimit(request.Context()), !rejectNull)
+	return mediaDecoder(request.Body, request.Header.Get("Content-Type"), decodeRequest, RequestBodyLimit(request.Context()), !rejectNull, mediaFormCodec(request.Context()))
 }
 
-func mediaDecoder(reader io.Reader, media string, mode decodeMode, limit int64, allowsNull bool) Decoder {
+func mediaDecoder(reader io.Reader, media string, mode decodeMode, limit int64, allowsNull bool, form MediaFormCodec) Decoder {
 	base, _, err := mime.ParseMediaType(media)
 	if err != nil {
 		return newUnsupportedDecoder(media)
@@ -45,6 +45,13 @@ func mediaDecoder(reader io.Reader, media string, mode decodeMode, limit int64, 
 			values, err := url.ParseQuery(string(data))
 			if err != nil {
 				return err
+			}
+			if form.Decode != nil {
+				pairs, err := ParseRawPairs(string(data))
+				if err != nil {
+					return err
+				}
+				return form.Decode(pairs, values)
 			}
 			return decodeMediaFormValues(values, target)
 		}, mode, limit)
@@ -107,7 +114,7 @@ func mediaRawDecoder(reader io.Reader, media string, mode decodeMode, limit int6
 func mediaRequestEncoder(request *http.Request) Encoder {
 	return EncodingFunc(func(value any) error {
 		var buffer bytes.Buffer
-		encoder, media, err := mediaEncoder(&buffer, request.Header.Get("Content-Type"), mediaPartTypes(request.Context()))
+		encoder, media, err := mediaEncoder(&buffer, request.Header.Get("Content-Type"), mediaPartTypes(request.Context()), mediaFormCodec(request.Context()))
 		if err != nil {
 			return err
 		}
@@ -126,7 +133,7 @@ func mediaRequestEncoder(request *http.Request) Encoder {
 }
 
 func mediaResponseEncoder(ctx context.Context, writer http.ResponseWriter) Encoder {
-	encoder, media, err := mediaEncoder(writer, stringContextValue(ctx, ContentTypeKey), mediaPartTypes(ctx))
+	encoder, media, err := mediaEncoder(writer, stringContextValue(ctx, ContentTypeKey), mediaPartTypes(ctx), mediaFormCodec(ctx))
 	if err != nil {
 		return &mediaCodecError{err: err}
 	}
@@ -134,7 +141,7 @@ func mediaResponseEncoder(ctx context.Context, writer http.ResponseWriter) Encod
 	return encoder
 }
 
-func mediaEncoder(writer io.Writer, media string, parts map[string]string) (Encoder, string, error) {
+func mediaEncoder(writer io.Writer, media string, parts map[string]string, form MediaFormCodec) (Encoder, string, error) {
 	base, params, err := mime.ParseMediaType(media)
 	if err != nil {
 		return nil, "", loom.UnsupportedMediaTypeError(media)
@@ -143,6 +150,15 @@ func mediaEncoder(writer io.Writer, media string, parts map[string]string) (Enco
 	case "application/octet-stream":
 		return mediaRawEncoder(writer, media, false), media, nil
 	case "application/x-www-form-urlencoded":
+		if form.Encode != nil {
+			encoded, err := form.Encode()
+			if err != nil {
+				return nil, "", err
+			}
+			return EncodingFunc(func(any) error {
+				return writeMediaBytes(writer, []byte(encoded))
+			}), media, nil
+		}
 		return EncodingFunc(func(value any) error {
 			values, err := EncodeFormValues(value)
 			if err != nil {
@@ -159,29 +175,7 @@ func mediaEncoder(writer io.Writer, media string, parts map[string]string) (Enco
 		}
 		params["boundary"] = multipartWriter.Boundary()
 		return EncodingFunc(func(value any) error {
-			values, err := EncodeFormValues(value)
-			if err != nil {
-				return err
-			}
-			for _, name := range slices.Sorted(maps.Keys(values)) {
-				for _, field := range values[name] {
-					partType := parts[name]
-					if partType == "" {
-						partType = "text/plain"
-					}
-					header := textproto.MIMEHeader{}
-					header.Set("Content-Disposition", mime.FormatMediaType("form-data", map[string]string{"name": name}))
-					header.Set("Content-Type", partType)
-					part, err := multipartWriter.CreatePart(header)
-					if err != nil {
-						return err
-					}
-					if err := writeMediaBytes(part, []byte(field)); err != nil {
-						return err
-					}
-				}
-			}
-			return multipartWriter.Close()
+			return encodeMultipartMedia(multipartWriter, parts, value)
 		}), mime.FormatMediaType(base, params), nil
 	}
 	switch httpcodec.RequestContentType(media).Kind {
@@ -240,4 +234,30 @@ func decodeMediaFormValues(values url.Values, target any) error {
 		value = value.Elem()
 	}
 	return DecodeFormValues(values, target)
+}
+
+func encodeMultipartMedia(multipartWriter *multipart.Writer, parts map[string]string, value any) error {
+	values, err := EncodeFormValues(value)
+	if err != nil {
+		return err
+	}
+	for _, name := range slices.Sorted(maps.Keys(values)) {
+		for _, field := range values[name] {
+			partType := parts[name]
+			if partType == "" {
+				partType = "text/plain"
+			}
+			header := textproto.MIMEHeader{}
+			header.Set("Content-Disposition", mime.FormatMediaType("form-data", map[string]string{"name": name}))
+			header.Set("Content-Type", partType)
+			part, err := multipartWriter.CreatePart(header)
+			if err != nil {
+				return err
+			}
+			if err := writeMediaBytes(part, []byte(field)); err != nil {
+				return err
+			}
+		}
+	}
+	return multipartWriter.Close()
 }

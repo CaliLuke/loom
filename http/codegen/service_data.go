@@ -327,6 +327,10 @@ type (
 
 	// RequestData describes a request.
 	RequestData struct {
+		// StyledFormFields use explicit parameter grammars within the form body.
+		StyledFormFields []*FormFieldData
+		// OrdinaryFormFields retain the existing form encoder beside styled fields.
+		OrdinaryFormFields []*FormFieldData
 		// FinalizeEncoding completes body ownership and mapped request framing.
 		FinalizeEncoding bool
 		// ContentType is the authored media published for a supplied typed body.
@@ -650,6 +654,9 @@ type (
 
 	// InitArgData represents a single constructor argument.
 	InitArgData struct {
+		parameter           *Element
+		parameterValueVar   string
+		parameterSegmentVar string
 		*AttributeData
 		// Reference to the argument, e.g. "&body".
 		Ref string

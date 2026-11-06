@@ -1073,22 +1073,37 @@ clients and servers after upgrading to adopt typed Tag binding.
 - Use `FormRequest()` for typed object, map, or constructor-union
   `application/x-www-form-urlencoded` payloads. Put a map in an object payload
   and select it with `Body(...)` when other transport fields must coexist.
-- Named query maps and named form object/map fields encode one JSON document,
-  for example `filter={"color":"red"}` before URL escaping. This also applies
-  to shallow maps. Scalars and repeated scalar arrays retain their formats;
-  whole-query maps and root-form maps retain their unwrapped outer layout.
-  Fixed-object query parameters and composite form arrays remain unsupported.
-  Regenerate clients and servers together and update handwritten bracket-style
-  requests when adopting this contract. OpenAPI query parameters describe JSON
-  through `content`; form properties use `encoding.contentType: application/json`.
-  Import rejects incompatible deepObject/style/explode contracts, including with
-  `--allow-lossy`. JSON-compatible form serialization and JSON query map content
-  can round-trip through import and generation.
-- OpenAPI import admits path parameters and headers only as primitives or
-  primitive arrays, and cookies only as primitives, following schema references.
-  Unsupported bindings fail before design publication, including with
-  `--allow-lossy`. JSON query maps remain supported; closed empty objects are
-  records, while memberless open objects are maps.
+- Named query maps and named form object/map fields default to one JSON
+  document, for example `filter={"color":"red"}` before URL escaping. Select
+  explicit text serialization with `Meta("openapi:style", "deepObject")` or
+  `Meta("openapi:explode", "false")` on a parameter occurrence. For form fields,
+  use `openapi:encoding:<field>:style` and related keys on the body occurrence.
+  Any authored form encoding flag overrides the implicit JSON content encoding.
+- Paths support simple/label/matrix; query and form fields support
+  form/spaceDelimited/pipeDelimited/deepObject; request and response headers
+  support simple. Scalars, scalar arrays, fixed scalar objects and scalar maps
+  are supported where that grammar defines them. deepObject requires an object
+  or map; space/pipe styles require collections and cannot explode. Nested text
+  values, nullable text, text Any and text unions are rejected. JSON body Any
+  remains supported. Bytes use raw text with location-specific escaping and
+  alphabet checks; JSON Bytes retain base64 encoding. See
+  `docs/http-guide.md#parameter-serialization`.
+- Request cookies default to raw cookie style. Values are sent verbatim and
+  cannot contain commas, quotes, semicolons, backslashes, non-ASCII data or edge
+  whitespace. Form style percent-encodes values and supports scalars and
+  non-exploded collections. OpenAPI 3.1 export rejects raw-cookie contracts whose
+  entire key/value domains are not equivalent to form encoding.
+- Exploded objects and maps share a namespace with sibling parameters and
+  credentials. Overlapping claims and multiple residual maps are rejected.
+  Required values that emit no wire key fail before publication; optional
+  zero-key collections are absent. New styled path helpers can return errors
+  for unrepresentable values. Regenerate clients and servers together.
+- OpenAPI import preserves admitted styles and defaults through the same rules.
+  Schema-based query maps default to exploded form in OpenAPI and receive
+  explicit metadata in the DSL; JSON content maps keep JSON. Unsupported
+  contracts block publication, including with `--allow-lossy`; a partial import
+  may exclude their operations. Memberless open objects are maps, while closed
+  empty objects remain records.
 - Use `MultipartRequest()` for supported multipart object payloads.
 - Use `OptionalRequestBody()` for optional JSON object bodies and optional
   typed form object/map bodies. An object or union selected with `Body("name")`

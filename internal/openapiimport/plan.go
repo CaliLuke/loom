@@ -152,6 +152,7 @@ func (p *documentPlanner) operation(operation *Operation, path string) {
 	for index, parameter := range operation.Parameters {
 		p.parameter(parameter, fmt.Sprintf("%s/parameters/%d", path, index))
 	}
+	p.parameterNamespaces(operation, path)
 	p.requestBody(operation.RequestBody, path+"/requestBody")
 	responseMode := operationResponseBodyMode(operation)
 	successClass := successResponseClass(operation.Responses)
@@ -197,9 +198,7 @@ func (p *documentPlanner) parameter(parameter Parameter, path string) {
 		}
 		p.schemaEncoding(resolved.Schema, path+"/schema", schemaEncodedValue, make(map[schemaEncodingOccurrence]bool))
 		p.schema(resolved.Schema, path+"/schema", objectField)
-		if p.admitParameterShape(resolved.Schema, resolved.In, path+"/schema") && resolved.In == "query" {
-			p.querySerialization(resolved, path)
-		}
+		p.admitParameter(resolved, path)
 	}
 	if resolved.In != "query" && resolved.AllowEmptyValue {
 		p.unsupported("parameter-allow-empty-value", path, "allowEmptyValue is only supported for query parameters")
@@ -284,7 +283,7 @@ func (p *documentPlanner) response(response Response, path string, allowNonJSON 
 		}
 		p.schemaEncoding(named.Header.Schema, headerPath+"/schema", schemaEncodedValue, make(map[schemaEncodingOccurrence]bool))
 		p.schema(named.Header.Schema, headerPath+"/schema", objectField)
-		p.admitParameterShape(named.Header.Schema, "header", headerPath+"/schema")
+		p.admitParameter(Parameter{Name: named.Name, In: "header", Schema: named.Header.Schema, Serialization: named.Header.Serialization, AllowReserved: named.Header.AllowReserved}, headerPath)
 	}
 }
 

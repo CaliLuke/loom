@@ -21,8 +21,8 @@ type MediaVariant struct {
 	Body *expr.AttributeExpr
 	// Value retains service provenance and the selected branch's representation plan.
 	Value *ValueTarget
-	// FormFieldModes records the field encoding policy for this media alone.
-	FormFieldModes map[string]httpencoding.Mode
+	// FormFieldCodecs records the resolved field grammar for this media alone.
+	FormFieldCodecs map[string]httpencoding.Codec
 	// PartTypes binds multipart fields to their effective wire Content-Type.
 	PartTypes map[string]string
 	// Metadata retains occurrence-first media annotations through aliases.
@@ -51,13 +51,13 @@ func buildMediaVariants(body *expr.AttributeExpr, mappings []*expr.HTTPMediaType
 			}
 		}
 		variants = append(variants, &MediaVariant{
-			ContentType:    mapping.ContentType,
-			PartTypes:      parts,
-			Metadata:       expr.HTTPMediaMetadata(branch.Attribute),
-			Branch:         branch.Name,
-			Tag:            expr.UnionVariantTag(branch),
-			Body:           branch.Attribute,
-			FormFieldModes: formFieldModes(branch.Attribute, base == "application/x-www-form-urlencoded"),
+			ContentType:     mapping.ContentType,
+			PartTypes:       parts,
+			Metadata:        expr.HTTPMediaMetadata(branch.Attribute),
+			Branch:          branch.Name,
+			Tag:             expr.UnionVariantTag(branch),
+			Body:            branch.Attribute,
+			FormFieldCodecs: formFieldCodecs(branch.Attribute, base == "application/x-www-form-urlencoded"),
 		})
 	}
 	return variants

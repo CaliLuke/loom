@@ -70,7 +70,9 @@ var RawRequestBodyOpenAPIDSL = func() {
 				Param("filter")
 				Header("checksum:X-Checksum")
 				Header("key:X-Upload-Key")
-				Cookie("session:upload_session")
+				Cookie("session:upload_session", func() {
+					Meta("openapi:style", "form")
+				})
 				SkipRequestBodyEncodeDecode()
 				OpenAPIRequestBody(Bytes, "application/octet-stream", true, func() {
 					Description("Binary archive streamed directly to the service.")

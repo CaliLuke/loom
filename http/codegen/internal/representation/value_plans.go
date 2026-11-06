@@ -35,6 +35,13 @@ func BuildValuePlan(value *transportir.ValueTarget, target *expr.AttributeExpr, 
 	result.ExampleSets = nil
 	result.Annotations = nil
 	target = TargetGraph(target)
+	normalizeParameterTarget(target, value.Codec)
+	if value.Codec == expr.ValueCodecText {
+		local := *context
+		local.JSONPresence = false
+		local.CollectionElementPresence = false
+		context = &local
+	}
 	builder := httpValuePlanBuilder{
 		request: expr.ValuePlanRequest{Target: target, Selection: append([]string(nil), value.Selection...), Codec: value.Codec, Use: use},
 		seen:    make(map[*expr.AttributeExpr]bool),

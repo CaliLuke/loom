@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/CaliLuke/loom/internal/httpencoding"
 	"github.com/CaliLuke/loom/internal/openapiimport"
 )
 
@@ -120,4 +121,25 @@ func TestComparisonSharedReferencesAreOrderIndependent(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, normalized, repeated)
 	}
+}
+
+func TestComparisonRequestSchemaExpansionRetainsConstraints(t *testing.T) {
+	expected := &openapiimport.Document{Operations: []openapiimport.Operation{{Path: "/form", RequestBody: &openapiimport.RequestBody{Schema: &openapiimport.Schema{Type: "string", Enum: []any{"one", "two"}}}}}}
+	actual := cloneOpenAPIContract(t, expected)
+	actual.Components.Schemas = []openapiimport.NamedSchema{{Name: "Inferred", Schema: actual.Operations[0].RequestBody.Schema}}
+	actual.Operations[0].RequestBody.Schema = &openapiimport.Schema{Ref: "#/components/schemas/Inferred"}
+	require.NoError(t, compareOpenAPIContracts(expected, actual))
+	actual.Components.Schemas[0].Schema.Enum = []any{"one"}
+	require.Error(t, compareOpenAPIContracts(expected, actual))
+}
+
+func TestComparisonParameterSerializationKeepsWireDifferences(t *testing.T) {
+	yes, no := true, false
+	parameter := openapiimport.Parameter{In: "query", Schema: &openapiimport.Schema{Type: "array", Items: &openapiimport.Schema{Type: "string"}}, Serialization: httpencoding.Serialization{Style: "form", Explode: &yes}}
+	expected := &openapiimport.Document{Operations: []openapiimport.Operation{{Path: "/query", Parameters: []openapiimport.Parameter{parameter}}}}
+	actual := cloneOpenAPIContract(t, expected)
+	actual.Operations[0].Parameters[0].Serialization = httpencoding.Serialization{}
+	require.NoError(t, compareOpenAPIContracts(expected, actual))
+	actual.Operations[0].Parameters[0].Serialization.Explode = &no
+	require.Error(t, compareOpenAPIContracts(expected, actual))
 }

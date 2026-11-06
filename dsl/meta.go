@@ -261,6 +261,16 @@ const DefaultProtoc = expr.DefaultProtoc
 // - "openapi:format" overrides the generated OpenAPI schema format. An empty
 // value removes the default format. Applicable to attributes only.
 //
+// - "openapi:style" and "openapi:explode" select the wire grammar of an HTTP
+// parameter occurrence. Path styles are simple, label and matrix; query and
+// URL-encoded form styles are form, spaceDelimited, pipeDelimited and deepObject;
+// headers use simple; request cookies use cookie or form. Supported combinations
+// depend on the bound shape. These settings control generated codecs and OpenAPI
+// together. JSON body fields cannot carry parameter serialization metadata.
+// For form properties, use "openapi:encoding:<property>:style" and related keys
+// on the body occurrence. An explicit style, explode or allowReserved field
+// selects style serialization, overriding implicit JSON content encoding.
+//
 // Other OpenAPI 3.2 metadata includes "openapi:itemSchema",
 // "openapi:component:mediaType", "openapi:example:dataValue",
 // "openapi:example:serializedValue", "openapi:allowReserved",

@@ -124,6 +124,7 @@ var OpenAPI32FeaturesDSL = func() {
 					Meta("openapi:allowReserved", "true")
 				})
 				Cookie("preferences", String, func() {
+					Enum("compact", "full")
 					Meta("openapi:allowReserved", "true")
 					Meta("openapi:style", "cookie")
 				})

@@ -158,6 +158,8 @@ func (r *HTTPResponseExpr) Validate(e *HTTPEndpointExpr) *eval.ValidationErrors 
 	r.validateStatusAndBody(e, verr)
 	r.validateTextContentType(e, verr)
 	r.validateHeadersAndCookies(e, resultType, verr)
+	body, _ := responseBodySource(e.MethodExpr.Result, r)
+	validateBodyParameterMetadata(body, "body", r, verr, make(map[*AttributeExpr]bool))
 	r.validateBodyAndLinks(e, resultType, verr)
 	r.validateResultReconstruction(e, verr)
 	r.validateMediaTypes(e, e.MethodExpr.Result, verr)
@@ -231,6 +233,7 @@ func (r *HTTPResponseExpr) validateCookieSecurity(verr *eval.ValidationErrors) {
 
 func (r *HTTPResponseExpr) validateHeaders(e *HTTPEndpointExpr, resultType *httpResponseResultType, verr *eval.ValidationErrors) {
 	validateHeaderCollections(r.Headers, e.MethodExpr.Result, r, verr)
+	validateResponseHeaderCodecs(r.Headers, e.MethodExpr.Result, r, verr)
 	verr.Merge(r.Headers.Validate("HTTP response headers", r))
 	switch {
 	case isEmpty(e.MethodExpr.Result):
@@ -239,23 +242,12 @@ func (r *HTTPResponseExpr) validateHeaders(e *HTTPEndpointExpr, resultType *http
 		mobj := AsObject(r.Headers.Type)
 		for _, header := range *mobj {
 			t := resultType.AttributeType(header.Name)
-			switch {
-			case t == nil:
+			if t == nil {
 				verr.Add(r, "header %q has no equivalent attribute in%s result type, use notation 'attribute_name:header_name' to identify corresponding result type attribute.", header.Name, resultType.InView)
-			case IsArray(t):
-				if !IsPrimitive(AsArray(t).ElemType.Type) {
-					verr.Add(e, "attribute %q used in HTTP headers must be a primitive type or an array of primitive types.", header.Name)
-				}
-			case !IsPrimitive(t):
-				verr.Add(e, "attribute %q used in HTTP headers must be a primitive type or an array of primitive types.", header.Name)
 			}
 		}
 	case len(*AsObject(r.Headers.Type)) > 1:
 		verr.Add(r, "response defines more than one headers but result type is not an object")
-	case IsArray(e.MethodExpr.Result.Type):
-		if !IsPrimitive(AsArray(e.MethodExpr.Result.Type).ElemType.Type) {
-			verr.Add(e, "Array result is mapped to an HTTP header but is not an array of primitive types.")
-		}
 	}
 }
 

@@ -37,9 +37,10 @@ type renderedOpenAPIArtifacts struct {
 
 func TestRenderedSpecsPassContractLint(t *testing.T) {
 	cases := []struct {
-		name  string
-		dsl   func()
-		extra func(*testing.T, map[string]any)
+		name   string
+		target string
+		dsl    func()
+		extra  func(*testing.T, map[string]any)
 	}{
 		{
 			name: "customized-result-views",
@@ -66,6 +67,15 @@ func TestRenderedSpecsPassContractLint(t *testing.T) {
 					}
 				}
 			},
+		},
+		{
+			name: "parameter-styles",
+			dsl:  testdata.ParameterStylesDSL,
+		},
+		{
+			name:   "parameter-styles-31",
+			target: "3.1",
+			dsl:    testdata.ParameterStyles31DSL,
 		},
 		{
 			name: "meal-planner",
@@ -263,7 +273,11 @@ func TestRenderedSpecsPassContractLint(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			artifacts := renderOpenAPIArtifacts(t, tc.dsl)
+			want := openapiv3.OpenAPIVersion
+			if tc.target == "3.1" {
+				want = openapiv3.OpenAPICompatibilityVersion
+			}
+			artifacts := renderOpenAPIArtifactsForVersion(t, tc.dsl, tc.target, want)
 			spec := decodeOpenAPIJSON(t, artifacts.JSON)
 			lintRenderedContract(t, spec)
 			if tc.extra != nil {
@@ -279,9 +293,14 @@ func TestRepresentativeSpecsPassVacuumLintAndConsumerSmoke(t *testing.T) {
 	}
 	vacuum := installContractVacuum(t)
 	lintCases := []struct {
-		name string
-		dsl  func()
+		name   string
+		target string
+		dsl    func()
 	}{
+		{name: "parameter-styles", dsl: testdata.ParameterStylesDSL},
+		{name: "parameter-property-names", dsl: testdata.ParameterPropertyNamesDSL},
+		{name: "parameter-metadata", dsl: testdata.ParameterMetadataDSL},
+		{name: "parameter-styles-31", target: "3.1", dsl: testdata.ParameterStyles31DSL},
 		{name: "meal-planner", dsl: testdata.MealPlannerDSL},
 		{name: "security-locations", dsl: testdata.SecurityDSL},
 		{name: "streaming-example-surfaces", dsl: testdata.StreamingPartialExamplesDSL},
@@ -306,7 +325,11 @@ func TestRepresentativeSpecsPassVacuumLintAndConsumerSmoke(t *testing.T) {
 	}
 	for _, tc := range lintCases {
 		t.Run("vacuum-"+tc.name, func(t *testing.T) {
-			artifacts := renderOpenAPIArtifacts(t, tc.dsl)
+			want := openapiv3.OpenAPIVersion
+			if tc.target == "3.1" {
+				want = openapiv3.OpenAPICompatibilityVersion
+			}
+			artifacts := renderOpenAPIArtifactsForVersion(t, tc.dsl, tc.target, want)
 			for ext, data := range map[string][]byte{"json": artifacts.JSON, "yaml": artifacts.YAML} {
 				path := filepath.Join(t.TempDir(), "openapi."+ext)
 				require.NoError(t, os.WriteFile(path, data, 0o600))

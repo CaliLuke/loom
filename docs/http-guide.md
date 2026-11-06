@@ -155,7 +155,7 @@ a `decode_payload` response with status 400. Percent-encode reserved delimiters,
 such as `;`, in query values. Generated clients apply this encoding. Repeated
 query keys retain their order.
 
-Named query maps use one JSON document per parameter value. For example,
+By default, named query maps use one JSON document per parameter value. For example,
 `Param("filter")` with `MapOf(String, String)` sends
 `filter=%7B%22status%22%3A%22active%22%7D`, whose decoded value is
 `{"status":"active"}`. Nested maps and arrays inside the map use the same JSON
@@ -163,12 +163,88 @@ representation. Clients in any language should JSON-encode the map, then pass
 that string to their URL query encoder. Scalar parameters and repeated scalar
 arrays keep their ordinary query representation.
 
-Regenerate clients and servers together when migrating from bracketed map keys
-such as `filter[status]=active`; those keys no longer populate the named map.
 `MapParams()` remains an unprefixed whole-query map, for example
 `status=active&region=west`. Its contract differs from a named `Param("filter")`.
-OpenAPI describes named maps with parameter `content: application/json` and a
-typed schema. Fixed object query parameters remain unsupported.
+OpenAPI describes default named maps with parameter `content: application/json`
+and a typed schema. Use explicit serialization metadata to select a different
+wire representation.
+
+### Parameter serialization
+
+Set `openapi:style` and `openapi:explode` on the mapped parameter occurrence.
+These settings control generated clients, servers and OpenAPI together:
+
+```go
+HTTP(func() {
+    GET("/items")
+    Param("filter", func() {
+        Meta("openapi:style", "deepObject")
+    })
+    Param("tags", func() {
+        Meta("openapi:style", "form")
+        Meta("openapi:explode", "false")
+    })
+})
+```
+
+A scalar map `filter` now sends `filter[status]=active` (with URL-escaped
+brackets), and the scalar array `tags` sends `tags=red,blue`. Fixed objects with
+scalar fields are also supported. Metadata on an ordinary JSON body field is
+rejected; parameter serialization belongs to a text binding or form encoding.
+
+| Location | Supported styles | Default |
+| --- | --- | --- |
+| Path | `simple`, `label`, `matrix` | `simple`, not exploded |
+| Query | `form`, `spaceDelimited`, `pipeDelimited`, `deepObject` | `form`, exploded; named maps use JSON unless a style or explode is authored |
+| Request and response header | `simple` | `simple`, not exploded |
+| Request cookie | `cookie`, `form` | `cookie`, exploded |
+| Named URL-encoded form field | `form`, `spaceDelimited`, `pipeDelimited`, `deepObject` | `form`, exploded; named objects/maps use JSON unless encoding flags are authored |
+
+Styles accept scalars, scalar arrays, fixed objects with scalar properties and
+maps with scalar keys and values. `deepObject` requires an object or map;
+its `explode` flag has no effect. Space- and pipe-delimited styles require a
+collection and reject `explode: true`. Objects with `AdditionalAttributes`
+require JSON bodies; text bindings and form bodies do not support their
+undeclared members. Nested values need an admitted JSON
+content binding. Text `Any`, nullable text values and text unions are rejected.
+JSON body `Any` retains its existing behavior. `openapi:allowReserved` remains
+documentation metadata: it does not relax the selected codec's escaping or
+data-alphabet rules. Its explicit presence still selects form-field style rules.
+
+`Bytes` use raw text in text bindings, subject to the location's escaping and
+alphabet rules. For example, bytes containing `hello` send `hello`. JSON-valued
+bindings and JSON bodies retain base64 encoding.
+
+Text object properties use their DSL member names. JSON field tags affect JSON
+bodies and JSON-valued form fields; they do not rename or hide text properties.
+
+Exploded objects claim their property names. A dynamic exploded map claims the
+remaining names in its query, cookie or form namespace. Only one such map may
+claim that remainder; its keys cannot use names reserved by sibling bindings,
+including credentials. A fixed `deepObject` claims its exact bracketed property
+names; a dynamic map claims the bracketed prefix. Overlapping claims are rejected
+during design validation.
+
+Generated encoders reject values that cannot round-trip through the selected
+grammar. This includes delimiter collisions in unescaped text and a required
+collection that emits no wire key. An optional zero-key collection is absent on
+the wire; defaults apply to absence. Label paths escape dots inside values before
+joining members. Exploded-label values whose dots cannot survive the server's
+path decoding are rejected. Newly styled path helpers return `(string, error)`;
+ordinary simple-path helper signatures are unchanged.
+
+Raw `cookie` style sends cookie data verbatim. It rejects commas, quotes,
+semicolons, backslashes, non-ASCII data and leading/trailing whitespace; interior
+spaces remain unquoted. Choose `form` for percent-encoded cookie values. Form
+cookies support scalars and non-exploded collections; exploded form collections
+have no equivalent cookie-pair grammar. OpenAPI 3.2 represents raw cookies
+explicitly. Export to 3.1 requires proof that the complete raw-cookie value and
+key domains are equivalent to form encoding; otherwise generation fails. An
+unrestricted raw string does not meet that condition.
+
+Regenerate clients and servers together when changing a style. In particular,
+old bracket-style requests require explicit `deepObject`, and text `Any`
+bindings must become concrete types or move into a JSON body.
 
 ### Wildcards
 
@@ -329,15 +405,20 @@ discriminator/value fields, while object branches are flattened onto standard
 top-level form fields. This supports OAuth-style token requests such as
 `grant_type=refresh_token` without app-local parser hooks.
 
-A named object or map form field also holds one JSON document. For example,
+By default, a named object or map form field also holds one JSON document. For example,
 `address={"street":"Main"}` and `labels={"region":"west"}` are the decoded
 form values; the form encoder percent-encodes the JSON strings on the wire.
 This applies at every nesting depth. JSON tags and custom JSON codecs determine
 member names inside these values; form tags determine the outer field name.
 OpenAPI marks these fields with `contentType: application/json`, without a
 serialization style. Scalars and repeated scalar arrays retain their form
-encoding. Update external clients that previously sent bracketed nested keys;
-there is no alternate bracket decoder for named objects or maps.
+encoding. To select a text grammar, put `openapi:encoding:<field>:style` and
+`openapi:encoding:<field>:explode` on the body occurrence. Any authored `style`,
+`explode` or `allowReserved` flag selects style serialization instead of the
+implicit JSON encoding, even alongside `contentType: application/json`.
+For example, `Meta("openapi:encoding:labels:style", "deepObject")` sends
+`labels[region]=west`. The same rules apply independently to URL-encoded branches
+of a multi-media request or response.
 
 When a dynamic form map must coexist with path, query, header, cookie, or
 security attributes, put the map in an object payload and select it with

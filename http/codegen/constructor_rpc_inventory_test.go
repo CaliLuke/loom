@@ -29,7 +29,7 @@ func TestConstructorJSONRPCPackageInventory(t *testing.T) {
 			data := rpccodegen.CreateJSONRPCServices(root)
 			const genpkg = "example.com/inventory/gen"
 			files := make([]*codegen.File, 0, len(data.Expressions.Services)*7)
-			files = append(files, rpccodegen.PathFiles(data)...)
+			files = append(files, rpccodegen.PathFiles(genpkg, data)...)
 			files = append(files, rpccodegen.ClientTypeFiles(genpkg, data)...)
 			files = append(files, rpccodegen.ClientFiles(genpkg, data)...)
 			files = append(files, rpccodegen.ClientCLIFiles(genpkg, data)...)

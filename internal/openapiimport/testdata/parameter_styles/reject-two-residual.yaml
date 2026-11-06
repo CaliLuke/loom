@@ -1,0 +1,45 @@
+{
+  "openapi": "3.2.0",
+  "info": {
+    "title": "Parameter styles",
+    "version": "1"
+  },
+  "paths": {
+    "/items": {
+      "get": {
+        "operationId": "show",
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        },
+        "parameters": [
+          {
+            "name": "value",
+            "in": "query",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "style": "form",
+            "explode": true
+          },
+          {
+            "name": "other",
+            "in": "query",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "style": "form",
+            "explode": true
+          }
+        ]
+      }
+    }
+  }
+}

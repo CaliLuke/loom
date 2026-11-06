@@ -24,7 +24,7 @@ type transportVarScope struct {
 // aligned with the import lists of those files.
 var transportFunctionImportNames = []string{
 	"bytes", "context", "errors", "fmt", "http", "io", "json", "jsonrpc", "jsontext", "loom", "loomhttp",
-	"loomhttpcli", "multipart", "os", "security", "strconv", "strings", "url", "utf8",
+	"loomhttpcli", "multipart", "os", "security", "sort", "strconv", "strings", "url", "utf8",
 }
 
 // requestLocalNames lists the identifiers that the generated server request
@@ -116,6 +116,7 @@ func newTransportVarScope(sd *ServiceData, locals []string, derive func(*codegen
 		s.reserve(naming.ImportName(spec.Path, spec.Name))
 	}
 	s.reserve(locals...)
+	s.reserve("transformErr", "parameterDefaultError", "parameterDefault", "parameterFormPairs", "parameterFormError", "parameterRequest", "parameterForm", "parameterPairs", "parameterBuilder", "parameterPath", "parameterValue", "parameterText", "parameterIndex", "parameterPair", "parameterKey", "parameterItem", "parameterExists", "parameterParsed", "parameterError", "parameterSeen", "parameterEncoded")
 	return s
 }
 

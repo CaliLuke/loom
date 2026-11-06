@@ -479,6 +479,7 @@ func TestFiles(t *testing.T) {
 		DSL  func()
 	}{
 		// TestSections
+		{"parameter-styles", testdata.ParameterStylesDSL},
 		{"file-service", testdata.FileServiceDSL},
 		{"file-service-wildcard", testdata.FileServiceWildcardDSL},
 		{"valid", testdata.SimpleDSL},

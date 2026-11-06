@@ -111,7 +111,7 @@ func TestConvertedCLIRenderSections(t *testing.T) {
 
 	pathRoot := RunHTTPDSL(t, testdata.PathMultipleParamsDSL)
 	pathServices := CreateHTTPServices(pathRoot)
-	pathFile := findFileWithSection(t, PathFiles(pathServices), "path")
+	pathFile := findFileWithSection(t, PathFiles("gen", pathServices), "path")
 	pathSection := codegen.SectionCode(t, pathFile.Section("path")[0])
 	require.Contains(t, pathSection, "returns the URL path")
 	renderGolden(t, pathSection, "render_path-multiple-params.golden")

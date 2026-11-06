@@ -3,11 +3,12 @@ package codegen
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 	"github.com/CaliLuke/loom/internal/httpencoding"
-	"github.com/stretchr/testify/require"
 )
 
 func TestJSONFormCarrierRetainsConstraints(t *testing.T) {
@@ -16,7 +17,7 @@ func TestJSONFormCarrierRetainsConstraints(t *testing.T) {
 		Validation: &expr.ValidationExpr{Required: []string{"street"}},
 	}}
 	field := &expr.AttributeExpr{Type: value}
-	request := &transportir.Request{FormEncoded: true, Body: &expr.AttributeExpr{Type: &expr.Object{{Name: "address", Attribute: field}}}, FormFieldModes: map[string]httpencoding.Mode{"address": httpencoding.JSON}}
+	request := &transportir.Request{FormEncoded: true, Body: &expr.AttributeExpr{Type: &expr.Object{{Name: "address", Attribute: field}}}, FormFieldCodecs: map[string]httpencoding.Codec{"address": {Style: httpencoding.JSON}}}
 	nameJSONFormCarriers([]*transportir.Endpoint{{Name: "submit", Request: request, Response: &transportir.Response{}}})
 	require.NotSame(t, value, field.Type)
 	require.Equal(t, []string{"street"}, selectedTransportConstraints(field).Validation().Lowered().Required)

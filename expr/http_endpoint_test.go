@@ -375,15 +375,15 @@ service "Service" HTTP endpoint "MethodC": HTTP endpoint request body must be em
 		},
 		"endpoint-union-query-param": {
 			DSL:   testdata.EndpointUnionQueryParam,
-			Error: `service "Service" HTTP endpoint "Method": path parameter filter cannot be an object, path parameter types must be primitive, array or map (query string only)`,
+			Error: `service "Service" HTTP endpoint "Method": query "filter": unions have no parameter codec`,
 		},
 		"endpoint-union-header": {
 			DSL:   testdata.EndpointUnionHeader,
-			Error: `service "Service" HTTP endpoint "Method": header "filter" must be primitive or array`,
+			Error: `service "Service" HTTP endpoint "Method": header "filter": unions have no parameter codec`,
 		},
 		"endpoint-union-cookie": {
 			DSL:   testdata.EndpointUnionCookie,
-			Error: `service "Service" HTTP endpoint "Method": cookie "filter" must be primitive`,
+			Error: `service "Service" HTTP endpoint "Method": cookie "filter": unions have no parameter codec`,
 		},
 		"endpoint-multipart-constructor-union": {
 			DSL:   testdata.EndpointMultipartConstructorUnion,
@@ -399,12 +399,12 @@ service "Service" HTTP endpoint "MethodC": HTTP endpoint request body must be em
 		},
 		"endpoint-array-payload-skip-request-body-without-transport": {
 			DSL: testdata.EndpointArrayPayloadSkipRequestBodyWithoutTransport,
-			Error: `service "Service" HTTP endpoint "Method": Payload type is array but HTTP endpoint uses SkipRequestBodyEncodeDecode and does not define headers or params.
+			Error: `service "Service" HTTP endpoint "Method": Payload type is array but HTTP endpoint uses SkipRequestBodyEncodeDecode and does not define params, headers or cookies.
 service "Service" HTTP endpoint "Method": HTTP endpoint request body must be empty when using SkipRequestBodyEncodeDecode but not all method payload attributes are mapped to headers and params. Make sure to define Headers and Params as needed.`,
 		},
 		"endpoint-map-payload-skip-request-body-without-transport": {
 			DSL: testdata.EndpointMapPayloadSkipRequestBodyWithoutTransport,
-			Error: `service "Service" HTTP endpoint "Method": Payload type is map but HTTP endpoint uses SkipRequestBodyEncodeDecode and does not define headers.
+			Error: `service "Service" HTTP endpoint "Method": Payload type is map but HTTP endpoint uses SkipRequestBodyEncodeDecode and does not define params, headers or cookies.
 service "Service" HTTP endpoint "Method": HTTP endpoint request body must be empty when using SkipRequestBodyEncodeDecode but not all method payload attributes are mapped to headers and params. Make sure to define Headers and Params as needed.`,
 		},
 		"endpoint-object-payload-body-conflict": {

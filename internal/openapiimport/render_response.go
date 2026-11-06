@@ -5,11 +5,18 @@ import (
 	"strconv"
 )
 
-func headerMetadata(header Header) ([]renderedMetadata, error) {
+func (r *renderer) headerMetadata(header Header) ([]renderedMetadata, error) {
 	metadata, err := reusableMetadata("header", header.referenceChain)
 	if err != nil {
 		return nil, err
 	}
+	planner := documentPlanner{schemas: r.schemas}
+	parameter := Parameter{In: "header", Schema: header.Schema, Serialization: header.Serialization, AllowReserved: header.AllowReserved}
+	codec, _, err := planner.parameterCodec(parameter)
+	if err != nil {
+		return nil, err
+	}
+	metadata = append(metadata, parameterCodecMetadata("header", codec)...)
 	if header.AllowReserved {
 		metadata = append(metadata, renderedMetadata{name: "openapi:allowReserved", value: "true"})
 	}
@@ -18,7 +25,7 @@ func headerMetadata(header Header) ([]renderedMetadata, error) {
 
 func (r *renderer) responseHeaderAttributes(headers []renderedHeader, path string) error {
 	for _, header := range headers {
-		metadata, err := headerMetadata(header.header)
+		metadata, err := r.headerMetadata(header.header)
 		if err != nil {
 			return err
 		}

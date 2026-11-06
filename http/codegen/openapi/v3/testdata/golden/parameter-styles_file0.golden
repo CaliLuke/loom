@@ -1,0 +1,1322 @@
+{
+  "components": {
+    "responses": {
+      "NoContentResponse": {
+        "description": "No Content response."
+      }
+    },
+    "schemas": {
+      "ParameterBytes": {
+        "example": {
+          "R": "Tempore dicta et nulla labore dolorem corrupti.",
+          "data": "TW9sZXN0aWFlIGlzdGUu"
+        },
+        "properties": {
+          "R": {
+            "example": "Distinctio doloremque.",
+            "type": "string"
+          },
+          "data": {
+            "example": "RXN0IGN1bSBpdXJlIHZlbGl0IHZvbHVwdGF0aWJ1cyBpdXJlLg==",
+            "format": "binary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "R"
+        ],
+        "type": "object"
+      },
+      "ParameterDefaults": {
+        "example": {
+          "G": 4317925121676994202,
+          "R": "Cumque fugit."
+        },
+        "properties": {
+          "G": {
+            "default": 7,
+            "example": 4789626130940245864,
+            "format": "int64",
+            "type": "integer"
+          },
+          "R": {
+            "example": "Quibusdam quae.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "R"
+        ],
+        "type": "object"
+      },
+      "ParameterRange": {
+        "example": {
+          "G": "Vel fugiat corporis aut illum.",
+          "R": "Aut veritatis quia."
+        },
+        "properties": {
+          "G": {
+            "example": "Et consequatur ab.",
+            "type": "string"
+          },
+          "R": {
+            "example": "Minus temporibus unde.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "R",
+          "G"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "Loom API",
+    "version": "0.0.1"
+  },
+  "jsonSchemaDialect": "https://spec.openapis.org/oas/3.1/dialect/base",
+  "openapi": "3.2.0",
+  "paths": {
+    "/CookieDefault": {
+      "get": {
+        "operationId": "styles.cookie_default",
+        "parameters": [
+          {
+            "example": "Quia magni aliquid voluptates.",
+            "in": "cookie",
+            "name": "value",
+            "schema": {
+              "default": "blue",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContentResponse"
+          }
+        },
+        "summary": "CookieDefault styles",
+        "tags": [
+          "styles"
+        ]
+      }
+    },
+    "/CookieExploded": {
+      "get": {
+        "operationId": "styles.cookie_exploded",
+        "parameters": [
+          {
+            "example": [
+              "Repellat dolore aut inventore aut iste quae.",
+              "Iusto et et praesentium numquam."
+            ],
+            "in": "cookie",
+            "name": "value",
+            "required": true,
+            "schema": {
+              "items": {
+                "example": "Voluptate rerum.",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "style": "cookie"
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContentResponse"
+          }
+        },
+        "summary": "CookieExploded styles",
+        "tags": [
+          "styles"
+        ]
+      }
+    },
+    "/CookieForm": {
+      "get": {
+        "operationId": "styles.cookie_form",
+        "parameters": [
+          {
+            "example": [
+              "Ullam vero.",
+              "Aut velit eius deleniti.",
+              "Ad tempora cumque.",
+              "Dolores ducimus in vitae minima."
+            ],
+            "explode": false,
+            "in": "cookie",
+            "name": "value",
+            "required": true,
+            "schema": {
+              "items": {
+                "example": "Ut quam fuga consequatur accusamus qui.",
+                "type": "string"
+              },
+              "type": "array"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContentResponse"
+          }
+        },
+        "summary": "CookieForm styles",
+        "tags": [
+          "styles"
+        ]
+      }
+    },
+    "/CookieList": {
+      "get": {
+        "operationId": "styles.cookie_list",
+        "parameters": [
+          {
+            "example": [
+              "Saepe quo qui dolor delectus animi.",
+              "Error blanditiis.",
+              "Ad quo sint exercitationem ratione repellat."
+            ],
+            "explode": false,
+            "in": "cookie",
+            "name": "value",
+            "required": true,
+            "schema": {
+              "items": {
+                "example": "Quia in qui neque.",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "style": "cookie"
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContentResponse"
+          }
+        },
+        "summary": "CookieList styles",
+        "tags": [
+          "styles"
+        ]
+      }
+    },
+    "/CookieMap": {
+      "get": {
+        "operationId": "styles.cookie_map",
+        "parameters": [
+          {
+            "example": {
+              "Accusantium sint aliquam facere nam reprehenderit.": "Officia quae beatae consequatur itaque harum eveniet."
+            },
+            "in": "cookie",
+            "name": "value",
+            "required": true,
+            "schema": {
+              "additionalProperties": {
+                "example": "Ab earum tempora doloribus reprehenderit perferendis.",
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "style": "cookie"
+          },
+          {
+            "example": "Itaque voluptate laudantium iste omnis et alias.",
+            "in": "cookie",
+            "name": "sid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "style": "cookie"
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContentResponse"
+          }
+        },
+        "summary": "CookieMap styles",
+        "tags": [
+          "styles"
+        ]
+      }
+    },
+    "/CookieScalar": {
+      "get": {
+        "operationId": "styles.cookie_scalar",
+        "parameters": [
+          {
+            "example": "Provident ut nam rerum officia.",
+            "in": "cookie",
+            "name": "value",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "style": "cookie"
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContentResponse"
+          }
+        },
+        "summary": "CookieScalar styles",
+        "tags": [
+          "styles"
+        ]
+      }
+    },
+    "/FormFields": {
+      "post": {
+        "operationId": "styles.form_fields",
+        "parameters": [
+          {
+            "allowEmptyValue": true,
+            "example": [
+              "Architecto dolorem quis doloremque dolor earum.",
+              "Officia sed sed beatae quos."
+            ],
+            "explode": false,
+            "in": "query",
+            "name": "search",
+            "required": true,
+            "schema": {
+              "items": {
+                "example": "Et velit expedita eos nemo et magni.",
+                "type": "string"
+              },
+              "type": "array"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "encoding": {
+                "attributes": {
+                  "explode": false,
+                  "style": "form"
+                },
+                "facets": {
+                  "style": "form"
+                },
+                "filter": {
+                  "style": "deepObject"
+                },
+                "flags": {
+                  "style": "form"
+                },
+                "jsonattrs": {
+                  "contentType": "application/json"
+                },
+                "tags": {
+                  "explode": false,
+                  "style": "form"
+                }
+              },
+              "example": {
+                "attributes": {
+                  "Distinctio aliquam sunt quod doloribus.": "Quasi id."
+                },
+                "facets": {
+                  "G": "Nisi atque quo veniam.",
+                  "R": "Vel labore rerum neque labore sed."
+                },
+                "filter": {
+                  "G": "Nisi atque quo veniam.",
+                  "R": "Vel labore rerum neque labore sed."
+                },
+                "flags": {
+                  "Iste quam est nesciunt reiciendis.": "Aut sequi dolor consequuntur quisquam deserunt.",
+                  "Quia quia mollitia.": "Enim in."
+                },
+                "jsonattrs": {
+                  "Ullam quaerat non eaque.": "Provident nulla ullam minima."
+                },
+                "owner": "Eaque sit temporibus.",
+                "tags": [
+                  "Facilis autem iusto.",
+                  "Voluptate enim iusto labore perspiciatis molestias eos.",
+                  "Numquam animi."
+                ]
+              },
+              "schema": {
+                "example": {
+                  "attributes": {
+                    "Magni minima sit maxime.": "Adipisci reprehenderit."
+                  },
+                  "facets": {
+                    "G": "Ullam perferendis vitae unde quam molestiae omnis.",
+                    "R": "Eligendi occaecati debitis error."
+                  },
+                  "filter": {
+                    "G": "Ullam perferendis vitae unde quam molestiae omnis.",
+                    "R": "Eligendi occaecati debitis error."
+                  },
+                  "flags": {
+                    "Eum voluptas praesentium.": "Est asperiores."
+                  },
+                  "jsonattrs": {
+                    "Alias tempora expedita aut incidunt vel.": "Molestiae dolores neque eos est illum.",
+                    "Earum hic.": "Molestiae aut qui."
+                  },
+                  "owner": "Totam omnis corrupti et et.",
+                  "tags": [
+                    "Reprehenderit ut laudantium perferendis.",
+                    "Ut eos animi quidem."
+                  ]
+                },
+                "properties": {
+                  "attributes": {
+                    "additionalProperties": {
+                      "example": "Aut autem excepturi quod sed eveniet est.",
+                      "type": "string"
+                    },
+                    "example": {
+                      "Aut nihil laudantium possimus aut.": "Vel excepturi rerum necessitatibus magnam necessitatibus ea.",
+                      "Eos vel accusantium voluptatibus.": "Ad nisi et provident voluptatem velit.",
+                      "Rem neque sit.": "Quas impedit perspiciatis ullam quod adipisci maxime."
+                    },
+                    "type": "object"
+                  },
+                  "facets": {
+                    "$ref": "#/components/schemas/ParameterRange"
+                  },
+                  "filter": {
+                    "$ref": "#/components/schemas/ParameterRange"
+                  },
+                  "flags": {
+                    "additionalProperties": {
+                      "example": "Quis et expedita non.",
+                      "type": "string"
+                    },
+                    "example": {
+                      "Recusandae eum vero rerum recusandae animi.": "Qui qui in fuga accusamus sed illum.",
+                      "Rerum ea blanditiis in ratione et.": "Provident quibusdam beatae atque."
+                    },
+                    "type": "object"
+                  },
+                  "jsonattrs": {
+                    "additionalProperties": {
+                      "example": "Aliquid et enim sapiente aliquid aut.",
+                      "type": "string"
+                    },
+                    "example": {
+                      "Maxime dolorem et repellat sunt magni omnis.": "Aut accusamus qui nisi tenetur expedita voluptatem.",
+                      "Sed ullam.": "Est et.",
+                      "Unde voluptatem dolore dolore quo consequatur.": "Eveniet reiciendis."
+                    },
+                    "type": "object"
+                  },
+                  "owner": {
+                    "example": "Maiores repudiandae neque alias sint molestias.",
+                    "type": "string"
+                  },
+                  "tags": {
+                    "example": [
+                      "Earum accusamus molestias et nisi fuga.",
+                      "Quo autem vero quia quisquam."
+                    ],
+                    "items": {
+                      "example": "Et veniam repellat libero magni alias.",
+                      "type": "string"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "filter",
+                  "tags",
+                  "attributes",
+                  "flags",
+                  "facets",
+                  "jsonattrs",
+                  "owner"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContentResponse"
+          }
+        },
+        "summary": "FormFields styles",
+        "tags": [
+          "styles"
+        ]
+      }
+    },
+    "/HeaderMap": {
+      "get": {
+        "operationId": "styles.header_map",
+        "parameters": [
+          {
+            "example": {
+              "Aspernatur vel.": "Qui molestiae debitis fuga et.",
+              "Provident ipsum dolores.": "Unde autem.",
+              "Repellendus temporibus.": "Aliquid nemo."
+            },
+            "in": "header",
+            "name": "X-Value",
+            "required": true,
+            "schema": {
+              "additionalProperties": {
+                "example": "Iure necessitatibus dolorem.",
+                "type": "string"
+              },
+              "type": "object"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContentResponse"
+          }
+        },
+        "summary": "HeaderMap styles",
+        "tags": [
+          "styles"
+        ]
+      }
+    },
+    "/HeaderMapExploded": {
+      "get": {
+        "operationId": "styles.header_map_exploded",
+        "parameters": [
+          {
+            "example": {
+              "Deleniti consequuntur sit quidem nostrum aut.": "Assumenda numquam iusto voluptas tenetur aut.",
+              "Et fuga sint magnam eos.": "Voluptatem consequatur omnis iste vitae itaque."
+            },
+            "explode": true,
+            "in": "header",
+            "name": "X-Value",
+            "required": true,
+            "schema": {
+              "additionalProperties": {
+                "example": "Reiciendis amet aspernatur velit hic.",
+                "type": "string"
+              },
+              "type": "object"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContentResponse"
+          }
+        },
+        "summary": "HeaderMapExploded styles",
+        "tags": [
+          "styles"
+        ]
+      }
+    },
+    "/HeaderObject": {
+      "get": {
+        "operationId": "styles.header_object",
+        "parameters": [
+          {
+            "example": {
+              "G": "Natus quis eaque.",
+              "R": "Et officiis aut nam."
+            },
+            "explode": true,
+            "in": "header",
+            "name": "X-Value",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ParameterRange"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContentResponse"
+          }
+        },
+        "summary": "HeaderObject styles",
+        "tags": [
+          "styles"
+        ]
+      }
+    },
+    "/PathLabel/{value}": {
+      "get": {
+        "operationId": "styles.path_label",
+        "parameters": [
+          {
+            "example": "Delectus veritatis veritatis vel reprehenderit illo vero.",
+            "in": "path",
+            "name": "value",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "style": "label"
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContentResponse"
+          }
+        },
+        "summary": "PathLabel styles",
+        "tags": [
+          "styles"
+        ]
+      }
+    },
+    "/PathLabelExploded/{value}": {
+      "get": {
+        "operationId": "styles.path_label_exploded",
+        "parameters": [
+          {
+            "example": [
+              "Autem minus quas.",
+              "Dolor velit voluptatibus et tenetur explicabo officia."
+            ],
+            "explode": true,
+            "in": "path",
+            "name": "value",
+            "required": true,
+            "schema": {
+              "items": {
+                "example": "Repudiandae fugit perspiciatis atque.",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "style": "label"
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContentResponse"
+          }
+        },
+        "summary": "PathLabelExploded styles",
+        "tags": [
+          "styles"
+        ]
+      }
+    },
+    "/PathLabelList/{value}": {
+      "get": {
+        "operationId": "styles.path_label_list",
+        "parameters": [
+          {
+            "example": [
+              "Iusto nesciunt asperiores asperiores quae.",
+              "Laboriosam sequi nihil."
+            ],
+            "in": "path",
+            "name": "value",
+            "required": true,
+            "schema": {
+              "items": {
+                "example": "Fugiat eligendi quos est maxime aliquid voluptatem.",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "style": "label"
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContentResponse"
+          }
+        },
+        "summary": "PathLabelList styles",
+        "tags": [
+          "styles"
+        ]
+      }
+    },
+    "/PathList/{value}": {
+      "get": {
+        "operationId": "styles.path_list",
+        "parameters": [
+          {
+            "example": [
+              "Eos minima.",
+              "Adipisci quidem commodi.",
+              "Eos voluptatem delectus."
+            ],
+            "in": "path",
+            "name": "value",
+            "required": true,
+            "schema": {
+              "items": {
+                "example": "Sint saepe.",
+                "type": "string"
+              },
+              "type": "array"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContentResponse"
+          }
+        },
+        "summary": "PathList styles",
+        "tags": [
+          "styles"
+        ]
+      }
+    },
+    "/PathMap/{value}": {
+      "get": {
+        "operationId": "styles.path_map",
+        "parameters": [
+          {
+            "example": {
+              "Autem consequatur.": "Iste incidunt et inventore et dicta.",
+              "Eum magnam ea voluptas eligendi.": "Eaque occaecati deserunt rerum aperiam porro."
+            },
+            "explode": true,
+            "in": "path",
+            "name": "value",
+            "required": true,
+            "schema": {
+              "additionalProperties": {
+                "example": "Dolores maiores impedit.",
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "style": "matrix"
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContentResponse"
+          }
+        },
+        "summary": "PathMap styles",
+        "tags": [
+          "styles"
+        ]
+      }
+    },
+    "/PathMatrix/{value}": {
+      "get": {
+        "operationId": "styles.path_matrix",
+        "parameters": [
+          {
+            "example": "Et rerum et et sequi.",
+            "in": "path",
+            "name": "value",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "style": "matrix"
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContentResponse"
+          }
+        },
+        "summary": "PathMatrix styles",
+        "tags": [
+          "styles"
+        ]
+      }
+    },
+    "/PathMatrixList/{value}": {
+      "get": {
+        "operationId": "styles.path_matrix_list",
+        "parameters": [
+          {
+            "example": [
+              "Eos corrupti expedita sapiente eos sed.",
+              "Hic praesentium laboriosam velit.",
+              "Tempore perspiciatis aut molestiae et dolorem numquam.",
+              "Et quod deserunt enim vel voluptas eum."
+            ],
+            "explode": true,
+            "in": "path",
+            "name": "value",
+            "required": true,
+            "schema": {
+              "items": {
+                "example": "Molestiae culpa commodi laborum.",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "style": "matrix"
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContentResponse"
+          }
+        },
+        "summary": "PathMatrixList styles",
+        "tags": [
+          "styles"
+        ]
+      }
+    },
+    "/PathObject/{value}": {
+      "get": {
+        "operationId": "styles.path_object",
+        "parameters": [
+          {
+            "example": {
+              "G": "Voluptatem autem non mollitia.",
+              "R": "Dolor voluptas."
+            },
+            "explode": true,
+            "in": "path",
+            "name": "value",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ParameterRange"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContentResponse"
+          }
+        },
+        "summary": "PathObject styles",
+        "tags": [
+          "styles"
+        ]
+      }
+    },
+    "/PathSimple/{value}": {
+      "get": {
+        "operationId": "styles.path_simple",
+        "parameters": [
+          {
+            "example": "Aspernatur omnis.",
+            "in": "path",
+            "name": "value",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContentResponse"
+          }
+        },
+        "summary": "PathSimple styles",
+        "tags": [
+          "styles"
+        ]
+      }
+    },
+    "/QueryJSON": {
+      "get": {
+        "operationId": "styles.query_json",
+        "parameters": [
+          {
+            "content": {
+              "application/json": {
+                "example": {
+                  "Aspernatur magnam repellat est autem tempore vitae.": "Aut inventore ipsum ad perspiciatis ut et.",
+                  "Sed dolorem esse nesciunt est doloremque.": "Ab omnis debitis voluptas."
+                },
+                "schema": {
+                  "additionalProperties": {
+                    "example": "Voluptas nobis.",
+                    "type": "string"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "in": "query",
+            "name": "value",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContentResponse"
+          }
+        },
+        "summary": "QueryJSON styles",
+        "tags": [
+          "styles"
+        ]
+      }
+    },
+    "/QueryList": {
+      "get": {
+        "operationId": "styles.query_list",
+        "parameters": [
+          {
+            "allowEmptyValue": true,
+            "example": [
+              "Eum vitae.",
+              "Necessitatibus qui dolores expedita omnis rem consequatur."
+            ],
+            "explode": false,
+            "in": "query",
+            "name": "value",
+            "required": true,
+            "schema": {
+              "items": {
+                "example": "At repudiandae reiciendis.",
+                "type": "string"
+              },
+              "type": "array"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContentResponse"
+          }
+        },
+        "summary": "QueryList styles",
+        "tags": [
+          "styles"
+        ]
+      }
+    },
+    "/QueryListDefault": {
+      "get": {
+        "operationId": "styles.query_list_default",
+        "parameters": [
+          {
+            "allowEmptyValue": true,
+            "example": [
+              "Impedit consectetur necessitatibus necessitatibus nesciunt voluptas voluptas.",
+              "Quaerat alias ut saepe."
+            ],
+            "explode": false,
+            "in": "query",
+            "name": "value",
+            "schema": {
+              "default": [
+                "blue"
+              ],
+              "items": {
+                "example": "Doloribus ipsa veritatis est id totam.",
+                "type": "string"
+              },
+              "type": "array"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContentResponse"
+          }
+        },
+        "summary": "QueryListDefault styles",
+        "tags": [
+          "styles"
+        ]
+      }
+    },
+    "/QueryMap": {
+      "get": {
+        "operationId": "styles.query_map",
+        "parameters": [
+          {
+            "allowEmptyValue": true,
+            "example": {
+              "Qui accusantium.": "Aperiam saepe.",
+              "Quis quia ex et.": "Sint fuga aut sit aut corporis ut.",
+              "Voluptates quo illum officia deleniti eos nesciunt.": "Rerum modi numquam alias."
+            },
+            "in": "query",
+            "name": "value",
+            "required": true,
+            "schema": {
+              "additionalProperties": {
+                "example": "Cumque laborum quia voluptate ad animi ad.",
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "style": "deepObject"
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContentResponse"
+          }
+        },
+        "summary": "QueryMap styles",
+        "tags": [
+          "styles"
+        ]
+      }
+    },
+    "/QueryObject": {
+      "get": {
+        "operationId": "styles.query_object",
+        "parameters": [
+          {
+            "allowEmptyValue": true,
+            "example": {
+              "G": "Atque fuga aut vitae ex.",
+              "R": "Cum qui."
+            },
+            "in": "query",
+            "name": "value",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ParameterRange"
+            },
+            "style": "deepObject"
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContentResponse"
+          }
+        },
+        "summary": "QueryObject styles",
+        "tags": [
+          "styles"
+        ]
+      }
+    },
+    "/QueryObjectBytes": {
+      "get": {
+        "operationId": "styles.query_object_bytes",
+        "parameters": [
+          {
+            "allowEmptyValue": true,
+            "example": {
+              "R": "Quae mollitia quis.",
+              "data": "RXN0IGluY2lkdW50IHRlbXBvcmlidXMgYWIgbmloaWwu"
+            },
+            "in": "query",
+            "name": "value",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ParameterBytes"
+            },
+            "style": "deepObject"
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContentResponse"
+          }
+        },
+        "summary": "QueryObjectBytes styles",
+        "tags": [
+          "styles"
+        ]
+      }
+    },
+    "/QueryObjectDefault": {
+      "get": {
+        "operationId": "styles.query_object_default",
+        "parameters": [
+          {
+            "allowEmptyValue": true,
+            "example": {
+              "G": 9183222342072641127,
+              "R": "Vitae qui voluptate omnis."
+            },
+            "in": "query",
+            "name": "value",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ParameterDefaults"
+            },
+            "style": "deepObject"
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContentResponse"
+          }
+        },
+        "summary": "QueryObjectDefault styles",
+        "tags": [
+          "styles"
+        ]
+      }
+    },
+    "/QueryObjectPlain": {
+      "get": {
+        "operationId": "styles.query_object_plain",
+        "parameters": [
+          {
+            "allowEmptyValue": true,
+            "example": {
+              "G": "Est tenetur ipsum eligendi iste.",
+              "R": "Autem ab."
+            },
+            "explode": false,
+            "in": "query",
+            "name": "value",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ParameterRange"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContentResponse"
+          }
+        },
+        "summary": "QueryObjectPlain styles",
+        "tags": [
+          "styles"
+        ]
+      }
+    },
+    "/QueryOptional": {
+      "get": {
+        "operationId": "styles.query_optional",
+        "parameters": [
+          {
+            "allowEmptyValue": true,
+            "example": [
+              "Sit eligendi.",
+              "Voluptate ad itaque.",
+              "Amet aut eveniet velit neque minus voluptas."
+            ],
+            "in": "query",
+            "name": "value",
+            "schema": {
+              "items": {
+                "example": "Quia enim blanditiis sapiente dicta aut repudiandae.",
+                "type": "string"
+              },
+              "type": "array"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContentResponse"
+          }
+        },
+        "summary": "QueryOptional styles",
+        "tags": [
+          "styles"
+        ]
+      }
+    },
+    "/QueryPipe": {
+      "get": {
+        "operationId": "styles.query_pipe",
+        "parameters": [
+          {
+            "allowEmptyValue": true,
+            "example": [
+              "Eaque minima natus consequuntur et.",
+              "Expedita qui necessitatibus suscipit.",
+              "Laborum autem dolor illum."
+            ],
+            "in": "query",
+            "name": "value",
+            "required": true,
+            "schema": {
+              "items": {
+                "example": "Impedit sunt.",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "style": "pipeDelimited"
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContentResponse"
+          }
+        },
+        "summary": "QueryPipe styles",
+        "tags": [
+          "styles"
+        ]
+      }
+    },
+    "/QueryRequired": {
+      "get": {
+        "operationId": "styles.query_required",
+        "parameters": [
+          {
+            "allowEmptyValue": true,
+            "example": [
+              "Nisi ullam velit officia ut ad.",
+              "Quo dolores ad enim."
+            ],
+            "in": "query",
+            "name": "value",
+            "required": true,
+            "schema": {
+              "items": {
+                "example": "Nisi adipisci natus error.",
+                "type": "string"
+              },
+              "type": "array"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContentResponse"
+          }
+        },
+        "summary": "QueryRequired styles",
+        "tags": [
+          "styles"
+        ]
+      }
+    },
+    "/QueryResidual": {
+      "get": {
+        "operationId": "styles.query_residual",
+        "parameters": [
+          {
+            "allowEmptyValue": true,
+            "example": {
+              "In harum.": "Commodi dolorem voluptas accusantium et.",
+              "Quas modi eos quasi explicabo.": "Nesciunt consequatur distinctio est molestiae omnis.",
+              "Vel eum.": "Sed natus autem non veniam voluptatem."
+            },
+            "in": "query",
+            "name": "value",
+            "required": true,
+            "schema": {
+              "additionalProperties": {
+                "example": "Et quis et harum quas consequatur.",
+                "type": "string"
+              },
+              "type": "object"
+            }
+          },
+          {
+            "allowEmptyValue": true,
+            "example": "Blanditiis quaerat voluptas corporis.",
+            "in": "query",
+            "name": "control",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContentResponse"
+          }
+        },
+        "summary": "QueryResidual styles",
+        "tags": [
+          "styles"
+        ]
+      }
+    },
+    "/QuerySpace": {
+      "get": {
+        "operationId": "styles.query_space",
+        "parameters": [
+          {
+            "allowEmptyValue": true,
+            "example": [
+              "Similique assumenda enim eligendi corporis ad ipsa.",
+              "Quam porro adipisci dolor et ut.",
+              "Dolor sunt hic porro.",
+              "Nostrum ad."
+            ],
+            "in": "query",
+            "name": "value",
+            "required": true,
+            "schema": {
+              "items": {
+                "example": "Eveniet aliquam fugiat occaecati consequatur ut voluptatem.",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "style": "spaceDelimited"
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContentResponse"
+          }
+        },
+        "summary": "QuerySpace styles",
+        "tags": [
+          "styles"
+        ]
+      }
+    },
+    "/ResponseMap": {
+      "get": {
+        "operationId": "styles.response_map",
+        "responses": {
+          "204": {
+            "description": "No Content response.",
+            "headers": {
+              "X-Labels": {
+                "example": {
+                  "Ducimus sequi ut et qui non.": "Aut soluta tenetur ut eveniet.",
+                  "Maiores qui aut sit aut.": "Exercitationem et sit error ipsum."
+                },
+                "explode": true,
+                "schema": {
+                  "additionalProperties": {
+                    "example": "Ipsa natus excepturi asperiores est explicabo ea.",
+                    "type": "string"
+                  },
+                  "example": {
+                    "Ducimus sequi ut et qui non.": "Aut soluta tenetur ut eveniet.",
+                    "Maiores qui aut sit aut.": "Exercitationem et sit error ipsum."
+                  },
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "summary": "ResponseMap styles",
+        "tags": [
+          "styles"
+        ]
+      }
+    }
+  },
+  "servers": [
+    {
+      "description": "Default server for parameter-styles",
+      "name": "parameter-styles",
+      "url": "http://localhost:80"
+    }
+  ],
+  "tags": [
+    {
+      "name": "styles"
+    }
+  ]
+}

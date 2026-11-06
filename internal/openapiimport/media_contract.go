@@ -163,32 +163,7 @@ func (p *documentPlanner) mediaBranchSchema(branch *Schema, media, path string) 
 		p.unsupported("media-schema", path, "form and multipart media require object schemas without nullable values or untagged unions")
 		return
 	}
-	properties := make(map[string]*Schema)
-	p.formProperties(branch, properties, make(map[*Schema]bool))
-	encoding := p.mediaEncodingFor(branch)
-	for _, name := range slices.Sorted(maps.Keys(encoding)) {
-		if _, exists := properties[name]; !exists {
-			p.unsupported("media-encoding", path+"/encoding/"+escapeJSONPointer(name), "encoding must name a body property")
-		}
-	}
-	for _, name := range slices.Sorted(maps.Keys(properties)) {
-		property := p.urlSchema(properties[name])
-		shape := p.urlShape(property)
-		value := encoding[name]
-		fieldPath := path + "/encoding/" + escapeJSONPointer(name)
-		if property == nil {
-			continue
-		}
-		if isMultipartMediaType(media) {
-			if _, err := httpencoding.MultipartContentType(shape, property.Type == "string" && stringRepresentation(property.Format).raw, value.MediaType); err != nil {
-				p.unsupported("media-encoding", fieldPath, err.Error())
-			}
-			value.MediaType = ""
-		}
-		if err := httpencoding.Match(httpencoding.FormField, shape, value); err != nil {
-			p.unsupported("media-encoding", fieldPath, err.Error())
-		}
-	}
+	p.mediaFieldEncodings(branch, media, path)
 }
 
 // mediaFormSchemaSupported mirrors the evaluated design's recursive form
@@ -221,4 +196,45 @@ func (p *documentPlanner) mediaFormSchemaSupported(schema *Schema, seen map[*Sch
 		return false
 	}
 	return p.mediaFormSchemaSupported(schema.Items, seen)
+}
+
+func (p *documentPlanner) mediaFieldEncodings(branch *Schema, media, path string) {
+	properties := make(map[string]*Schema)
+	p.formProperties(branch, properties, make(map[*Schema]bool))
+	encoding := p.mediaEncodingFor(branch)
+	bindings := make(map[string]httpencoding.KeySet)
+	for _, name := range slices.Sorted(maps.Keys(encoding)) {
+		if _, exists := properties[name]; !exists {
+			p.unsupported("media-encoding", path+"/encoding/"+escapeJSONPointer(name), "encoding must name a body property")
+		}
+	}
+	for _, name := range slices.Sorted(maps.Keys(properties)) {
+		property := p.urlSchema(properties[name])
+		shape := p.urlShape(property)
+		value := encoding[name]
+		fieldPath := path + "/encoding/" + escapeJSONPointer(name)
+		if property == nil {
+			continue
+		}
+		if isMultipartMediaType(media) {
+			if _, err := httpencoding.MultipartContentType(shape.Shape, property.Type == "string" && stringRepresentation(property.Format).raw, value.MediaType); err != nil {
+				p.unsupported("media-encoding", fieldPath, err.Error())
+			}
+			value.MediaType = ""
+			if err := httpencoding.MatchMultipart(shape, value); err != nil {
+				p.unsupported("media-encoding", fieldPath, err.Error())
+			}
+			continue
+		}
+		if _, keys, err := httpencoding.Resolve(httpencoding.FormField, name, shape, value); err != nil {
+			p.unsupported("media-encoding", fieldPath, err.Error())
+		} else {
+			bindings[name] = keys
+		}
+	}
+	if !isMultipartMediaType(media) {
+		if err := httpencoding.CheckNamespaces(httpencoding.FormField, bindings); err != nil {
+			p.unsupported("media-encoding", path+"/encoding", err.Error())
+		}
+	}
 }

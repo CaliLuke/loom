@@ -102,7 +102,7 @@ func TestHTTPEndpointValidateParams(t *testing.T) {
 	verr := endpoint.validateParams()
 	require.NotNil(t, verr)
 	require.Equal(t, []string{
-		`elements of array query parameter "filter" must be primitive`,
+		`query "filter": value shape has no supported parameter codec`,
 		`Path parameter "id" not found in payload.`,
 	}, validationErrorMessages(verr.Errors))
 }
@@ -141,9 +141,7 @@ func TestHTTPEndpointValidateHeadersAndCookies(t *testing.T) {
 
 	verr := endpoint.validateHeadersAndCookies()
 	require.NotNil(t, verr)
-	require.Equal(t, []string{
-		`cookie "session" must be primitive`,
-	}, validationErrorMessages(verr.Errors))
+	require.Empty(t, verr.Errors, "scalar cookie arrays have a resolved cookie codec")
 }
 
 func TestRequiredDiagnosticNameUsesEffectiveFirstAuthoredSpelling(t *testing.T) {

@@ -28,7 +28,7 @@ func attachTargets(endpoint *transportir.Endpoint, method *service.MethodData, e
 	for _, group := range [][]*transportir.Parameter{request.PathParams, request.QueryParams, request.Headers, request.Cookies} {
 		for _, parameter := range group {
 			codec := expr.ValueCodecText
-			if parameter.Encoding == httpencoding.JSON {
+			if parameter.Codec.Style == httpencoding.JSON {
 				codec = expr.ValueCodecJSON
 			}
 			parameter.Value = ValueTarget(method.PayloadValue, parameter.Attribute, parameter.Name, codec, schemaOnly)

@@ -224,10 +224,7 @@ func (r *RouteExpr) Validate() *eval.ValidationErrors {
 		if r.Endpoint.MethodExpr.Payload == nil {
 			verr.Add(r, "Route parameters are defined, but method payload is not defined.")
 		} else {
-			switch r.Endpoint.MethodExpr.Payload.Type.(type) {
-			case *Map:
-				verr.Add(r, "Route parameters are defined, but method payload is a map. Method payload must be a primitive or an object.")
-			case *Object, UserType:
+			if IsObject(r.Endpoint.MethodExpr.Payload.Type) {
 				for _, p := range rparams {
 					name, ok := r.Endpoint.Params.attributeOfElem(p)
 					if !ok {

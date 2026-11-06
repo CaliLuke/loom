@@ -118,7 +118,7 @@ func ParseFormWithLimit(req *http.Request, maxBytes int64) error {
 // encodeFormValue distinguishes an unnamed root from a named map entry whose
 // key is empty. Child values always have a name, independently of its bytes.
 func encodeFormValue(values url.Values, prefix string, v reflect.Value, named bool) (bool, error) {
-	if named && httpencoding.Select(httpencoding.FormField, formValueShape(v)) == httpencoding.JSON {
+	if named && formValueUsesJSON(v) {
 		return EncodeJSONField(values, prefix, v.Interface())
 	}
 	normalized, handled, err := normalizeFormEncodeValue(values, prefix, v)
@@ -148,7 +148,7 @@ func decodeFormValue(values url.Values, prefix string, target reflect.Value, nam
 	if target.Kind() != reflect.Pointer || target.IsNil() {
 		return false, fmt.Errorf("form decode target must be a non-nil pointer")
 	}
-	if named && httpencoding.Select(httpencoding.FormField, formValueShape(target)) == httpencoding.JSON {
+	if named && formValueUsesJSON(target) {
 		return DecodeJSONField(values, prefix, target.Interface())
 	}
 	if !hasFormPrefix(values, prefix) {
@@ -550,6 +550,13 @@ func setScalarValue(target reflect.Value, raw string) error {
 	return fmt.Errorf("unsupported form target type %s", target.Type())
 }
 
+// formValueUsesJSON selects the nested JSON contract. Unsupported or absent
+// native values continue through the form codec's existing presence handling.
+func formValueUsesJSON(value reflect.Value) bool {
+	codec, _, err := httpencoding.Resolve(httpencoding.FormField, "", httpencoding.BranchShape{Shape: formValueShape(value)}, httpencoding.Serialization{})
+	return err == nil && codec.Style == httpencoding.JSON
+}
+
 // formValueShape inspects physical shape without invoking either codec.
 func formValueShape(value reflect.Value) httpencoding.Shape {
 	for value.IsValid() && (value.Kind() == reflect.Pointer || value.Kind() == reflect.Interface) {
@@ -573,7 +580,7 @@ func formTypeShape(t reflect.Type) httpencoding.Shape {
 	}
 	switch t.Kind() {
 	case reflect.Map:
-		return httpencoding.Map
+		return httpencoding.Nested
 	case reflect.Struct:
 		return httpencoding.Object
 	case reflect.Array, reflect.Slice:

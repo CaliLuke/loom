@@ -22,6 +22,9 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 		}
 		{{- end }}
 	{{- range .Payload.Request.Headers }}
+{{- if .Styled }}
+{{ renderStyledEncode .Element "p" "header" }}
+{{- else }}
 			{{- if .FieldPointer }}
 		if p{{ if .FieldName }}.{{ .FieldName }}{{ end }} != nil {
 			{{- else }}
@@ -47,7 +50,11 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 			{{- end }}
 		}
 	{{- end }}
+	{{- end }}
 	{{- range .Payload.Request.Cookies }}
+{{- if .Styled }}
+{{ renderStyledEncode .Element "p" "cookie" }}
+{{- else }}
 			{{- if .FieldPointer }}
 		if p{{ if .FieldName }}.{{ .FieldName }}{{ end }} != nil {
 			{{- else }}
@@ -62,11 +69,17 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 			}
 		}
 	{{- end }}
+	{{- end }}
 	{{- if or .Payload.Request.QueryParams }}
 		values := req.URL.Query()
+{{- if hasStyledQuery .Payload.Request.QueryParams }}
+var parameterBuilder loomhttp.RawPairsBuilder
+{{- end }}
 	{{- end }}
 	{{- range .Payload.Request.QueryParams }}
-		{{- if .MapQueryParams }}
+{{- if .Styled }}
+{{ renderStyledEncode .Element "p" "query" }}
+{{- else if .MapQueryParams }}
 		for key, value := range p{{ if .FieldName }}.{{ .FieldName }}{{ end }} {
 			{{ template "partial_client_type_conversion" (typeConversionData .Type.KeyType.Type (aliasedType .FieldType).KeyType.Type "keyStr" "key") }}
 			{{- if eq .Type.ElemType.Type.Name "array" }}
@@ -121,13 +134,13 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 		{{- end }}
 	{{- end }}
 	{{- if .Payload.Request.QueryParams }}
-		req.URL.RawQuery = values.Encode()
+		req.URL.RawQuery = {{ if hasStyledQuery .Payload.Request.QueryParams }}parameterBuilder.Encode(values){{ else }}values.Encode(){{ end }}
 	{{- end }}
 	{{- if .MultipartRequestEncoder }}
 		if err := encoder(req).Encode(p); err != nil {
 			return loomhttp.ErrEncodingError("{{ .ServiceName }}", "{{ .Method.Name }}", err)
 		}
-	{{- else if or .Payload.Request.ClientBody .Payload.Request.JSONRPCID }}
+	{{- else if or .Payload.Request.ClientBody .Payload.Request.JSONRPCID .Method.IsJSONRPC }}
 		{{- if and .Method.IsJSONRPC (or .Payload.Request.OptionalBodyAttribute (not .Payload.Request.ClientBody)) }}
 		body := &jsonrpc.Request{
 			JSONRPC: "2.0",
@@ -192,6 +205,13 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
             {{- range $i, $variant := .Payload.Request.ClientBody.Media.Variants }}
             case {{ printf "%q" .Tag }}:
                 mediaIndex, mediaValue, mediaParts = {{ $i }}, body.{{ .Field }}, {{ .Parts }}
+{{- if .StyledFormFields }}
+mediaContext := req.Context()
+defer func() {
+ *req = *req.WithContext(mediaContext)
+}()
+*req = *req.WithContext({{ renderMediaFormEncode . "req.Context()" (printf "body.%s" .Field) }})
+{{- end }}
             {{- end }}
             }
             if err := loomhttp.EncodeMediaRequest(req, mediaIndex, {{ .Payload.Request.ClientBody.Media.Contracts }}, mediaValue, mediaParts, encoder); err != nil {
@@ -199,9 +219,13 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
             }
         }
         {{- else if .Payload.Request.FormEncoded }}
+{{- if .Payload.Request.StyledFormFields }}
+{{ renderStyledFormEncode .Payload.Request }}
+{{- else }}
 		if err := loomhttp.SetFormRequest(req, &body); err != nil {
 			return loomhttp.ErrEncodingError("{{ .ServiceName }}", "{{ .Method.Name }}", err)
 		}
+{{- end }}
 		{{- else }}
 		{{- if .Payload.Request.ContentType }}
 		req.Header.Set("Content-Type", {{ printf "%q" .Payload.Request.ContentType }})

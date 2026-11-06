@@ -14,7 +14,7 @@ func TestImportedParameterShapeAdmission(t *testing.T) {
 			name, schema string
 			allowed      bool
 		}{
-			{"object", `{"type":"object","properties":{"a":{"type":"string"}}}`, false},
+			{"object", `{"type":"object","properties":{"a":{"type":"string"}}}`, loc != "cookie"},
 			{"nested_array", `{"type":"array","items":{"type":"array","items":{"type":"string"}}}`, false},
 			{"primitive", `{"type":"string"}`, true},
 			{"primitive_array", `{"type":"array","items":{"type":"string"}}`, loc != "cookie"},
@@ -54,12 +54,12 @@ func TestImportedParameterShapeRepresentations(t *testing.T) {
 		{"omitted open query map", "query", `{"type":"object"}`, true, true},
 		{"explicit open query map", "query", `{"type":"object","additionalProperties":true}`, true, true},
 		{"typed query map", "query", `{"type":"object","additionalProperties":{"type":"array","items":{"type":"string"}}}`, true, true},
-		{"header map", "header", `{"type":"object","additionalProperties":{"type":"string"}}`, false, false},
-		{"path map", "path", `{"type":"object","additionalProperties":{"type":"string"}}`, false, false},
+		{"header map", "header", `{"type":"object","additionalProperties":{"type":"string"}}`, false, true},
+		{"path map", "path", `{"type":"object","additionalProperties":{"type":"string"}}`, false, true},
 		{"cookie map", "cookie", `{"type":"object","additionalProperties":{"type":"string"}}`, false, false},
-		{"header Any", "header", `{}`, false, true},
-		{"cookie Any", "cookie", `{}`, false, true},
-		{"path Any", "path", `{}`, false, true},
+		{"header Any", "header", `{}`, false, false},
+		{"cookie Any", "cookie", `{}`, false, false},
+		{"path Any", "path", `{}`, false, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			route := "/value"
@@ -145,9 +145,9 @@ func TestImportedResponseHeaderShapeAdmission(t *testing.T) {
 	}{
 		{"scalar", `{type: string}`, true},
 		{"scalar list", `{type: array, items: {type: string}}`, true},
-		{"record", `{type: object, properties: {name: {type: string}}}`, false},
+		{"record", `{type: object, properties: {name: {type: string}}}`, true},
 		{"nested array", `{type: array, items: {type: array, items: {type: string}}}`, false},
-		{"map", `{type: object, additionalProperties: {type: string}}`, false},
+		{"map", `{type: object, additionalProperties: {type: string}}`, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			source := []byte(fmt.Sprintf(`openapi: 3.1.1
@@ -196,7 +196,7 @@ func assertBindingDiagnostic(t *testing.T, diagnostics Diagnostics, occurrence s
 	for _, diagnostic := range diagnostics {
 		if strings.Contains(diagnostic.Path, occurrence) {
 			matches++
-			require.Equal(t, "parameter-shape", diagnostic.Code)
+			require.Contains(t, []string{"parameter-shape", "parameter-serialization"}, diagnostic.Code)
 		}
 	}
 	require.Equal(t, 1, matches, "one source-qualified binding diagnostic at %s, got %v", occurrence, diagnostics)

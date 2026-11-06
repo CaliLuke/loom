@@ -65,7 +65,7 @@ func TestJSONRPCFilesSkipServicesWithoutEndpoints(t *testing.T) {
 	clientFiles := ClientFiles("example.com/gen", services)
 	clientTypeFiles := ClientTypeFiles("example.com/gen", services)
 	serverTypeFiles := ServerTypeFiles("example.com/gen", services)
-	pathFiles := PathFiles(services)
+	pathFiles := PathFiles("example.com/gen", services)
 	httpFiles := httpcodegen.ExampleServerFiles("example.com/gen", services)
 	exampleServerFiles := ExampleServerFiles("example.com/gen", services, httpFiles)
 
@@ -100,7 +100,7 @@ func TestJSONRPCFilesSkipConfiguredServicesWithoutMethodEndpoints(t *testing.T) 
 	require.Empty(t, ClientFiles("example.com/gen", services))
 	require.Empty(t, ClientTypeFiles("example.com/gen", services))
 	require.Empty(t, ServerTypeFiles("example.com/gen", services))
-	require.Empty(t, PathFiles(services))
+	require.Empty(t, PathFiles("example.com/gen", services))
 	require.Empty(t, SSEServerFiles("example.com/gen", services))
 	require.Empty(t, ExampleCLIFiles("example.com/gen", services))
 

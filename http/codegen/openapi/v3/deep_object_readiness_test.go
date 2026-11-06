@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	. "github.com/CaliLuke/loom/dsl"
+	"github.com/CaliLuke/loom/expr"
 	httpgen "github.com/CaliLuke/loom/http/codegen"
 	openapiv3 "github.com/CaliLuke/loom/http/codegen/openapi/v3"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
@@ -137,7 +138,7 @@ func TestJSONFieldMetadataAdmission(t *testing.T) {
 	for _, location := range []string{"query", "form"} {
 		for _, key := range []string{"style", "explode", "allowReserved"} {
 			t.Run(location+"/"+key, func(t *testing.T) {
-				root := httpgen.RunHTTPDSL(t, func() {
+				design := func() {
 					Service("encoding", func() {
 						Method("read", func() {
 							Payload(func() { Attribute("filter", MapOf(String, String)) })
@@ -156,10 +157,15 @@ func TestJSONFieldMetadataAdmission(t *testing.T) {
 							})
 						})
 					})
-				})
+				}
+				if location == "query" && key == "allowReserved" {
+					err := expr.RunInvalidDSL(t, design)
+					require.ErrorContains(t, err, "content-based")
+					return
+				}
+				root := httpgen.RunHTTPDSL(t, design)
 				_, err := openapiv3.Files(root)
-				require.ErrorContains(t, err, "encoding.read")
-				require.ErrorContains(t, err, "filter")
+				require.NoError(t, err)
 			})
 		}
 	}

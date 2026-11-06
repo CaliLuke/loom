@@ -128,7 +128,7 @@ func (b *errorBuilder) buildResultInitCode(errorResponse *transportir.ResponseSt
 		_, errAtt = httpError.Attribute.FindAttribute(origin)
 		errAtt = serviceFieldTransformAttribute(httpError.Attribute, origin, errAtt)
 	}
-	code, err := b.sds.buildClientResultTransformCode(body, errAtt, httpError.Attribute, b.endpoint.Request, b.httpclictx, errctx, b.sd)
+	code, err := b.sds.buildClientResultTransformCode(body, errAtt, httpError.Attribute, args, b.httpclictx, errctx, b.sd)
 	if err != nil {
 		panic(codegen.NewError(b.sds.Ctx, body, fmt.Errorf("build HTTP error response transform for %s: %w", httpError.Name, err)))
 	}

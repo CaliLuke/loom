@@ -330,7 +330,7 @@ func pathSection(data *EndpointData) codegen.Section {
 						group.Id(arg.VarName).Add(codegen.TypeRef(arg.TypeRef))
 					}
 				}).
-				Add(codegen.TypeRef(route.PathInit.ReturnTypeRef)).
+				Add(pathReturnType(route.PathInit)).
 				BlockFunc(func(group *jen.Group) {
 					appendHTTPRawBlock(group, strings.TrimLeft(route.PathInit.ServerCode, "\n"))
 				})
@@ -347,4 +347,11 @@ func appendHTTPRawBlock(group *jen.Group, code string) {
 		group.Line()
 	}
 	group.Add(codegen.Expr(strings.TrimRight(code, "\n")))
+}
+
+func pathReturnType(data *InitData) *jen.Statement {
+	if data.ServerErrorAware {
+		return jen.Params(codegen.TypeRef(data.ReturnTypeRef), jen.Error())
+	}
+	return codegen.TypeRef(data.ReturnTypeRef)
 }

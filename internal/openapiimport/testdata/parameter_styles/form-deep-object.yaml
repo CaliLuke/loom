@@ -1,0 +1,49 @@
+{
+  "openapi": "3.2.0",
+  "info": {
+    "title": "Parameter styles",
+    "version": "1"
+  },
+  "paths": {
+    "/items": {
+      "post": {
+        "operationId": "show",
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "field": {
+                    "type": "object",
+                    "properties": {
+                      "gt": {
+                        "type": "integer"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "additionalProperties": false
+              },
+              "encoding": {
+                "field": {
+                  "style": "deepObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

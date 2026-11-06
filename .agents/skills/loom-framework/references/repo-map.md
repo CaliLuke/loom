@@ -40,6 +40,10 @@ belong in the `loom` skill and the canonical guides under `docs/`.
   owns their typed adapters and static manifest
 - `vet/`: evaluated-design and consuming-module adoption diagnostics
 - `internal/`: repository-private support packages and release/source tooling
+- `internal/httpencoding`: parameter grammar/default resolution, key namespaces,
+  scalar-domain facts and independent source normalization
+- `http/param_*.go`: raw parameter tokenization, wire grammars and admission;
+  `http/media_form.go` connects generated form fields to default media factories
 - `internal/httpcodec`: role-specific built-in HTTP codec selection shared by
   runtime dispatch and representation preparation
 - `codegen/uniongen`: shared Go union model and declaration/JSON/form method

@@ -154,6 +154,7 @@ func (b *payloadBuilder) buildRequestData() (*RequestData, *ParamData) {
 		MultipartFileFields:   multipartFiles,
 		FormEncoded:           b.endpointIR.Request.FormEncoded,
 	}
+	b.configureFormFields(request)
 	request.FinalizeEncoding = b.ep.SkipRequestBodyEncodeDecode
 	for _, header := range request.Headers {
 		if strings.EqualFold(header.HTTPName, "Content-Length") {
@@ -303,6 +304,7 @@ func (b *payloadBuilder) buildMapQueryParam() *ParamData {
 			Map:            expr.AsMap(b.payload.Type) != nil,
 			Element: &Element{
 				HTTPName: param.HTTPName,
+				Codec:    param.Codec,
 				AttributeData: &AttributeData{
 					Name:         param.Name,
 					VarName:      varName,
@@ -327,7 +329,7 @@ func (b *payloadBuilder) buildPathParams(params []*transportir.Parameter) []*Par
 	data := make([]*ParamData, 0, len(params))
 	ctx := serviceContext("", b.sd.Scope)
 	for _, param := range params {
-		attr := makeHTTPType(param.Attribute)
+		attr := makeHTTPMappedType(param.Attribute, rawServiceField(b.payload, param.Name, param.Attribute))
 		stringSlice := transportStringSlice(rawServiceField(b.payload, param.Name, param.Attribute))
 		fieldName, fieldType, fieldPointer := transportFieldBinding(param.Name, attr, b.payload, nil)
 		data = append(data, &ParamData{
@@ -335,6 +337,7 @@ func (b *payloadBuilder) buildPathParams(params []*transportir.Parameter) []*Par
 			MapStringSlice: false,
 			Element:        b.sds.buildTransportElement(param.Name, param.HTTPName, attr, stringSlice, true, false, fieldName, fieldType, fieldPointer, ctx, b.sd.Scope, b.vars, b.sds.examplesFor(b.sd)),
 		})
+		b.configureParameterElement(data[len(data)-1].Element, param, params)
 	}
 	return data
 }
@@ -346,13 +349,13 @@ func (b *payloadBuilder) buildQueryParams(params []*transportir.Parameter) []*Pa
 		if param.MapQueryParams != nil {
 			continue
 		}
-		attr := makeHTTPType(param.Attribute)
+		attr := makeHTTPMappedType(param.Attribute, rawServiceField(b.payload, param.Name, param.Attribute))
 		mp := expr.AsMap(attr.Type)
 		stringSlice := transportStringSlice(rawServiceField(b.payload, param.Name, param.Attribute))
 		fieldName, fieldType, fieldPointer := transportFieldBinding(param.Name, attr, b.payload, nil)
 		data = append(data, &ParamData{
 			Map:       mp != nil,
-			JSONField: param.Encoding == httpencoding.JSON,
+			JSONField: param.Codec.Style == httpencoding.JSON,
 			MapStringSlice: mp != nil &&
 				mp.KeyType.Type.Kind() == expr.StringKind &&
 				mp.ElemType.Type.Kind() == expr.ArrayKind &&
@@ -360,6 +363,7 @@ func (b *payloadBuilder) buildQueryParams(params []*transportir.Parameter) []*Pa
 			Element: b.sds.buildTransportElement(param.Name, param.HTTPName, attr, stringSlice, param.Required, param.PrimitivePointer, fieldName, fieldType, fieldPointer, ctx, b.sd.Scope, b.vars, b.sds.examplesFor(b.sd)),
 		})
 		b.jsonQueryCarrier(data[len(data)-1], attr)
+		b.configureParameterElement(data[len(data)-1].Element, param, params)
 	}
 	return data
 }
@@ -387,6 +391,7 @@ func (b *payloadBuilder) buildHeaders(params []*transportir.Parameter) []*Header
 			CanonicalName: http.CanonicalHeaderKey(param.HTTPName),
 			Element:       b.sds.buildTransportElement(param.Name, param.HTTPName, hattr, stringSlice, param.Required, param.PrimitivePointer, fieldName, fieldType, fieldPointer, b.svcctx, b.sd.Scope, b.vars, b.sds.examplesFor(b.sd)),
 		})
+		b.configureParameterElement(headers[len(headers)-1].Element, param, params)
 	}
 	return headers
 }
@@ -399,6 +404,7 @@ func (b *payloadBuilder) buildCookies(params []*transportir.Parameter) []*Cookie
 			continue
 		}
 		cookies = append(cookies, b.sds.cookieData(param.Name, param.HTTPName, param.Required, param.PrimitivePointer, param.Attribute, b.payload, b.svcctx, b.sd.Scope, b.vars, b.sds.examplesFor(b.sd)))
+		b.configureParameterElement(cookies[len(cookies)-1].Element, param, params)
 	}
 	return cookies
 }
@@ -437,7 +443,7 @@ func (b *payloadBuilder) buildInitData(request *RequestData) *InitData {
 		name = fmt.Sprintf("New%s%s", n, p)
 	}
 	serverArgs, clientArgs := b.buildPayloadBodyArgs(request, argsCap)
-	args := buildPayloadFieldArgs(request)
+	args := buildPayloadFieldArgs(request, b.payload)
 	serverArgs = append(serverArgs, args...)
 	clientArgs = append(clientArgs, args...)
 	serverCode, clientCode, pointer, unionValue := b.buildTransformCode(request)
@@ -597,6 +603,8 @@ func (b *payloadBuilder) collectionPayloadSource(data *RequestData) (*expr.Attri
 		return makeHTTPType(param.Attribute), data.QueryParams[0].VarName
 	case len(data.Headers) > 0:
 		return makeHTTPMappedType(request.Headers[0].Attribute, b.payload), data.Headers[0].VarName
+	case len(data.Cookies) > 0:
+		return data.Cookies[0].attribute, data.Cookies[0].VarName
 	default:
 		return nil, ""
 	}

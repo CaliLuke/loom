@@ -8,8 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CaliLuke/loom/internal/testprocess"
 	"github.com/stretchr/testify/require"
+
+	"github.com/CaliLuke/loom/internal/testprocess"
 )
 
 func TestUniformJSONReadinessImport(t *testing.T) {
@@ -27,10 +28,10 @@ func TestUniformJSONReadinessImport(t *testing.T) {
 		{"scalar explicit defaults", "schema: " + scalar + ", style: form, explode: true", true},
 		{"array implicit", "schema: " + array, true},
 		{"array explicit defaults", "schema: " + array + ", style: form, explode: true", true},
-		{"array comma rejected", "schema: " + array + ", style: form, explode: false", false},
-		{"map form implicit rejected", "schema: " + scalarMap, false},
-		{"map form explicit rejected", "schema: " + scalarMap + ", style: form, explode: true", false},
-		{"map brackets rejected", "schema: " + scalarMap + ", style: deepObject, explode: true", false},
+		{"array comma", "schema: " + array + ", style: form, explode: false", true},
+		{"map form implicit", "schema: " + scalarMap, true},
+		{"map form explicit", "schema: " + scalarMap + ", style: form, explode: true", true},
+		{"map brackets", "schema: " + scalarMap + ", style: deepObject, explode: true", true},
 		{"nested brackets rejected", "schema: " + nestedMap + ", style: deepObject, explode: true", false},
 		{"map JSON", "content: {application/json: {schema: " + scalarMap + "}}", true},
 		{"nested map JSON", "content: {application/json: {schema: " + nestedMap + "}}", true},
@@ -71,9 +72,9 @@ func TestUniformJSONReadinessFormImport(t *testing.T) {
 	}{
 		{"implicit JSON object", "", true},
 		{"explicit JSON object", "\n            encoding:\n              labels: {contentType: application/json}", true},
-		{"brackets rejected", "\n            encoding:\n              labels: {style: deepObject, explode: true}", false},
-		{"flattened form rejected", "\n            encoding:\n              labels: {style: form, explode: true}", false},
-		{"style overrides JSON rejected", "\n            encoding:\n              labels: {contentType: application/json, style: form, explode: true}", false},
+		{"brackets", "\n            encoding:\n              labels: {style: deepObject, explode: true}", true},
+		{"flattened form", "\n            encoding:\n              labels: {style: form, explode: true}", true},
+		{"style overrides JSON", "\n            encoding:\n              labels: {contentType: application/json, style: form, explode: true}", true},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			source := []byte(`openapi: 3.2.0

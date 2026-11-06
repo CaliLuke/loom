@@ -1,0 +1,172 @@
+package parameterstyles_test
+
+import (
+	"context"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"reflect"
+	"strings"
+	"sync/atomic"
+	"testing"
+
+	client "example.com/parameterstyles/gen/http/styles/client"
+	server "example.com/parameterstyles/gen/http/styles/server"
+	svc "example.com/parameterstyles/gen/styles"
+	loomhttp "github.com/CaliLuke/loom/http"
+	loom "github.com/CaliLuke/loom/pkg"
+	"github.com/stretchr/testify/require"
+)
+
+type observation struct {
+	calls    atomic.Int32
+	payload  any
+	response map[string]string
+}
+
+type recordingDoer struct {
+	t                                 *testing.T
+	base                              *http.Client
+	calls                             int
+	path, query, header, cookie, body string
+	status                            int
+}
+
+func (d *recordingDoer) Do(req *http.Request) (*http.Response, error) {
+	d.calls++
+	d.path, d.query = req.URL.EscapedPath(), req.URL.RawQuery
+	d.header, d.cookie = req.Header.Get("X-Value"), req.Header.Get("Cookie")
+	if req.Body != nil {
+		raw, err := io.ReadAll(req.Body)
+		require.NoError(d.t, err)
+		require.NoError(d.t, req.Body.Close())
+		req.Body = io.NopCloser(strings.NewReader(string(raw)))
+		d.body = string(raw)
+		require.Equal(d.t, int64(len(raw)), req.ContentLength)
+		if req.Header.Get("Content-Type") == "application/x-www-form-urlencoded" {
+			require.NotNil(d.t, req.GetBody)
+			replay, err := req.GetBody()
+			require.NoError(d.t, err)
+			replayBytes, err := io.ReadAll(replay)
+			require.NoError(d.t, err)
+			require.NoError(d.t, replay.Close())
+			require.Equal(d.t, raw, replayBytes)
+		}
+	}
+	response, err := d.base.Do(req)
+	if response != nil {
+		d.status = response.StatusCode
+	}
+	return response, err
+}
+
+func newStylesServer(t *testing.T) (*httptest.Server, *observation) {
+	t.Helper()
+	observed := &observation{response: map[string]string{"env": "prod", "tier": "1"}}
+	endpoints := &svc.Endpoints{}
+	fields := reflect.ValueOf(endpoints).Elem()
+	for i := range fields.NumField() {
+		name := fields.Type().Field(i).Name
+		endpoint := loom.Endpoint(func(_ context.Context, payload any) (any, error) {
+			observed.calls.Add(1)
+			observed.payload = payload
+			if name == "ResponseMap" {
+				return &svc.ResponseMapResult{Labels: observed.response}, nil
+			}
+			return nil, nil
+		})
+		fields.Field(i).Set(reflect.ValueOf(endpoint))
+	}
+	mux := loomhttp.NewMuxer()
+	server.Mount(mux, server.New(endpoints, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil))
+	host := httptest.NewServer(mux)
+	t.Cleanup(host.Close)
+	return host, observed
+}
+
+func TestGeneratedParameterClients(t *testing.T) {
+	record := &svc.ParameterRange{R: "100", G: "200"}
+	for _, tc := range []struct {
+		name, method                string
+		payload                     any
+		path, query, header, cookie string
+		rejected                    bool
+	}{
+		{name: "path-simple-dot-scalar", method: "PathSimple", payload: &svc.PathSimplePayload{Value: "."}, path: "/PathSimple/%2E"},
+		{name: "path-literal-pct2e-text", method: "PathSimple", payload: &svc.PathSimplePayload{Value: "%2E"}, path: "/PathSimple/%252E"},
+		{name: "path-simple-empty-string-encoder-error", method: "PathSimple", payload: &svc.PathSimplePayload{Value: ""}, rejected: true},
+		{name: "path-simple-array", method: "PathList", payload: &svc.PathListPayload{Value: []string{"a", "b"}}, path: "/PathList/a,b"},
+		{name: "path-simple-comma-data", method: "PathList", payload: &svc.PathListPayload{Value: []string{"a,b", "c"}}, path: "/PathList/a%2Cb,c"},
+		{name: "path-simple-empty-list-encoder-error", method: "PathList", payload: &svc.PathListPayload{Value: []string{}}, rejected: true},
+		{name: "path-simple-one-empty-encoder-error", method: "PathList", payload: &svc.PathListPayload{Value: []string{""}}, rejected: true},
+		{name: "path-matrix-scalar", method: "PathMatrix", payload: &svc.PathMatrixPayload{Value: "blue"}, path: "/PathMatrix/;value=blue"},
+		{name: "path-matrix-dot", method: "PathMatrix", payload: &svc.PathMatrixPayload{Value: "."}, path: "/PathMatrix/;value=."},
+		{name: "path-matrix-explode", method: "PathMatrixList", payload: &svc.PathMatrixListPayload{Value: []string{"a", "b"}}, path: "/PathMatrixList/;value=a;value=b"},
+		{name: "path-matrix-empty-list", method: "PathMatrixList", payload: &svc.PathMatrixListPayload{Value: []string{}}, path: "/PathMatrixList/;value"},
+		{name: "path-matrix-one-empty", method: "PathMatrixList", payload: &svc.PathMatrixListPayload{Value: []string{""}}, path: "/PathMatrixList/;value="},
+		{name: "path-label-array", method: "PathLabelList", payload: &svc.PathLabelListPayload{Value: []string{"a", "b"}}, path: "/PathLabelList/.a,b"},
+		{name: "path-label-explode", method: "PathLabelExploded", payload: &svc.PathLabelExplodedPayload{Value: []string{"a", "b"}}, path: "/PathLabelExploded/.a.b"},
+		{name: "path-label-empty-string", method: "PathLabel", payload: &svc.PathLabelPayload{Value: ""}, path: "/PathLabel/%2E"},
+		{name: "path-label-dot", method: "PathLabel", payload: &svc.PathLabelPayload{Value: "."}, path: "/PathLabel/%2E%2E"},
+		{name: "path-label-data-dot-encoder-error", method: "PathLabelExploded", payload: &svc.PathLabelExplodedPayload{Value: []string{"a.b"}}, rejected: true},
+		{name: "path-empty-collection-encoder-error", method: "PathLabelList", payload: &svc.PathLabelListPayload{Value: []string{}}, rejected: true},
+		{name: "path-object-explode", method: "PathObject", payload: &svc.PathObjectPayload{Value: record}, path: "/PathObject/R=100,G=200"},
+		{name: "path-map-matrix-explode", method: "PathMap", payload: &svc.PathMapPayload{Value: map[string]string{"R": "100", "G": "200"}}, path: "/PathMap/;G=200;R=100"},
+		{name: "query-form-comma", method: "QueryList", payload: &svc.QueryListPayload{Value: []string{"a,b", "c"}}, query: "value=a%2Cb,c"},
+		{name: "query-form-empty-list", method: "QueryList", payload: &svc.QueryListPayload{Value: []string{}}, query: "value="},
+		{name: "query-space", method: "QuerySpace", payload: &svc.QuerySpacePayload{Value: []string{"a", "b"}}, query: "value=a%20b"},
+		{name: "query-space-element-encoder-error", method: "QuerySpace", payload: &svc.QuerySpacePayload{Value: []string{"a b"}}, rejected: true},
+		{name: "query-pipe", method: "QueryPipe", payload: &svc.QueryPipePayload{Value: []string{"a", "b"}}, query: "value=a%7Cb"},
+		{name: "query-deepobject-object", method: "QueryObject", payload: &svc.QueryObjectPayload{Value: record}, query: "value%5BR%5D=100&value%5BG%5D=200"},
+		{name: "query-deepobject-map-prefix", method: "QueryMap", payload: &svc.QueryMapPayload{Value: map[string]string{"R": "100"}}, query: "value%5BR%5D=100"},
+		{name: "query-residual-map", method: "QueryResidual", payload: &svc.QueryResidualPayload{Value: map[string]string{"env": "prod"}, Control: "kept"}, query: "control=kept&env=prod"},
+		{name: "query-residual-sibling-encoder-error", method: "QueryResidual", payload: &svc.QueryResidualPayload{Value: map[string]string{"control": "secret"}, Control: "kept"}, rejected: true},
+		{name: "query-rule-a-required-encoder-error", method: "QueryRequired", payload: &svc.QueryRequiredPayload{Value: []string{}}, rejected: true},
+		{name: "query-json-map-default", method: "QueryJSON", payload: &svc.QueryJSONPayload{Value: map[string]string{"a": "b"}}, query: "value=%7B%22a%22%3A%22b%22%7D"},
+		{name: "header-object-explode", method: "HeaderObject", payload: &svc.HeaderObjectPayload{Value: record}, header: "R=100, G=200"},
+		{name: "header-map-simple", method: "HeaderMap", payload: &svc.HeaderMapPayload{Value: map[string]string{"env": "prod"}}, header: "env, prod"},
+		{name: "header-edge-space-encoder-error", method: "HeaderMap", payload: &svc.HeaderMapPayload{Value: map[string]string{"env": " prod"}}, rejected: true},
+		{name: "header-exploded-key-equals-encoder-error", method: "HeaderMapExploded", payload: &svc.HeaderMapExplodedPayload{Value: map[string]string{"bad=key":"secret"}}, rejected:true},
+		{name: "query-optional-nil-bytes", method: "QueryObjectBytes", payload:&svc.QueryObjectBytesPayload{Value:&svc.ParameterBytes{R:"given"}}, query:"value%5BR%5D=given"},
+		{name: "cookie-scalar-verbatim", method: "CookieScalar", payload: &svc.CookieScalarPayload{Value: "hello world"}, cookie: "value=hello world"},
+		{name: "cookie-comma-encoder-error", method: "CookieScalar", payload: &svc.CookieScalarPayload{Value: "a,b"}, rejected: true},
+		{name: "cookie-nonascii-encoder-error", method: "CookieScalar", payload: &svc.CookieScalarPayload{Value: "café"}, rejected: true},
+		{name: "cookie-array-unexploded", method: "CookieList", payload: &svc.CookieListPayload{Value: []string{"a", "b"}}, cookie: "value=a,b"},
+		{name: "cookie-array-exploded", method: "CookieExploded", payload: &svc.CookieExplodedPayload{Value: []string{"a", "b"}}, cookie: "value=a; value=b"},
+		{name: "cookie-map-residual-beside-session", method: "CookieMap", payload: &svc.CookieMapPayload{Value: map[string]string{"theme": "dark"}, Control: "kept"}, cookie: "theme=dark; sid=kept"},
+		{name: "cookie-form-unexploded", method: "CookieForm", payload: &svc.CookieFormPayload{Value: []string{"a/b", "a,b"}}, cookie: "value=a%2Fb,a%2Cb"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			host, observed := newStylesServer(t)
+			address, err := url.Parse(host.URL)
+			require.NoError(t, err)
+			doer := &recordingDoer{t: t, base: host.Client()}
+			c := client.NewClient(address.Scheme, address.Host, doer, loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
+			endpoint := reflect.ValueOf(c).MethodByName(tc.method).Call(nil)[0].Interface().(loom.Endpoint)
+			_, err = endpoint(t.Context(), tc.payload)
+			if tc.rejected {
+				wireName := "value"
+				if strings.HasPrefix(tc.method, "Header") {
+					wireName = "X-Value"
+				}
+				require.ErrorContains(t, err, wireName)
+				require.NotContains(t, err.Error(), "secret")
+				require.Zero(t, doer.calls)
+				require.Zero(t, observed.calls.Load())
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, 1, doer.calls)
+			require.Equal(t, http.StatusNoContent, doer.status)
+			require.Equal(t, int32(1), observed.calls.Load())
+			require.Equal(t, tc.payload, observed.payload)
+			if tc.path != "" {
+				require.Equal(t, tc.path, doer.path)
+			}
+			require.Equal(t, tc.query, doer.query)
+			require.Equal(t, tc.header, doer.header)
+			require.Equal(t, tc.cookie, doer.cookie)
+		})
+	}
+}

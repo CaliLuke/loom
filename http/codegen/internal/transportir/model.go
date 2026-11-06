@@ -150,11 +150,11 @@ type (
 		MapQueryParams *string
 		Multipart      bool
 		FormEncoded    bool
-		// FormFieldModes is the selected codec for each named form property.
-		FormFieldModes map[string]httpencoding.Mode
-		OptionalBody   bool
-		MustHaveBody   bool
-		SkipBodyEncode bool
+		// FormFieldCodecs retains the resolved grammar for each named form property.
+		FormFieldCodecs map[string]httpencoding.Codec
+		OptionalBody    bool
+		MustHaveBody    bool
+		SkipBodyEncode  bool
 	}
 
 	Response struct {
@@ -260,8 +260,10 @@ type (
 	}
 
 	Parameter struct {
-		// Encoding is the shared URL field serialization mode.
-		Encoding httpencoding.Mode
+		// Codec is the resolved grammar shared by runtime and contract projections.
+		Codec httpencoding.Codec
+		// Keys identifies this binding's wire namespace.
+		Keys httpencoding.KeySet
 		// Value shares the selected service member and its actual field codec.
 		Value            *ValueTarget
 		Name             string
@@ -304,6 +306,8 @@ type (
 	}
 
 	Header struct {
+		// Codec is the resolved simple-header grammar.
+		Codec httpencoding.Codec
 		// Value shares the selected service member and its actual field codec.
 		Value            *ValueTarget
 		Name             string

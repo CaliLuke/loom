@@ -403,6 +403,10 @@ func renderRequestURLSetup(b *strings.Builder, serviceName, endpointName string,
 		call += arg.Ref + ", "
 	}
 	call += ")"
+	if route.PathInit.ClientErrorAware {
+		fmt.Fprintf(b, "parameterPath, parameterError := %s\nif parameterError != nil {\nreturn nil, loomhttp.ErrEncodingError(%q, %q, parameterError)\n}\n", call, serviceName, endpointName)
+		call = "parameterPath"
+	}
 	if len(route.PathInit.ClientArgs) == 0 && escapeRouteLiteral(route.Path) == route.Path {
 		fmt.Fprintf(b, "\tu := &url.URL{Scheme: %s, Host: c.host, Path: %s}\n", scheme, call)
 		return

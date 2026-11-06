@@ -1,0 +1,440 @@
+{
+  "openapi": "3.2.0",
+  "info": {
+    "title": "Parameter styles",
+    "version": "1"
+  },
+  "tags": [
+    {
+      "name": "parameters"
+    }
+  ],
+  "paths": {
+    "/cookie-form-list": {
+      "get": {
+        "operationId": "parameters.cookie_form_list",
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/Done"
+          }
+        },
+        "parameters": [
+          {
+            "name": "value",
+            "in": "cookie",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            },
+            "style": "form",
+            "explode": false
+          }
+        ],
+        "tags": [
+          "parameters"
+        ]
+      }
+    },
+    "/cookie-map": {
+      "get": {
+        "operationId": "parameters.cookie_map",
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/Done"
+          }
+        },
+        "parameters": [
+          {
+            "name": "value",
+            "in": "cookie",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "style": "cookie"
+          },
+          {
+            "name": "settings",
+            "in": "cookie",
+            "style": "cookie",
+            "explode": false,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "a/b": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        ],
+        "tags": [
+          "parameters"
+        ]
+      }
+    },
+    "/form-content-explode": {
+      "post": {
+        "operationId": "parameters.form_content_explode",
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/Done"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "field": {
+                    "type": "object",
+                    "properties": {
+                      "gt": {
+                        "type": "integer"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "additionalProperties": false
+              },
+              "encoding": {
+                "field": {
+                  "contentType": "application/json",
+                  "explode": false
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "parameters"
+        ]
+      }
+    },
+    "/form-deep-object": {
+      "post": {
+        "operationId": "parameters.form_deep_object",
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/Done"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "field": {
+                    "type": "object",
+                    "properties": {
+                      "gt": {
+                        "type": "integer"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "additionalProperties": false
+              },
+              "encoding": {
+                "field": {
+                  "style": "deepObject"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "parameters"
+        ]
+      }
+    },
+    "/form-reserved-false": {
+      "post": {
+        "operationId": "parameters.form_reserved_false",
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/Done"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "field": {
+                    "type": "object",
+                    "properties": {
+                      "gt": {
+                        "type": "integer"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "additionalProperties": false
+              },
+              "encoding": {
+                "field": {
+                  "allowReserved": false
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "parameters"
+        ]
+      }
+    },
+    "/header-object": {
+      "get": {
+        "operationId": "parameters.header_object",
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/Done"
+          }
+        },
+        "parameters": [
+          {
+            "name": "value",
+            "in": "header",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "gt": {
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "style": "simple",
+            "explode": true
+          }
+        ],
+        "tags": [
+          "parameters"
+        ]
+      }
+    },
+    "/query-deep-map": {
+      "get": {
+        "operationId": "parameters.query_deep_map",
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/Done"
+          }
+        },
+        "parameters": [
+          {
+            "name": "value",
+            "in": "query",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "style": "deepObject"
+          }
+        ],
+        "tags": [
+          "parameters"
+        ]
+      }
+    },
+    "/query-deep-object": {
+      "get": {
+        "operationId": "parameters.query_deep_object",
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/Done"
+          }
+        },
+        "parameters": [
+          {
+            "name": "value",
+            "in": "query",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "gt": {
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "style": "deepObject"
+          }
+        ],
+        "tags": [
+          "parameters"
+        ]
+      }
+    },
+    "/query-default-map": {
+      "get": {
+        "operationId": "parameters.query_default_map",
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/Done"
+          }
+        },
+        "parameters": [
+          {
+            "name": "value",
+            "in": "query",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "tags": [
+          "parameters"
+        ]
+      }
+    },
+    "/query-explicit-default": {
+      "get": {
+        "operationId": "parameters.query_explicit_default",
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/Done"
+          }
+        },
+        "parameters": [
+          {
+            "name": "value",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "style": "form",
+            "explode": true
+          }
+        ],
+        "tags": [
+          "parameters"
+        ]
+      }
+    },
+    "/query-form-list": {
+      "get": {
+        "operationId": "parameters.query_form_list",
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/Done"
+          }
+        },
+        "parameters": [
+          {
+            "name": "value",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "style": "form",
+            "explode": false
+          }
+        ],
+        "tags": [
+          "parameters"
+        ]
+      }
+    },
+    "/query-pipe-list": {
+      "get": {
+        "operationId": "parameters.query_pipe_list",
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/Done"
+          }
+        },
+        "parameters": [
+          {
+            "name": "value",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "style": "pipeDelimited"
+          }
+        ],
+        "tags": [
+          "parameters"
+        ]
+      }
+    },
+    "/path-label-integers/{id}": {
+      "get": {
+        "operationId": "parameters.path_label_integers",
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/Done"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            },
+            "required": true,
+            "style": "label",
+            "explode": true
+          }
+        ],
+        "tags": [
+          "parameters"
+        ]
+      }
+    }
+  },
+  "components": {
+    "responses": {
+      "Done": {
+        "description": "Done"
+      }
+    }
+  }
+}

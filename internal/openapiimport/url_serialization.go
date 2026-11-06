@@ -35,20 +35,6 @@ func formSerialization(content *orderedmap.Map[string, *v3.MediaType]) map[strin
 	return fields
 }
 
-func (p *documentPlanner) querySerialization(parameter Parameter, path string) {
-	source := parameter.Serialization
-	// Also validate normalized Documents assembled by callers using the public fields.
-	if source.Style == "" {
-		source.Style = parameter.Style
-	}
-	if parameter.AllowReserved {
-		source.AllowReserved = &parameter.AllowReserved
-	}
-	if err := httpencoding.Match(httpencoding.NamedQuery, p.urlShape(parameter.Schema), source); err != nil {
-		p.unsupported("parameter-serialization", path, err.Error())
-	}
-}
-
 func (p *documentPlanner) formSerialization(body *RequestBody, path string) {
 	renderer := renderer{schemas: p.schemas}
 	raw, err := renderer.formBodyRequiresRaw(body.Schema, path+"/schema", make(map[string]struct{}))
@@ -61,10 +47,17 @@ func (p *documentPlanner) formSerialization(body *RequestBody, path string) {
 	}
 	properties := make(map[string]*Schema)
 	p.formProperties(body.Schema, properties, make(map[*Schema]bool))
+	bindings := make(map[string]httpencoding.KeySet)
 	for _, name := range slices.Sorted(maps.Keys(properties)) {
-		if err := httpencoding.Match(httpencoding.FormField, p.urlShape(properties[name]), body.FormEncoding[name]); err != nil {
+		_, keys, err := httpencoding.Resolve(httpencoding.FormField, name, p.urlShape(properties[name]), body.FormEncoding[name])
+		if err != nil {
 			p.unsupported("form-serialization", path+"/encoding/"+escapeJSONPointer(name), err.Error())
+		} else {
+			bindings[name] = keys
 		}
+	}
+	if err := httpencoding.CheckNamespaces(httpencoding.FormField, bindings); err != nil {
+		p.unsupported("form-serialization", path+"/encoding", err.Error())
 	}
 	for _, name := range slices.Sorted(maps.Keys(body.FormEncoding)) {
 		if _, exists := properties[name]; !exists {
@@ -98,39 +91,4 @@ func (p *documentPlanner) urlSchema(schema *Schema) *Schema {
 		schema = p.schemas[name].Schema
 	}
 	return schema
-}
-
-func (p *documentPlanner) urlShape(schema *Schema) httpencoding.Shape {
-	schema = p.urlSchema(schema)
-	if schema == nil {
-		return httpencoding.UnsupportedShape
-	}
-	switch schema.Type {
-	case "array":
-		if p.schemaIsPrimitive(p.urlSchema(schema.Items), make(map[string]struct{})) {
-			return httpencoding.Sequence
-		}
-		return httpencoding.UnsupportedShape
-	case "object":
-		switch classifyObject(schema) {
-		case objectFreeMap, objectTypedMap:
-			return httpencoding.Map
-		}
-		if objectAdmitsTypedMembers(schema, p.schemas) {
-			// URL serializations have no carrier for undeclared members,
-			// whether the object's own or inherited through allOf.
-			return httpencoding.UnsupportedShape
-		}
-		return httpencoding.Object
-	case "string", "number", "integer", "boolean":
-		return httpencoding.Scalar
-	default:
-		if len(schema.Bases) > 0 && objectAdmitsTypedMembers(schema, p.schemas) {
-			return httpencoding.UnsupportedShape
-		}
-		if len(schema.Bases) > 0 || len(schema.OneOf) > 0 {
-			return httpencoding.Object
-		}
-		return httpencoding.UnsupportedShape
-	}
 }

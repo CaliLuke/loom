@@ -52,11 +52,12 @@ func TestRequestCookiePublication(t *testing.T) {
 	for _, method := range []string{"ordinary", "optional", "apikey", "session"} {
 		for _, value := range []string{"plain", "a,b", "a b", "", "a;b", "a\"b", "café"} {
 			t.Run(fmt.Sprintf("%s/%q", method, value), func(t *testing.T) {
-				valid := (&http.Cookie{Name: "tok", Value: value}).Valid() == nil
+				responseValid := (&http.Cookie{Name: "tok", Value: value}).Valid() == nil
+				valid := value == "plain" || value == "a b" || value == ""
 				response := httptest.NewRecorder()
 				responseErr := loomhttp.SetResponseCookie(context.Background(), response, &http.Cookie{Name: "tok", Value: value})
-				require.Equal(t, valid, responseErr == nil, "existing response contract")
-				if !valid {
+				require.Equal(t, responseValid, responseErr == nil, "existing response contract")
+				if !responseValid {
 					require.Empty(t, response.Header().Values("Set-Cookie"))
 				}
 				seen := make(chan observed, 1)

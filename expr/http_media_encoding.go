@@ -19,7 +19,7 @@ func HTTPMediaPartTypes(body *AttributeExpr) (map[string]string, error) {
 	for _, field := range *object {
 		name := ElementName(field.Name)
 		authored, _ := HTTPMediaMetadata(body).Last("openapi:encoding:" + name + ":contentType")
-		media, err := httpencoding.MultipartContentType(httpMediaFieldShape(field.Attribute), httpMediaBaseType(field.Attribute.Type) == Bytes, authored)
+		media, err := httpencoding.MultipartContentType(HTTPValueShape(field.Attribute).Shape, httpMediaBaseType(field.Attribute.Type) == Bytes, authored)
 		if err != nil {
 			return nil, fmt.Errorf("multipart field %q: %w", name, err)
 		}
@@ -44,8 +44,12 @@ func validateMediaFields(body *AttributeExpr, media string) error {
 	if err := validateMediaEncodingKeys(meta, object); err != nil {
 		return err
 	}
+	bindings := make(map[string]httpencoding.KeySet)
 	for _, field := range *object {
 		prefix := "openapi:encoding:" + ElementName(field.Name) + ":"
+		if err := validateParameterMetadata(meta, prefix); err != nil {
+			return fmt.Errorf("media field %q: %w", field.Name, err)
+		}
 		value := httpencoding.Serialization{}
 		value.MediaType, _ = meta.Last(prefix + "contentType")
 		value.Style, _ = meta.Last(prefix + "style")
@@ -60,31 +64,24 @@ func validateMediaFields(body *AttributeExpr, media string) error {
 		if base == "multipart/form-data" {
 			value.MediaType = "" // Part media is checked against the field codec below.
 		}
-		if err := httpencoding.Match(httpencoding.FormField, httpMediaFieldShape(field.Attribute), value); err != nil {
-			return fmt.Errorf("media field %q: %w", field.Name, err)
+
+		if base == "multipart/form-data" {
+			if err := httpencoding.MatchMultipart(HTTPValueShape(field.Attribute), value); err != nil {
+				return fmt.Errorf("media field %q: %w", field.Name, err)
+			}
+		} else {
+			_, keys, err := httpencoding.Resolve(httpencoding.FormField, ElementName(field.Name), HTTPValueShape(field.Attribute), value)
+			if err != nil {
+				return fmt.Errorf("media field %q: %w", field.Name, err)
+			}
+			bindings[field.Name] = keys
 		}
 	}
 	if base == "multipart/form-data" {
 		_, err := HTTPMediaPartTypes(body)
 		return err
 	}
-	return nil
-}
-
-func httpMediaFieldShape(attribute *AttributeExpr) httpencoding.Shape {
-	switch {
-	case IsMap(attribute.Type):
-		return httpencoding.Map
-	case IsObject(attribute.Type), IsUnion(attribute.Type):
-		return httpencoding.Object
-	case IsArray(attribute.Type):
-		if element := AsArray(attribute.Type).ElemType; IsPrimitive(element.Type) && !IsAny(element.Type) {
-			return httpencoding.Sequence
-		}
-		return httpencoding.UnsupportedShape
-	default:
-		return httpencoding.Scalar
-	}
+	return httpencoding.CheckNamespaces(httpencoding.FormField, bindings)
 }
 
 func httpMediaBaseType(typ DataType) DataType {

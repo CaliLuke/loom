@@ -66,7 +66,7 @@ func TestUnionPhysicalTypeGenerated(t *testing.T) {
 				}
 			}
 			httpServices := httpcodegen.NewServicesData(services, root.API.HTTP)
-			files = append(files, httpcodegen.PathFiles(httpServices)...)
+			files = append(files, httpcodegen.PathFiles(module+"/gen", httpServices)...)
 			files = append(files, httpcodegen.ServerFiles(module+"/gen", httpServices)...)
 			files = append(files, httpcodegen.ServerTypeFiles(module+"/gen", httpServices)...)
 			files = append(files, httpcodegen.ClientFiles(module+"/gen", httpServices)...)

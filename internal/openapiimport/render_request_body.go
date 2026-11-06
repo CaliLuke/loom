@@ -30,7 +30,7 @@ func (r *renderer) openAPIRequestBody(body RequestBody, path string) error {
 	for index, contentType := range body.ContentTypes {
 		contentTypes[index] = strconv.Quote(contentType)
 	}
-	metadata, err := requestBodyMetadata(body)
+	metadata, err := r.requestBodyMetadata(body)
 	if err != nil {
 		return err
 	}
@@ -120,13 +120,13 @@ func (r *renderer) payloadBody(body *renderedBody, path string) (bool, error) {
 	schema := schemaWithExamples(body.body.Schema, body.body.Examples)
 	if body.mode != requestBodyJSON {
 		if body.envelope {
-			metadata, err := requestBodyMetadata(body.body)
+			metadata, err := r.requestBodyMetadata(body.body)
 			if err != nil {
 				return false, err
 			}
 			return body.body.Required, r.attribute(body.field, schema, nil, path, metadata...)
 		}
-		metadata, err := requestBodyMetadata(body.body)
+		metadata, err := r.requestBodyMetadata(body.body)
 		if err != nil {
 			return false, err
 		}
@@ -135,7 +135,7 @@ func (r *renderer) payloadBody(body *renderedBody, path string) (bool, error) {
 		}
 		return false, r.renderRequestTransportBody(schema, path)
 	}
-	metadata, err := requestBodyMetadata(body.body)
+	metadata, err := r.requestBodyMetadata(body.body)
 	if err != nil {
 		return false, err
 	}
@@ -190,7 +190,7 @@ func (r *renderer) renderRequestTransportMapPayload(body *renderedBody, path str
 	if object {
 		return fmt.Errorf("render OpenAPI design: %s dynamic form map resolved to object properties", path)
 	}
-	metadata, err := requestBodyMetadata(body.body)
+	metadata, err := r.requestBodyMetadata(body.body)
 	if err != nil {
 		return err
 	}

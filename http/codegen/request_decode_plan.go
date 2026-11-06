@@ -45,7 +45,7 @@ func newRequestDecodePlan(request *RequestData, basic *BasicAuthData) *RequestDe
 	hasPathParams := len(request.PathParams) > 0
 	hasDecodedPathParams := false
 	for _, param := range request.PathParams {
-		if !expr.IsArray(param.Type) {
+		if !param.Styled && !expr.IsArray(param.Type) {
 			hasDecodedPathParams = true
 			break
 		}

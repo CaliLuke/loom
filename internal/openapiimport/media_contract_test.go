@@ -41,7 +41,9 @@ func TestDistinctMediaContractsRoundTrip(t *testing.T) {
 	for _, got := range []map[string]any{request, response} {
 		require.Len(t, got, 6)
 		form := got["application/x-www-form-urlencoded"].(map[string]any)
-		require.Equal(t, true, form["encoding"].(map[string]any)["tags"].(map[string]any)["explode"])
+		// Form arrays default to repeated fields; equivalent explicit defaults
+		// are omitted by the shared parameter codec exporter.
+		require.NotContains(t, form, "encoding")
 		multipart := got["multipart/form-data"].(map[string]any)
 		require.Equal(t, "text/plain", multipart["encoding"].(map[string]any)["tags"].(map[string]any)["contentType"])
 		for media, expected := range map[string]any{"application/json": float64(12), "application/vnd.loom+json": float64(34), "text/plain": "hello"} {

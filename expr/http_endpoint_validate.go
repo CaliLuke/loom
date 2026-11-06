@@ -23,6 +23,7 @@ func (e *HTTPEndpointExpr) Validate() error {
 	e.validateRoutes(verr)
 	e.validateResponses(verr)
 	e.validateBodyAndPayload(verr)
+	e.validateParameterSerialization(verr)
 	e.validateRequestContentType(verr)
 	e.validateMediaTypes(verr)
 	e.validateRequestReconstruction(verr)
@@ -173,18 +174,14 @@ func (e *HTTPEndpointExpr) validateBodyAndPayload(verr *eval.ValidationErrors) {
 	var (
 		hasParams  = !e.Params.IsEmpty()
 		hasHeaders = !e.Headers.IsEmpty()
-		hasCookies = !e.Cookies.IsEmpty()
 	)
 	if e.validateMissingPayload(verr, hasParams, hasHeaders) {
 		return
 	}
 	e.validateRequestBodyOptions(verr)
 
-	if IsArray(e.MethodExpr.Payload.Type) {
-		e.validateArrayPayloadTransport(verr, hasParams, hasHeaders, hasCookies)
-	}
-	if pMap := AsMap(e.MethodExpr.Payload.Type); pMap != nil {
-		e.validateMapPayloadTransport(verr, pMap, hasParams)
+	if IsArray(e.MethodExpr.Payload.Type) || IsMap(e.MethodExpr.Payload.Type) {
+		e.validateCollectionPayloadTransport(verr)
 	}
 	if IsObject(e.MethodExpr.Payload.Type) {
 		e.validateObjectPayloadTransport(verr)
@@ -277,101 +274,54 @@ func (e *HTTPEndpointExpr) validateMissingPayload(verr *eval.ValidationErrors, h
 	return true
 }
 
-func (e *HTTPEndpointExpr) validateArrayPayloadTransport(verr *eval.ValidationErrors, hasParams, hasHeaders, hasCookies bool) {
-	if e.MapQueryParams != nil {
-		verr.Add(e, "MapParams is set but Payload type is array. Payload type must be map or an object with a map attribute")
+// validateCollectionPayloadTransport gives a whole collection one wire owner.
+// Shape and style admission belong to validateMappedParameterCodecs.
+func (e *HTTPEndpointExpr) validateCollectionPayloadTransport(verr *eval.ValidationErrors) {
+	kind := "array"
+	pMap := AsMap(e.MethodExpr.Payload.Type)
+	if pMap != nil {
+		kind = "map"
 	}
-	if hasParams && (e.MultipartRequest || e.FormRequest) {
-		if e.MultipartRequest {
-			verr.Add(e, "Payload type is array but HTTP endpoint defines MultipartRequest and route/query string parameters. At most one of these must be defined.")
-		} else {
-			verr.Add(e, "Payload type is array but HTTP endpoint defines FormRequest and route/query string parameters. At most one of these must be defined.")
+	bindings := len(*AsObject(e.Params.Type)) + len(*AsObject(e.Headers.Type))
+	for _, field := range *AsObject(e.Cookies.Type) {
+		if !e.isTransportOnlySessionCookie(field.Name) {
+			bindings++
 		}
 	}
-	if hasHeaders {
-		if hasCookies || e.MultipartRequest || e.FormRequest {
-			switch {
-			case e.MultipartRequest:
-				verr.Add(e, "Payload type is array but HTTP endpoint defines headers and MultipartRequest or cookies. At most one of these must be defined.")
-			case e.FormRequest:
-				verr.Add(e, "Payload type is array but HTTP endpoint defines headers and FormRequest or cookies. At most one of these must be defined.")
-			default:
-				verr.Add(e, "Payload type is array but HTTP endpoint defines headers and cookies. At most one of these must be defined.")
+	if e.MapQueryParams != nil {
+		bindings++
+		if pMap == nil {
+			verr.Add(e, "MapParams is set but Payload type is array. Payload type must be map or an object with a map attribute")
+		} else {
+			if *e.MapQueryParams != "" {
+				verr.Add(e, "MapParams is set to an attribute in the Payload but Payload is a map. Payload must be an object with an attribute of map type")
+			}
+			if !IsPrimitive(pMap.KeyType.Type) {
+				verr.Add(e, "MapParams is set and Payload type is map. But payload key type must be a primitive")
+			}
+			if !IsPrimitive(pMap.ElemType.Type) && !IsArray(pMap.ElemType.Type) {
+				verr.Add(e, "MapParams is set and Payload type is map. But payload element type must be a primitive or array")
+			}
+			if IsArray(pMap.ElemType.Type) && !IsPrimitive(AsArray(pMap.ElemType.Type).ElemType.Type) {
+				verr.Add(e, "MapParams is set and Payload type is map. But array elements in payload element type must be primitive")
 			}
 		}
-		if hasParams {
-			verr.Add(e, "Payload type is array but HTTP endpoint defines both route or query string parameters and headers. At most one parameter or header must be defined and it must be of type array.")
-		}
-		if !IsPrimitive(AsArray(e.MethodExpr.Payload.Type).ElemType.Type) {
-			verr.Add(e, "Array payloads used in HTTP headers must be of arrays of primitive types.")
-		}
 	}
+	metadataBindings := bindings
 	if e.Body != nil && e.Body.Type != Empty {
-		if e.MultipartRequest {
-			verr.Add(e, "Payload type is array but HTTP endpoint defines MultipartRequest and body. At most one of these must be defined.")
-		}
-		if e.FormRequest {
-			verr.Add(e, "Payload type is array but HTTP endpoint defines FormRequest and body. At most one of these must be defined.")
-		}
-		if !IsArray(e.Body.Type) {
-			verr.Add(e, "Payload type is array but HTTP endpoint body is not.")
-		}
-		if hasParams {
-			verr.Add(e, "Payload type is array but HTTP endpoint defines both a body and route or query string parameters. At most one of these must be defined and it must be an array.")
-		}
-		if hasHeaders {
-			verr.Add(e, "Payload type is array but HTTP endpoint defines both a body and headers. At most one of these must be defined and it must be an array.")
+		bindings++
+		if pMap == nil && !IsArray(e.Body.Type) || pMap != nil && !IsMap(e.Body.Type) {
+			verr.Add(e, "Payload type is %s but HTTP endpoint body is not.", kind)
 		}
 	}
-	if !hasParams && !hasHeaders && e.SkipRequestBodyEncodeDecode {
-		verr.Add(e, "Payload type is array but HTTP endpoint uses SkipRequestBodyEncodeDecode and does not define headers or params.")
+	if e.FormRequest || e.MultipartRequest {
+		bindings++
 	}
-}
-
-func (e *HTTPEndpointExpr) validateMapPayloadTransport(verr *eval.ValidationErrors, pMap *Map, hasParams bool) {
-	if e.MapQueryParams != nil {
-		if e.MultipartRequest {
-			verr.Add(e, "Payload type is map but HTTP endpoint defines MultipartRequest and MapParams. At most one of these must be defined.")
-		}
-		if e.FormRequest {
-			verr.Add(e, "Payload type is map but HTTP endpoint defines FormRequest and MapParams. At most one of these must be defined.")
-		}
-		if *e.MapQueryParams != "" {
-			verr.Add(e, "MapParams is set to an attribute in the Payload but Payload is a map. Payload must be an object with an attribute of map type")
-		}
-		if !IsPrimitive(pMap.KeyType.Type) {
-			verr.Add(e, "MapParams is set and Payload type is map. But payload key type must be a primitive")
-		}
-		if !IsPrimitive(pMap.ElemType.Type) && !IsArray(pMap.ElemType.Type) {
-			verr.Add(e, "MapParams is set and Payload type is map. But payload element type must be a primitive or array")
-		}
-		if IsArray(pMap.ElemType.Type) && !IsPrimitive(AsArray(pMap.ElemType.Type).ElemType.Type) {
-			verr.Add(e, "MapParams is set and Payload type is map. But array elements in payload element type must be primitive")
-		}
+	if bindings > 1 {
+		verr.Add(e, "Payload type is %s and requires at most one transport binding across params, headers, cookies and body.", kind)
 	}
-	if hasParams && (e.MultipartRequest || e.FormRequest) {
-		if e.MultipartRequest {
-			verr.Add(e, "Payload type is map but HTTP endpoint defines MultipartRequest and route/query string parameters. At most one of these must be defined.")
-		} else {
-			verr.Add(e, "Payload type is map but HTTP endpoint defines FormRequest and route/query string parameters. At most one of these must be defined.")
-		}
-	}
-	if e.Body != nil && e.Body.Type != Empty {
-		if e.MultipartRequest {
-			verr.Add(e, "Payload type is map but HTTP endpoint defines MultipartRequest and body. At most one of these must be defined.")
-		}
-		if e.FormRequest {
-			verr.Add(e, "Payload type is map but HTTP endpoint defines FormRequest and body. At most one of these must be defined.")
-		}
-		if !IsMap(e.Body.Type) {
-			verr.Add(e, "Payload type is map but HTTP endpoint body is not.")
-		}
-		if hasParams {
-			verr.Add(e, "Payload type is map but HTTP endpoint defines both a body and route or query string parameters. At most one of these must be defined and it must be a map.")
-		}
-	}
-	if !hasParams && e.SkipRequestBodyEncodeDecode {
-		verr.Add(e, "Payload type is map but HTTP endpoint uses SkipRequestBodyEncodeDecode and does not define headers.")
+	if metadataBindings == 0 && e.SkipRequestBodyEncodeDecode {
+		verr.Add(e, "Payload type is %s but HTTP endpoint uses SkipRequestBodyEncodeDecode and does not define params, headers or cookies.", kind)
 	}
 }
 

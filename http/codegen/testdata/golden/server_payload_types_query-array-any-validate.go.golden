@@ -1,8 +1,0 @@
-// NewMethodQueryArrayAnyValidatePayload builds a ServiceQueryArrayAnyValidate
-// service MethodQueryArrayAnyValidate endpoint payload.
-func NewMethodQueryArrayAnyValidatePayload(q []loom.JSONValue) *servicequeryarrayanyvalidate.MethodQueryArrayAnyValidatePayload {
-	v := &servicequeryarrayanyvalidate.MethodQueryArrayAnyValidatePayload{}
-	v.Q = q
-
-	return v
-}

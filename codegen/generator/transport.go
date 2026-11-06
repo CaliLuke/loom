@@ -75,7 +75,7 @@ func transportFiles(genpkg string, r *expr.RootExpr, services *service.ServicesD
 	rootFiles = append(rootFiles, jsonrpccodegen.ClientFiles(genpkg, jsonrpcServices)...)
 	rootFiles = append(rootFiles, jsonrpccodegen.ServerTypeFiles(genpkg, jsonrpcServices)...)
 	rootFiles = append(rootFiles, jsonrpccodegen.ClientTypeFiles(genpkg, jsonrpcServices)...)
-	rootFiles = append(rootFiles, jsonrpccodegen.PathFiles(jsonrpcServices)...)
+	rootFiles = append(rootFiles, jsonrpccodegen.PathFiles(genpkg, jsonrpcServices)...)
 	rootFiles = append(rootFiles, jsonrpccodegen.ClientCLIFiles(genpkg, jsonrpcServices)...)
 	rootFiles = append(rootFiles, jsonrpccodegen.SSEServerFiles(genpkg, jsonrpcServices)...)
 
@@ -100,11 +100,11 @@ func httpTransportFiles(genpkg string, root *expr.RootExpr, services *service.Se
 	files = append(files, httpcodegen.ServerTypeFiles(genpkg, httpServices)...)
 	if mode == httpGenerationAll {
 		files = append(files, httpcodegen.ClientTypeFiles(genpkg, httpServices)...)
-		files = append(files, httpcodegen.PathFiles(httpServices)...)
+		files = append(files, httpcodegen.PathFiles(genpkg, httpServices)...)
 		files = append(files, httpcodegen.ClientCLIFiles(genpkg, httpServices)...)
 		return files, nil
 	}
-	files = append(files, httpcodegen.ServerPathFiles(httpServices)...)
+	files = append(files, httpcodegen.ServerPathFiles(genpkg, httpServices)...)
 	if len(serverFiles) > 0 {
 		serverFiles[0].RemovePaths = append(serverFiles[0].RemovePaths, staleHTTPClientPaths(httpServices)...)
 	}

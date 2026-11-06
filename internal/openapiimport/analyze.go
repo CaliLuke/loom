@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/CaliLuke/loom/internal/httpencoding"
+
 	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel/high/base"
@@ -391,8 +393,8 @@ func (a *analyzer) parameter(source *v3.Parameter, path string) Parameter {
 		}
 		parameter.Serialization.MediaType, parameter.Schema = media, schema
 	}
-	if source.In != "query" && ((source.Style != "" && !supportedParameterStyle(source.In, source.Style)) || source.Explode != nil) {
-		a.unsupported("parameter-serialization", path, "custom parameter serialization is not in the strict import subset")
+	if location, ok := parameterLocation(parameter.In); ok {
+		parameter.Serialization = httpencoding.NormalizeOpenAPIParameter(location, parameter.Serialization)
 	}
 	if source.Example != nil || orderedmap.Len(source.Examples) > 0 {
 		a.unsupported("examples", path, "parameter examples are not in the strict import subset")
@@ -490,13 +492,20 @@ func (a *analyzer) header(source *v3.Header, path string) Header {
 		Deprecated: source.Deprecated, AllowReserved: source.AllowReserved,
 		Schema: a.schema(source.Schema, path+"/schema"),
 	}
+	header.Serialization.Style = source.Style
+	if source.Explode || source.GoLow() != nil && !source.GoLow().Explode.IsEmpty() {
+		header.Serialization.Explode = &source.Explode
+	}
+	if source.AllowReserved || source.GoLow() != nil && !source.GoLow().AllowReserved.IsEmpty() {
+		header.Serialization.AllowReserved = &source.AllowReserved
+	}
 	if !a.openAPI32() && source.AllowReserved {
 		a.unsupported("versioned-field", path+"/allowReserved", "header allowReserved requires OpenAPI 3.2")
 	}
 	if orderedmap.Len(source.Content) > 0 {
 		a.unsupported("header-content", path+"/content", "content-based headers are not in the strict import subset")
 	}
-	if (source.Style != "" && source.Style != "simple") || source.Explode || source.AllowEmptyValue {
+	if source.AllowEmptyValue {
 		a.unsupported("header-serialization", path, "custom header serialization is not in the strict import subset")
 	}
 	if source.Example != nil || orderedmap.Len(source.Examples) > 0 {

@@ -138,6 +138,9 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
  {{- $source := "res" }}
  {{- if eq .SourceVar "problem" }}{{ $source = "problem" }}{{ else if .ViewedResult }}{{ $source = "res.Projected" }}{{ end }}
 	{{- range .Headers }}
+{{- if .Styled }}
+{{ renderStyledEncode .Element $source "response-header" }}
+{{- else }}
 		{{- $initDef := and (or .FieldPointer .Slice) (or .DefaultValue (and .Slice (ne .DefaultValue nil))) (not $.Tag) }}
 		{{- $checkNil := and (or .FieldPointer .Slice (eq .Type.Name "bytes") (eq .Type.Name "any") $initDef) (not $.Tag) }}
 		{{- if $checkNil }}
@@ -181,6 +184,7 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
 	}
 		{{- end }}
 
+	{{- end }}
 	{{- end }}
 
 	{{- range .Cookies }}
@@ -251,6 +255,9 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
         {{- range $i, $variant := .Media.Variants }}
         case {{ printf "%q" .Tag }}:
             mediaIndex, mediaValue, mediaParts = {{ $i }}, mediaBody.{{ .Field }}, {{ .Parts }}
+{{- if .StyledFormFields }}
+ctx = {{ renderMediaFormEncode . "ctx" (printf "mediaBody.%s" .Field) }}
+{{- end }}
         {{- end }}
         }
     {{- end }}

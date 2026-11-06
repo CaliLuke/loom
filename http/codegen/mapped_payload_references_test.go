@@ -27,7 +27,7 @@ func TestMappedPayloadReferencesCode(t *testing.T) {
 		require.NotPanics(t, func() {
 			code = filesCode(t, ServerTypeFiles("gen", services)) + filesCode(t, ClientTypeFiles("gen", services)) +
 				filesCode(t, ServerFiles("gen", services)) + filesCode(t, ClientFiles("gen", services)) +
-				filesCode(t, PathFiles(services))
+				filesCode(t, PathFiles("gen", services))
 		})
 		return code
 	}

@@ -8,10 +8,10 @@ import (
 )
 
 // PathFiles returns the service path files.
-func PathFiles(data *httpcodegen.ServicesData) []*codegen.File {
-	res := httpcodegen.PathFiles(data)
+func PathFiles(genpkg string, data *httpcodegen.ServicesData) []*codegen.File {
+	res := httpcodegen.PathFiles(genpkg, data)
 	for _, f := range res {
-		// The path files import no generated packages.
+		// Path type imports keep their service package; only transport paths move.
 		updateTitle(f)
 		f.Path = jsonrpcTransportPath(f.Path)
 	}

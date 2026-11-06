@@ -463,10 +463,12 @@ func makeFlags(e *EndpointData, args []*InitArgData, payload expr.DataType, json
 		check = check || chek
 		tn := arg.TypeRef
 		if f.Type == "JSON" {
-			// We need to declare the variable without
-			// a pointer to be able to unmarshal the JSON
-			// using its address.
-			tn = arg.TypeName
+			// Anonymous service fields retain their pointer carrier so an
+			// omitted flag remains absent. JSON decoding allocates that pointer.
+			// Named values and body roots use the existing conversion carrier.
+			if _, inline := arg.Type.(*expr.Object); !inline || arg.FieldName == "" {
+				tn = arg.TypeName
+			}
 		}
 		fdata = append(fdata, &cli.FieldData{
 			Name:    arg.VarName,

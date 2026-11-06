@@ -2,6 +2,28 @@
 // and path set to call the "ServicePathString" service "MethodPathString"
 // endpoint
 func (c *Client) BuildMethodPathStringRequest(ctx context.Context, v any) (*http.Request, error) {
+	if parameterError := func() error {
+		p, ok := v.(*servicepathstring.MethodPathStringPayload)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServicePathString", "MethodPathString", "*servicepathstring.MethodPathStringPayload", v)
+		}
+		if p == nil {
+			return fmt.Errorf("%s", "parameter payload is absent")
+		}
+		{
+			parameterValue := loomhttp.ParamValue{Kind: loomhttp.ParamScalar}
+			if p.P != nil {
+				parameterValue.Present = true
+				parameterValue.Text = *p.P
+			}
+			if _, parameterError := loomhttp.EncodePathParam("p", loomhttp.ParamCodec{Style: loomhttp.ParamSimple, Explode: false}, parameterValue); parameterError != nil {
+				return parameterError
+			}
+		}
+		return nil
+	}(); parameterError != nil {
+		return nil, loomhttp.ErrEncodingError("ServicePathString", "MethodPathString", parameterError)
+	}
 	var (
 		p2 string
 	)

@@ -47,6 +47,7 @@ type (
 		closeObjects            bool
 		rand                    *expr.ExampleGenerator
 		preparedExamples        *transportir.ValueTarget
+		parameterSources        map[expr.ValuePlanNode]*expr.AttributeExpr
 
 		exampleValue         func(*expr.AttributeExpr, any) (any, bool)
 		customExampleValue   bool

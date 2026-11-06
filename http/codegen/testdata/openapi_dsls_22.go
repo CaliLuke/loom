@@ -1,6 +1,9 @@
 package testdata
 
-import . "github.com/CaliLuke/loom/dsl"
+import (
+	. "github.com/CaliLuke/loom/dsl"
+	"github.com/CaliLuke/loom/expr"
+)
 
 var StreamingPartialExamplesDSL = func() {
 	var RealtimeChunk = Type("RealtimeChunk", Bytes, func() {
@@ -125,45 +128,17 @@ var MultipleSchemaExamplesDSL = func() {
 }
 
 var MultipleMediaContractsDSL = func() {
+	multipleMediaContractsDSL(false)
+}
+
+// StyledMediaContractsDSL exercises field styles within typed form media variants.
+var StyledMediaContractsDSL = func() {
+	multipleMediaContractsDSL(true)
+}
+
+func multipleMediaContractsDSL(styled bool) {
 	StreamingPartialExamplesDSL()
-	envelope := Type("MediaEnvelope", func() {
-		Attribute("content_type", String)
-		OneOf("body", func() {
-			Attribute("json", Int, func() {
-				Minimum(0)
-				Maximum(100)
-				Example("one", 1)
-				Example("two", 2)
-			})
-			Attribute("nullable", String, func() {
-				Nullable()
-				Example(Null())
-			})
-			Attribute("vendor", Int, func() {
-				Example("vendor", 7)
-			})
-			Attribute("text", String, func() {
-				Example("text", "hello")
-			})
-			Attribute("binary", Bytes, func() {
-				Example("binary", []byte("bytes"))
-			})
-			Attribute("form", func() {
-				Attribute("name", String)
-				Attribute("note", String)
-				Attribute("numbers", ArrayOf(Int))
-				Attribute("labels", MapOf(String, String))
-				Meta("openapi:encoding:labels:contentType", "application/json")
-			})
-			Attribute("multipart", func() {
-				Attribute("name", String)
-				Attribute("data", Bytes)
-				Required("name", "data")
-				Meta("openapi:encoding:data:contentType", "image/png")
-			})
-		})
-		Required("body")
-	})
+	envelope := mediaEnvelopeType(styled)
 	payload := Type("MediaRootExamples", func() {
 		OneOf("body", func() {
 			Attribute("number", Int)
@@ -214,37 +189,10 @@ var MultipleMediaContractsDSL = func() {
 			})
 		})
 
-		Method("exchange", func() {
-			Payload(envelope)
-			Result(envelope)
-			HTTP(func() {
-				POST("/media-contracts")
-				Body("body")
-				Header("content_type:Content-Type")
-				MediaType("application/json", "json")
-				MediaType("application/vnd.loom+json", "vendor")
-				MediaType("application/vnd.null+json", "nullable")
-				MediaType("text/plain", "text")
-				MediaType("*/*", "binary")
-				MediaType("application/x-www-form-urlencoded", "form")
-				MediaType("multipart/form-data", "multipart")
-				Response(StatusOK, func() {
-					Body("body")
-					Header("content_type:Content-Type")
-					MediaType("application/json", "json")
-					MediaType("application/vnd.loom+json", "vendor")
-					MediaType("application/vnd.null+json", "nullable")
-					MediaType("text/plain", "text")
-					MediaType("*/*", "binary")
-					MediaType("application/x-www-form-urlencoded", "form")
-					MediaType("multipart/form-data", "multipart")
-				})
-			})
-		})
+		mediaExchangeMethod(envelope, styled)
 	})
 	Service("mediaExampleSelections", func() {
 		Method("rootExamples", func() {
-
 			Payload(payload)
 			Result(payload)
 			HTTP(func() {
@@ -257,6 +205,94 @@ var MultipleMediaContractsDSL = func() {
 					MediaType("application/json", "number")
 					MediaType("text/plain", "text")
 				})
+			})
+		})
+	})
+}
+
+func mediaEnvelopeType(styled bool) expr.UserType {
+	return Type("MediaEnvelope", func() {
+		Attribute("content_type", String)
+		OneOf("body", func() {
+			Attribute("json", Int, func() {
+				Minimum(0)
+				Maximum(100)
+				Example("one", 1)
+				Example("two", 2)
+			})
+			Attribute("nullable", String, func() {
+				Nullable()
+				Example(Null())
+			})
+			Attribute("vendor", Int, func() {
+				Example("vendor", 7)
+			})
+			Attribute("text", String, func() {
+				Example("text", "hello")
+			})
+			Attribute("binary", Bytes, func() {
+				Example("binary", []byte("bytes"))
+			})
+			Attribute("form", func() {
+				Attribute("name", String)
+				Attribute("note", String)
+				Attribute("numbers", ArrayOf(Int))
+				Attribute("labels", MapOf(String, String))
+				Meta("openapi:encoding:labels:contentType", "application/json")
+				if styled {
+					Meta("openapi:encoding:labels:style", "deepObject")
+					Meta("openapi:encoding:numbers:explode", "false")
+				}
+			})
+			Attribute("multipart", func() {
+				Attribute("name", String)
+				Attribute("data", Bytes)
+				Required("name", "data")
+				Meta("openapi:encoding:data:contentType", "image/png")
+			})
+			if styled {
+				Attribute("required_form", func() {
+					Attribute("labels", MapOf(String, String))
+					Required("labels")
+					Meta("openapi:encoding:labels:style", "deepObject")
+				})
+			}
+		})
+		Required("body")
+	})
+}
+
+func mediaExchangeMethod(envelope expr.UserType, styled bool) {
+	Method("exchange", func() {
+		Payload(envelope)
+		Result(envelope)
+		HTTP(func() {
+			POST("/media-contracts")
+			Body("body")
+			Header("content_type:Content-Type")
+			MediaType("application/json", "json")
+			MediaType("application/vnd.loom+json", "vendor")
+			MediaType("application/vnd.null+json", "nullable")
+			MediaType("text/plain", "text")
+			MediaType("*/*", "binary")
+			MediaType("application/x-www-form-urlencoded", "form")
+			MediaType("multipart/form-data", "multipart")
+			if styled {
+				MediaType("application/x-www-form-urlencoded; profile=required", "required_form")
+			}
+			Response(StatusOK, func() {
+				Body("body")
+				Header("content_type:Content-Type")
+				MediaType("application/json", "json")
+				MediaType("application/vnd.loom+json", "vendor")
+				MediaType("application/vnd.null+json", "nullable")
+				MediaType("text/plain", "text")
+				MediaType("*/*", "binary")
+				MediaType("application/x-www-form-urlencoded", "form")
+				MediaType("multipart/form-data", "multipart")
+				if styled {
+					MediaType("application/x-www-form-urlencoded; profile=required", "required_form")
+				}
 			})
 		})
 	})

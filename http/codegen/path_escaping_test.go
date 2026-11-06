@@ -18,7 +18,7 @@ import (
 func TestPathBuildersEscapeValues(t *testing.T) {
 	root := RunHTTPDSL(t, pathEscapingDSL)
 	services := CreateHTTPServices(root)
-	paths := filesCode(t, ServerPathFiles(services))
+	paths := filesCode(t, ServerPathFiles("gen", services))
 
 	for _, want := range []string{
 		"func ItemPathescPath(id string) string {\n\treturn fmt.Sprintf(\"/items/%v\", loomhttp.EscapePathSegment(id))\n}\n",

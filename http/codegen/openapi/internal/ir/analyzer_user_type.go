@@ -187,7 +187,7 @@ func (a *Analyzer) componentName(attr *expr.AttributeExpr, t expr.UserType, fing
 		if a.reuseEquivalentCanonicalSchema(schema, attr, t, typeName, fingerprint, metaName) {
 			return typeName, true
 		}
-		if a.plan.Valid() && schemaExists && a.schemaNames[typeName].logical == a.logicalDeclaration(t) && a.schemaNames[typeName].baseline == a.componentFingerprint(attr, t) {
+		if a.plan.Valid() && schemaExists && a.schemaNames[typeName].logical == a.logicalDeclaration(t) && a.schemaNames[typeName].baseline == a.componentBaselineFingerprint(attr, t) {
 			typeName = a.Uniquify(typeName, fingerprint)
 		} else {
 			typeName = a.ClaimExplicitName(typeName, fingerprint)
@@ -255,5 +255,5 @@ func (a *Analyzer) componentNaming(attr *expr.AttributeExpr, t expr.UserType, al
 	if canonical {
 		desired = baseName
 	}
-	return representationComponentName{desired: desired, logical: authority, baseline: a.componentFingerprint(attr, t), explicit: canonical}
+	return representationComponentName{desired: desired, logical: authority, baseline: a.componentBaselineFingerprint(attr, t), explicit: canonical}
 }

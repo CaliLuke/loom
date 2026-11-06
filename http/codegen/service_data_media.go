@@ -35,6 +35,11 @@ type (
 		Value *transportir.ValueTarget
 		// Parts is the Go literal of per-field multipart content types.
 		Parts string
+		// StyledFormFields retain per-occurrence form parameter grammars.
+		StyledFormFields []*FormFieldData
+		// OrdinaryFormFields retain JSON and repeated codecs beside styled fields.
+		OrdinaryFormFields []*FormFieldData
+		formBody           *TypeData
 	}
 )
 
@@ -50,13 +55,17 @@ func attachMediaBodyData(body *TypeData, variants []*transportir.MediaVariant) {
 			panic(fmt.Sprintf("HTTP media branch %q is absent from emitted body %s", variant.Branch, body.Name))
 		}
 		contracts[i] = strconv.Quote(variant.ContentType)
+		styled, ordinary := formFieldData(variant.Body, variant.FormFieldCodecs)
 		data.Variants = append(data.Variants, &MediaVariantData{
-			Tag:        variant.Tag,
-			Parts:      mediaPartTypesLiteral(variant.PartTypes),
-			Field:      codegen.Goify(branch.Name, true),
-			TypeRef:    body.context.Scope.Scope().GoTypeRef(branch.Attribute),
-			AllowsNull: expr.AllowsNull(branch.Attribute),
-			Value:      representation.BuildValuePlan(variant.Value, branch.Attribute, body.context, expr.ValuePlanRuntime),
+			Tag:                variant.Tag,
+			Parts:              mediaPartTypesLiteral(variant.PartTypes),
+			Field:              codegen.Goify(branch.Name, true),
+			TypeRef:            body.context.Scope.Scope().GoTypeRef(branch.Attribute),
+			AllowsNull:         expr.AllowsNull(branch.Attribute),
+			Value:              representation.BuildValuePlan(variant.Value, branch.Attribute, body.context, expr.ValuePlanRuntime),
+			StyledFormFields:   styled,
+			OrdinaryFormFields: ordinary,
+			formBody:           &TypeData{Name: body.context.Scope.Scope().GoTypeName(branch.Attribute), attribute: branch.Attribute, context: body.context},
 		})
 	}
 	data.Contracts = "[]string{" + strings.Join(contracts, ", ") + "}"

@@ -156,7 +156,17 @@ func {{ .ResponseDecoder }}(decoder func(*http.Response) loomhttp.Decoder, resto
                     {{- range $i, $variant := .ClientBody.Media.Variants }}
                     case {{ $i }}:
                         var mediaValue {{ .TypeRef }}
+{{- if .StyledFormFields }}
+mediaResponse := *resp
+mediaRequest := resp.Request
+if mediaRequest == nil {
+ mediaRequest = new(http.Request)
+}
+mediaResponse.Request = mediaRequest.WithContext({{ renderMediaFormDecode . "mediaRequest.Context()" "mediaValue" }})
+err = loomhttp.DecodeMediaResponse(&mediaResponse, &mediaValue, {{ .AllowsNull }}, {{ .Parts }}, decoder)
+{{- else }}
                         err = loomhttp.DecodeMediaResponse(resp, &mediaValue, {{ .AllowsNull }}, {{ .Parts }}, decoder)
+{{- end }}
                         if err == nil {
                             body.Set{{ .Field }}(mediaValue)
                         }
@@ -192,7 +202,13 @@ func {{ .ResponseDecoder }}(decoder func(*http.Response) loomhttp.Decoder, resto
 		{{- range .Headers }}
 
  {{- $scalar := or .IsTextUnmarshaler (not .Slice) }}
- {{- if $scalar }}
+ {{- if .Styled }}
+ if parameterError := func() error {
+ {{ renderStyledDecode .Element "response-header" }}
+ }(); parameterError != nil {
+ return nil, loomhttp.ErrValidationError("{{ $.ServiceName }}", "{{ $.Method.Name }}", parameterError)
+ }
+ {{- else if $scalar }}
  {
   {{ .Locals.Raw }} := resp.Header.Get("{{ .CanonicalName }}")
   {{ .Locals.Present }} := len(resp.Header.Values("{{ .CanonicalName }}")) > 0
@@ -234,7 +250,7 @@ func {{ .ResponseDecoder }}(decoder func(*http.Response) loomhttp.Decoder, resto
 
 
 		{{- end }}
-		{{- if and .Validate (not $scalar) }}
+		{{- if and .Validate (not $scalar) (not .Styled) }}
 			{{ .Validate }}
 		{{- end }}
 		{{- end }}{{/* range .Headers */}}

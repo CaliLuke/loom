@@ -129,6 +129,8 @@ func (sds *ServicesData) buildTransportElement(
 	examples *expr.ExampleGenerator,
 ) *Element {
 	return &Element{
+		attribute:     attr,
+		context:       validateCtx,
 		HTTPName:      elem,
 		AttributeName: name,
 		StringSlice:   stringSlice,
@@ -154,6 +156,10 @@ func (sds *ServicesData) extractHeaders(headersIR []*transportir.Header, svcAtt 
 			CanonicalName: http.CanonicalHeaderKey(elem),
 			Element:       sds.buildTransportElement(name, elem, hattr, stringSlice, headerIR.Required, pointer, fieldName, fieldType, fieldPointer, svcCtx, scope, vars, examples),
 		})
+		header := headers[len(headers)-1]
+		header.Codec = headerIR.Codec
+		header.Styled = parameterUsesRuntime("header", headerIR.Codec)
+		configureStyledCarrier(header.Element, svcCtx)
 	}
 	return headers
 }

@@ -82,7 +82,13 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ el
 			}
 		}
 	{{- else if .Payload.Request.FormEncoded }}
+		{{- if .Payload.Request.StyledFormFields }}
+parameterFormPairs, parameterFormError := loomhttp.ParseRawFormWithLimit(r, loomhttp.RequestBodyLimit(r.Context()))
+err = parameterFormError
+		if err != nil {
+{{- else }}
 		if err = loomhttp.ParseFormWithLimit(r, loomhttp.RequestBodyLimit(r.Context())); err != nil {
+{{- end }}
 			var gerr *loom.ServiceError
 			if errors.As(err, &gerr) {
 				return payload, gerr
@@ -96,6 +102,13 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ el
 			body = nil
 		{{- end }}
 		} else {
+{{- if .Payload.Request.StyledFormFields }}
+ if parameterError := func() error {
+ {{ renderStyledFormDecode .Payload.Request }}
+ }(); parameterError != nil {
+ return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(parameterError))
+ }
+ {{- else }}
 			if _, err = loomhttp.DecodeFormValue(r.PostForm, "", {{ if not .Payload.Request.OptionalObjectBody }}&{{ end }}body); err != nil {
 				var gerr *loom.ServiceError
 				if errors.As(err, &gerr) {
@@ -103,6 +116,7 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ el
 				}
 				return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(err))
 			}
+{{- end }}
 		}
 	{{- else }}
 {{- if .Payload.Request.ServerBody.Media }}
@@ -115,7 +129,12 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ el
                 {{- range $i, $variant := .Payload.Request.ServerBody.Media.Variants }}
                 case {{ $i }}:
                     var mediaValue {{ .TypeRef }}
+{{- if .StyledFormFields }}
+mediaRequest := r.WithContext({{ renderMediaFormDecode . "r.Context()" "mediaValue" }})
+err = loomhttp.DecodeMediaRequest(mediaRequest, &mediaValue, {{ .AllowsNull }}, {{ .Parts }}, decoder)
+{{- else }}
                     err = loomhttp.DecodeMediaRequest(r, &mediaValue, {{ .AllowsNull }}, {{ .Parts }}, decoder)
+{{- end }}
                     if err == nil {
                         body.Set{{ .Field }}(mediaValue)
                     }

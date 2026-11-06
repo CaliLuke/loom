@@ -229,7 +229,7 @@ func (sds *ServicesData) buildEndpointDataFromIR(endpointIR *transportir.Endpoin
 		header.Bearer = securitygen.PlanBearer(header.HTTPName, header.AttributeName, header.Required, hsch, reqs)
 	}
 
-	requestInit := sds.buildClientRequestInit(endpointIR, method, svc, routes)
+	requestInit := sds.buildClientRequestInit(endpointIR, method, svc, routes, payload)
 	responseContractCases, responseContractWarnings := buildResponseContractCaseData(endpointIR)
 
 	endpoint := &EndpointData{

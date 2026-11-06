@@ -67,7 +67,6 @@ paths:
 		`Meta("openapi:tag:catalog:url", "https://example.com/catalog")`,
 		`Meta("openapi:tag:catalog:url:desc", "Catalog guide.")`,
 		`Meta("openapi:tag:catalog:extension:x-color", "\"blue\"")`,
-		`Meta("openapi:style", "form")`,
 		`Meta("openapi:style", "cookie")`,
 		`Meta("openapi:allowReserved", "true")`,
 		`Meta("openapi:summary", "Item list")`,
@@ -241,7 +240,7 @@ func TestImportKeepsNonInvertibleExporterShapesRejected(t *testing.T) {
 		fragment string
 		code     string
 	}{
-		{name: "parameter explode", fragment: "parameters: [{name: q, in: query, explode: false, schema: {type: array, items: {type: string}}}]", code: "parameter-serialization"},
+		{name: "parameter explode", fragment: "parameters: [{name: q, in: query, style: spaceDelimited, explode: true, schema: {type: array, items: {type: string}}}]", code: "parameter-serialization"},
 		{name: "bearer format", fragment: "security: [{Auth: []}]\n      x-test: true", code: "security-scheme"},
 		{name: "device authorization", code: "security-scheme"},
 		{name: "missing OAuth token URL", code: "security-scheme"},

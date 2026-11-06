@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/internal/httpencoding"
 	"github.com/CaliLuke/loom/internal/openapimeta"
 )
 
@@ -344,6 +345,7 @@ func (r *renderer) operationHTTP(operation *Operation, plan operationPlan, path 
 }
 
 type renderedParameter struct {
+	codec         httpencoding.Codec
 	parameter     Parameter
 	field         string
 	componentName string
@@ -401,7 +403,12 @@ func (r *renderer) parameters(source []Parameter, path string) ([]renderedParame
 		if resolved.In == "path" && (!token.IsIdentifier(resolved.Name) || token.Lookup(resolved.Name).IsKeyword()) {
 			return nil, fmt.Errorf("render OpenAPI design: %s/%d path parameter %q is not a Loom wildcard identifier", path, i, resolved.Name)
 		}
-		result = append(result, renderedParameter{parameter: resolved, componentName: componentName})
+		planner := documentPlanner{schemas: r.schemas}
+		codec, _, err := planner.parameterCodec(resolved)
+		if err != nil {
+			return nil, fmt.Errorf("render OpenAPI design: %s/%d: %w", path, i, err)
+		}
+		result = append(result, renderedParameter{parameter: resolved, componentName: componentName, codec: codec})
 	}
 
 	used := make(map[string]int, len(result))
@@ -471,24 +478,6 @@ func (r *renderer) payload(parameters []renderedParameter, body *renderedBody, p
 	}
 	r.close()
 	return nil
-}
-
-func parameterMetadata(parameter renderedParameter) ([]renderedMetadata, error) {
-	var metadata []renderedMetadata
-	if parameter.componentName != "" {
-		metadata = append(metadata, renderedMetadata{name: "openapi:component:parameter", value: parameter.componentName})
-	}
-	if parameter.parameter.In == "query" {
-		metadata = append(metadata, renderedMetadata{name: "openapi:allowEmptyValue", value: strconv.FormatBool(parameter.parameter.AllowEmptyValue)})
-	}
-	if parameter.parameter.Style != "" {
-		metadata = append(metadata, renderedMetadata{name: "openapi:style", value: parameter.parameter.Style})
-	}
-	if parameter.parameter.AllowReserved {
-		metadata = append(metadata, renderedMetadata{name: "openapi:allowReserved", value: "true"})
-	}
-	extensions, err := renderedExtensions("parameter", parameter.parameter.Extensions)
-	return append(metadata, extensions...), err
 }
 
 func (r *renderer) result(response renderedResponse, path string) error {

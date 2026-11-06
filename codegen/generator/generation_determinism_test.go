@@ -20,7 +20,7 @@ import (
 const generationDeterminismHelperPath = "LOOM_GENERATION_DETERMINISM_HELPER_PATH"
 
 // generationDeterminismDSLs lists designs whose generated imports come from
-// several struct:pkg:path packages or struct:field:type meta types.
+// several packages, custom Go types, and parameter serialization grammars.
 var generationDeterminismDSLs = []struct {
 	name string
 	dsl  func()
@@ -31,6 +31,23 @@ var generationDeterminismDSLs = []struct {
 	{"PayloadWithNestedTypesDSL", grpctestdata.PayloadWithNestedTypesDSL},
 	{"OptionalCollectionValidationDSL", optionalCollectionValidationDSL},
 	{"UntaggedArraysDSL", httptestdata.UntaggedArraysDSL},
+	{"PayloadQueryStringDSL", httptestdata.PayloadQueryStringDSL},
+	{"PayloadQueryArrayStringValidateDSL", httptestdata.PayloadQueryArrayStringValidateDSL},
+	{"PayloadQueryMapStringStringDSL", httptestdata.PayloadQueryMapStringStringDSL},
+	{"PayloadMapQueryPrimitivePrimitiveDSL", httptestdata.PayloadMapQueryPrimitivePrimitiveDSL},
+	{"PayloadPathArrayStringDSL", httptestdata.PayloadPathArrayStringDSL},
+	{"PayloadHeaderArrayStringDSL", httptestdata.PayloadHeaderArrayStringDSL},
+	{"PayloadCookieStringDSL", httptestdata.PayloadCookieStringDSL},
+	{"PayloadFormBodyObjectDSL", httptestdata.PayloadFormBodyObjectDSL},
+	{"MappedNamesDSL", httptestdata.MappedNamesDSL},
+	{"SecurityDSL", httptestdata.SecurityDSL},
+	{"RawRequestBodyOpenAPIDSL", httptestdata.RawRequestBodyOpenAPIDSL},
+	{"OpenAPI32FeaturesDSL", httptestdata.OpenAPI32FeaturesDSL},
+	{"ParameterStylesDSL", httptestdata.ParameterStylesDSL},
+	{"ParameterStyles31DSL", httptestdata.ParameterStyles31DSL},
+	{"StyledMediaContractsDSL", httptestdata.StyledMediaContractsDSL},
+	{"ParameterPropertyNamesDSL", httptestdata.ParameterPropertyNamesDSL},
+	{"ParameterMetadataDSL", httptestdata.ParameterMetadataDSL},
 }
 
 // TestGeneratedFilesAreByteStableAcrossIndependentProcesses generates the

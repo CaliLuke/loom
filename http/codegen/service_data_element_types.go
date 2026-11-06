@@ -3,7 +3,9 @@ package codegen
 import (
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
+	loomhttp "github.com/CaliLuke/loom/http"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
+	"github.com/CaliLuke/loom/internal/httpencoding"
 	"github.com/CaliLuke/loom/internal/securitygen"
 )
 
@@ -51,6 +53,14 @@ type (
 	// Element defines the common fields needed to generate HTTP request and
 	// response elements including headers, parameters and cookies.
 	Element struct {
+		attribute *expr.AttributeExpr
+		context   *codegen.AttributeContext
+		// Codec is the resolved wire grammar.
+		Codec httpencoding.Codec
+		// Namespace retains sibling claims and the fixed binding's owned keys.
+		Namespace loomhttp.ParamNamespace
+		// Styled selects the parameter codec path instead of an unchanged scalar path.
+		Styled bool
 		*AttributeData
 		// HTTPName is the name of the HTTP element (header name, query string name
 		// or cookie name)
@@ -61,6 +71,24 @@ type (
 		StringSlice bool
 		// Slice is true if the attribute type is an array.
 		Slice bool
+	}
+
+	// FormFieldData describes one field of a styled form request body.
+	FormFieldData struct {
+		// AttributeName identifies the source member independently of its wire name.
+		AttributeName string
+		// HTTPName is the form field's authored wire name.
+		HTTPName string
+		// FieldName is its generated Go field name.
+		FieldName string
+		// Attribute retains the selected field's constraints and type.
+		Attribute *expr.AttributeExpr
+		// Codec is the resolved field grammar.
+		Codec httpencoding.Codec
+		// Namespace identifies sibling claims and the fixed field's owned keys.
+		Namespace loomhttp.ParamNamespace
+		// Required reports whether a wire value is required.
+		Required bool
 	}
 
 	// ParamData describes a HTTP request parameter (query string or path

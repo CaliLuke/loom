@@ -56,22 +56,24 @@ type (
 
 	// Parameter describes an IR parameter object.
 	Parameter struct {
-		Name             string
-		In               string
-		ComponentName    string `json:"-"`
-		Description      string
-		Style            string
-		Explode          *bool
-		AllowEmptyValue  bool
-		AllowReserved    bool
-		Deprecated       bool
-		Required         bool
-		Schema           *Schema
-		Example          any
-		Examples         map[string]*ExampleRef
-		Content          map[string]*MediaType
-		WholeQueryString bool
-		Extensions       map[string]any
+		// CookieFormEquivalent31 proves raw cookie bytes equal form bytes over the schema domain.
+		CookieFormEquivalent31 bool `json:"-"`
+		Name                   string
+		In                     string
+		ComponentName          string `json:"-"`
+		Description            string
+		Style                  string
+		Explode                *bool
+		AllowEmptyValue        bool
+		AllowReserved          bool
+		Deprecated             bool
+		Required               bool
+		Schema                 *Schema
+		Example                any
+		Examples               map[string]*ExampleRef
+		Content                map[string]*MediaType
+		WholeQueryString       bool
+		Extensions             map[string]any
 	}
 
 	// RequestBodyRef is a request body reference or value.
@@ -161,6 +163,9 @@ type (
 
 	// Header describes an IR header.
 	Header struct {
+		// Style and Explode retain the resolved response-header grammar.
+		Style   string
+		Explode *bool
 		// ReferenceMetadata retains authored reusable-object edges until component allocation.
 		ReferenceMetadata []string `json:"-"`
 

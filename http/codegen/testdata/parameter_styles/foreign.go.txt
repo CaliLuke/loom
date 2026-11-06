@@ -1,0 +1,169 @@
+package parameterstyles_test
+
+import (
+	"encoding/json/v2"
+	"io"
+	"net/http"
+"net/http/httptest"
+	"net/url"
+	"strings"
+	"testing"
+
+	client "example.com/parameterstyles/gen/http/styles/client"
+	svc "example.com/parameterstyles/gen/styles"
+	loomhttp "github.com/CaliLuke/loom/http"
+	loom "github.com/CaliLuke/loom/pkg"
+	"github.com/stretchr/testify/require"
+)
+
+func TestGeneratedForeignParameters(t *testing.T) {
+	for _, tc := range []struct {
+		name, path, cookie string
+		payload            any
+		rejected           bool
+	}{
+		{"path-label-dot-lowercase-hex", "/PathLabel/%2E%2e", "", &svc.PathLabelPayload{Value: "."}, false},
+		{"path-label-empty-lowercase-hex", "/PathLabel/%2e", "", &svc.PathLabelPayload{Value: ""}, false},
+		{"path-pct2e-proxy", "/PathLabel/%2E%2E", "", &svc.PathLabelPayload{Value: "."}, false},
+		{"query-deepobject-literal-brackets", "/QueryObject?value[R]=100&value[G]=200", "", &svc.QueryObjectPayload{Value: &svc.ParameterRange{R: "100", G: "200"}}, false},
+		{"query-residual-foreign-key", "/QueryResidual?control=kept&utm_source=foreign", "", &svc.QueryResidualPayload{Control: "kept", Value: map[string]string{"utm_source": "foreign"}}, false},
+		{"query-delimited-repeated-key-400", "/QueryList?value=secret&value=other", "", nil, true},
+		{"query-object-odd-count-400", "/QueryObjectPlain?value=R,secret,G", "", nil, true},
+		{"query-object-duplicate-400", "/QueryObjectPlain?value=R,secret,R,other", "", nil, true},
+		{"query-object-unknown-property-400", "/QueryObjectPlain?value=R,100,G,200,unknown,secret", "", nil, true},
+		{"cookie-optional-default", "/CookieDefault", "", &svc.CookieDefaultPayload{Value:"blue"}, false},
+{"query-list-optional-default", "/QueryListDefault", "", &svc.QueryListDefaultPayload{Value:[]string{"blue"}}, false},
+{"query-object-property-default", "/QueryObjectDefault?value[R]=given", "", &svc.QueryObjectDefaultPayload{Value:&svc.ParameterDefaults{R:"given",G:7}}, false},
+{"cookie-legacy-quoted-peer", "/CookieScalar", `value="hello world"`, &svc.CookieScalarPayload{Value: "hello world"}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			host, observed := newStylesServer(t)
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, host.URL+tc.path, nil)
+			require.NoError(t, err)
+			if tc.name == "path-pct2e-proxy" {
+				req.URL.RawPath = strings.ReplaceAll(req.URL.RawPath, "%2E", ".")
+			}
+			req.Header.Set("Cookie", tc.cookie)
+			response, err := host.Client().Do(req)
+			require.NoError(t, err)
+			bytes, err := io.ReadAll(response.Body)
+			require.NoError(t, err)
+			require.NoError(t, response.Body.Close())
+			if tc.rejected {
+				require.Equal(t, http.StatusBadRequest, response.StatusCode, string(bytes))
+				var problem loomhttp.ProblemResponse
+				require.NoError(t, json.Unmarshal(bytes, &problem))
+				require.Equal(t, loom.DecodePayload, problem.Code)
+				require.Contains(t, problem.Detail, "value")
+				require.NotContains(t, problem.Detail, "secret")
+				require.Zero(t, observed.calls.Load())
+				return
+			}
+			require.Equal(t, http.StatusNoContent, response.StatusCode, string(bytes))
+			require.Equal(t, int32(1), observed.calls.Load())
+			require.Equal(t, tc.payload, observed.payload)
+		})
+	}
+}
+
+func TestGeneratedParameterPresenceAndForm(t *testing.T) {
+	t.Run("query-rule-a-optional-empty", func(t *testing.T) {
+		host, observed := newStylesServer(t)
+		address, err := url.Parse(host.URL)
+		require.NoError(t, err)
+		doer := &recordingDoer{t: t, base: host.Client()}
+		c := client.NewClient(address.Scheme, address.Host, doer, loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
+		_, err = c.QueryOptional()(t.Context(), &svc.QueryOptionalPayload{Value: []string{}})
+		require.NoError(t, err)
+		require.Empty(t, doer.query)
+		require.Equal(t, int32(1), observed.calls.Load())
+		require.Equal(t, &svc.QueryOptionalPayload{}, observed.payload)
+	})
+	t.Run("query-rule-a-missing-400", func(t *testing.T) {
+		host, observed := newStylesServer(t)
+		response, err := host.Client().Get(host.URL + "/QueryRequired")
+		require.NoError(t, err)
+		defer func() {
+			require.NoError(t, response.Body.Close())
+		}()
+		require.Equal(t, http.StatusBadRequest, response.StatusCode)
+		require.Zero(t, observed.calls.Load())
+		var problem loomhttp.ProblemResponse
+		require.NoError(t, json.UnmarshalRead(response.Body, &problem))
+		require.Contains(t, problem.Detail, "value")
+		require.NotEmpty(t, problem.Code)
+	})
+	t.Run("form-field-codecs-and-getbody", func(t *testing.T) {
+		host, observed := newStylesServer(t)
+		address, err := url.Parse(host.URL)
+		require.NoError(t, err)
+		doer := &recordingDoer{t: t, base: host.Client()}
+		c := client.NewClient(address.Scheme, address.Host, doer, loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
+		payload := &svc.FormFieldsPayload{
+			Filter: &svc.ParameterRange{R: "100", G: "200"},
+			Tags:   []string{"a,b", "c"}, Attributes: map[string]string{"x": "y"},
+			Flags: map[string]string{"enabled": "yes"}, Owner: "Ann",
+			Facets: &svc.ParameterRange{R:"100",G:"200"}, Jsonattrs: map[string]string{"foo":"bar"},
+			Search:[]string{"one,two","three"},
+		}
+		_, err = c.FormFields()(t.Context(), payload)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusNoContent, doer.status)
+		require.Equal(t, int32(1), observed.calls.Load())
+		require.Equal(t, payload, observed.payload)
+		require.Contains(t, doer.body, "filter%5BR%5D=100")
+		require.Contains(t, doer.body, "filter%5BG%5D=200")
+		require.Contains(t, doer.body, "tags=a%2Cb,c")
+		require.Contains(t, doer.body, "attributes=x,y")
+		require.Contains(t, doer.body, "enabled=yes")
+		require.Contains(t, doer.body, "owner=Ann")
+		require.Equal(t, "search=one%2Ctwo,three", doer.query)
+		require.Contains(t, doer.body, "R=100")
+		require.Contains(t, doer.body, "G=200")
+		require.Contains(t, doer.body, "jsonattrs=%7B%22foo%22%3A%22bar%22%7D")
+	})
+	for _, invalid := range []bool{false, true} {
+		name := "response-header-map"
+		if invalid {
+			name = "response-header-unrepresentable-before-commit"
+		}
+		t.Run(name, func(t *testing.T) {
+			host, observed := newStylesServer(t)
+			if invalid {
+				observed.response = map[string]string{"env": "secret,other"}
+			}
+			response, err := host.Client().Get(host.URL + "/ResponseMap")
+			require.NoError(t, err)
+			require.NoError(t, response.Body.Close())
+			require.Equal(t, int32(1), observed.calls.Load())
+			if invalid {
+				require.Equal(t, http.StatusInternalServerError, response.StatusCode)
+				require.Empty(t, response.Header.Get("X-Labels"))
+			} else {
+				require.Equal(t, http.StatusNoContent, response.StatusCode)
+				require.Equal(t, "env=prod, tier=1", response.Header.Get("X-Labels"))
+			}
+		})
+	}
+}
+
+func TestGeneratedStrictCookiePeer(t *testing.T) {
+ var calls int
+ host := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+  calls++
+  // This peer implements the unquoted cookie contract independently of
+  // net/http's permissive Cookie parser.
+  raw := r.Header.Get("Cookie")
+  require.NotContains(t, raw, `"`)
+  pair := strings.SplitN(raw, "=", 2)
+  require.Equal(t, []string{"value", "hello world"}, pair)
+  w.WriteHeader(http.StatusNoContent)
+ }))
+ defer host.Close()
+ address, err := url.Parse(host.URL)
+ require.NoError(t, err)
+ c := client.NewClient(address.Scheme, address.Host, host.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
+ _, err = c.CookieScalar()(t.Context(), &svc.CookieScalarPayload{Value:"hello world"})
+ require.NoError(t, err)
+ require.Equal(t, 1, calls)
+}

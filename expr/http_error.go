@@ -73,12 +73,13 @@ func (e *HTTPErrorExpr) Validate() *eval.ValidationErrors {
 	}
 	e.validateHeaders(ee, verr)
 	e.validateStatusErrorName(ee.AttributeExpr, verr)
+	body, _ := responseBodySource(ee.AttributeExpr, e.Response)
+	validateBodyParameterMetadata(body, "body", e.Response, verr, make(map[*AttributeExpr]bool))
 	// Built-in problem documents reconstruct ServiceError through the problem
 	// adapter, which supplies zero values for omitted properties. Their required
 	// wire fields are not required service fields. Custom errors reconstruct
 	// their authored object and must retain its required-field coverage.
 	if !IsDefaultErrorResult(ee.Type) {
-		body, _ := responseBodySource(ee.AttributeExpr, e.Response)
 		validateReconstruction(ee.AttributeExpr, body, responseReconstructionBindings(e.Response), "error "+e.Name, e.Response, verr)
 	}
 	return verr
@@ -86,6 +87,7 @@ func (e *HTTPErrorExpr) Validate() *eval.ValidationErrors {
 
 func (e *HTTPErrorExpr) validateHeaders(ee *ErrorExpr, verr *eval.ValidationErrors) {
 	validateHeaderCollections(e.Response.Headers, ee.AttributeExpr, e.Response, verr)
+	validateResponseHeaderCodecs(e.Response.Headers, ee.AttributeExpr, e.Response, verr)
 	if e.Response.Headers != nil && !e.Response.Headers.IsEmpty() {
 		verr.Merge(e.Response.Headers.Validate("HTTP error response headers", e.Response))
 		switch {
@@ -94,25 +96,12 @@ func (e *HTTPErrorExpr) validateHeaders(ee *ErrorExpr, verr *eval.ValidationErro
 		case IsObject(ee.Type):
 			for _, h := range *AsObject(e.Response.Headers.Type) {
 				_, att := ee.FindAttribute(h.Name)
-				switch {
-				case att == nil:
+				if att == nil {
 					verr.Add(e.Response, "header %q has no equivalent attribute in error type, use notation 'attribute_name:header_name' to identify corresponding error type attribute.", h.Name)
-				case IsArray(att.Type):
-					if !IsPrimitive(AsArray(att.Type).ElemType.Type) {
-						verr.Add(e.Response, "attribute %q used in HTTP headers must be a primitive type or an array of primitive types.", h.Name)
-					}
-				case !IsPrimitive(att.Type):
-					verr.Add(e.Response, "attribute %q used in HTTP headers must be a primitive type or an array of primitive types.", h.Name)
 				}
 			}
 		case len(*AsObject(e.Response.Headers.Type)) > 1:
 			verr.Add(e.Response, "response defines more than one headers but error type is not an object")
-		case IsArray(ee.Type):
-			if !IsPrimitive(AsArray(ee.Type).ElemType.Type) {
-				verr.Add(e.Response, "Array error type is mapped to an HTTP header but is not an array of primitive types.")
-			}
-		case IsMap(ee.Type):
-			verr.Add(e.Response, "error type must be a primitive type or an array of primitive types.")
 		}
 	}
 }

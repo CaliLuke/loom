@@ -18,7 +18,7 @@ func TestAddRequestCookie(t *testing.T) {
 		{"token", "plain", true},
 		{"token", "", true},
 		{"token", "a b", true},
-		{"token", "a,b", true},
+		{"token", "a,b", false},
 		{"token", "a;b", false},
 		{"token", "a\"b", false},
 		{"token", "a\\b", false},
@@ -52,6 +52,7 @@ func TestAddRequestCookie(t *testing.T) {
 			require.Equal(t, tc.name, cookies[1].Name)
 			require.Equal(t, tc.value, cookies[1].Value)
 			require.Equal(t, before.Values("X-Control"), req.Header.Values("X-Control"))
+			require.Equal(t, "existing=kept; "+tc.name+"="+tc.value, req.Header.Get("Cookie"))
 		})
 	}
 }

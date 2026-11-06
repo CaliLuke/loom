@@ -338,12 +338,12 @@ func (sds *ServicesData) buildResponseResultInitCode(
 ) (codegen.TransformPlan, bool, []*InitArgData) {
 	body := effectiveClientResponseBody(resp.Body, endpointIR.Response.Result, md)
 	clientArgs := buildResponseResultInitArgs(resp, body, httpclictx, headersData, cookiesData, sd)
-	code, err := sds.buildClientResultTransformCode(body, resAttr, result, endpointIR.Request, httpclictx, svcctx, sd)
+	clientArgs = append(clientArgs, buildHeaderInitArgs(headersData)...)
+	clientArgs = append(clientArgs, buildCookieInitArgs(cookiesData)...)
+	code, err := sds.buildClientResultTransformCode(body, resAttr, result, clientArgs, httpclictx, svcctx, sd)
 	if err != nil {
 		panic(codegen.NewError(nil, body, fmt.Errorf("build HTTP response result transform: %w", err)))
 	}
-	clientArgs = append(clientArgs, buildHeaderInitArgs(headersData)...)
-	clientArgs = append(clientArgs, buildCookieInitArgs(cookiesData)...)
 	return code, buildResponseResultPointer(resp, result, origin, svcctx), clientArgs
 }
 
@@ -386,7 +386,7 @@ func (sds *ServicesData) buildClientResultTransformCode(
 	body *expr.AttributeExpr,
 	bodyTarget *expr.AttributeExpr,
 	fallbackTarget *expr.AttributeExpr,
-	request *transportir.Request,
+	args []*InitArgData,
 	httpclictx *codegen.AttributeContext,
 	targetctx *codegen.AttributeContext,
 	sd *ServiceData,
@@ -397,11 +397,13 @@ func (sds *ServicesData) buildClientResultTransformCode(
 	if !expr.IsArray(fallbackTarget.Type) && !expr.IsMap(fallbackTarget.Type) {
 		return codegen.TransformPlan{}, nil
 	}
-	fallbackSource, fallbackVar := buildQueryFallbackSource(request)
-	if fallbackSource == nil {
+	if len(args) != 1 {
 		return codegen.TransformPlan{}, nil
 	}
-	return sds.buildClientBodyUnmarshalCode(fallbackSource, fallbackTarget, httpclictx, targetctx, sd, fallbackVar)
+	// A whole collection comes from the response's sole decoded binding.
+	// Request query parameters are unrelated to response reconstruction.
+	source := &expr.AttributeExpr{Type: args[0].Type}
+	return sds.buildClientBodyUnmarshalCode(source, fallbackTarget, httpclictx, targetctx, sd, args[0].VarName)
 }
 
 func (sds *ServicesData) buildClientBodyUnmarshalCode(
@@ -428,14 +430,6 @@ func (sds *ServicesData) buildClientBodyUnmarshalCode(
 	}
 	sd.ClientTransformHelpers = codegen.AppendHelpers(sd.ClientTransformHelpers, plan.Helpers)
 	return plan, nil
-}
-
-func buildQueryFallbackSource(request *transportir.Request) (*expr.AttributeExpr, string) {
-	if request == nil || len(request.QueryParams) == 0 {
-		return nil, ""
-	}
-	query := request.QueryParams[0]
-	return query.Attribute, codegen.Goify(query.Name, false)
 }
 
 func responseStatusBody(resp *transportir.ResponseStatus) *expr.AttributeExpr {

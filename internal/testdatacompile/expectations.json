@@ -78,7 +78,7 @@
     "stage": "dsl"
   },
   "expr/EndpointArrayPayloadSkipRequestBodyWithoutTransport": {
-    "contains": "service \"Service\" HTTP endpoint \"Method\": Payload type is array but HTTP endpoint uses SkipRequestBodyEncodeDecode and does not define headers or params.",
+    "contains": "service \"Service\" HTTP endpoint \"Method\": Payload type is array but HTTP endpoint uses SkipRequestBodyEncodeDecode and does not define params, headers or cookies.",
     "phase": "gen",
     "reason": "intentional validation failure",
     "stage": "dsl"
@@ -144,7 +144,7 @@
     "stage": "dsl"
   },
   "expr/EndpointMapPayloadSkipRequestBodyWithoutTransport": {
-    "contains": "service \"Service\" HTTP endpoint \"Method\": Payload type is map but HTTP endpoint uses SkipRequestBodyEncodeDecode and does not define headers.",
+    "contains": "service \"Service\" HTTP endpoint \"Method\": Payload type is map but HTTP endpoint uses SkipRequestBodyEncodeDecode and does not define params, headers or cookies.",
     "phase": "gen",
     "reason": "intentional validation failure",
     "stage": "dsl"
@@ -457,6 +457,48 @@
   },
   "http/codegen/InvalidDSL": {
     "contains": "malformed URI \"http://[::1]:namedport\"",
+    "phase": "gen",
+    "reason": "intentional validation failure",
+    "stage": "dsl"
+  },
+  "http/codegen/PathInterfaceSliceParamDSL": {
+    "contains": "value shape has no supported parameter codec",
+    "phase": "gen",
+    "reason": "intentional validation failure",
+    "stage": "dsl"
+  },
+  "http/codegen/PayloadQueryAnyDSL": {
+    "contains": "value shape has no supported parameter codec",
+    "phase": "gen",
+    "reason": "intentional validation failure",
+    "stage": "dsl"
+  },
+  "http/codegen/PayloadQueryAnyValidateDSL": {
+    "contains": "value shape has no supported parameter codec",
+    "phase": "gen",
+    "reason": "intentional validation failure",
+    "stage": "dsl"
+  },
+  "http/codegen/PayloadQueryArrayAnyDSL": {
+    "contains": "value shape has no supported parameter codec",
+    "phase": "gen",
+    "reason": "intentional validation failure",
+    "stage": "dsl"
+  },
+  "http/codegen/PayloadQueryArrayAnyValidateDSL": {
+    "contains": "value shape has no supported parameter codec",
+    "phase": "gen",
+    "reason": "intentional validation failure",
+    "stage": "dsl"
+  },
+  "http/codegen/ResultHeaderAnyDSL": {
+    "contains": "value shape has no supported parameter codec",
+    "phase": "gen",
+    "reason": "intentional validation failure",
+    "stage": "dsl"
+  },
+  "http/codegen/ResultHeaderArrayAnyDSL": {
+    "contains": "value shape has no supported parameter codec",
     "phase": "gen",
     "reason": "intentional validation failure",
     "stage": "dsl"

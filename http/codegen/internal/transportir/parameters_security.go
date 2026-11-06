@@ -45,7 +45,8 @@ func buildQueryParameters(endpoint *expr.HTTPEndpointExpr) []*Parameter {
 		Required:       required,
 		Map:            expr.AsMap(attr.Type) != nil,
 		MapQueryParams: endpoint.MapQueryParams,
-		Encoding:       httpencoding.Root,
+		Codec:          httpencoding.Codec{Style: httpencoding.Root, Shape: expr.HTTPValueShape(attr).Shape},
+		Keys:           httpencoding.KeySet{Residual: true},
 	})
 	return params
 }
@@ -64,12 +65,19 @@ func buildMappedParameters(endpoint *expr.HTTPEndpointExpr, mapped *expr.MappedA
 	}
 	var params []*Parameter
 	expr.WalkMappedAttr(mapped, func(name, element string, attr *expr.AttributeExpr) error { // nolint: errcheck
-		mode := httpencoding.Text
-		if in == "query" {
-			mode = httpencoding.Select(httpencoding.NamedQuery, URLShape(attr))
+		location := httpencoding.NamedQuery
+		switch in {
+		case "path":
+			location = httpencoding.Path
+		case "header":
+			location = httpencoding.Header
+		case "cookie":
+			location = httpencoding.Cookie
 		}
+		codec, keys := parameterCodec(location, element, attr, expr.HTTPParameterSerialization(attr, "openapi:"))
 		params = append(params, &Parameter{
-			Encoding:         mode,
+			Codec:            codec,
+			Keys:             keys,
 			Name:             name,
 			HTTPName:         element,
 			In:               in,

@@ -60,6 +60,7 @@ func clientEncodeDecodeImports(genpkg, svcName string, data *ServiceData) []*cod
 		{Path: "net/http"},
 		{Path: "net/url"},
 		{Path: "os"},
+		{Path: "sort"},
 		{Path: "strconv"},
 		{Path: "strings"},
 		{Path: "unicode/utf8"},
@@ -99,6 +100,14 @@ func clientRequestTemplateFuncs(svc *expr.HTTPServiceExpr, services *ServicesDat
 		"typeConversionData":      typeConversionData,
 		"transportScalarValue":    transportScalarValue,
 		"renderHeaderConversion":  renderHeaderConversion,
+		"renderStyledEncode":      renderStyledEncode,
+		"renderStyledFormEncode":  renderStyledFormEncode,
+		"renderMediaFormEncode":   renderMediaFormEncode,
+		"renderMediaFormDecode":   renderMediaFormDecode,
+		"renderStyledFormDecode":  renderStyledFormDecode,
+		"hasStyledQuery":          hasStyledQuery,
+		"hasOrdinaryQuery":        hasOrdinaryQuery,
+		"renderStyledDecode":      renderStyledDecode,
 		"transportFieldReference": transportFieldReference,
 		"goTypeRef": func(dt expr.DataType) string {
 			return services.ServicesData.Get(svc.Name()).Scope.GoTypeRef(&expr.AttributeExpr{Type: dt})

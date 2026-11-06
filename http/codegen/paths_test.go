@@ -30,7 +30,6 @@ func TestPaths(t *testing.T) {
 		{"path-with-float33-slice-param", testdata.PathFloat32SliceParamDSL},
 		{"path-with-float64-slice-param", testdata.PathFloat64SliceParamDSL},
 		{"path-with-bool-slice-param", testdata.PathBoolSliceParamDSL},
-		{"path-with-interface-slice-param", testdata.PathInterfaceSliceParamDSL},
 	}
 
 	for _, c := range cases {
@@ -38,7 +37,7 @@ func TestPaths(t *testing.T) {
 			root := RunHTTPDSL(t, c.DSL)
 			require.Len(t, root.API.HTTP.Services, 1)
 			services := CreateHTTPServices(root)
-			fs := serverPath(root.API.HTTP.Services[0], services)
+			fs := serverPath("gen", root.API.HTTP.Services[0], services)
 			sections := fs.AllSections()
 			code := codegen.SectionCode(t, sections[1])
 			testutil.AssertGo(t, "testdata/golden/paths_"+c.Name+".go.golden", code)
@@ -64,7 +63,7 @@ func TestPathTrailingShash(t *testing.T) {
 			root := RunHTTPDSL(t, c.DSL)
 			require.Len(t, root.API.HTTP.Services, 1)
 			services := CreateHTTPServices(root)
-			fs := serverPath(root.API.HTTP.Services[0], services)
+			fs := serverPath("gen", root.API.HTTP.Services[0], services)
 			sections := fs.AllSections()
 			code := codegen.SectionCode(t, sections[1])
 			testutil.AssertGo(t, "testdata/golden/paths_"+c.Name+".go.golden", code)

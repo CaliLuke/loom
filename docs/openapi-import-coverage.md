@@ -93,12 +93,12 @@ reads. Specification extensions are patterns, not fixed fields.
 | Path Item | Standard methods, `QUERY`, additional methods, `parameters` | `summary`, `description` | `$ref`, `servers`, `x-*` |
 | Operation | `tags`, `summary`, `description`, `operationId`, `parameters`, `requestBody`, `responses`, `deprecated`, `security`, supported `x-*` | `externalDocs` | `callbacks`, `servers` |
 | Components | Supported schemas, parameters, request bodies, responses, headers, security schemes, and examples | None | Links, callbacks, path items, media types, and `x-*` component entries |
-| Parameter | Identity, location, requiredness, schema, description, supported style, equivalent `explode` defaults, `allowReserved`, named query-map JSON `content`, and supported `x-*` | `deprecated`, unsupported examples | Incompatible serialization or content |
+| Parameter | Identity, location, requiredness, schema, description, supported style and `explode` combinations, `allowReserved`, named query-map JSON `content`, and supported `x-*` | `deprecated`, unsupported examples | Incompatible serialization or content |
 | Request Body | `description`, `required`, supported content, and supported `x-*` | None | unresolved, cyclic, or wrong-kind `$ref` plans |
-| Media Type | Distinct per-media schemas and examples, ranges, equivalent form field encoding, and multipart part content types | OpenAPI 3.2 `description` | `itemSchema`, unsupported encoding fields, `prefixEncoding`, and `x-*` |
+| Media Type | Distinct per-media schemas and examples, ranges, admitted styled and JSON form field encoding, and multipart part content types | OpenAPI 3.2 `description` | `itemSchema`, unsupported encoding fields, `prefixEncoding`, and `x-*` |
 | Responses | Concrete status-code entries | None | `default` and `x-*` |
 | Response | `summary`, `description`, supported headers and content, and supported `x-*` | None | Unresolved, cyclic, or wrong-kind `$ref` plans and links |
-| Header | `description`, `required`, schema, `style: simple`, and `allowReserved` | `deprecated`, unsupported examples | Other serialization, content, unresolved/cyclic/wrong-kind `$ref`, and `x-*` |
+| Header | `description`, `required`, schema, `style: simple` with either `explode` value, and `allowReserved` | `deprecated`, unsupported examples | Other serialization, content, unresolved/cyclic/wrong-kind `$ref`, and `x-*` |
 | Security Scheme | API keys, HTTP basic, HTTP bearer, and supported OAuth 2.0 flows and scopes | None | OpenID Connect, bearer formats, device authorization |
 | Example | JSON-compatible inline, structured, and reusable component examples | Unrenderable examples | External values and incompatible value forms |
 
@@ -138,33 +138,44 @@ at those supported scopes produce diagnostics. Document, schema, parameter,
 request-body, and response extensions preserve JSON-compatible `x-*` values,
 and regenerated OpenAPI emits each value at the scope it came from.
 
-Named query maps require `content: {application/json: {schema: ...}}`, including
-nested maps and maps whose values are arrays. Their schemas remain typed through
-component references. Fixed object query parameters remain unsupported. Scalar
-and repeated scalar-array query parameters accept equivalent explicit `form`
-defaults. A named map declared with `deepObject`, flattened `form`, or an implicit
-query-object style is a blocking wire-contract mismatch, even with
-`--allow-lossy`.
+Parameter import uses the same codec admission as generated transports. Paths
+support `simple`, `label` and `matrix`; query and URL-encoded form fields support
+`form`, `spaceDelimited`, `pipeDelimited` and `deepObject`; request and response
+headers support `simple`. These grammars admit scalars, scalar arrays, fixed
+objects with scalar fields and scalar maps. References use the same rules.
+`deepObject` requires an object or map. Space/pipe grammars reject scalars and
+`explode: true`. Nested style values, nullable text values and text `Any` remain
+blocking errors. Text unions are not yet admitted.
 
-Named object/map properties of URL-encoded forms use JSON. Both the standard
-implicit JSON media encoding and explicit `contentType: application/json` are
-accepted. Do not add `style`, `explode`, or `allowReserved` to those encoding
-objects: those fields select a different serialization. Regeneration emits the
-explicit JSON media type. Existing root form maps and raw-body imports retain
-their separate contracts.
+OpenAPI defaults normalize before codec selection. Thus a schema-based query map
+with omitted style imports as an exploded `form` map, while a named map using
+`content: {application/json: {schema: ...}}` retains JSON. JSON map content also
+supports nested maps and arrays inside maps. Regenerated DSL emits only the
+metadata needed to distinguish the selected codec from Loom's defaults.
+Content-based parameters cannot also declare style, explode or allowReserved.
 
-Path parameters and request/response headers require primitives or arrays of
-primitives. Cookie parameters require primitives. These rules follow component
-references and array element references. Fixed records, maps outside JSON query
-parameters, and nested collection parameters produce a blocking
-`parameter-shape` diagnostic, even with `--allow-lossy`; direct `Render` applies
-the same admission. This replaces the cookie-only diagnostic code. Regenerate an
-imported design after correcting an unsupported source binding.
+Named object/map properties of URL-encoded forms default to JSON. Explicit
+`contentType: application/json` has the same effect when no encoding flags are
+present. Any explicit `style`, `explode` or `allowReserved` selects the style
+rules, overriding contentType. This rule applies separately within multi-media
+branches. Root form maps and raw-body imports retain their own contracts.
+
+Cookie parameters support raw OpenAPI 3.2 `cookie` style and percent-encoded
+`form` style. Form collections require `explode: false`; raw cookies can also
+explode arrays and objects into cookie pairs. Unsupported raw-cookie exports to
+3.1 fail rather than silently changing their encoding. See the
+[HTTP guide](http-guide.md#parameter-serialization) for the complete wire rules.
+
+Namespace admission rejects overlapping exploded properties, overlapping
+`deepObject` prefixes and multiple maps claiming remaining names. Credential
+bindings participate in those checks. Invalid shapes, styles and namespaces
+block design publication, including with `--allow-lossy`; direct `Render`
+performs the same admission. Partial imports can exclude invalid operations.
 
 For JSON query maps, omitted `additionalProperties` on a memberless object and
 explicit `additionalProperties: true` select the same map carrier. A closed
-memberless record (`additionalProperties: false`) remains a fixed object and is
-not admitted as a query map.
+memberless record (`additionalProperties: false`) remains a fixed object;
+it is not silently converted to a JSON query map.
 
 In OpenAPI 3.1 and 3.2, a parameter reference's `description` overrides the
 component description for that occurrence, including an explicitly empty

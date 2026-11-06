@@ -31,50 +31,34 @@ func (sds *ServicesData) buildPathInitData(endpointIR *transportir.Endpoint, met
 	}
 	name := fmt.Sprintf("%s%sPath%s", method.VarName, svc.StructName, suffix)
 	vars := newPathVarScope(sd)
+	fallible := false
 	for j, elem := range params {
-		param := pathParameterByElement(endpointIR.Request.PathParams, elem)
-		arg := param.Name
-		patt := param.Attribute
-		att := makeHTTPType(patt)
-		pointer := param.PrimitivePointer
-		if payloadPointer := payloadPrimitivePointerByName(endpointIR.Request.Payload, arg); payloadPointer {
-			pointer = true
-		}
-		varName, locals := vars.allocate(sd.Scope.PeekUnique(codegen.Goify(arg, false)), nil)
-		validate := ""
-		if att.Validation != nil {
-			ctx := httpContext(sd.Scope, true, false)
-			validate = codegen.AttributeValidationCode(att, nil, ctx, true, expr.IsAlias(att.Type), varName, arg)
-		}
-		initArgs[j] = &InitArgData{
-			Ref: varName,
-			AttributeData: &AttributeData{
-				Name:        arg,
-				VarName:     varName,
-				Description: att.Description,
-				FieldName:   codegen.GoifyAtt(rawServiceField(endpointIR.Request.Payload, arg, patt), arg, true),
-				FieldType:   patt.Type,
-				TypeName:    sd.Scope.GoTypeName(att),
-				TypeRef:     sd.Scope.GoTypeRef(att),
-				Type:        att.Type,
-				Pointer:     pointer,
-				Required:    true,
-				Example:     att.Example(sds.examplesFor(sd)),
-				Validate:    validate,
-				Locals:      locals,
-			},
+		initArgs[j] = sds.buildPathInitArg(endpointIR, method, svc, sd, vars, elem)
+		fallible = fallible || initArgs[j].parameter.Styled
+	}
+	for i, arg := range initArgs {
+		if arg.parameter.Styled {
+			arg.parameterValueVar = vars.names.Unique(fmt.Sprintf("parameterValue%d", i))
+			arg.parameterSegmentVar = vars.names.Unique(fmt.Sprintf("parameterSegment%d", i))
 		}
 	}
-	code := renderPathInitCode(initArgs, path)
+	code := ""
+	if fallible {
+		code = renderStyledPathInitCode(initArgs, path)
+	} else {
+		code = renderPathInitCode(initArgs, path)
+	}
 	return &InitData{
-		Name:           name,
-		Description:    fmt.Sprintf("%s returns the URL path to the %s service %s HTTP endpoint. ", name, svc.Name, method.Name),
-		ServerArgs:     initArgs,
-		ClientArgs:     initArgs,
-		ReturnTypeName: "string",
-		ReturnTypeRef:  "string",
-		ServerCode:     code,
-		ClientCode:     code,
+		Name:             name,
+		Description:      fmt.Sprintf("%s returns the URL path to the %s service %s HTTP endpoint. ", name, svc.Name, method.Name),
+		ServerArgs:       initArgs,
+		ClientArgs:       initArgs,
+		ReturnTypeName:   "string",
+		ReturnTypeRef:    "string",
+		ServerCode:       code,
+		ClientCode:       code,
+		ServerErrorAware: fallible,
+		ClientErrorAware: fallible,
 	}
 }
 
@@ -97,40 +81,10 @@ func endpointRequestEncoderName(method *service.MethodData, payload *PayloadData
 	return fmt.Sprintf("Encode%sRequest", method.VarName)
 }
 
-func (sds *ServicesData) buildClientRequestInit(endpointIR *transportir.Endpoint, method *service.MethodData, svc *service.Data, routes []*RouteData) *InitData {
+func (sds *ServicesData) buildClientRequestInit(endpointIR *transportir.Endpoint, method *service.MethodData, svc *service.Data, routes []*RouteData, payload *PayloadData) *InitData {
 	name := fmt.Sprintf("Build%sRequest", method.VarName)
 	pkg := svc.LocationPackageName(method.PayloadLoc)
-	args := make([]*InitArgData, 0, len(routes[0].PathInit.ClientArgs))
-	for _, arg := range routes[0].PathInit.ClientArgs {
-		if arg.FieldName == "" {
-			continue
-		}
-		_, arg.IsAliased = arg.FieldType.(expr.UserType)
-		if arg.IsAliased {
-			if svcData := sds.ServicesData.Get(svc.Name); svcData != nil {
-				arg.ServiceTypeRef = svcData.Scope.GoTypeRef(&expr.AttributeExpr{Type: arg.Type})
-			} else {
-				arg.ServiceTypeRef = codegen.Goify(arg.FieldType.Name(), true)
-			}
-		}
-		if array := expr.AsArray(arg.FieldType); array != nil && expr.IsAlias(array.ElemType.Type) {
-			source := &expr.AttributeExpr{Type: arg.FieldType}
-			target := &expr.AttributeExpr{Type: arg.Type}
-			value := "p"
-			if expr.IsObject(endpointIR.Request.Payload.Type) {
-				value += "." + arg.FieldName
-			}
-			// HTTP path array elements are primitive, so the transform needs
-			// no helper functions. The target variable is already declared.
-			plan, err := codegen.GoTransform(source, target, value, arg.VarName,
-				serviceContext(pkg, svc.Scope), serviceContext("", svc.Scope), "", false)
-			if err != nil {
-				panic(codegen.NewError(sds.Ctx, source, fmt.Errorf("build HTTP path argument transform for %s: %w", endpointIR.MethodName, err)))
-			}
-			arg.TransformCode = inlineConversionCode(plan)
-		}
-		args = append(args, arg)
-	}
+	args := sds.buildClientPathArgs(endpointIR, svc, pkg, routes[0].PathInit.ClientArgs)
 	caps := service.DescribeMethodCapabilities(method)
 	payloadRef := ""
 	if len(routes[0].PathInit.ClientArgs) > 0 && endpointIR.Request.Payload.Type != expr.Empty {
@@ -140,7 +94,7 @@ func (sds *ServicesData) buildClientRequestInit(endpointIR *transportir.Endpoint
 	if caps.HasRequestStruct {
 		requestStruct = svc.PkgName + "." + method.RequestStruct
 	}
-	code := renderRequestInitCode(
+	code := renderParameterPreflight(endpointIR, payload, requestStruct, svc.Name, method.Name) + renderRequestInitCode(
 		payloadRef,
 		expr.IsObject(endpointIR.Request.Payload.Type),
 		svc.Name,
@@ -175,4 +129,87 @@ func payloadPrimitivePointerByName(payload *expr.AttributeExpr, name string) boo
 		return false
 	}
 	return payload.IsPrimitivePointer(name, true)
+}
+
+func (sds *ServicesData) buildPathInitArg(endpointIR *transportir.Endpoint, method *service.MethodData, svc *service.Data, sd *ServiceData, vars *transportVarScope, elem string) *InitArgData {
+	param := pathParameterByElement(endpointIR.Request.PathParams, elem)
+	arg := param.Name
+	patt := param.Attribute
+	att := makeHTTPMappedType(patt, rawServiceField(endpointIR.Request.Payload, arg, patt))
+	pointer := param.PrimitivePointer
+	if payloadPointer := payloadPrimitivePointerByName(endpointIR.Request.Payload, arg); payloadPointer {
+		pointer = true
+	}
+	varName, locals := vars.allocate(sd.Scope.PeekUnique(codegen.Goify(arg, false)), nil)
+	validate := ""
+	if att.Validation != nil {
+		ctx := httpContext(sd.Scope, true, false)
+		validate = codegen.AttributeValidationCode(att, nil, ctx, true, expr.IsAlias(att.Type), varName, arg)
+	}
+	initArg := &InitArgData{
+		Ref: varName,
+		AttributeData: &AttributeData{
+			Name:        arg,
+			VarName:     varName,
+			Description: att.Description,
+			FieldName:   codegen.GoifyAtt(rawServiceField(endpointIR.Request.Payload, arg, patt), arg, true),
+			FieldType:   patt.Type,
+			TypeName:    sd.Scope.GoTypeName(att),
+			TypeRef:     sd.Scope.GoTypeRef(att),
+			Type:        att.Type,
+			Pointer:     pointer,
+			Required:    true,
+			Example:     att.Example(sds.examplesFor(sd)),
+			Validate:    validate,
+			Locals:      locals,
+		},
+	}
+
+	styled := parameterUsesRuntime("path", param.Codec)
+	field := rawServiceField(endpointIR.Request.Payload, arg, patt)
+	element := &Element{attribute: att, context: serviceContext("", sd.Scope), AttributeData: initArg.AttributeData, HTTPName: elem, Codec: param.Codec, Styled: styled}
+	if styled && expr.IsObject(att.Type) {
+		element.FieldType = field.Type
+		configureStyledCarrier(element, serviceContext(svc.LocationPackageName(method.PayloadLoc), svc.Scope))
+	}
+	initArg.parameter = element
+	return initArg
+}
+
+func (sds *ServicesData) buildClientPathArgs(endpointIR *transportir.Endpoint, svc *service.Data, pkg string, pathArgs []*InitArgData) []*InitArgData {
+	args := make([]*InitArgData, 0, len(pathArgs))
+	for _, arg := range pathArgs {
+		if arg.FieldName == "" {
+			continue
+		}
+		_, arg.IsAliased = arg.FieldType.(expr.UserType)
+		if arg.parameter != nil && arg.parameter.Styled && expr.IsObject(arg.Type) {
+			arg.IsAliased = false
+		}
+		if arg.IsAliased {
+			if svcData := sds.ServicesData.Get(svc.Name); svcData != nil {
+				arg.ServiceTypeRef = svcData.Scope.GoTypeRef(&expr.AttributeExpr{Type: arg.Type})
+			} else {
+				arg.ServiceTypeRef = codegen.Goify(arg.FieldType.Name(), true)
+			}
+		}
+		if array := expr.AsArray(arg.FieldType); array != nil && expr.IsAlias(array.ElemType.Type) {
+			source := &expr.AttributeExpr{Type: arg.FieldType}
+			target := &expr.AttributeExpr{Type: arg.Type}
+			value := "p"
+			if expr.IsObject(endpointIR.Request.Payload.Type) {
+				value += "." + arg.FieldName
+			}
+			// HTTP path array elements are primitive, so the transform needs
+			// no helper functions. The target variable is already declared.
+			plan, err := codegen.GoTransform(source, target, value, arg.VarName,
+				serviceContext(pkg, svc.Scope), serviceContext("", svc.Scope), "", false)
+			if err != nil {
+				panic(codegen.NewError(sds.Ctx, source, fmt.Errorf("build HTTP path argument transform for %s: %w", endpointIR.MethodName, err)))
+			}
+			arg.TransformCode = inlineConversionCode(plan)
+		}
+		args = append(args, arg)
+	}
+	return args
 }

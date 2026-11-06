@@ -2,6 +2,28 @@
 // and path set to call the "ServicePathObject" service "MethodPathObject"
 // endpoint
 func (c *Client) BuildMethodPathObjectRequest(ctx context.Context, v any) (*http.Request, error) {
+	if parameterError := func() error {
+		p, ok := v.(*servicepathobject.MethodPathObjectPayload)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServicePathObject", "MethodPathObject", "*servicepathobject.MethodPathObjectPayload", v)
+		}
+		if p == nil {
+			return fmt.Errorf("%s", "parameter payload is absent")
+		}
+		{
+			parameterValue := loomhttp.ParamValue{Kind: loomhttp.ParamScalar}
+			if p.ID != nil {
+				parameterValue.Present = true
+				parameterValue.Text = *p.ID
+			}
+			if _, parameterError := loomhttp.EncodePathParam("id", loomhttp.ParamCodec{Style: loomhttp.ParamSimple, Explode: false}, parameterValue); parameterError != nil {
+				return parameterError
+			}
+		}
+		return nil
+	}(); parameterError != nil {
+		return nil, loomhttp.ErrEncodingError("ServicePathObject", "MethodPathObject", parameterError)
+	}
 	var (
 		id string
 	)

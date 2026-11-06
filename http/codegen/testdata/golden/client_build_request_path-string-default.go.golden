@@ -2,6 +2,25 @@
 // method and path set to call the "ServicePathStringDefault" service
 // "MethodPathStringDefault" endpoint
 func (c *Client) BuildMethodPathStringDefaultRequest(ctx context.Context, v any) (*http.Request, error) {
+	if parameterError := func() error {
+		p, ok := v.(*servicepathstringdefault.MethodPathStringDefaultPayload)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServicePathStringDefault", "MethodPathStringDefault", "*servicepathstringdefault.MethodPathStringDefaultPayload", v)
+		}
+		if p == nil {
+			return fmt.Errorf("%s", "parameter payload is absent")
+		}
+		{
+			parameterValue := loomhttp.ParamValue{Kind: loomhttp.ParamScalar, Present: true}
+			parameterValue.Text = p.P
+			if _, parameterError := loomhttp.EncodePathParam("p", loomhttp.ParamCodec{Style: loomhttp.ParamSimple, Explode: false}, parameterValue); parameterError != nil {
+				return parameterError
+			}
+		}
+		return nil
+	}(); parameterError != nil {
+		return nil, loomhttp.ErrEncodingError("ServicePathStringDefault", "MethodPathStringDefault", parameterError)
+	}
 	var (
 		p2 string
 	)

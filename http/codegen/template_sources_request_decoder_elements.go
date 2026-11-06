@@ -28,7 +28,13 @@ var requestDecoderElementPartials = []templateSource{
 
 	{{- $pathValues := .DecodePlan.PathValuesVar }}
 	{{- range .PathParams }}
-		{{- if .IsTextUnmarshaler }}
+		{{- if .Styled }}
+ if parameterError := func() error {
+ {{ renderStyledDecode .Element "path" }}
+ }(); parameterError != nil {
+ {{ requestErrorReturn "parameterError" }}
+ }
+ {{- else if .IsTextUnmarshaler }}
 			{
 				{{ .Locals.Raw }} := {{ if eq .Type.Name "array" }}mux.RawVars(r){{ else }}{{ $pathValues }}{{ end }}["{{ .HTTPName }}"]
 				{{- template "partial_path_conversion" . }}
@@ -47,12 +53,18 @@ var requestDecoderElementPartials = []templateSource{
 			}
 
 		{{- end }}
-			{{- if and .Validate (not .IsTextUnmarshaler) }}
+			{{- if and .Validate (not .IsTextUnmarshaler) (not .Styled) }}
 			{{ .Validate }}
 			{{- end }}
 	{{- end }}
 
-{{- if .QueryParams }}
+{{- if hasStyledQuery .QueryParams }}
+parameterPairs, parameterError := loomhttp.ParseRawPairs(r.URL.RawQuery)
+if parameterError != nil {
+ {{ requestErrorReturn "loom.DecodePayloadError(\"invalid query string\")" }}
+}
+{{- end }}
+{{- if hasOrdinaryQuery .QueryParams }}
 {{ .DecodePlan.QueryValuesVar }}, {{ .DecodePlan.QueryErrorVar }} := url.ParseQuery(r.URL.RawQuery)
 if {{ .DecodePlan.QueryErrorVar }} != nil {
 	{{ requestErrorReturn "loom.DecodePayloadError(\"invalid query string\")" }}
@@ -61,7 +73,13 @@ if {{ .DecodePlan.QueryErrorVar }} != nil {
 {{- $qpVar := .DecodePlan.QueryValuesVar }}
 {{- range .QueryParams }}
  {{- $scalar := or .IsTextUnmarshaler (and (not .Slice) (not .Map) (not .MapQueryParams) (not .JSONField)) }}
- {{- if $scalar }}
+ {{- if .Styled }}
+ if parameterError := func() error {
+ {{ renderStyledDecode .Element "query" }}
+ }(); parameterError != nil {
+ {{ requestErrorReturn "parameterError" }}
+ }
+ {{- else if $scalar }}
  {
   {{ .Locals.Raw }} := {{$qpVar}}.Get("{{ .HTTPName }}")
   {{ .Locals.Present }} := {{$qpVar}}.Has("{{ .HTTPName }}")
@@ -254,14 +272,20 @@ if {{ .DecodePlan.QueryErrorVar }} != nil {
 
 
 	{{- end }}
-			{{- if and .Validate (not $scalar) }}
+			{{- if and .Validate (not $scalar) (not .Styled) }}
 			{{ .Validate }}
 			{{- end }}
 	{{- end }}
 
 {{- range .Headers }}
  {{- $scalar := and (not .Bearer.Framed) (or .IsTextUnmarshaler (not .Slice)) }}
- {{- if .Bearer.Framed }}
+ {{- if .Styled }}
+ if parameterError := func() error {
+ {{ renderStyledDecode .Element "header" }}
+ }(); parameterError != nil {
+ {{ requestErrorReturn "parameterError" }}
+ }
+ {{- else if .Bearer.Framed }}
  {
   if {{ .Locals.Raw }} := r.Header.Values("{{ .HTTPName }}"); {{ if .Required }}len({{ .Locals.Raw }}) == 0 {
    err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "header"))
@@ -321,12 +345,19 @@ if {{ .DecodePlan.QueryErrorVar }} != nil {
 
 
 	{{- end }}
-		{{- if and .Validate (not $scalar) }}
+		{{- if and .Validate (not $scalar) (not .Styled) }}
 			{{ .Validate }}
 		{{- end }}
 	{{- end }}
 
 {{- range .Cookies }}
+ {{- if .Styled }}
+ if parameterError := func() error {
+ {{ renderStyledDecode .Element "cookie" }}
+ }(); parameterError != nil {
+ {{ requestErrorReturn "parameterError" }}
+ }
+ {{- else }}
  {
   c, cookieErr := r.Cookie("{{ .HTTPName }}")
   if cookieErr != nil && !errors.Is(cookieErr, http.ErrNoCookie) {
@@ -339,6 +370,7 @@ if {{ .DecodePlan.QueryErrorVar }} != nil {
   }
   {{- template "partial_scalar_element" (scalarElementData .Element "cookie") }}
  }
+ {{- end }}
 {{- end }}
 {{- end }}`},
 }

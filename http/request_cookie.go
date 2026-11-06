@@ -5,15 +5,20 @@ import (
 	"net/http"
 )
 
-// AddRequestCookie validates name and value using the standard HTTP cookie
-// grammar, then adds them to req. It preserves the supplied value without
-// escaping or sanitizing it and leaves request headers unchanged on rejection.
-// Response-only attributes and deployment policies do not apply to requests.
+// AddRequestCookie validates name and value using the verbatim request cookie
+// grammar, then appends name=value to req without quoting or sanitizing it.
+// Invalid values leave every request header unchanged. Response-only attributes
+// and deployment policies do not apply to requests.
 func AddRequestCookie(req *http.Request, name, value string) error {
-	cookie := &http.Cookie{Name: name, Value: value}
-	if err := cookie.Valid(); err != nil {
-		return fmt.Errorf("validate request cookie %q: %w", name, err)
+	if req == nil {
+		return fmt.Errorf("parameter %q: cookie request is nil", name)
 	}
-	req.AddCookie(cookie)
+	if !cookieParamData(value) {
+		return paramError(name, "value cannot be represented as cookie data")
+	}
+	if err := validateCookiePair(name, value); err != nil {
+		return err
+	}
+	publishRequestCookies(req, []string{name + "=" + value})
 	return nil
 }

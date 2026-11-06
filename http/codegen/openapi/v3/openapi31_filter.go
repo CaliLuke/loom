@@ -175,9 +175,6 @@ func filterParameterCompatibility(parameters []*ParameterRef) {
 		if parameter.In != "query" {
 			parameter.AllowReserved = false
 		}
-		if parameter.In == "cookie" && parameter.Style == "cookie" {
-			parameter.Style = ""
-		}
 		filterSchemaCompatibility(parameter.Schema, make(map[*openapi.Schema]struct{}))
 		filterMediaTypeCompatibility(parameter.Content)
 		for _, example := range parameter.Examples {

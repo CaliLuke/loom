@@ -1,6 +1,9 @@
 # Query/form serialization ownership
 
-Model for the **user-adopted uniform JSON contract**. The earlier
+Historical model for the **user-adopted uniform JSON default contract**.
+The explicit-style extension is modeled in [parameter codecs](../parameter_codecs/README.md).
+Its broader admission supersedes the blanket style rejection described below;
+this model still records the JSON default and physical-carrier obligations. The earlier
 bracket-preserving checked model and its blanket-deepObject candidate are
 superseded, not evidence for the new runtime.
 
@@ -49,7 +52,7 @@ Implementation correspondence: query mode selection and templates,
 transportir.Parameter/Request, http/form.go named-versus-root boundary, OpenAPI
 IR parameter/media builders, and importer parameter/request-content admission.
 All derive their mode from the dependency-neutral `internal/httpencoding`
-`Select`/`Match` owner. ValueTarget and existing JSON codecs retain actual
+`Resolve` owner (formerly `Select`/`Match`). ValueTarget and existing JSON codecs retain actual
 physical value, presence and custom serialization ownership. Do not turn this
 small selection owner into a second value graph.
 

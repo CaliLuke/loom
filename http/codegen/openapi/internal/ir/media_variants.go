@@ -18,7 +18,7 @@ func buildMediaVariantContent(variants []*transportir.MediaVariant, schemas map[
 		attribute := attributeForSchemaUsage(variant.Body, usage)
 		media := buildMediaType(attribute, schemas[variant.ContentType], closeObjects, false, variant.Value)
 		media.Metadata = mediaTypeMetadata(variant.Metadata)
-		applyFormFieldEncoding(&transportir.Request{Body: variant.Body, FormEncoded: len(variant.FormFieldModes) > 0, FormFieldModes: variant.FormFieldModes}, media)
+		applyFormFieldEncoding(&transportir.Request{Body: variant.Body, FormEncoded: len(variant.FormFieldCodecs) > 0, FormFieldCodecs: variant.FormFieldCodecs}, media)
 		content[variant.ContentType] = media
 	}
 	return content

@@ -1,0 +1,32 @@
+{
+  "openapi": "3.2.0",
+  "info": {
+    "title": "Parameter styles",
+    "version": "1"
+  },
+  "paths": {
+    "/items": {
+      "get": {
+        "operationId": "show",
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        },
+        "parameters": [
+          {
+            "name": "value",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "style": "deepObject"
+          }
+        ]
+      }
+    }
+  }
+}

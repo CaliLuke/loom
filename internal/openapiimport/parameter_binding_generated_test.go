@@ -17,7 +17,7 @@ paths:
         - {name: ids, in: path, required: true, schema: {type: array, items: {type: string}}}
         - {name: count, in: query, schema: {type: integer}}
         - {name: X-Tags, in: header, schema: {type: array, items: {$ref: '#/components/schemas/ItemName'}}}
-        - {name: X-Any, in: header, schema: {}}
+        - {name: X-Trace, in: header, schema: {type: string}}
         - {name: session, in: cookie, schema: {type: string}}
         - name: filter
           in: query

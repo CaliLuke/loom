@@ -6,7 +6,7 @@ import (
 	"github.com/CaliLuke/loom/expr"
 )
 
-func buildPayloadFieldArgs(request *RequestData) []*InitArgData {
+func buildPayloadFieldArgs(request *RequestData, payload *expr.AttributeExpr) []*InitArgData {
 	args := make([]*InitArgData, 0, len(request.PathParams)+len(request.QueryParams)+len(request.Headers)+len(request.Cookies))
 	appendField := func(attr *AttributeData, description string, defaultValue any) {
 		field := *attr
@@ -24,7 +24,7 @@ func buildPayloadFieldArgs(request *RequestData) []*InitArgData {
 		appendField(header.AttributeData, "", header.DefaultValue)
 	}
 	for _, cookie := range request.Cookies {
-		if cookie.FieldName == "" {
+		if cookie.FieldName == "" && expr.IsObject(payload.Type) {
 			continue
 		}
 		appendField(cookie.AttributeData, "", cookie.DefaultValue)

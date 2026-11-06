@@ -239,7 +239,7 @@ type Parameter struct {
 	AllowReserved bool
 	// Extensions contains parameter-level vendor extensions.
 	Extensions map[string]any
-	// Serialization retains the named query wire contract for admission and rendering.
+	// Serialization retains the parameter wire contract for admission and rendering.
 	Serialization httpencoding.Serialization
 	// Schema describes the parameter value.
 	Schema *Schema
@@ -323,6 +323,8 @@ type Header struct {
 	Deprecated bool
 	// AllowReserved permits reserved URI characters in the encoded value.
 	AllowReserved bool
+	// Serialization retains the response header wire contract.
+	Serialization httpencoding.Serialization
 	// Schema describes the response header value.
 	Schema *Schema
 }

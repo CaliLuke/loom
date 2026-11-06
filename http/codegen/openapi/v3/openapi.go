@@ -131,19 +131,21 @@ type (
 	// Parameter represents an OpenAPI Parameter object as defined in
 	// https://github.com/OAI/OpenAPI-Specification/blob/master/versions/3.0.3.md#parameterObject
 	Parameter struct {
-		Name            string                 `json:"name,omitzero" yaml:"name,omitempty"`
-		In              string                 `json:"in,omitzero" yaml:"in,omitempty"`
-		Description     string                 `json:"description,omitzero" yaml:"description,omitempty"`
-		Style           string                 `json:"style,omitzero" yaml:"style,omitempty"`
-		Explode         *bool                  `json:"explode,omitzero" yaml:"explode,omitempty"`
-		AllowEmptyValue bool                   `json:"allowEmptyValue,omitzero" yaml:"allowEmptyValue,omitempty"`
-		AllowReserved   bool                   `json:"allowReserved,omitzero" yaml:"allowReserved,omitempty"`
-		Deprecated      bool                   `json:"deprecated,omitzero" yaml:"deprecated,omitempty"`
-		Required        bool                   `json:"required,omitzero" yaml:"required,omitempty"`
-		Schema          *openapi.Schema        `json:"schema,omitzero" yaml:"schema,omitempty"`
-		Example         any                    `json:"example,omitzero" yaml:"example,omitempty"`
-		Examples        map[string]*ExampleRef `json:"examples,omitzero,omitempty" yaml:"examples,omitempty"`
-		Content         map[string]*MediaType  `json:"content,omitzero,omitempty" yaml:"content,omitempty"`
+		// CookieFormEquivalent31 records schema-domain equivalence for raw cookies in 3.1 output.
+		CookieFormEquivalent31 bool                   `json:"-" yaml:"-"`
+		Name                   string                 `json:"name,omitzero" yaml:"name,omitempty"`
+		In                     string                 `json:"in,omitzero" yaml:"in,omitempty"`
+		Description            string                 `json:"description,omitzero" yaml:"description,omitempty"`
+		Style                  string                 `json:"style,omitzero" yaml:"style,omitempty"`
+		Explode                *bool                  `json:"explode,omitzero" yaml:"explode,omitempty"`
+		AllowEmptyValue        bool                   `json:"allowEmptyValue,omitzero" yaml:"allowEmptyValue,omitempty"`
+		AllowReserved          bool                   `json:"allowReserved,omitzero" yaml:"allowReserved,omitempty"`
+		Deprecated             bool                   `json:"deprecated,omitzero" yaml:"deprecated,omitempty"`
+		Required               bool                   `json:"required,omitzero" yaml:"required,omitempty"`
+		Schema                 *openapi.Schema        `json:"schema,omitzero" yaml:"schema,omitempty"`
+		Example                any                    `json:"example,omitzero" yaml:"example,omitempty"`
+		Examples               map[string]*ExampleRef `json:"examples,omitzero,omitempty" yaml:"examples,omitempty"`
+		Content                map[string]*MediaType  `json:"content,omitzero,omitempty" yaml:"content,omitempty"`
 		// WholeQueryString marks parameters promoted to OpenAPI 3.2 querystring parameters.
 		WholeQueryString bool           `json:"-" yaml:"-"`
 		Extensions       map[string]any `json:"-" yaml:"-"`
