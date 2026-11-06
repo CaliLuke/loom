@@ -80,7 +80,8 @@ func NewMappedAttributeExpr(att *AttributeExpr) *MappedAttributeExpr {
 // the underlying attribute is modified after the mapped attribute has been
 // initially created. The keys of the mapped object and the names of its
 // required attributes are the attribute names, without the element name
-// suffix: a required attribute listed as "n:m" is listed as "n".
+// suffix: a declared required attribute listed as "n:m" is listed as "n".
+// Undeclared required keys of typed objects retain their literal spelling.
 func (ma *MappedAttributeExpr) Remap() {
 	if named, ok := ma.Type.(UserType); ok {
 		// Flatten the representation, not the declaration contract. Keep the
@@ -89,7 +90,7 @@ func (ma *MappedAttributeExpr) Remap() {
 		// would re-author inherited enums against the refined physical shape.
 		ma.constraintParents = append([]*AttributeExpr{DupAtt(named.Attribute())}, ma.constraintParents...)
 		// The flattened object keeps the typed policy that owns its
-		// undeclared and synthesized members.
+		// undeclared members.
 		if declaration := ma.TypedObjectDeclaration(); declaration != nil && ma.AdditionalAttributes == nil {
 			ma.AdditionalAttributes = declaration.AdditionalAttributes
 		}
@@ -110,7 +111,9 @@ func (ma *MappedAttributeExpr) Remap() {
 	if ma.Validation != nil && len(ma.Validation.Required) > 0 {
 		required := make([]string, 0, len(ma.Validation.Required))
 		for _, name := range ma.Validation.Required {
-			name = AttributeName(name)
+			if ma.AdditionalAttributes == nil || o.Attribute(name) != nil {
+				name = AttributeName(name)
+			}
 			if !slices.Contains(required, name) {
 				required = append(required, name)
 			}

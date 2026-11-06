@@ -181,15 +181,11 @@ func (r *defaultRenderer) object(att *expr.AttributeExpr, occurrence expr.ValueO
 	for _, field := range value.Fields() {
 		member, known := members[field.Member]
 		if !known {
-			literal, extra, err := r.additionalMember(att, occurrence, field, mapped, context, path)
+			literal, err := r.additionalMember(att, occurrence, field, context, path)
 			if err != nil {
 				return "", err
 			}
-			if extra {
-				extras = append(extras, literal)
-			} else {
-				fields = append(fields, literal)
-			}
+			extras = append(extras, literal)
 			continue
 		}
 		literal, present, err := r.declaredMember(att, member, field.Value, mapped, context, path)
@@ -247,24 +243,16 @@ func (r *defaultRenderer) declaredMember(att *expr.AttributeExpr, member expr.Va
 	return context.Scope.Field(child, name, true) + ": " + literal, true, nil
 }
 
-// additionalMember renders a default member that a typed object does not
-// declare: a field of its own when the object requires the member, or else an
-// entry of the map that carries undeclared members. extra reports the latter.
-func (r *defaultRenderer) additionalMember(att *expr.AttributeExpr, occurrence expr.ValueOccurrence, field expr.ResolvedField, mapped *expr.ObjectFields, context *AttributeContext, path string) (literal string, extra bool, err error) {
+// additionalMember renders a literal-key entry of the undeclared-member map.
+func (r *defaultRenderer) additionalMember(att *expr.AttributeExpr, occurrence expr.ValueOccurrence, field expr.ResolvedField, context *AttributeContext, path string) (string, error) {
 	declaration := att.TypedObjectDeclaration()
 	additional, typed := occurrence.Additional()
 	if declaration == nil || !typed {
-		return "", false, fmt.Errorf("%s.%s: authored default member has no native Go field", path, field.Name)
+		return "", fmt.Errorf("%s.%s: authored default member has no native Go field", path, field.Name)
 	}
 	value, err := r.render(declaration.AdditionalAttributes, additional, field.Value, context, path+"."+field.Name)
 	if err != nil {
-		return "", false, err
+		return "", err
 	}
-	facts := mapped.FieldFacts(field.Name)
-	if !facts.Synthesized {
-		return strconv.Quote(field.Name) + ": " + value, true, nil
-	}
-	member := declaration.AdditionalAttributes
-	value = defaultFieldLiteral(member, member, facts, context, context.FieldPresence(mapped, field.Name, member), value)
-	return context.Scope.Field(member, field.Name, true) + ": " + value, false, nil
+	return strconv.Quote(field.Name) + ": " + value, nil
 }

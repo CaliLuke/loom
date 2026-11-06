@@ -24,7 +24,7 @@ func TestCompositeAdditionalMembers(t *testing.T) {
 		return value, nil
 	}
 	mux := loomhttp.NewMuxer()
-	server.Mount(mux, server.New(&svc.Endpoints{Objects: echo, Unions: echo, Nested: echo, Recursive: echo}, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, SERVER_OPTIONS))
+	server.Mount(mux, server.New(&svc.Endpoints{Objects: echo, Unions: echo, Nested: echo, Recursive: echo, Literal: echo, Nullable: echo, Mapped: echo, Occurrence: echo}, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, SERVER_OPTIONS))
 	host := httptest.NewServer(mux)
 	defer host.Close()
 	c := client.NewClient("http", strings.TrimPrefix(host.URL, "http://"), host.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
@@ -37,6 +37,10 @@ func TestCompositeAdditionalMembers(t *testing.T) {
 		{"unions", `{"x":{"name":"leaf"},"y":{"count":2}}`, new(svc.Unions), c.Unions()},
 		{"nested", `{"x":[{"y":{"name":"leaf"}}]}`, new(svc.Nested), c.Nested()},
 		{"recursive", `{"name":"root","child":{"name":"leaf"}}`, new(svc.Recursive), c.Recursive()},
+		{"literal", `{"a":42,"a:b":0,"a,b":1,"":2,"-":3,"quote\"slash\\":4,"line\nend":5,"日本語":6,"AdditionalAttributes":7,"foo":8,"Foo":9}`, new(svc.LiteralKeys), c.Literal()},
+		{"nullable", `{"value":null}`, new(svc.NullableKeys), c.Nullable()},
+		{"mapped", `{"a":1,"a:b":0}`, new(svc.MappedKeys), c.Mapped()},
+		{"occurrence", `{"record":{"x":{"name":"base"},"more":{"name":"occurrence"}}}`, new(svc.OccurrenceKeys), c.Occurrence()},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			require.NoError(t, json.Unmarshal([]byte(tc.wire), tc.payload))
@@ -51,6 +55,13 @@ func TestCompositeAdditionalMembers(t *testing.T) {
 		})
 	}
 	for _, tc := range []struct{ name, wire string }{
+		{"objects", `{}`},
+		{"unions", `{}`},
+		{"nested", `{}`},
+		{"nullable", `{}`},
+		{"mapped", `{"x":1}`},
+		{"occurrence", `{"record":{"x":{"name":"base"}}}`},
+		{"literal", `{"a":42,"a,b":1,"":2,"-":3,"quote\"slash\\":4,"line\nend":5,"日本語":6,"AdditionalAttributes":7,"foo":8,"Foo":9}`},
 		{"objects", `{"x":{"name":""}}`},
 		{"objects", `{"x":null}`},
 		{"unions", `{"x":{"count":-1}}`},

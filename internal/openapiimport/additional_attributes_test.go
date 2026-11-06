@@ -438,7 +438,7 @@ func TestImportTypedRecordReservesCarrierFieldName(t *testing.T) {
 `, []string{
 			"Attribute(\"AdditionalAttributes\", String, func() {\n\t\tMeta(\"struct:field:name\", \"AdditionalAttributesField\")",
 			"Attribute(\"additional_attributes\", String, func() {\n\t\tMeta(\"struct:field:name\", \"AdditionalAttributesField2\")",
-			"Attribute(\"note\", String, func() {\n\t\tMeta(\"struct:field:name\", \"NoteField\")",
+			`Attribute("note", String)`,
 		}},
 		{"inherited typed policy", `    Base:
       type: object
@@ -496,19 +496,18 @@ func TestImportTypedRecordClosesDisjointPolicies(t *testing.T) {
 	}`)
 }
 
-// TestImportReportsRequiredGoNameCollisions checks that required undeclared
-// members whose fixed Go field names coincide are diagnosed at import.
-func TestImportReportsRequiredGoNameCollisions(t *testing.T) {
+// TestImportRequiredLiteralNames checks that map keys never compete for Go fields.
+func TestImportRequiredLiteralNames(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
 		required string
-		want     string
 	}{
-		{"two required undeclared names", "[foo, Foo]", `"Foo"`},
-		{"required undeclared name and the carrier", "[additionalAttributes]", `"AdditionalAttributes"`},
+		{"two required undeclared names", "[foo, Foo]"},
+		{"required undeclared name and the carrier", "[AdditionalAttributes]"},
+		{"literal punctuation", `["a:b", "a,b", ""]`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			_, diagnostics, err := Analyze(typedImportSource(`    Probe:
+			document, diagnostics, err := Analyze(typedImportSource(`    Probe:
       type: object
       properties:
         id: {type: string}
@@ -516,9 +515,10 @@ func TestImportReportsRequiredGoNameCollisions(t *testing.T) {
       additionalProperties: {type: string}
 `))
 			require.NoError(t, err)
-			require.NotEmpty(t, diagnostics)
-			require.Equal(t, "#/components/schemas/Probe", diagnostics[0].Path)
-			require.Contains(t, diagnostics[0].Message, "generates Go field "+tc.want)
+			require.Empty(t, diagnostics)
+			rendered, err := Render(document, Options{PackageName: "design"})
+			require.NoError(t, err)
+			requireRenderedDesignEvaluates(t, rendered, 1, "")
 		})
 	}
 }

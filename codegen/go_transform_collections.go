@@ -406,7 +406,7 @@ func appendNestedHelpers(source, target *expr.AttributeExpr, req bool, ta *Trans
 		})
 		// The additional-members map is a physical child of the object, just
 		// like its fields. Discover the helpers used by transformAdditionalMembers
-		// even when no declared or synthesized field reaches its value type.
+		// even when no declared field reaches its value type.
 		if err == nil {
 			sourceCarrier, targetCarrier := source.AdditionalMembersCarrier(), target.AdditionalMembersCarrier()
 			if sourceCarrier != nil && targetCarrier != nil {
@@ -479,17 +479,6 @@ func walkMatches(source, target *expr.AttributeExpr, walker func(src, tgt *expr.
 	for _, nat := range *srcObj {
 		if att := tgtObj.Attribute(nat.Name); att != nil {
 			walker(srcMatt, tgtMatt, nat.Attribute, att, nat.Name)
-		}
-	}
-	// Members that a typed object requires without declaring them have
-	// physical fields on both sides.
-	targets := make(map[string]*expr.AttributeExpr)
-	for _, member := range target.SynthesizedMembers() {
-		targets[member.Name] = member.Attribute
-	}
-	for _, member := range source.SynthesizedMembers() {
-		if att := targets[member.Name]; att != nil {
-			walker(srcMatt, tgtMatt, member.Attribute, att, member.Name)
 		}
 	}
 }

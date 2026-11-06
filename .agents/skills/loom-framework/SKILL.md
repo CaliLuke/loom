@@ -128,8 +128,11 @@ consumer validation.
 
 - Typed objects (`AttributeExpr.AdditionalAttributes`, `ObjectTyped`) keep
   semantic declarations separate from physical members. `PhysicalMembers`,
-  `SynthesizedMembers`, `AdditionalMembersCarrier` and `ObjectFields` facts
-  (`Synthesized`, `CaseStrict`) are the only enumeration of struct fields;
+  `AdditionalMembersCarrier` and `ObjectFields` facts (`CaseStrict`) are the
+  owners of declared struct fields and the additional map;
+  `RequiredAdditionalMembers` owns literal undeclared required keys, which stay
+  in that map. Requiredness checks key membership, independent of value. Mapped
+  attributes and effective constraints must preserve those literal keys;
   struct emitters, transforms, validation, defaults and value resolution
   consume them. Composition applies each typed base to the members it does not
   declare and conjoins policies: unvalidated `Any` is neutral, disjoint JSON

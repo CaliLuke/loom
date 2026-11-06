@@ -436,14 +436,14 @@ named type, or on a use of a type that has `AdditionalAttributes`. The
 attribute is named by its key. A required attribute that the object does not
 declare cannot use the JSON name of a declared attribute.
 
-The generated Go struct has a field for each declared attribute, a field for
-each required attribute that the object does not declare, and an
-`AdditionalAttributes` map for all other attributes:
+The generated Go struct has a field for each declared attribute and an
+`AdditionalAttributes` map for every undeclared attribute, including required
+ones. Required keys are literal JSON names; punctuation and case do not turn
+them into Go field names:
 
 ```go
 type Labels struct {
     ID                   string         `json:"id,case:strict"`
-    Count                int            `json:"count,case:strict"`
     AdditionalAttributes map[string]int `json:",embed"`
 }
 ```
@@ -452,9 +452,16 @@ JSON v2 encodes the map entries as members of the object. The fields use
 `case:strict`, so a member that differs only in case, such as `ID`, goes to the
 map, also when the decoder matches names case-insensitively. Transport request
 types reject `null` values unless the `AdditionalAttributes` type is nullable.
-Generated validation checks every map value. When generated code encodes a
-value, a map key that equals a declared or required attribute name is an error,
+Generated validation checks every map value and requires exact map-key presence
+for each required undeclared member. A supplied zero is present, as is `null`
+when the value type permits it. A missing key is absent. When generated code
+encodes a value, a map key that equals a declared attribute name is an error,
 because the encoded object would contain that member twice.
+
+After upgrading from generated structs that gave required undeclared members
+their own fields, regenerate clients and servers. Replace accesses such as
+`labels.Count` with `labels.AdditionalAttributes["count"]` and initialize that
+map entry when constructing a value. The DSL and JSON contract are unchanged.
 
 With `Extend`, each source applies its policy to the attributes it does not
 declare, as JSON Schema `allOf` does:

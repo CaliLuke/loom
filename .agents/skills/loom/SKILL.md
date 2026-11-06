@@ -586,10 +586,13 @@ previous String fields or incomplete map constructors.
 
 Objects that declare attributes and admit others use
 `AdditionalAttributes(T, func() { ... })`; OpenAPI `properties` with typed or
-`true` `additionalProperties` import this way. `Required` may then name an
-undeclared attribute, which gets its own Go field. Other undeclared attributes
-live in the `AdditionalAttributes map[string]T` field, which JSON encodes
-inline; generated encoding fails if a map key equals a declared name. Not
+`true` `additionalProperties` import this way. All undeclared attributes,
+including those named by `Required`, live in `AdditionalAttributes map[string]T`,
+which JSON encodes inline. Required keys use exact map membership: a present
+zero or admitted null differs from a missing key. Generated encoding fails if
+a map key equals a declared name. Regenerate after this correction and replace
+required-extra field accesses such as `value.Count` with
+`value.AdditionalAttributes["count"]`. Not
 supported in gRPC, form/multipart bodies, URL bindings, untagged unions or
 result types with views. With `Extend`, a typed base constrains attributes the
 derived type adds.

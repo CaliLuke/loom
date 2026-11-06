@@ -194,7 +194,7 @@ func (graph *transformFailures) discoverObject(source, target *expr.AttributeExp
 		}
 	}
 	var err error
-	walkMatches(source, target, func(srcParent, tgtParent *expr.MappedAttributeExpr, src, tgt *expr.AttributeExpr, name string) {
+	walkMatches(source, target, func(srcParent, tgtParent *expr.MappedAttributeExpr, _, tgt *expr.AttributeExpr, name string) {
 		if err != nil {
 			return
 		}
@@ -209,10 +209,6 @@ func (graph *transformFailures) discoverObject(source, target *expr.AttributeExp
 		}
 		_, canonicalSource := source.FindAttribute(name)
 		_, canonicalTarget := target.FindAttribute(name)
-		if canonicalSource == nil || canonicalTarget == nil {
-			// Synthesized members have no declared field to canonicalize.
-			canonicalSource, canonicalTarget = src, tgt
-		}
 		err = child(canonicalSource, canonicalTarget)
 	})
 	return err

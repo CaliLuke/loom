@@ -20,10 +20,10 @@ import (
 )
 
 type service struct {
-	mu      sync.Mutex
-	calls   []any
-	nest    *records.NestResult
-	opt     *records.Opt
+	mu    sync.Mutex
+	calls []any
+	nest  *records.NestResult
+	opt   *records.Opt
 }
 
 func (s *service) record(payload any) {
@@ -145,7 +145,7 @@ func TestGeneratedAdditionalAttributesHTTP(t *testing.T) {
 			t.Fatalf("calls %#v", calls)
 		}
 		got := calls[0].(*records.Labels)
-		if got.ID != "abc" || got.Count != 0 || len(got.AdditionalAttributes) != 1 || got.AdditionalAttributes["x"] != 2 {
+		if got.ID != "abc" || got.AdditionalAttributes["count"] != 0 || len(got.AdditionalAttributes) != 2 || got.AdditionalAttributes["x"] != 2 {
 			t.Fatalf("payload %#v", got)
 		}
 		if status, body := post(t, hs, "/o/7", `{"name":"n","x":1}`); status != http.StatusOK {
@@ -162,13 +162,13 @@ func TestGeneratedAdditionalAttributesClient(t *testing.T) {
 	svc, _, c := serve(t)
 	ctx := context.Background()
 	t.Run("round trip of extra-only type", func(t *testing.T) {
-		bag := &records.Bag{Must: &records.Item{Sku: "a"}, AdditionalAttributes: map[string]*records.Item{"x": {Sku: "b"}}}
+		bag := &records.Bag{AdditionalAttributes: map[string]*records.Item{"must": {Sku: "a"}, "x": {Sku: "b"}}}
 		res, err := c.Bag()(ctx, bag)
 		if err != nil {
 			t.Fatal(err)
 		}
 		got := res.(*records.Bag)
-		if got.Must.Sku != "a" || got.AdditionalAttributes["x"].Sku != "b" {
+		if got.AdditionalAttributes["must"].Sku != "a" || got.AdditionalAttributes["x"].Sku != "b" {
 			t.Fatalf("result %#v", got)
 		}
 		svc.take()

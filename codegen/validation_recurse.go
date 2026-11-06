@@ -89,6 +89,11 @@ func renderObjectValidation(buf *bytes.Buffer, first *bool, att *expr.AttributeE
 		appendValidationBlock(buf, first, val)
 	}
 	if carrier := att.AdditionalMembersCarrier(); carrier != nil {
+		// Requiredness belongs to literal map-key membership, independent of
+		// the member's value (including zero and an admitted null).
+		for _, name := range att.RequiredAdditionalMembers() {
+			appendValidationBlock(buf, first, renderRequiredAdditionalMemberValidation(target+"."+expr.AdditionalAttributesFieldName, name, validationContextExpr(attCtx, context)))
+		}
 		// Every undeclared member satisfies the typed policy.
 		renderMapValidationCode(buf, first, expr.AsMap(carrier.Type), put, attCtx, view, target+"."+expr.AdditionalAttributesFieldName, context)
 		// A member that the transport bound elsewhere, such as to a path

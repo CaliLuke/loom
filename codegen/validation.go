@@ -3,6 +3,7 @@ package codegen
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -71,7 +72,10 @@ func generatedRequiredValidationFrom(att *expr.AttributeExpr, validation *expr.V
 	}
 	fields := expr.NewObjectFields(att)
 	for _, req := range validation.Required {
-		_, reqAtt := att.FindPhysicalMember(req)
+		if slices.Contains(att.RequiredAdditionalMembers(), req) {
+			continue
+		}
+		_, reqAtt := att.FindAttribute(req)
 		if reqAtt == nil {
 			continue
 		}

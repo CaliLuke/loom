@@ -348,9 +348,7 @@ func populateInlineObjectSchema(schema *InlineSchema, attr *AttributeExpr, const
 		return fmt.Errorf("additional attributes: %w", err)
 	}
 	schema.AdditionalProperties = additional
-	for _, member := range attr.SynthesizedMembers() {
-		schema.Required = append(schema.Required, JSONFieldName(ElementName(member.Name), member.Attribute))
-	}
+	schema.Required = append(schema.Required, attr.RequiredAdditionalMembers()...)
 	return nil
 }
 

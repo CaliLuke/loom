@@ -27,7 +27,7 @@ func additionalMembersPath(source, target *expr.AttributeExpr, sourceVar string)
 
 // transformAdditionalMembers converts the map that carries the undeclared
 // members of typed objects, then rejects members that reuse a declared or
-// synthesized member's wire name. The check is a failure of the conversion,
+// transport-omitted member's wire name. The check is a failure of the conversion,
 // so no output carrying the collision is published.
 func transformAdditionalMembers(source, target *expr.AttributeExpr, sourceVar, targetVar string, ta *TransformAttrs) (*jen.Statement, error) {
 	srcCarrier, tgtCarrier := source.AdditionalMembersCarrier(), target.AdditionalMembersCarrier()

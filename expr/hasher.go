@@ -144,7 +144,7 @@ func hashObject(o *Object, ignoreTags bool, seen map[*Object]*string) *string {
 }
 
 // hashAttribute hashes the type of attribute. A typed inline object also hashes
-// its AdditionalAttributes and synthesized members, which shape its struct.
+// its AdditionalAttributes and required undeclared keys.
 func hashAttribute(attribute *AttributeExpr, ignoreTags bool, seen map[*Object]*string) string {
 	prefix := ""
 	if IsNullable(attribute) {
@@ -153,8 +153,8 @@ func hashAttribute(attribute *AttributeExpr, ignoreTags bool, seen map[*Object]*
 	h := prefix + *hash(attribute.Type, ignoreTags, seen)
 	if attribute.AdditionalAttributes != nil {
 		h += additionalPrefix + hashAttribute(attribute.AdditionalAttributes, ignoreTags, seen)
-		for _, member := range attribute.SynthesizedMembers() {
-			h += attributePrefix + member.Name
+		for _, name := range attribute.RequiredAdditionalMembers() {
+			h += attributePrefix + strconv.Quote(name)
 		}
 	}
 	return h
@@ -286,6 +286,10 @@ func (h *fieldHasher) writeAttribute(label *strings.Builder, children *[]int, at
 	if att.AdditionalAttributes != nil {
 		writeHashToken(label, additionalPrefix)
 		h.writeAttribute(label, children, att.AdditionalAttributes)
+		for _, name := range att.RequiredAdditionalMembers() {
+			writeHashToken(label, attributePrefix)
+			writeHashToken(label, name)
+		}
 	}
 }
 

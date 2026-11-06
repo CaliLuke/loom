@@ -109,16 +109,6 @@ func (v *goRepresentationValidator) walkObject(att *AttributeExpr, parent eval.E
 	if att.TypedObjectDeclaration() == nil {
 		return
 	}
-	// Synthesized members and the carrier of undeclared members are Go
-	// fields too.
-	for _, member := range att.SynthesizedMembers() {
-		goName := naming.GoifyAttribute(member.Name, nil, true)
-		if previous, exists := owners[goName]; exists {
-			v.errors.Add(parent, "attribute %q and required additional attribute %q in %q both generate Go field %q; rename the attribute", previous, member.Name, path, goName)
-		} else {
-			owners[goName] = member.Name
-		}
-	}
 	if previous, exists := owners[AdditionalAttributesFieldName]; exists {
 		v.errors.Add(parent, "attribute %q in %q generates Go field %q, which carries additional attributes; rename the attribute", previous, path, AdditionalAttributesFieldName)
 	}

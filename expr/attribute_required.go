@@ -256,17 +256,17 @@ func (a *AttributeExpr) allRequired(active map[*AttributeExpr]bool) []string {
 	var required []string
 	if a.Validation != nil {
 		for _, authored := range a.Validation.Required {
-			appendFinalizedRequired(&required, object, authored)
+			appendFinalizedRequired(&required, object, authored, a.TypedObjectDeclaration() != nil)
 		}
 	}
 	if u, ok := a.Type.(UserType); ok {
 		for _, name := range u.Attribute().allRequired(active) {
-			appendFinalizedRequired(&required, object, name)
+			appendFinalizedRequired(&required, object, name, a.TypedObjectDeclaration() != nil)
 		}
 	}
 	for _, parent := range a.constraintParents {
 		for _, name := range parent.allRequired(active) {
-			appendFinalizedRequired(&required, object, name)
+			appendFinalizedRequired(&required, object, name, a.TypedObjectDeclaration() != nil && parent.Find(name) == nil)
 		}
 	}
 	if len(a.omittedMembers) > 0 {
@@ -287,7 +287,7 @@ func (a *AttributeExpr) allRequired(active map[*AttributeExpr]bool) []string {
 		for _, name := range parent.allRequired(active) {
 			key := ""
 			if object != nil {
-				key, _ = objectAttribute(object, name)
+				key, _ = finalizedRequiredName(object, name, a.TypedObjectDeclaration() != nil && parent.Find(name) == nil)
 			}
 			if key == "" {
 				if !extend {
@@ -295,7 +295,7 @@ func (a *AttributeExpr) allRequired(active map[*AttributeExpr]bool) []string {
 				}
 				key = name
 			}
-			appendFinalizedRequired(&required, object, key)
+			appendFinalizedRequired(&required, object, key, a.TypedObjectDeclaration() != nil)
 		}
 	}
 	for _, ref := range a.References {
@@ -307,8 +307,8 @@ func (a *AttributeExpr) allRequired(active map[*AttributeExpr]bool) []string {
 	return required
 }
 
-func appendFinalizedRequired(required *[]string, object *Object, authored string) {
-	name, found := finalizedRequiredName(object, authored)
+func appendFinalizedRequired(required *[]string, object *Object, authored string, typed bool) {
+	name, found := finalizedRequiredName(object, authored, typed)
 	if !found {
 		name = authored
 	}
@@ -317,12 +317,12 @@ func appendFinalizedRequired(required *[]string, object *Object, authored string
 	}
 }
 
-func finalizedRequiredName(object *Object, authored string) (string, bool) {
+func finalizedRequiredName(object *Object, authored string, typed bool) (string, bool) {
 	if object == nil {
 		return "", false
 	}
 	for _, member := range *object {
-		if requiredNameMatches(member.Name, authored) {
+		if requiredObjectNameMatches(member.Name, authored, typed) {
 			return member.Name, true
 		}
 	}
@@ -331,4 +331,14 @@ func finalizedRequiredName(object *Object, authored string) (string, bool) {
 
 func requiredNameMatches(member, authored string) bool {
 	return member == authored || AttributeName(member) == AttributeName(authored)
+}
+
+// requiredObjectNameMatches keeps undeclared names literal in typed objects.
+// A logical name can still select a declared mapped field, but a colon in an
+// undeclared required key is data, not a mapping directive.
+func requiredObjectNameMatches(member, authored string, typed bool) bool {
+	if typed {
+		return member == authored || AttributeName(member) == authored
+	}
+	return requiredNameMatches(member, authored)
 }

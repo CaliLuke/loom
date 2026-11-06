@@ -100,37 +100,12 @@ func (r *renderer) objectFields(schema *Schema, path string, errorType bool, act
 			fields = append(fields, field)
 		}
 	}
-	members, err := r.generatedMemberNames(schema, positions, path)
-	if err != nil {
-		return nil, err
+	var members []string
+	if r.objectAdmitsTypedMembers(schema) {
+		members = []string{expr.AdditionalAttributesFieldName}
 	}
 	allocateObjectFields(fields, errorType, members)
 	return fields, nil
-}
-
-// generatedMemberNames returns the Go field names a typed object generates
-// besides its declared fields: the carrier of undeclared members and a field
-// for each required member that no composed field declares. Declared fields
-// can be renamed around them, but these names are fixed, so two of them that
-// coincide are reported.
-func (r *renderer) generatedMemberNames(schema *Schema, declared map[string]int, path string) ([]string, error) {
-	if !r.objectAdmitsTypedMembers(schema) {
-		return nil, nil
-	}
-	names := []string{expr.AdditionalAttributesFieldName}
-	owners := map[string]string{expr.AdditionalAttributesFieldName: "the additional properties carrier"}
-	for _, name := range schema.Required {
-		if _, exists := declared[name]; exists {
-			continue
-		}
-		goName := codegen.Goify(name, true)
-		if owner, taken := owners[goName]; taken {
-			return nil, fmt.Errorf("render OpenAPI design: %s required undeclared property %q generates Go field %q, which %s also generates", path, name, goName, owner)
-		}
-		owners[goName] = fmt.Sprintf("required undeclared property %q", name)
-		names = append(names, goName)
-	}
-	return names, nil
 }
 
 // objectFieldAttributes lowers the shared identity plan. An inherited override

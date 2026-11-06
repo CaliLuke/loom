@@ -519,7 +519,7 @@ func effectiveRequiredFields(context *ValueContext, graph *valueOccurrenceGraph,
 		for _, authored := range layer.attribute.Validation.Required {
 			declared := false
 			for _, member := range objectNode.declaration.members {
-				if !requiredNameMatches(member.name, authored) {
+				if !requiredObjectNameMatches(member.name, authored, objectNode.additional != nil && layer.attribute.Find(authored) == nil) {
 					continue
 				}
 				declared = true
@@ -535,7 +535,7 @@ func effectiveRequiredFields(context *ValueContext, graph *valueOccurrenceGraph,
 			}
 			// A typed object requires members it does not declare; their
 			// values satisfy its AdditionalAttributes.
-			if name := AttributeName(authored); !declared && objectNode.additional != nil && !undeclared[name] {
+			if name := authored; !declared && objectNode.additional != nil && !undeclared[name] {
 				undeclared[name] = true
 				required = append(required, EffectiveRequired{
 					Name: name, WireName: name,

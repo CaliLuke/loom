@@ -765,13 +765,8 @@ func TestAdditionalAttributesTransportBoundMembers(t *testing.T) {
 	require.NotNil(t, declaration)
 	require.Nil(t, declaration.Find("id"))
 	require.Equal(t, []string{"count"}, declaration.AllRequired())
-	members := body.SynthesizedMembers()
-	synthesized := make([]string, 0, len(members))
-	for _, member := range members {
-		synthesized = append(synthesized, member.Name)
-	}
-	require.Equal(t, []string{"count"}, synthesized)
-	require.Equal(t, []string{"count", "id"}, body.PhysicalWireNames())
+	require.Equal(t, []string{"count"}, body.RequiredAdditionalMembers())
+	require.Equal(t, []string{"id"}, body.PhysicalWireNames())
 }
 
 // TestAdditionalAttributesExtrasOnlyHTTPBodies checks that HTTP request and

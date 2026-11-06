@@ -30,37 +30,31 @@ func (a *AttributeExpr) TypedObjectDeclaration() *AttributeExpr {
 	return nil
 }
 
-// SynthesizedMembers returns, in requirement order, the members that the typed
-// object a refers to requires but does not declare. Each is typed by the
-// object's AdditionalAttributes and occupies a physical field of its own, so
-// generated code can require it like a declared member. It returns nil for
-// objects without a typed policy.
-func (a *AttributeExpr) SynthesizedMembers() []*NamedAttributeExpr {
-	declaration := a.TypedObjectDeclaration()
-	if declaration == nil {
+// RequiredAdditionalMembers returns the literal keys required by a typed object
+// that no declared field supplies. Requirements on named occurrences are included
+// in authored order without duplicates. These keys remain entries of the
+// AdditionalAttributes map and never acquire physical Go fields.
+func (a *AttributeExpr) RequiredAdditionalMembers() []string {
+	if a.TypedObjectDeclaration() == nil {
 		return nil
 	}
-	object := AsObject(declaration.Type)
-	var members []*NamedAttributeExpr
-	seen := make(map[string]bool)
-	for _, name := range declaration.AllRequired() {
-		if seen[name] || object != nil && object.Attribute(name) != nil {
-			continue
+	object := AsObject(a.Type)
+	var names []string
+	for _, name := range a.AllRequired() {
+		if object == nil || object.Attribute(name) == nil {
+			names = append(names, name)
 		}
-		seen[name] = true
-		members = append(members, &NamedAttributeExpr{Name: name, Attribute: declaration.AdditionalAttributes})
 	}
-	return members
+	return names
 }
 
-// PhysicalMembers returns the declared members of the object a refers to
-// followed by its synthesized members.
+// PhysicalMembers returns the declared fields of the object a refers to.
+// Undeclared members, including required ones, use AdditionalMembersCarrier.
 func (a *AttributeExpr) PhysicalMembers() []*NamedAttributeExpr {
-	var members []*NamedAttributeExpr
 	if object := AsObject(a.Type); object != nil {
-		members = append(members, *object...)
+		return slices.Clone(*object)
 	}
-	return append(members, a.SynthesizedMembers()...)
+	return nil
 }
 
 // AdditionalMembersCarrier returns the attribute of the map that carries the
@@ -79,7 +73,7 @@ func (a *AttributeExpr) AdditionalMembersCarrier() *AttributeExpr {
 	return carrier
 }
 
-// PhysicalWireNames returns the JSON names of the declared and synthesized
+// PhysicalWireNames returns the JSON names of the declared
 // members of the object a refers to, in member order, followed by the names of
 // members a transport projection omitted. Members that are not encoded are
 // left out. Undeclared members must not reuse these names.
@@ -124,21 +118,6 @@ func (a *AttributeExpr) omitMember(name string) {
 			a.omittedMembers = append(slices.Clip(a.omittedMembers), &NamedAttributeExpr{Name: name, Attribute: member})
 		}
 	}
-}
-
-// FindPhysicalMember returns the key and attribute of the declared member with
-// the given name, as FindAttribute does, or else of the synthesized member with
-// that name. It returns an empty key and nil when neither exists.
-func (a *AttributeExpr) FindPhysicalMember(name string) (string, *AttributeExpr) {
-	if key, attribute := a.FindAttribute(name); attribute != nil {
-		return key, attribute
-	}
-	for _, member := range a.SynthesizedMembers() {
-		if member.Name == name {
-			return member.Name, member.Attribute
-		}
-	}
-	return "", nil
 }
 
 // containsTypedObject reports whether att or a value it contains is an object
@@ -204,9 +183,9 @@ func (a *AttributeExpr) validateTypedObject(ctx string, parent eval.Expression) 
 			declared[name] = member.Name
 		}
 	}
-	for _, member := range a.SynthesizedMembers() {
-		if owner, ok := declared[JSONFieldName(ElementName(member.Name), member.Attribute)]; ok {
-			verr.Add(parent, "%srequired member %q is not declared but attribute %q already uses that JSON name", ctx, member.Name, owner)
+	for _, name := range a.RequiredAdditionalMembers() {
+		if owner, ok := declared[name]; ok {
+			verr.Add(parent, "%srequired member %q is not declared but attribute %q already uses that JSON name", ctx, name, owner)
 		}
 	}
 	return verr

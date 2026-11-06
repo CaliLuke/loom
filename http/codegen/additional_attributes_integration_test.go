@@ -30,7 +30,7 @@ func TestGeneratedAdditionalAttributesRuntime(t *testing.T) {
 
 	serviceCode := readGeneratedGo(t, filepath.Join(dir, "gen", "records"))
 	require.Contains(t, serviceCode, "AdditionalAttributes map[string]int `json:\",embed\"`")
-	require.Contains(t, serviceCode, "`json:\"count,case:strict\"`")
+	require.NotContains(t, serviceCode, "`json:\"count,case:strict\"`")
 	require.Contains(t, serviceCode, "type Item struct", "a type reachable only through AdditionalAttributes is generated")
 
 	serverCode := readGeneratedGo(t, filepath.Join(dir, "gen", "http", "records", "server"))
@@ -41,7 +41,7 @@ func TestGeneratedAdditionalAttributesRuntime(t *testing.T) {
 		"ValidateListsRequestBody(&actual, validationPath+\".lists\")",
 		"ValidateNodeRequestBody(actual, validationPath+\"[key]\")",
 		"loom.InvalidAdditionalMemberError(validationPath+\".id\")",
-		"loom.CheckAdditionalMembers(res.AdditionalAttributes, \"PutResponseBody\", \"id\", \"count\")",
+		"loom.CheckAdditionalMembers(res.AdditionalAttributes, \"PutResponseBody\", \"id\")",
 	} {
 		require.Contains(t, serverCode, want)
 	}
@@ -113,7 +113,7 @@ func TestGeneratedAdditionalAttributes(t *testing.T) {
 				t.Fatal(err)
 			}
 			out, _ := json.Marshal(payload, json.Deterministic(true))
-			t.Logf("payload=%s labels.count=%d extras=%v", out, payload.Labels.Count, payload.Labels.AdditionalAttributes)
+			t.Logf("payload=%s labels.count=%d extras=%v", out, payload.Labels.AdditionalAttributes["count"], payload.Labels.AdditionalAttributes)
 		})
 	}
 	t.Run("case-insensitive input stays exact", func(t *testing.T) {
@@ -129,12 +129,12 @@ func TestGeneratedAdditionalAttributes(t *testing.T) {
 		}
 	})
 	t.Run("outbound collision", func(t *testing.T) {
-		_, err := server.NewPutResponseBody(&records.Labels{ID: "a", Count: 1, AdditionalAttributes: map[string]int{"id": 9}})
+		_, err := server.NewPutResponseBody(&records.Labels{ID: "a", AdditionalAttributes: map[string]int{"count": 1, "id": 9}})
 		if err == nil {
 			t.Fatal("expected collision error")
 		}
 		t.Log(err)
-		res, err := server.NewPutResponseBody(&records.Labels{ID: "a", Count: 0, AdditionalAttributes: map[string]int{"z": 9}})
+		res, err := server.NewPutResponseBody(&records.Labels{ID: "a", AdditionalAttributes: map[string]int{"count": 0, "z": 9}})
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -12,7 +12,7 @@ type validationEligibilityKey struct {
 }
 
 // hasValidations reports whether a named declaration has predicates in its
-// physical layout, including the synthesized and additional members of typed
+// physical layout, including required keys and additional members of typed
 // objects. Call-site value storage must not redefine named field layout.
 func hasValidations(ctx *AttributeContext, user expr.UserType) bool {
 	return hasAttributeValidations(&expr.AttributeExpr{Type: user}, ctx, make(map[validationEligibilityKey]bool))
@@ -42,7 +42,7 @@ func hasAttributeValidations(attribute *expr.AttributeExpr, ctx *AttributeContex
 			}
 		}
 		if carrier := attribute.AdditionalMembersCarrier(); carrier != nil {
-			return len(omittedMemberWireNames(attribute)) > 0 || hasAttributeValidations(carrier, ctx, seen)
+			return len(attribute.RequiredAdditionalMembers()) > 0 || len(omittedMemberWireNames(attribute)) > 0 || hasAttributeValidations(carrier, ctx, seen)
 		}
 	case *expr.Union:
 		_, sum := ctx.Scope.(sumTypeUnionScope)

@@ -279,7 +279,7 @@ func appendRequiredValidations(res *[]string, att *expr.AttributeExpr, validatio
 	data.Fields = expr.NewObjectFields(att)
 	for _, r := range required {
 		data.RequiredName = r
-		_, data.RequiredAttr = att.FindPhysicalMember(r)
+		_, data.RequiredAttr = att.FindAttribute(r)
 		appendRenderedValidation(res, renderRequiredValidation(data))
 	}
 }
@@ -441,6 +441,12 @@ func renderArrayValidation(target, validation string, rejectNativeNil, jsonPrese
 	}
 	b.WriteString("}")
 	return b.String()
+}
+
+// renderRequiredAdditionalMemberValidation requires an exact map key without
+// confusing a supplied zero or nullable null with absence.
+func renderRequiredAdditionalMemberValidation(target, name, context string) string {
+	return fmt.Sprintf("if _, ok := %s[%s]; !ok {\n\terr = loom.MergeErrors(err, loom.MissingFieldError(%s, %s))\n}", target, quoteString(name), quoteString(name), context)
 }
 
 // renderOmittedMemberValidation rejects the undeclared member name of the

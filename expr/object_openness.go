@@ -188,7 +188,7 @@ func (a *AttributeExpr) validateObjectOpenness(ctx string, parent eval.Expressio
 			verr.Add(parent, `%s%s applies only to objects`, ctx, objectOpennessMeta)
 		case source.Type != nil && source.TypedObjectDeclaration() != nil:
 			// A typed declaration fixes the physical layout of every
-			// occurrence: its members, synthesized fields and extras carrier.
+			// occurrence: its declared members and extras carrier.
 			verr.Add(parent, `%s%s cannot override the AdditionalAttributes of %q`, ctx, objectOpennessMeta, source.Type.Name())
 		case values[len(values)-1] == "true":
 			if named, ok := source.Type.(UserType); ok && named.Attribute().effectiveObjectOpenness() == ObjectClosed {

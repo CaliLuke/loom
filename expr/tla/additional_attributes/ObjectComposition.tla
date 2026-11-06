@@ -72,9 +72,9 @@ Promote(d) ==
         ELSE r]]
 Lowered(d) == IF Lowering = "semantic-promotion" THEN Promote(d) ELSE d
 
-\* Physical layout: semantic fields plus a synthesized field for each required
-\* key no source declares. Every field and the extras carry the per-source
-\* conjunction of their obligations.
+\* Physical layout: declared fields plus one map for all undeclared keys.
+\* Required keys remain semantic obligations, independent of their storage.
+\* Every field and the map values carry the per-source conjunction.
 Compose(d) ==
     LET semantic == UNION {DOMAIN s.decl : s \in Sources(d)}
         required == UNION {s.req : s \in Sources(d)}
@@ -88,8 +88,8 @@ Compose(d) ==
             /\ \/ \E k \in physical : obligation[k] # {} /\ ~Representable(obligation[k])
                \/ \E k \in physical \ required : obligation[k] = {}
                \/ extras # {} /\ ~Representable(extras)
-    IN [fields |-> obligation, extras |-> extras, req |-> required,
-        synthesized |-> required \ semantic,
+    IN [fields |-> [k \in semantic |-> obligation[k]], extras |-> extras, req |-> required,
+        requiredExtras |-> required \ semantic,
         outcome |-> IF unsat THEN "unsatisfiable"
                     ELSE IF unsupported THEN "unsupported" ELSE "admitted"]
 

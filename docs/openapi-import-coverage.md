@@ -343,11 +343,9 @@ The following constructs are conditional:
   support these objects either.
 - A property whose Go field name is `AdditionalAttributes`, the field that
   carries undeclared members, keeps its JSON name and receives a distinct Go
-  field name through `struct:field:name`. A declared property whose Go name
-  collides with the Go field of an undeclared required name is renamed the
-  same way. Those generated names are fixed. Two undeclared required names
-  with the same Go name, such as `foo` and `Foo`, are reported. So is an
-  undeclared required name whose Go name is `AdditionalAttributes`.
+  field name through `struct:field:name`. Undeclared required names remain
+  literal keys in the additional-members map, so names such as `foo`, `Foo`,
+  `a:b`, `a,b`, and `AdditionalAttributes` do not compete for Go field names.
 - A form request whose object has only schema-valued `additionalProperties`
   maps to a typed root map. A body-only optional form also emits
   `OptionalRequestBody()`.

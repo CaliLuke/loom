@@ -402,3 +402,20 @@ func requireTypedExamplesValid(t *testing.T, spec map[string]any) {
 		}
 	}
 }
+
+func TestRequiredAdditionalLiteralKeysEmission(t *testing.T) {
+	for _, version := range []struct{ target, want string }{
+		{"3.1", openapiv3.OpenAPICompatibilityVersion}, {"3.2", openapiv3.OpenAPIVersion},
+	} {
+		t.Run(version.target, func(t *testing.T) {
+			spec := renderTypedSpec(t, testdata.AdditionalCompositeDSL, version.target, version.want)
+			literal := typedComponents(spec)["LiteralKeys"].(map[string]any)
+			require.Equal(t, []string{"a"}, typedPropertyNames(literal))
+			require.Equal(t, []any{"a:b", "a,b", "", "-", "quote\"slash\\", "line\nend", "日本語", "AdditionalAttributes", "foo", "Foo"}, literal["required"])
+			requireTypedWire(t, spec, "LiteralKeys", []typedWireCase{
+				{`{"a":42,"a:b":0,"a,b":1,"":2,"-":3,"quote\"slash\\":4,"line\nend":5,"日本語":6,"AdditionalAttributes":7,"foo":8,"Foo":9}`, true},
+				{`{"a":42,"a,b":1,"":2,"-":3,"quote\"slash\\":4,"line\nend":5,"日本語":6,"AdditionalAttributes":7,"foo":8,"Foo":9}`, false},
+			})
+		})
+	}
+}

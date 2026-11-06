@@ -131,19 +131,11 @@ func (c *typeComparer) equalAttributes(a, b *AttributeExpr) bool {
 }
 
 // equalAdditional compares the typed AdditionalAttributes of two objects and
-// the members they synthesize, which shape their generated structs.
+// their required undeclared keys, which retain exact wire identity.
 func (c *typeComparer) equalAdditional(a, b *AttributeExpr) bool {
 	if a.AdditionalAttributes == nil || b.AdditionalAttributes == nil {
 		return a.AdditionalAttributes == b.AdditionalAttributes
 	}
 	return c.equalAttributes(a.AdditionalAttributes, b.AdditionalAttributes) &&
-		slices.Equal(memberNames(a.SynthesizedMembers()), memberNames(b.SynthesizedMembers()))
-}
-
-func memberNames(members []*NamedAttributeExpr) []string {
-	names := make([]string, len(members))
-	for i, member := range members {
-		names[i] = member.Name
-	}
-	return names
+		slices.Equal(a.RequiredAdditionalMembers(), b.RequiredAdditionalMembers())
 }
