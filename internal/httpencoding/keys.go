@@ -1,29 +1,44 @@
 package httpencoding
 
 import (
+	"cmp"
 	"fmt"
-	"maps"
 	"slices"
 	"strings"
 )
 
-// KeySet is the set of wire keys owned by one endpoint binding.
-type KeySet struct {
-	// Literals contains exact decoded key names.
-	Literals []string
-	// Prefixes contains deepObject names, each owning name[key].
-	Prefixes []string
-	// Residual claims every key not owned by a sibling binding.
-	Residual bool
-}
+type (
+	// KeySet is the set of wire keys owned by one endpoint binding.
+	KeySet struct {
+		// Literals contains exact decoded key names.
+		Literals []string
+		// Prefixes contains deepObject names, each owning name[key].
+		Prefixes []string
+		// Residual claims every key not owned by a sibling binding.
+		Residual bool
+	}
+
+	// Binding is one independently authored parameter or synthetic transport claim.
+	// Name is a diagnostic label, not its identity; equal names remain distinct.
+	Binding struct {
+		// Name describes this binding in validation diagnostics.
+		Name string
+		// Keys identifies the wire namespace owned by this binding.
+		Keys KeySet
+	}
+)
 
 // CheckNamespaces rejects overlapping claims between endpoint bindings.
-func CheckNamespaces(loc Location, bindings map[string]KeySet) error {
-	names := slices.Sorted(maps.Keys(bindings))
-	for i, left := range names {
-		for _, right := range names[i+1:] {
-			if loc == WholeQuery || keysOverlap(bindings[left], bindings[right]) {
-				return fmt.Errorf("bindings %q and %q claim overlapping parameter namespaces", left, right)
+// It retains every binding, including those with equal diagnostic names.
+func CheckNamespaces(loc Location, bindings []Binding) error {
+	ordered := slices.Clone(bindings)
+	slices.SortStableFunc(ordered, func(left, right Binding) int {
+		return cmp.Compare(left.Name, right.Name)
+	})
+	for i, left := range ordered {
+		for _, right := range ordered[i+1:] {
+			if loc == WholeQuery || keysOverlap(left.Keys, right.Keys) {
+				return fmt.Errorf("bindings %q and %q claim overlapping parameter namespaces", left.Name, right.Name)
 			}
 		}
 	}

@@ -202,7 +202,7 @@ func (p *documentPlanner) mediaFieldEncodings(branch *Schema, media, path string
 	properties := make(map[string]*Schema)
 	p.formProperties(branch, properties, make(map[*Schema]bool))
 	encoding := p.mediaEncodingFor(branch)
-	bindings := make(map[string]httpencoding.KeySet)
+	var bindings []httpencoding.Binding
 	for _, name := range slices.Sorted(maps.Keys(encoding)) {
 		if _, exists := properties[name]; !exists {
 			p.unsupported("media-encoding", path+"/encoding/"+escapeJSONPointer(name), "encoding must name a body property")
@@ -229,7 +229,7 @@ func (p *documentPlanner) mediaFieldEncodings(branch *Schema, media, path string
 		if _, keys, err := httpencoding.Resolve(httpencoding.FormField, name, shape, value); err != nil {
 			p.unsupported("media-encoding", fieldPath, err.Error())
 		} else {
-			bindings[name] = keys
+			bindings = append(bindings, httpencoding.Binding{Name: name, Keys: keys})
 		}
 	}
 	if !isMultipartMediaType(media) {

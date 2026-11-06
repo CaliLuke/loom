@@ -245,8 +245,12 @@ type BranchCodec struct {
 
 func Resolve(loc Location, name string, v BranchShape, src Serialization) (Codec, KeySet, error)
 func ResolveUnion(loc Location, name string, branches []BranchShape, src Serialization) ([]BranchCodec, KeySet, error)
-func CheckNamespaces(loc Location, bindings map[string]KeySet) error
+func CheckNamespaces(loc Location, bindings []Binding) error
 ```
+
+`Binding` retains a diagnostic name and a `KeySet` for each independent claim.
+Equal diagnostic names never merge claims; generated namespace ownership also
+uses binding identity rather than those labels.
 
 `ResolveUnion` takes the binding name because literal keys contain it;
 #1014 revision 5 uses this signature.

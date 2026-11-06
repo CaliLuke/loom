@@ -57,12 +57,14 @@ func (e *HTTPEndpointExpr) validateParameterSerialization(verr *eval.ValidationE
 }
 
 func (e *HTTPEndpointExpr) validateParameterNamespace(attributes *MappedAttributeExpr, loc httpencoding.Location, verr *eval.ValidationErrors) {
-	bindings := make(map[string]httpencoding.KeySet)
+	var bindings []httpencoding.Binding
+	mappedSources := make(map[string]bool)
 	if attributes != nil {
 		for _, field := range *AsObject(attributes.Type) {
 			keys, err := validateParameterBinding(field.Attribute, attributes.ElemName(field.Name), loc)
 			if err == nil {
-				bindings[field.Name] = keys
+				bindings = append(bindings, httpencoding.Binding{Name: field.Name, Keys: keys})
+				mappedSources[field.Name] = true
 			}
 		}
 	}
@@ -72,17 +74,17 @@ func (e *HTTPEndpointExpr) validateParameterNamespace(attributes *MappedAttribut
 		}
 		mapped := false
 		for _, source := range credential.Sources {
-			if _, exists := bindings[source]; exists {
+			if mappedSources[source] {
 				mapped = true
 			}
 		}
 		if !mapped {
-			bindings["credential "+credential.Name] = httpencoding.KeySet{Literals: []string{credential.Name}}
+			bindings = append(bindings, httpencoding.Binding{Name: "credential " + credential.Name, Keys: httpencoding.KeySet{Literals: []string{credential.Name}}})
 		}
 	}
 	checkLocation := loc
 	if loc == httpencoding.NamedQuery && e.MapQueryParams != nil {
-		bindings["MapParams"] = httpencoding.KeySet{Residual: true}
+		bindings = append(bindings, httpencoding.Binding{Name: "MapParams", Keys: httpencoding.KeySet{Residual: true}})
 		checkLocation = httpencoding.WholeQuery
 	}
 	if err := httpencoding.CheckNamespaces(checkLocation, bindings); err != nil {

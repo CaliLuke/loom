@@ -17,19 +17,21 @@ func (b *payloadBuilder) configureParameterElement(element *Element, parameter *
 	element.Codec = parameter.Codec
 	element.Styled = parameterUsesRuntime(parameter.In, parameter.Codec)
 	configureStyledCarrier(element, b.svcctx)
-	claims := make(map[string]httpencoding.KeySet, len(peers))
+	claims := make([]httpencoding.KeySet, 0, len(peers))
 	for _, peer := range peers {
-		claims[peer.Name] = peer.Keys
+		if peer != parameter {
+			claims = append(claims, peer.Keys)
+		}
 	}
 	if b.endpointIR.Security != nil {
 		for _, credential := range b.endpointIR.Security.CredentialBindings {
 			if credential.Location != parameter.In || slices.Contains(credential.Sources, parameter.Name) {
 				continue
 			}
-			claims["credential "+credential.Name] = httpencoding.KeySet{Literals: []string{credential.Name}}
+			claims = append(claims, httpencoding.KeySet{Literals: []string{credential.Name}})
 		}
 	}
-	element.Namespace = parameterNamespace(parameter.Name, parameter.Codec, parameter.Keys, claims)
+	element.Namespace = parameterNamespace(parameter.Codec, parameter.Keys, claims)
 }
 
 func parameterUsesRuntime(location string, codec httpencoding.Codec) bool {
@@ -51,12 +53,9 @@ func parameterUsesRuntime(location string, codec httpencoding.Codec) bool {
 	}
 }
 
-func parameterNamespace(name string, codec httpencoding.Codec, owned httpencoding.KeySet, peers map[string]httpencoding.KeySet) loomhttp.ParamNamespace {
+func parameterNamespace(codec httpencoding.Codec, owned httpencoding.KeySet, peers []httpencoding.KeySet) loomhttp.ParamNamespace {
 	namespace := loomhttp.ParamNamespace{}
-	for peer, keys := range peers {
-		if peer == name {
-			continue
-		}
+	for _, keys := range peers {
 		namespace.Literals = append(namespace.Literals, keys.Literals...)
 		namespace.Prefixes = append(namespace.Prefixes, keys.Prefixes...)
 	}
@@ -84,16 +83,16 @@ func formFieldData(body *expr.AttributeExpr, codecs map[string]httpencoding.Code
 	if object == nil || len(codecs) == 0 {
 		return nil, nil
 	}
-	claims := make(map[string]httpencoding.KeySet, len(*object))
-	for _, field := range *object {
+	claims := make([]httpencoding.KeySet, len(*object))
+	for index, field := range *object {
 		name := expr.ElementName(field.Name)
 		_, keys, err := httpencoding.Resolve(httpencoding.FormField, name, expr.HTTPValueShape(field.Attribute), expr.HTTPParameterSerialization(body, "openapi:encoding:"+name+":"))
 		if err != nil {
 			panic(fmt.Errorf("validated form field %q: %w", name, err))
 		}
-		claims[field.Name] = keys
+		claims[index] = keys
 	}
-	for _, field := range *object {
+	for index, field := range *object {
 		name := expr.ElementName(field.Name)
 		codec := codecs[name]
 		data := &FormFieldData{
@@ -102,7 +101,7 @@ func formFieldData(body *expr.AttributeExpr, codecs map[string]httpencoding.Code
 			FieldName:     codegen.GoifyAtt(field.Attribute, expr.AttributeName(field.Name), true),
 			Attribute:     field.Attribute,
 			Codec:         codec,
-			Namespace:     parameterNamespace(field.Name, codec, claims[field.Name], claims),
+			Namespace:     parameterNamespace(codec, claims[index], slices.Concat(claims[:index], claims[index+1:])),
 			Required:      body.IsRequired(field.Name),
 		}
 		if parameterUsesRuntime("form", codec) {

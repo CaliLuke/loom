@@ -47,13 +47,13 @@ func (p *documentPlanner) formSerialization(body *RequestBody, path string) {
 	}
 	properties := make(map[string]*Schema)
 	p.formProperties(body.Schema, properties, make(map[*Schema]bool))
-	bindings := make(map[string]httpencoding.KeySet)
+	var bindings []httpencoding.Binding
 	for _, name := range slices.Sorted(maps.Keys(properties)) {
 		_, keys, err := httpencoding.Resolve(httpencoding.FormField, name, p.urlShape(properties[name]), body.FormEncoding[name])
 		if err != nil {
 			p.unsupported("form-serialization", path+"/encoding/"+escapeJSONPointer(name), err.Error())
 		} else {
-			bindings[name] = keys
+			bindings = append(bindings, httpencoding.Binding{Name: name, Keys: keys})
 		}
 	}
 	if err := httpencoding.CheckNamespaces(httpencoding.FormField, bindings); err != nil {

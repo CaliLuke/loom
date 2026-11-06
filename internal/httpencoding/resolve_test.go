@@ -130,7 +130,7 @@ func TestResolveUnion(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, branches, 2)
 		require.Equal(t, KeySet{Residual: true}, keys)
-		require.NoError(t, CheckNamespaces(NamedQuery, map[string]KeySet{"n": keys}))
+		require.NoError(t, CheckNamespaces(NamedQuery, []Binding{{Name: "n", Keys: keys}}))
 	})
 	t.Run("nested", func(t *testing.T) {
 		branches, keys, err := ResolveUnion(NamedQuery, "n", []BranchShape{{Shape: Union, Branches: []BranchShape{{Shape: Scalar}, {Shape: ScalarMap}}}}, Serialization{})

@@ -58,7 +58,7 @@ func (p *documentPlanner) admitParameter(parameter Parameter, path string) {
 }
 
 func (p *documentPlanner) parameterNamespaces(operation *Operation, path string) {
-	bindings := map[string]map[string]httpencoding.KeySet{"query": {}, "cookie": {}}
+	bindings := map[string][]httpencoding.Binding{"query": {}, "cookie": {}}
 	for index, source := range operation.Parameters {
 		parameter, _, err := resolveParameterReference(source, p.document.Components)
 		if err != nil || bindings[parameter.In] == nil {
@@ -66,7 +66,7 @@ func (p *documentPlanner) parameterNamespaces(operation *Operation, path string)
 		}
 		_, keys, err := p.parameterCodec(parameter)
 		if err == nil {
-			bindings[parameter.In][fmt.Sprintf("parameter %d (%s)", index, parameter.Name)] = keys
+			bindings[parameter.In] = append(bindings[parameter.In], httpencoding.Binding{Name: fmt.Sprintf("parameter %d (%s)", index, parameter.Name), Keys: keys})
 		}
 	}
 	requirements := p.document.Security
@@ -87,7 +87,7 @@ func (p *documentPlanner) parameterNamespaces(operation *Operation, path string)
 					continue
 				}
 				seen[source.slot] = true
-				bindings[source.slot.location]["credential "+source.slot.name] = httpencoding.KeySet{Literals: []string{source.slot.name}}
+				bindings[source.slot.location] = append(bindings[source.slot.location], httpencoding.Binding{Name: "credential " + source.slot.name, Keys: httpencoding.KeySet{Literals: []string{source.slot.name}}})
 			}
 		}
 	}

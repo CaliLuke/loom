@@ -23,7 +23,7 @@ func TestCheckNamespaces(t *testing.T) {
 		{"whole query exclusive", WholeQuery, KeySet{Residual: true}, KeySet{Literals: []string{"a"}}, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			err := CheckNamespaces(tc.loc, map[string]KeySet{"left": tc.left, "right": tc.right})
+			err := CheckNamespaces(tc.loc, []Binding{{Name: "left", Keys: tc.left}, {Name: "right", Keys: tc.right}})
 			if tc.accepted {
 				require.NoError(t, err)
 			} else {
@@ -43,5 +43,34 @@ func TestCheckNamespaces(t *testing.T) {
 			_, _, err := Resolve(NamedQuery, value.name, value.shape, Serialization{Style: "deepObject"})
 			require.Error(t, err)
 		}
+	})
+}
+
+func TestCheckNamespacesPreservesBindingIdentity(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		location    Location
+		left, right KeySet
+		accepted    bool
+	}{
+		{"whole query", WholeQuery, KeySet{Literals: []string{"n"}}, KeySet{Residual: true}, false},
+		{"overlapping literals", NamedQuery, KeySet{Literals: []string{"n"}}, KeySet{Literals: []string{"n"}}, false},
+		{"disjoint names", NamedQuery, KeySet{Literals: []string{"n"}}, KeySet{Literals: []string{"m"}}, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			bindings := []Binding{{Name: "same label", Keys: tc.left}, {Name: "same label", Keys: tc.right}}
+			err := CheckNamespaces(tc.location, bindings)
+			if tc.accepted {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, `bindings "same label" and "same label"`)
+			}
+		})
+	}
+	t.Run("stable diagnostics without mutating claims", func(t *testing.T) {
+		keys := KeySet{Literals: []string{"n"}}
+		bindings := []Binding{{Name: "z", Keys: keys}, {Name: "a", Keys: keys}}
+		require.EqualError(t, CheckNamespaces(NamedQuery, bindings), `bindings "a" and "z" claim overlapping parameter namespaces`)
+		require.Equal(t, "z", bindings[0].Name)
 	})
 }

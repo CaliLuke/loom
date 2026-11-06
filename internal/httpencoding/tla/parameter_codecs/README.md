@@ -148,3 +148,46 @@ replay and callback lifetime across request reuse. The exporter uses the same
 resolved codec and checks 3.1 raw-cookie equivalence before version filtering.
 These tests cover implementation behavior outside the finite model as well;
 no proof command is part of a normal build, test or release gate.
+
+## Binding identity correction
+
+`BindingIdentity.tla` separates a binding's identity from its diagnostic label.
+The previous `map[string]KeySet` representation overwrote an authored `MapParams`
+field with the synthetic whole-query claim. The resulting single claim passed
+validation even though the two authored bindings overlapped. The `labels`
+configuration reproduces this loss of ownership: `Sound` fails with the field
+and map selected (13 generated/distinct states, depth 2). The `checked`
+configuration preserves both bindings and passes `Sound` and `Complete` (24
+generated / 16 distinct states, depth 2).
+
+Run the same pinned TLC tool explicitly, from this directory:
+
+```sh
+"$JAVA" -cp "$TLA_JAR" tlc2.TLC -workers 1 -metadir "$META/identity-labels" \
+  -config identity-labels.cfg BindingIdentity.tla
+"$JAVA" -cp "$TLA_JAR" tlc2.TLC -workers 1 -metadir "$META/identity-checked" \
+  -config identity-checked.cfg BindingIdentity.tla
+```
+
+The first command must exit 12 on `Sound`; the second must exit 0. These are
+opt-in design checks, never ordinary build, test, commit, CI or release gates.
+The model covers three query claims and one label collision, not general wire
+encoding. Existing `KeyNamespaces` evidence still covers key-set semantics.
+
+`httpencoding.Binding` now retains labels as data, and `CheckNamespaces` checks
+every pair without collapsing equal labels. Expr and importer admission use
+that representation. Generated parameter namespace collection excludes the
+actual `transportir.Parameter` pointer; form fields use their object position.
+Neither path uses a display name as identity. Direct regressions are
+`TestParameterBindingLabelsDoNotHideClaims`,
+`TestCheckNamespacesPreservesBindingIdentity` and
+`TestParameterNamespaceUsesBindingIdentity`. The first failed before the fix.
+
+Validation compared all 25 maintained determinism specimens against parent
+`f022c3c5f`: every generated raw/rendered section is byte-identical. No
+checked-in generated fixture changes. The corrected rejection concerns an
+invalid design, so it has no generated output. Mounted parameter-style,
+property-name and tagged-form controls exercise accepted designs, credentials,
+residual maps and field namespaces. Scratch evidence is under
+`/tmp/loom-fresh-audit/binding-identity`; temporary checker state is removed
+after independent review.

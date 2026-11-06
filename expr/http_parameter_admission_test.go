@@ -212,3 +212,26 @@ func TestParameterCredentialNamespaces(t *testing.T) {
 		})
 	}
 }
+
+func TestParameterBindingLabelsDoNotHideClaims(t *testing.T) {
+	for _, name := range []string{"value", "MapParams"} {
+		t.Run(name, func(t *testing.T) {
+			err := expr.RunInvalidDSL(t, func() {
+				Service("namespaces", func() {
+					Method("read", func() {
+						Payload(func() {
+							Attribute(name, String)
+							Attribute("rest", MapOf(String, String))
+						})
+						HTTP(func() {
+							GET("/")
+							Param(name + ":n")
+							MapParams("rest")
+						})
+					})
+				})
+			})
+			require.ErrorContains(t, err, "overlapping parameter namespaces")
+		})
+	}
+}

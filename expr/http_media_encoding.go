@@ -44,7 +44,7 @@ func validateMediaFields(body *AttributeExpr, media string) error {
 	if err := validateMediaEncodingKeys(meta, object); err != nil {
 		return err
 	}
-	bindings := make(map[string]httpencoding.KeySet)
+	var bindings []httpencoding.Binding
 	for _, field := range *object {
 		prefix := "openapi:encoding:" + ElementName(field.Name) + ":"
 		if err := validateParameterMetadata(meta, prefix); err != nil {
@@ -74,7 +74,7 @@ func validateMediaFields(body *AttributeExpr, media string) error {
 			if err != nil {
 				return fmt.Errorf("media field %q: %w", field.Name, err)
 			}
-			bindings[field.Name] = keys
+			bindings = append(bindings, httpencoding.Binding{Name: field.Name, Keys: keys})
 		}
 	}
 	if base == "multipart/form-data" {
