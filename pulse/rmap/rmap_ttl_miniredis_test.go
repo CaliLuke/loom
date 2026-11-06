@@ -109,6 +109,34 @@ func TestTTLAppliedByWrites(t *testing.T) {
 	}
 }
 
+func TestMutationRecorderExcludesNestedConnectionCommands(t *testing.T) {
+	for _, pipeline := range []bool{false, true} {
+		t.Run(map[bool]string{false: "command", true: "pipeline"}[pipeline], func(t *testing.T) {
+			recorder := &mutationRecorder{}
+			ctx := context.WithValue(t.Context(), mutationContextKey{}, true)
+			initialize := func(ctx context.Context) error {
+				return recorder.ProcessHook(func(context.Context, redis.Cmder) error {
+					return nil
+				})(ctx, redis.NewCmd(ctx, "hello", 3))
+			}
+			commands := []redis.Cmder{redis.NewCmd(ctx, "evalsha", "script", 1, "key"), redis.NewCmd(ctx, "pexpire", "key", 1000)}
+			if pipeline {
+				require.NoError(t, recorder.ProcessPipelineHook(func(ctx context.Context, _ []redis.Cmder) error {
+					return initialize(ctx)
+				})(ctx, commands))
+			} else {
+				hook := recorder.ProcessHook(func(ctx context.Context, _ redis.Cmder) error {
+					return initialize(ctx)
+				})
+				for _, command := range commands {
+					require.NoError(t, hook(ctx, command))
+				}
+			}
+			require.Equal(t, []string{"evalsha", "pexpire"}, recorder.Names())
+		})
+	}
+}
+
 // TestFixedTTLSetOnlyWhenAbsent checks that a fixed TTL is set whenever the
 // map hash has no TTL: on a hash created without a TTL, and again after
 // Reset recreates the hash.
@@ -174,7 +202,8 @@ func (r *mutationRecorder) DialHook(next redis.DialHook) redis.DialHook {
 func (r *mutationRecorder) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
 	return func(ctx context.Context, cmd redis.Cmder) error {
 		r.record(ctx, cmd)
-		return next(ctx, cmd)
+		// Driver initialization may invoke this hook recursively with this context.
+		return next(context.WithValue(ctx, mutationContextKey{}, false), cmd)
 	}
 }
 func (r *mutationRecorder) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.ProcessPipelineHook {
@@ -182,11 +211,11 @@ func (r *mutationRecorder) ProcessPipelineHook(next redis.ProcessPipelineHook) r
 		for _, cmd := range cmds {
 			r.record(ctx, cmd)
 		}
-		return next(ctx, cmds)
+		return next(context.WithValue(ctx, mutationContextKey{}, false), cmds)
 	}
 }
 func (r *mutationRecorder) record(ctx context.Context, cmd redis.Cmder) {
-	if ctx.Value(mutationContextKey{}) != true || cmd.Name() == "client" {
+	if ctx.Value(mutationContextKey{}) != true {
 		return
 	}
 	r.mu.Lock()
