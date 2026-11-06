@@ -15,6 +15,10 @@ type (
 		// DSLFunc contains the DSL used to initialize the expression.
 		eval.DSLFunc
 		declarationDSL func()
+		// declarationFields preserves immutable physical field facts when a
+		// mapped projection removes a named edge. Semantic refinements remain
+		// on this occurrence and must not redefine the copied storage.
+		declarationFields *ObjectFields
 		// Attribute type
 		Type DataType
 		// Base types if any

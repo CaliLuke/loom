@@ -89,7 +89,7 @@ func TestAttributeDSLKeepsLaterDeclaredUserTypes(t *testing.T) {
 
 // TestRequiredInAttributeDSLRefinesLaterDeclaredUserType verifies that an
 // attribute-level Required on a later-declared type yields a complete local
-// copy that requires the field and leaves the shared type unchanged.
+// copy with an occurrence requirement and leaves declaration storage unchanged.
 func TestRequiredInAttributeDSLRefinesLaterDeclaredUserType(t *testing.T) {
 	cases := []struct {
 		Name  string
@@ -142,7 +142,8 @@ func TestRequiredInAttributeDSLRefinesLaterDeclaredUserType(t *testing.T) {
 			require.True(t, ok)
 			require.NotSame(t, later, local)
 			require.Equal(t, "Later", local.Name())
-			require.True(t, local.Attribute().IsRequired("name"))
+			require.True(t, refined.IsRequired("name"))
+			require.False(t, local.Attribute().IsRequired("name"))
 			require.NotNil(t, expr.AsObject(local).Attribute("name"))
 			require.NotNil(t, expr.AsObject(local).Attribute("count"))
 		})
@@ -379,8 +380,8 @@ func TestLocalRequirementSurvivesStructureCopy(t *testing.T) {
 			local, ok := elem.Type.(expr.UserType)
 			require.True(t, ok)
 			require.NotSame(t, shared, local)
-			require.NotNil(t, local.Attribute().Validation)
-			require.Contains(t, local.Attribute().Validation.Required, "name")
+			require.Contains(t, elem.AllRequired(), "name")
+			require.False(t, local.Attribute().IsRequired("name"))
 		})
 	}
 }

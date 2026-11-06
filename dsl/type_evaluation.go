@@ -78,13 +78,6 @@ func localizeAttribute(att, parent *expr.AttributeExpr) {
 	}
 }
 
-// isKeptReference reports whether att is a kept reference. Its future copy
-// of the type requires the fields that att requires.
-func isKeptReference(att *expr.AttributeExpr) bool {
-	_, ok := evaluations.current().kept[att]
-	return ok
-}
-
 // evaluateReferencedTypes returns the types declared with Type that dt
 // references, including through typed AdditionalAttributes, and whose DSL has
 // not completed. When evaluate is true it first runs the DSL of the referenced
@@ -167,8 +160,8 @@ func (e *typeEvaluations) keep(att *expr.AttributeExpr) {
 }
 
 // completeKeptReferences gives each kept reference to the evaluated type its
-// own complete copy of the type, which requires the fields that the reference
-// requires.
+// own complete copy of the declaration. Occurrence validations stay on att,
+// independent of the copied declaration's physical field layout.
 func (ev *typeEvaluation) completeKeptReferences() {
 	e := evaluations.current()
 	refs := ev.kept
@@ -179,13 +172,6 @@ func (ev *typeEvaluation) completeKeptReferences() {
 			continue
 		}
 		copied, kept := expr.DupKeeping(ev.userType, evaluateReferencedTypes(ev.userType, true))
-		if v := att.Validation; v != nil && len(v.Required) > 0 {
-			ut := copied.(expr.UserType)
-			if ut.Attribute().Validation == nil {
-				ut.Attribute().Validation = &expr.ValidationExpr{}
-			}
-			ut.Attribute().Validation.AddRequired(v.Required...)
-		}
 		att.Type = copied
 		for _, k := range kept {
 			e.keep(k)

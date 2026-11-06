@@ -262,6 +262,12 @@ and `errors.As`, including when the message contains an example.
   must satisfy the refined contract. A declared local default always replaces
   it and must be valid or design validation fails. For example, base `^a` plus
   derived `b$` admits `ab` and rejects `xb`.
+- `Required` on an alias, object field, array element or map value adds a local
+  requirement without changing the base or sibling uses. Named references keep
+  the base declaration's optional pointer or `Optional` storage; local validation
+  rejects absence and accepts supplied empty values. Method payload/result
+  customization creates its own declaration and required views. Regenerate after
+  this correction; put a requirement on the base only when every use needs it.
 - `Reference` copies selected object field templates. It does not create named
   type ancestry, and the copied fields keep their declared constraints.
 - Use `FormatURI` for absolute URI contracts that include a scheme. Use

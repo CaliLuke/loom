@@ -243,7 +243,7 @@ func TestEffectiveDefaultsAndRequiredFields(t *testing.T) {
 	if status != http.StatusNoContent {
 		t.Fatalf("required status %d: %s", status, raw)
 	}
-	if svc.required == nil || svc.required.Base != "one" || svc.required.Derived != "two" {
+	if svc.required == nil || svc.required.Base != "one" || svc.required.Derived == nil || *svc.required.Derived != "two" {
 		t.Errorf("required payload %#v", svc.required)
 	}
 

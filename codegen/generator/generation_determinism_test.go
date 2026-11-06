@@ -32,6 +32,7 @@ var generationDeterminismDSLs = []struct {
 	{"OptionalCollectionValidationDSL", optionalCollectionValidationDSL},
 	{"UntaggedArraysDSL", httptestdata.UntaggedArraysDSL},
 	{"AdditionalCompositeDSL", httptestdata.AdditionalCompositeDSL},
+	{"RequiredOccurrenceDSL", httptestdata.RequiredOccurrenceDSL},
 	{"AdditionalCompositeJSONRPCDSL", httptestdata.AdditionalCompositeJSONRPCDSL},
 	{"PayloadQueryStringDSL", httptestdata.PayloadQueryStringDSL},
 	{"PayloadQueryArrayStringValidateDSL", httptestdata.PayloadQueryArrayStringValidateDSL},

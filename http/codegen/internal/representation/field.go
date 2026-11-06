@@ -28,7 +28,7 @@ type (
 // Callers restore registered named layouts before supplying occurrence flags.
 func ResolveField(parent *expr.ObjectFields, name string, attribute *expr.AttributeExpr, pointer, useDefault, jsonPresence bool) Field {
 	facts := parent.FieldFacts(name)
-	wireOptional := !facts.Required || facts.HasDefault
+	wireOptional := !facts.LayoutRequired || facts.HasDefault
 	explicit := codegen.IsExplicitPresenceType(attribute)
 	layout := encodingmeta.FieldLayout{
 		WrapNullable: expr.AllowsNull(attribute) && !expr.IsNullable(attribute) && !expr.IsAny(attribute.Type),
@@ -38,7 +38,7 @@ func ResolveField(parent *expr.ObjectFields, name string, attribute *expr.Attrib
 	case explicit, jsonPresence && wireOptional:
 	case expr.IsPrimitive(attribute.Type):
 		layout.Pointer = (pointer || facts.PrimitivePointer(useDefault)) && attribute.Type != expr.Bytes && !expr.IsAny(attribute.Type)
-	case expr.IsObject(attribute.Type), expr.IsUnion(attribute.Type) && !facts.Required:
+	case expr.IsObject(attribute.Type), expr.IsUnion(attribute.Type) && !facts.LayoutRequired:
 		layout.Pointer = true
 	}
 	optional := objectFieldOptional(facts, pointer, useDefault)
@@ -58,8 +58,8 @@ func objectFieldOptional(facts expr.ObjectFieldFacts, pointer, useDefault bool) 
 	case pointer:
 		return true
 	case useDefault:
-		return !facts.Required && !facts.HasDefault
+		return !facts.LayoutRequired && !facts.HasDefault
 	default:
-		return !facts.Required
+		return !facts.LayoutRequired
 	}
 }

@@ -232,7 +232,7 @@ func methodUserTypeAttribute(actual expr.UserType, methodName, suffix string, ar
 		// Do not duplicate type if it is not customized
 		return &expr.AttributeExpr{Type: actual}
 	}
-	dupped := expr.Dup(actual)
+	dupped := expr.Dup(actual).(expr.UserType)
 	att := &expr.AttributeExpr{Type: dupped}
 	if f, ok := args[len(args)-1].(func()); ok {
 		numreqs := 0
@@ -241,6 +241,16 @@ func methodUserTypeAttribute(actual expr.UserType, methodName, suffix string, ar
 		}
 		eval.Execute(f, att)
 		if actual != expr.Empty && (len(att.Bases) > 0 || att.Validation != nil && len(att.Validation.Required) != numreqs) {
+			// This owner intentionally creates a distinct declaration. Materialize
+			// its authored requirements here; ordinary Required never mutates a
+			// referenced type. Views derive from this customized declaration.
+			if att.Validation != nil && len(att.Validation.Required) > 0 {
+				owner := dupped.Attribute()
+				if owner.Validation == nil {
+					owner.Validation = &expr.ValidationExpr{}
+				}
+				owner.Validation.AddRequired(att.Validation.Required...)
+			}
 			// Method-specific fields and requiredness need their own Go type.
 			// Other uses of the named type keep the original contract.
 			if renamer, ok := dupped.(interface {

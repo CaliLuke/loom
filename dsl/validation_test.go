@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	. "github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/eval"
 	"github.com/CaliLuke/loom/expr"
@@ -113,15 +115,8 @@ func TestRequired(t *testing.T) {
 		t.Errorf("Required invalid on %+v, expected foo, got %+v", att, att.Validation.Required)
 	}
 	uattr := att.Type.(*expr.UserTypeExpr).AttributeExpr
-	if uattr.Validation == nil {
-		t.Fatalf("Required not set on %+v", uattr)
-	}
-	if len(uattr.Validation.Required) == 0 {
-		t.Errorf("Required not set on %+v, got %+v", uattr, uattr.Validation.Required)
-	}
-	if uattr.Validation.Required[0] != "foo" {
-		t.Errorf("Required invalid on %+v, expected foo, got %+v", uattr, uattr.Validation.Required)
-	}
+	require.Nil(t, uattr.Validation, "Required must not mutate the referenced declaration")
+	require.Equal(t, []string{"foo"}, att.AllRequired())
 }
 
 func TestRequiredInAttributeDSLDoesNotMutateSharedUserType(t *testing.T) {

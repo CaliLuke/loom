@@ -71,7 +71,7 @@ func TestEffectiveConstraintsGeneratedGRPCModule(t *testing.T) {
 	require.Contains(t, generated, `"base"`)
 	require.Contains(t, generated, `"override"`)
 	require.Contains(t, generated, "Base    string")
-	require.Contains(t, generated, "Derived string")
+	require.Contains(t, generated, "Derived *string")
 	require.GreaterOrEqual(t, strings.Count(generated, "loom.ValidatePattern"), 2)
 	require.Contains(t, generated, `"b$"`)
 	require.Contains(t, generated, `"^a"`)
@@ -186,4 +186,35 @@ func TestExactNumericBounds(t *testing.T) {
   }
  }
 }
+func TestRequiredAliasKeepsBaseStorage(t *testing.T) {
+ empty := ""
+ base := &constraints.BaseRequired{Base: ""}
+ require.Nil(t, base.Derived)
+ for _, tc := range []struct {
+  request *pb.RequiredRequest
+  valid bool
+ }{
+  {&pb.RequiredRequest{Base: &empty, Derived: &empty}, true},
+  {&pb.RequiredRequest{Base: &empty}, false},
+  {&pb.RequiredRequest{Derived: &empty}, false},
+ } {
+  calls := 0
+  endpoints := &constraints.Endpoints{Required: func(_ context.Context, value any) (any, error) {
+   calls++
+   payload := value.(*constraints.DerivedRequired)
+   require.NotNil(t, payload.Derived)
+   require.Equal(t, "", *payload.Derived)
+   return nil, nil
+  }}
+  _, err := server.New(endpoints, nil).Required(t.Context(), tc.request)
+  if tc.valid {
+   require.NoError(t, err)
+   require.Equal(t, 1, calls)
+  } else {
+   require.Equal(t, codes.InvalidArgument, status.Code(err))
+   require.Equal(t, 0, calls)
+  }
+ }
+}
+
 `

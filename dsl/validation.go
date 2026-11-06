@@ -362,7 +362,9 @@ func MaxLength(val int) {
 	}
 }
 
-// Required adds a "required" validation to the attribute.
+// Required adds required fields to the current object occurrence. Requirements
+// inherited from its referenced type still apply; this does not change the
+// referenced type or the physical storage of its declared fields.
 // See http://json-schema.org/latest/json-schema-validation.html#anchor61.
 //
 // Example:
@@ -394,17 +396,6 @@ func Required(names ...string) {
 			at.Validation = &expr.ValidationExpr{}
 		}
 		at.Validation.AddRequired(names...)
-		if ut, ok := at.Type.(expr.UserType); ok {
-			if isKeptReference(at) {
-				// The attribute gets its own copy of the type once the
-				// DSL of the type ends.
-				return
-			}
-			if ut.Attribute().Validation == nil {
-				ut.Attribute().Validation = &expr.ValidationExpr{}
-			}
-			ut.Attribute().Validation.AddRequired(names...)
-		}
 	}
 }
 

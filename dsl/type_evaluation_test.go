@@ -42,8 +42,8 @@ func TestAttributeDSLCopiesInProgressTypeOnceComplete(t *testing.T) {
 			require.NotNil(t, local.Attribute().Find(field), "%s lacks %s", name, field)
 		}
 	}
-	require.NotNil(t, direct.Attribute().Validation)
-	require.Equal(t, []string{"name"}, direct.Attribute().Validation.Required)
+	require.Equal(t, []string{"name"}, holder.Find("direct").AllRequired())
+	require.False(t, direct.Attribute().IsRequired("name"))
 	require.False(t, elem.Attribute().IsRequired("name"))
 }
 
@@ -70,8 +70,10 @@ func TestAttributeDSLCopyIgnoresLaterSharedTypeChanges(t *testing.T) {
 		})
 	})
 
-	local := root.UserType("LeakHolder").Attribute().Find("a").Type.(expr.UserType)
-	require.Equal(t, []string{"name"}, local.Attribute().Validation.Required)
+	occurrence := root.UserType("LeakHolder").Attribute().Find("a")
+	local := occurrence.Type.(expr.UserType)
+	require.Equal(t, []string{"name"}, occurrence.AllRequired())
+	require.False(t, local.Attribute().IsRequired("name"))
 }
 
 // TestPayloadCopyResolvesCycleThroughLocalCopy verifies that a customized
@@ -254,8 +256,8 @@ func TestKeptReferenceCopiesKeepRequiredFields(t *testing.T) {
 			require.True(t, ok)
 			require.NotSame(t, shared, local)
 			require.NotNil(t, local.Attribute().Find("id"))
-			require.NotNil(t, local.Attribute().Validation)
-			require.Equal(t, []string{"id"}, local.Attribute().Validation.Required)
+			require.Equal(t, []string{"id"}, c.Element(root).AllRequired())
+			require.False(t, local.Attribute().IsRequired("id"))
 		})
 	}
 }

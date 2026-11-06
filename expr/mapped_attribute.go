@@ -84,6 +84,7 @@ func NewMappedAttributeExpr(att *AttributeExpr) *MappedAttributeExpr {
 // Undeclared required keys of typed objects retain their literal spelling.
 func (ma *MappedAttributeExpr) Remap() {
 	if named, ok := ma.Type.(UserType); ok {
+		ma.declarationFields = NewObjectFields(ma.AttributeExpr)
 		// Flatten the representation, not the declaration contract. Keep the
 		// eliminated named edge before existing Extend parents, as it was in
 		// the original effective-constraint traversal. A copied public carrier

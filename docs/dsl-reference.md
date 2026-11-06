@@ -782,6 +782,19 @@ stronger derived bound would hide a negative ancestor bound. Zero lengths are
 valid. Existing designs with contradictory inherited bounds must correct their
 constraints before regeneration.
 
+`Required` on a named alias, object field, array element or map value adds a
+constraint to that use. It inherits the base requirements without changing the
+base or sibling uses. An alias `WithName` based on `Base` with a local
+`Required("name")` requires `name` only in `WithName`; a plain `Base` use
+keeps its original contract. Named references retain the base declaration's
+optional pointer or `Optional` storage and validate the local presence rule.
+A supplied empty string or empty collection remains present.
+
+Method customization such as `Payload(Base, func() { Required("name") })`
+creates a separate method declaration; its required fields and result views
+belong to that declaration. Regenerate after this correction. If a requirement
+should apply to every use, declare it on the base type itself.
+
 Admission checks endpoint order and length eligibility. It does not decide
 whether a mathematically nonempty numeric interval contains a value representable
 by a particular machine type, or whether combined patterns have a solution.

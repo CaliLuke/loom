@@ -89,11 +89,6 @@ func renderObjectValidation(buf *bytes.Buffer, first *bool, att *expr.AttributeE
 		appendValidationBlock(buf, first, val)
 	}
 	if carrier := att.AdditionalMembersCarrier(); carrier != nil {
-		// Requiredness belongs to literal map-key membership, independent of
-		// the member's value (including zero and an admitted null).
-		for _, name := range att.RequiredAdditionalMembers() {
-			appendValidationBlock(buf, first, renderRequiredAdditionalMemberValidation(target+"."+expr.AdditionalAttributesFieldName, name, validationContextExpr(attCtx, context)))
-		}
 		// Every undeclared member satisfies the typed policy.
 		renderMapValidationCode(buf, first, expr.AsMap(carrier.Type), put, attCtx, view, target+"."+expr.AdditionalAttributesFieldName, context)
 		// A member that the transport bound elsewhere, such as to a path
@@ -352,6 +347,11 @@ func validateNamedOccurrence(
 	context string,
 	required bool,
 ) string {
+	// Local predicates inspect the named declaration's carrier just like its
+	// named validator. The enclosing field's layout cannot redefine children.
+	value := ctx.validationValue
+	ctx = presenceValueContext(ctx, &expr.AttributeExpr{Type: ut, Meta: att.Meta})
+	ctx.validationValue = value
 	hasNamedValidator := hasValidations(ctx, ut)
 	constraints, err := expr.EffectiveConstraintsFor(att)
 	if err != nil {

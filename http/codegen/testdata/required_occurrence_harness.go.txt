@@ -1,0 +1,81 @@
+package occurrences_test
+
+import (
+ "context"
+ "encoding/json/v2"
+ "io"
+ "net/http"
+ "net/http/httptest"
+ "strings"
+ "sync/atomic"
+ "testing"
+
+ client "example.com/occurrences/gen/http/occurrences/client"
+ server "example.com/occurrences/gen/http/occurrences/server"
+ svc "example.com/occurrences/gen/occurrences"
+ loomhttp "github.com/CaliLuke/loom/http"
+ "github.com/stretchr/testify/require"
+)
+
+func TestOccurrenceContracts(t *testing.T) {
+ var calls atomic.Int32
+ echo := func(_ context.Context, value any) (any, error) {
+  calls.Add(1)
+  return value, nil
+ }
+ mux := loomhttp.NewMuxer()
+ server.Mount(mux, server.New(&svc.Endpoints{
+  Base: echo, Left: echo, Right: echo, Occurrences: echo, Deferred: echo,
+ }, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil))
+ host := httptest.NewServer(mux)
+ defer host.Close()
+ c := client.NewClient("http", strings.TrimPrefix(host.URL, "http://"), host.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
+ for _, tc := range []struct {
+  name, wire string
+  payload any
+  call func(context.Context, any) (any, error)
+ }{
+  {"base", `{"id":""}`, new(svc.Base), c.Base()},
+  {"left", `{"id":"","left":""}`, new(svc.Left), c.Left()},
+  {"right", `{"id":"","right":""}`, new(svc.Right), c.Right()},
+  {"occurrences", `{"direct":{"id":"","left":""},"list":[{"id":"","right":""}],"index":{"x":{"id":"","left":""}}}`, new(svc.Occurrences), c.Occurrences()},
+  {"deferred", `{}`, new(svc.Deferred), c.Deferred()},
+  {"deferred child", `{"child":{"name":""}}`, new(svc.Deferred), c.Deferred()},
+ } {
+  t.Run(tc.name, func(t *testing.T) {
+   require.NoError(t, json.Unmarshal([]byte(tc.wire), tc.payload))
+   before := calls.Load()
+   result, err := tc.call(t.Context(), tc.payload)
+   require.NoError(t, err)
+   require.Equal(t, before+1, calls.Load())
+   require.Equal(t, tc.payload, result)
+   output, err := json.Marshal(result, json.Deterministic(true))
+   require.NoError(t, err)
+   require.JSONEq(t, tc.wire, string(output))
+  })
+ }
+ for _, tc := range []struct{
+  name, wire, missing string
+ }{
+  {"base", `{}`, "id"},
+  {"left", `{"id":""}`, "left"},
+  {"right", `{"id":""}`, "right"},
+  {"occurrences", `{"direct":{"id":""},"list":[],"index":{}}`, "left"},
+  {"occurrences", `{"direct":{"id":"","left":""},"list":[{"id":""}],"index":{}}`, "right"},
+  {"occurrences", `{"direct":{"id":"","left":""},"list":[],"index":{"x":{"id":""}}}`, "left"},
+  {"deferred", `{"child":{}}`, "name"},
+ } {
+  t.Run("reject "+tc.name+tc.wire, func(t *testing.T) {
+   before := calls.Load()
+   response, err := host.Client().Post(host.URL+"/"+tc.name, "application/json", strings.NewReader(tc.wire))
+   require.NoError(t, err)
+   raw, err := io.ReadAll(response.Body)
+   require.NoError(t, err)
+   require.NoError(t, response.Body.Close())
+   require.Equal(t, http.StatusBadRequest, response.StatusCode, string(raw))
+   require.Contains(t, string(raw), `"code":"missing_field"`)
+   require.Contains(t, string(raw), "Missing required field: "+tc.missing)
+   require.Equal(t, before, calls.Load())
+  })
+ }
+}

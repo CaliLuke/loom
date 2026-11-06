@@ -155,6 +155,16 @@ consumer validation.
   [additional projection model](../../../expr/tla/additional_projection/README.md)
   aligned; do not repair byte schemas separately from value projection.
 
+- `Required` belongs to its authored occurrence. DSL evaluation and deferred
+  reference completion must not write local requirements into a shared named
+  declaration. Method customization explicitly owns a new declaration and
+  materializes requirements there. Mapped projections retain immutable
+  declaration field facts; storage uses `LayoutRequired`, while validation
+  conjoins semantic requirements in the physical declaration's context. Keep
+  required additional-key membership on the occurrence as well. The
+  [required occurrence model](../../../dsl/tla/required_occurrence/README.md)
+  records rejected write-through and deferred-copy policies and their tests.
+
 - OpenAPI import normalizes reference assertions with the target's carrier
   context, retaining separate reference identity and local constraints. Persist
   rejected intersections for planner and renderer admission. Normalize effective

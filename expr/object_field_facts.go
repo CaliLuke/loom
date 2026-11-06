@@ -97,6 +97,12 @@ func NewObjectFields(attribute *AttributeExpr) *ObjectFields {
 	typed := attribute.TypedObjectDeclaration() != nil
 	result.applyRequired(attribute.AllRequired(), object, typed, false)
 	result.applyRequired(fieldLayoutDeclaration(attribute).AllRequired(), object, typed, true)
+	for name, facts := range result.fields {
+		if required, retained := fieldLayoutDeclaration(attribute).declarationRequired(name); retained {
+			facts.LayoutRequired = required
+			result.fields[name] = facts
+		}
+	}
 	if attribute.TypedObjectDeclaration() != nil {
 		for name, facts := range result.fields {
 			facts.CaseStrict = true
@@ -156,6 +162,9 @@ func (ma *MappedAttributeExpr) FieldFacts(name string) ObjectFieldFacts {
 		return ObjectFieldFacts{Index: -1}
 	}
 	facts := ObjectFieldFacts{ParentPresent: true, Required: ma.IsRequired(name), LayoutRequired: ma.IsRequired(name), Index: -1}
+	if required, retained := ma.declarationRequired(name); retained {
+		facts.LayoutRequired = required
+	}
 	for index, field := range *AsObject(ma.Type) {
 		if field.Name != name {
 			continue
@@ -210,4 +219,14 @@ func (f *ObjectFields) applyRequired(required []string, object *Object, typed, l
 		}
 		f.fields[name] = facts
 	}
+}
+
+// declarationRequired returns retained field-layout requiredness, if this
+// attribute is a mapped projection of a named declaration.
+func (a *AttributeExpr) declarationRequired(name string) (bool, bool) {
+	if a == nil || a.declarationFields == nil {
+		return false, false
+	}
+	facts, exists := a.declarationFields.fields[AttributeName(name)]
+	return facts.LayoutRequired, exists
 }

@@ -272,6 +272,14 @@ func appendValidationLength(res *[]string, value *int, render func(*int) string)
 }
 
 func appendRequiredValidations(res *[]string, att *expr.AttributeExpr, validation *expr.ValidationExpr, attCtx *AttributeContext, data validationRenderData) {
+	additional := att.RequiredAdditionalMembers()
+	for _, name := range validation.Required {
+		if slices.Contains(additional, name) {
+			appendRenderedValidation(res, renderRequiredAdditionalMemberValidation(
+				data.Target+"."+expr.AdditionalAttributesFieldName, name,
+				validationContextExpr(attCtx, data.Context)))
+		}
+	}
 	required := generatedRequiredValidationFrom(att, validation, attCtx)
 	if len(required) == 0 {
 		return
