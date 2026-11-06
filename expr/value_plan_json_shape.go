@@ -43,6 +43,7 @@ func lowerJSONShape(node *valuePlanNode, seen map[*valuePlanNode]*loom.JSONShape
 		return nil, err
 	}
 	shape.Rules = rules
+	shape.RequiredMembers = append([]string(nil), node.additionalRequired...)
 	if node.alias != nil {
 		shape.Kind = "alias"
 		shape.Child, err = lowerJSONShape(node.alias, seen)
@@ -71,17 +72,7 @@ func lowerJSONShape(node *valuePlanNode, seen map[*valuePlanNode]*loom.JSONShape
 		shape.Kind = "union"
 		shape.Branches, err = lowerJSONShapeBranches(node, seen)
 	case ObjectKind:
-		shape.Kind = "object"
-		for _, field := range node.members {
-			if !field.visible {
-				continue
-			}
-			child, childErr := lowerJSONShape(field.node, seen)
-			if childErr != nil {
-				return nil, childErr
-			}
-			shape.Fields = append(shape.Fields, loom.JSONShapeField{Name: field.wire, Required: field.required, Shape: child})
-		}
+		return lowerJSONObjectShape(node, shape, seen)
 	default:
 		err = fmt.Errorf("JSON matching cannot lower %v", node.kind)
 	}
@@ -147,4 +138,27 @@ func lowerJSONShapeRules(node *valuePlanNode) (loom.JSONShapeRules, error) {
 		result.Enums = append(result.Enums, values)
 	}
 	return result, nil
+}
+
+func lowerJSONObjectShape(node *valuePlanNode, shape *loom.JSONShape, seen map[*valuePlanNode]*loom.JSONShape) (*loom.JSONShape, error) {
+	var err error
+	shape.Kind = "object"
+	shape.ForbiddenMembers = append([]string(nil), node.additionalForbidden...)
+	if node.additional != nil {
+		shape.Additional, err = lowerJSONShape(node.additional, seen)
+		if err != nil {
+			return nil, err
+		}
+	}
+	for _, field := range node.members {
+		if !field.visible {
+			continue
+		}
+		child, childErr := lowerJSONShape(field.node, seen)
+		if childErr != nil {
+			return nil, childErr
+		}
+		shape.Fields = append(shape.Fields, loom.JSONShapeField{Name: field.wire, Required: field.required, Shape: child})
+	}
+	return shape, nil
 }

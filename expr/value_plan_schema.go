@@ -108,6 +108,7 @@ func valuePlanContainsNode(root, target *valuePlanNode, visited map[*valuePlanNo
 	visited[root] = true
 	if valuePlanContainsNode(root.alias, target, visited) ||
 		valuePlanContainsNode(root.element, target, visited) ||
+		valuePlanContainsNode(root.additional, target, visited) ||
 		valuePlanContainsNode(root.key, target, visited) {
 		return true
 	}
@@ -207,6 +208,15 @@ func (n ValuePlanNode) Element() ValuePlanNode {
 		return ValuePlanNode{}
 	}
 	return ValuePlanNode{n.node.element}
+}
+
+// Additional returns the typed undeclared-member representation of an object,
+// or an absent handle. Alias callers descend through Underlying first.
+func (n ValuePlanNode) Additional() ValuePlanNode {
+	if n.node == nil {
+		return ValuePlanNode{}
+	}
+	return ValuePlanNode{n.node.additional}
 }
 
 // Key returns the map key representation, or an absent handle.

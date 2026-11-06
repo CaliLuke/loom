@@ -9,12 +9,13 @@ import (
 type (
 	schemaSlotLocation int
 	schemaSlot         struct {
-		location schemaSlotLocation
-		index    int
-		name     string
-		member   string
-		branch   string
-		element  bool
+		location   schemaSlotLocation
+		index      int
+		name       string
+		member     string
+		branch     string
+		element    bool
+		additional bool
 	}
 	schemaConstruction struct {
 		kind  expr.Kind
@@ -47,6 +48,9 @@ func (a *Analyzer) recordStructuralSchema(schema *Schema, attribute *expr.Attrib
 			if schema.Properties[wire] != nil {
 				construction.slots = append(construction.slots, schemaSlot{location: schemaProperty, name: wire, member: field.Name})
 			}
+		}
+		if attribute.AdditionalAttributes != nil && schema.AdditionalProperties != nil && schema.AdditionalProperties.Schema != nil {
+			construction.slots = append(construction.slots, schemaSlot{location: schemaAdditional, additional: true})
 		}
 	case *expr.Array:
 		if schema.Items != nil {
@@ -119,6 +123,10 @@ func (a *Analyzer) projectBaseline(baseline *Schema, attribute *expr.AttributeEx
 		result.ContentEncoding = "base64"
 		applyByteGate(&result, byteConstraintSchema(effectiveByteConstraint(attribute, layers, "$")))
 	}
+	return a.projectBaselineChildren(baseline, &result, attribute, plan, construction)
+}
+
+func (a *Analyzer) projectBaselineChildren(baseline, result *Schema, attribute *expr.AttributeExpr, plan expr.ValuePlanNode, construction schemaConstruction) *Schema {
 	structural := plan
 	if construction.kind != 0 {
 		for structural.Underlying().Valid() {
@@ -128,14 +136,14 @@ func (a *Analyzer) projectBaseline(baseline *Schema, attribute *expr.AttributeEx
 	for _, slot := range construction.slots {
 		childPlan := slot.plan(structural)
 		childAttribute := attribute
-		if slot.member != "" || slot.branch != "" || slot.element {
+		if slot.member != "" || slot.branch != "" || slot.element || slot.additional {
 			if !childPlan.Valid() {
 				panic("OpenAPI baseline construction has no paired target child")
 			}
 			childAttribute = childPlan.Attribute()
 		}
 		child := a.projectBaseline(slot.get(baseline), childAttribute, childPlan)
-		slot.set(&result, child)
+		slot.set(result, child)
 		if slot.branch != "" && result.Discriminator != nil {
 			discriminator := *result.Discriminator
 			discriminator.Mapping = copySchemaMapping(result.Discriminator.Mapping)
@@ -143,7 +151,7 @@ func (a *Analyzer) projectBaseline(baseline *Schema, attribute *expr.AttributeEx
 			result.Discriminator = &discriminator
 		}
 	}
-	return &result
+	return result
 }
 
 func (a *Analyzer) projectBaselineComponent(original string, attribute *expr.AttributeExpr, plan expr.ValuePlanNode, projection string) string {
@@ -173,6 +181,9 @@ func (a *Analyzer) projectBaselineComponent(original string, attribute *expr.Att
 }
 
 func (s schemaSlot) plan(parent expr.ValuePlanNode) expr.ValuePlanNode {
+	if s.additional {
+		return parent.Additional()
+	}
 	if s.element {
 		return parent.Element()
 	}

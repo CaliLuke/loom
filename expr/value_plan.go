@@ -120,6 +120,9 @@ type (
 		schemaUnknown       bool
 		runtimeUnknown      bool
 		preserveAdditional  bool
+		additional          *valuePlanNode
+		additionalRequired  []string
+		additionalForbidden []string
 		hasEnum             bool
 		enumClauses         [][]ResolvedValue
 		enumPlans           []*valuePlanNode

@@ -24,7 +24,7 @@ func TestCompositeAdditionalMembers(t *testing.T) {
 		return value, nil
 	}
 	mux := loomhttp.NewMuxer()
-	server.Mount(mux, server.New(&svc.Endpoints{Objects: echo, Unions: echo, Nested: echo, Recursive: echo, Literal: echo, Nullable: echo, Mapped: echo, Occurrence: echo}, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, SERVER_OPTIONS))
+	server.Mount(mux, server.New(&svc.Endpoints{Objects: echo, Unions: echo, Nested: echo, Recursive: echo, Literal: echo, Nullable: echo, Mapped: echo, Occurrence: echo, Bytes: echo, ByteNested: echo, ByteNullable: echo, ByteOccurrences: echo}, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, SERVER_OPTIONS))
 	host := httptest.NewServer(mux)
 	defer host.Close()
 	c := client.NewClient("http", strings.TrimPrefix(host.URL, "http://"), host.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
@@ -33,6 +33,10 @@ func TestCompositeAdditionalMembers(t *testing.T) {
 		payload    any
 		call       func(context.Context, any) (any, error)
 	}{
+        {"bytes", `{"id":"record","x":"aGk="}`, new(svc.ByteRecord), c.Bytes()},
+        {"byteOccurrences", `{"base":{"x":"aGk="},"record":{"x":"aGk=","more":"aGk="},"sibling":{"x":"aGk=","other":"aGk="}}`, new(svc.ByteOccurrences), c.ByteOccurrences()},
+        {"byteNested", `{"x":[{"child":"aGk="}]}`, new(svc.ByteNested), c.ByteNested()},
+        {"byteNullable", `{"x":null}`, new(svc.ByteNullable), c.ByteNullable()},
 		{"objects", `{"x":{"name":"leaf"}}`, new(svc.Objects), c.Objects()},
 		{"unions", `{"x":{"name":"leaf"},"y":{"count":2}}`, new(svc.Unions), c.Unions()},
 		{"nested", `{"x":[{"y":{"name":"leaf"}}]}`, new(svc.Nested), c.Nested()},
@@ -55,6 +59,13 @@ func TestCompositeAdditionalMembers(t *testing.T) {
 		})
 	}
 	for _, tc := range []struct{ name, wire string }{
+        {"byteOccurrences", `{"base":{"x":"aGk="},"record":{"x":"aGk="},"sibling":{"x":"aGk=","other":"aGk="}}`},
+        {"byteOccurrences", `{"base":{"x":"aGk="},"record":{"x":"aGk=","more":"aGk="},"sibling":{"x":"aGk="}}`},
+        {"bytes", `{"x":"hi"}`},
+        {"bytes", `{"x":"aA=="}`},
+        {"bytes", `{}`},
+        {"byteNested", `{"x":[{"child":"aA=="}]}`},
+        {"byteNullable", `{}`},
 		{"objects", `{}`},
 		{"unions", `{}`},
 		{"nested", `{}`},

@@ -98,6 +98,7 @@ func (g *valueOccurrenceGraph) descendsFrom(node, root *valueOccurrenceNode) boo
 			add(decl.alias)
 			add(decl.element)
 			add(decl.key)
+			add(parent.additional)
 			for _, member := range decl.members {
 				add(member.node)
 			}

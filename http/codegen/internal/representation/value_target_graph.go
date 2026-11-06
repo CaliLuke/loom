@@ -26,6 +26,9 @@ func TargetGraph(target *expr.AttributeExpr) *expr.AttributeExpr {
 func (g *httpValueGraph) attribute(source *expr.AttributeExpr, branch bool) *expr.AttributeExpr {
 	copy := *source
 	copy.Type = g.declaration(source.Type, branch)
+	if source.AdditionalAttributes != nil {
+		copy.AdditionalAttributes = g.attribute(source.AdditionalAttributes, false)
+	}
 	return &copy
 }
 

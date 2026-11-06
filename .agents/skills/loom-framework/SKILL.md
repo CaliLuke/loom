@@ -147,6 +147,14 @@ consumer validation.
   redeclaring base-only properties. Keep the additional attributes models
   aligned.
 
+- Captured value plans retain typed additional-member edges through schema
+  identity, baseline positions, examples, observation, projection, decoding and
+  JSONShape lowering. HTTP policy traversal and target copies visit the same
+  edges with occurrence-specific contexts. Extra-key presence is explicit;
+  an empty key is never a missing-value sentinel. Keep the
+  [additional projection model](../../../expr/tla/additional_projection/README.md)
+  aligned; do not repair byte schemas separately from value projection.
+
 - OpenAPI import normalizes reference assertions with the target's carrier
   context, retaining separate reference identity and local constraints. Persist
   rejected intersections for planner and renderer admission. Normalize effective

@@ -251,6 +251,9 @@ func (b *valuePlanBuilder) nodeAssociated(
 		untagged: decl.untagged, typeKey: decl.typeKey, valueKey: decl.valueKey,
 		schemaUnknown: target.attribute.ObjectOpenness().AdmitsUndeclared(),
 	}
+	if !b.enumConstant {
+		node.additionalRequired = append([]string(nil), target.additionalRequired...)
+	}
 	b.nodes[key] = node
 	if associate {
 		b.associate(owner, node, nil)
@@ -307,6 +310,9 @@ func (b *valuePlanBuilder) nodeChildren(node *valuePlanNode, source, target *val
 }
 
 func (b *valuePlanBuilder) object(node *valuePlanNode, source, target *valueOccurrenceNode) error {
+	if err := b.additional(node, source, target); err != nil {
+		return err
+	}
 	wires := make(map[string]bool)
 	for _, field := range target.declaration.members {
 		var matched *valueOccurrenceMember
@@ -345,6 +351,8 @@ func (b *valuePlanBuilder) object(node *valuePlanNode, source, target *valueOccu
 		}
 		if policy.Visible {
 			wires[policy.WireName] = true
+		} else if node.additional != nil && policy.WireName != "-" {
+			node.additionalForbidden = append(node.additionalForbidden, policy.WireName)
 		}
 		child, err := b.node(matched.node, field.node, node.codec)
 		if err != nil {
@@ -506,4 +514,19 @@ func (b *valuePlanBuilder) codecPolicy(target *valueOccurrenceNode, inherited Va
 		matched, b.codecs[i], inherited = true, true, policy.Codec
 	}
 	return inherited, nil
+}
+
+func (b *valuePlanBuilder) additional(node *valuePlanNode, source, target *valueOccurrenceNode) error {
+	if target.additional != nil {
+		if source.additional == nil {
+			return fmt.Errorf("value plan adds unrelated additional-member policy")
+		}
+		additional, err := b.node(source.additional, target.additional, node.codec)
+		if err != nil {
+			return fmt.Errorf("value plan additional members: %w", err)
+		}
+		node.additional = additional
+		node.additionalForbidden = append([]string(nil), target.additionalForbidden...)
+	}
+	return nil
 }

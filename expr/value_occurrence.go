@@ -49,8 +49,9 @@ type (
 		// additional is the occurrence of the object's AdditionalAttributes,
 		// which every undeclared member must satisfy. additionalRequired
 		// lists the required members the object does not declare.
-		additional         *valueOccurrenceNode
-		additionalRequired []string
+		additional          *valueOccurrenceNode
+		additionalRequired  []string
+		additionalForbidden []string
 	}
 
 	valueOccurrenceExample struct {
@@ -213,18 +214,8 @@ func (b *valueOccurrenceBuilder) occurrence(source *AttributeExpr) (*valueOccurr
 	}
 	node.declaration = declaration
 	attribute.Type = declaration.typ
-	if source.AdditionalAttributes != nil {
-		additional, err := b.occurrence(source.AdditionalAttributes)
-		if err != nil {
-			return nil, fmt.Errorf("additional attributes: %w", err)
-		}
-		node.additional = additional
-		attribute.AdditionalAttributes = additional.attribute
-		for _, name := range source.AllRequired() {
-			if object := AsObject(source.Type); object == nil || object.Attribute(name) == nil {
-				node.additionalRequired = append(node.additionalRequired, name)
-			}
-		}
+	if err := b.additional(node, source, attribute); err != nil {
+		return nil, err
 	}
 	if !b.structuralOnly {
 		for _, parent := range source.constraintParents {
@@ -501,6 +492,26 @@ func (b *valueOccurrenceBuilder) checkRanks() error {
 	for _, decl := range b.graph.declarations {
 		if err := visit(decl); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+func (b *valueOccurrenceBuilder) additional(node *valueOccurrenceNode, source, attribute *AttributeExpr) error {
+	// Membership predicates belong to this occurrence, even when its typed
+	// additional-value edge lives on a shared named declaration.
+	node.additionalRequired = append([]string(nil), source.RequiredAdditionalMembers()...)
+	if source.AdditionalAttributes != nil {
+		additional, err := b.occurrence(source.AdditionalAttributes)
+		if err != nil {
+			return fmt.Errorf("additional attributes: %w", err)
+		}
+		node.additional = additional
+		attribute.AdditionalAttributes = additional.attribute
+		for _, member := range source.OmittedMembers() {
+			if name := JSONFieldName(ElementName(member.Name), member.Attribute); name != "-" {
+				node.additionalForbidden = append(node.additionalForbidden, name)
+			}
 		}
 	}
 	return nil

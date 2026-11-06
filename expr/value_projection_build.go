@@ -93,6 +93,14 @@ func observeJSONObject(plan *valuePlanNode, role ValueRole, value ResolvedValue)
 			if field.Member != (ValueIdentity{}) {
 				continue
 			}
+			if plan.additional != nil {
+				child, failure := observeJSON(plan.additional, role, field.Value)
+				if failure != nil {
+					return ResolvedValue{}, failure
+				}
+				copy.fields = append(copy.fields, ResolvedField{Name: field.Name, Value: child})
+				continue
+			}
 			wire, err := json.Marshal(field.Value.node.raw, json.Deterministic(true))
 			if err != nil {
 				return ResolvedValue{}, projectionBuildFailure(ProjectionUnrepresentable, "additional value materialization: %v", err)
@@ -224,7 +232,15 @@ func constructJSONObject(plan *valuePlanNode, value ResolvedValue) (jsontext.Val
 			if _, collision := fields[field.Name]; collision {
 				return nil, projectionBuildFailure(ProjectionUnrepresentable, "additional member collides with wire field %q", field.Name)
 			}
-			fields[field.Name] = field.Value.node.json
+			if plan.additional != nil {
+				wire, failure := constructJSON(plan.additional, field.Value)
+				if failure != nil {
+					return nil, failure
+				}
+				fields[field.Name] = wire
+			} else {
+				fields[field.Name] = field.Value.node.json
+			}
 		}
 	}
 	return marshalProjection(fields)

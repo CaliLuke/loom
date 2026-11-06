@@ -69,7 +69,7 @@ func Plan(source *expr.AttributeExpr, fieldName func(string) string, schema, clo
 	variants := make(map[string]expr.UserType)
 	var walk func(*expr.AttributeExpr)
 	walk = func(att *expr.AttributeExpr) {
-		if seen[att] {
+		if att == nil || seen[att] {
 			return
 		}
 		seen[att] = true
@@ -96,6 +96,7 @@ func Plan(source *expr.AttributeExpr, fieldName func(string) string, schema, clo
 			if schema && closedObjects && att.ObjectOpenness() == expr.ObjectOpennessUnset {
 				att.CloseObject()
 			}
+			walk(att.AdditionalAttributes)
 			for _, field := range *object {
 				request.Fields = append(request.Fields, matchingFieldPolicy(att, field, fieldName, schema))
 				walk(field.Attribute)

@@ -405,14 +405,12 @@ func (a *Analyzer) analyzeInlineObject(s *Schema, attr *expr.AttributeExpr, obj 
 			}
 			s.Properties[name] = &Schema{Not: &Schema{}}
 		}
-		// Value plans do not model undeclared members, so the typed
-		// policy is analyzed without plan positions.
 		s.AdditionalProperties = &BoolOrSchema{
 			Schema: a.analyzeSchemaPositions(
 				attr.AdditionalAttributes,
 				childExampleContext(context, "additional-properties"),
-				expr.ValuePlanNode{},
-				expr.ValuePlanNode{},
+				a.plan.Additional(),
+				a.examplePlan.Additional(),
 			),
 		}
 	case expr.ObjectClosed:

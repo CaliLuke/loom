@@ -28,7 +28,7 @@ func additionalCompositeDSL(rpc bool) {
 			})
 		}
 	})
-	types := additionalCompositeTypes()
+	types := append(additionalCompositeTypes(), additionalByteTypes()...)
 	Service("composite", func() {
 		if rpc {
 			JSONRPC(func() {
@@ -111,4 +111,38 @@ func additionalCompositeTypes() []additionalCompositeCase {
 		{"objects", objects}, {"unions", unions}, {"nested", nested}, {"recursive", recursive},
 		{"literal", literal}, {"nullable", nullable}, {"mapped", mapped}, {"occurrence", occurrence},
 	}
+}
+
+func additionalByteTypes() []additionalCompositeCase {
+	blob := Type("Blob", Bytes, func() {
+		MinLength(2)
+		MaxLength(2)
+	})
+	bytes := Type("ByteRecord", func() {
+		Attribute("id", String)
+		AdditionalAttributes(blob)
+		Required("x")
+		Example(Val{"id": "record", "x": []byte("hi")})
+	})
+	nested := Type("ByteNested", func() {
+		AdditionalAttributes(ArrayOf(MapOf(String, blob)))
+		Required("x")
+		Example(Val{"x": []any{Val{"child": []byte("hi")}}})
+	})
+	nullable := Type("ByteNullable", func() {
+		AdditionalAttributes(blob, Nullable)
+		Required("x")
+		Example(Val{"x": nil})
+	})
+	occurrences := Type("ByteOccurrences", func() {
+		Attribute("base", bytes)
+		Attribute("record", bytes, func() {
+			Required("more")
+		})
+		Attribute("sibling", bytes, func() {
+			Required("other")
+		})
+		Required("base", "record", "sibling")
+	})
+	return []additionalCompositeCase{{"bytes", bytes}, {"byteNested", nested}, {"byteNullable", nullable}, {"byteOccurrences", occurrences}}
 }

@@ -597,6 +597,11 @@ supported in gRPC, form/multipart bodies, URL bindings, untagged unions or
 result types with views. With `Extend`, a typed base constrains attributes the
 derived type adds.
 
+Typed additional members use the same JSON representation as declared fields:
+`Bytes` encodes as base64, with length constraints measured on decoded bytes.
+Regenerate OpenAPI documents to correct byte-valued extra schemas and examples,
+including nested collections. Empty member names are literal keys, not absence.
+
 An OpenAPI form body with only schema-valued `additionalProperties` imports as
 a typed map. Body-only methods keep the map payload and use
 `OptionalRequestBody()` when the request body is optional. If transport fields

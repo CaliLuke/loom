@@ -22,6 +22,9 @@ const (
 // decodeJSON is independent of source matching and schema branch counts. It
 // decodes the same canonical wire using the target's runtime scalar categories.
 func decodeJSON(plan *valuePlanNode, wire jsontext.Value) (ResolvedValue, bool) {
+	if !additionalMembersPresent(plan, wire) {
+		return ResolvedValue{}, false
+	}
 	decoded, valid := decodeJSONBody(plan, wire)
 	if !valid || !decodedJSONAllowed(plan, decoded, valueJSONValueDomain) {
 		return ResolvedValue{}, false
@@ -162,7 +165,15 @@ func decodeJSONObject(plan *valuePlanNode, wire jsontext.Value, result ResolvedV
 	sort.Strings(extras)
 	if plan.preserveAdditional {
 		for _, name := range extras {
-			result.node.fields = append(result.node.fields, ResolvedField{Name: name, Value: ResolvedValue{node: &resolvedValueNode{presence: ValuePresent, json: entries[name]}}})
+			child := ResolvedValue{node: &resolvedValueNode{presence: ValuePresent, json: entries[name]}}
+			if plan.additional != nil {
+				var valid bool
+				child, valid = decodeJSON(plan.additional, entries[name])
+				if !valid {
+					return ResolvedValue{}, false
+				}
+			}
+			result.node.fields = append(result.node.fields, ResolvedField{Name: name, Value: child})
 		}
 	}
 	return result, true

@@ -249,7 +249,8 @@ func (e *canonicalSchemaEncoder) writeObject(att *expr.AttributeExpr, object *ex
 	}
 	if additional := att.AdditionalAttributes; additional != nil {
 		e.writeString("typed-additional-properties")
-		e.writeAttribute(additional, closeObjects, e.captureInput(additional))
+		occurrence, _ := input.occurrence.Additional()
+		e.writeAttribute(additional, closeObjects, e.childInput(additional, occurrence))
 		// Typed schemas forbid the members usage pruning omitted.
 		omitted := usageOmittedMembers(att)
 		e.writeInt(len(omitted))

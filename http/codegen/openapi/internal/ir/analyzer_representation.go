@@ -230,6 +230,7 @@ func byteProjectionIdentity(attribute *expr.AttributeExpr, node expr.ValuePlanNo
 					}
 				}
 			}
+			add("additional", attribute.AdditionalAttributes, node.Additional())
 		case *expr.Union:
 			for _, branch := range typ.Values {
 				for _, target := range node.Branches() {

@@ -10,11 +10,12 @@ import (
 )
 
 // resolvedExtra is the result of resolving one undeclared member of an object
-// value, or of checking an absent required undeclared member when name is
-// empty.
+// value, or of checking an absent required undeclared member. Presence is
+// independent of name because the empty string is a valid undeclared key.
 type resolvedExtra struct {
-	name   string
-	result ValueResult
+	name    string
+	present bool
+	result  ValueResult
 }
 
 func (r *valueResolver) array(node *valueOccurrenceNode, raw any, complete bool) ValueResult {
@@ -77,7 +78,7 @@ func (r *valueResolver) object(node, owner *valueOccurrenceNode, raw any, comple
 	}
 	for _, extra := range extras {
 		children = append(children, extra.result)
-		if extra.name != "" {
+		if extra.present {
 			result.value.node.fields = append(result.value.node.fields, ResolvedField{Name: extra.name, Value: extra.result.value})
 		}
 	}
@@ -312,7 +313,7 @@ func (r *valueResolver) objectExtras(node, owner *valueOccurrenceNode, entries m
 		failure := valueFailure(ValueInvalid, "additional", "undeclared object members are not allowed")
 		return nil, &failure
 	}
-	extras := make([]resolvedExtra, 0, len(extraNames)+len(node.additionalRequired))
+	extras := make([]resolvedExtra, 0, len(extraNames)+len(owner.additionalRequired))
 	for _, name := range extraNames {
 		var child ValueResult
 		if node.additional != nil {
@@ -320,12 +321,12 @@ func (r *valueResolver) objectExtras(node, owner *valueOccurrenceNode, entries m
 		} else {
 			child = valueAtPath(r.raw(node, entries[name]), name)
 		}
-		extras = append(extras, resolvedExtra{name: name, result: child})
+		extras = append(extras, resolvedExtra{name: name, present: true, result: child})
 	}
 	if r.shapeNodes[owner] {
 		return extras, nil
 	}
-	for _, name := range node.additionalRequired {
+	for _, name := range owner.additionalRequired {
 		if _, present := entries[name]; present {
 			continue
 		}

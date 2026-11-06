@@ -24,6 +24,15 @@ type (
 		Child *JSONShape
 		// Fields are the visible object members in declaration order.
 		Fields []JSONShapeField
+		// Additional constrains every object member absent from Fields.
+		// A nil value leaves such members unconstrained unless Closed is set.
+		Additional *JSONShape
+		// ForbiddenMembers are declared members omitted from this representation.
+		// They may not reappear through Additional.
+		ForbiddenMembers []string
+		// RequiredMembers requires exact object keys at this occurrence,
+		// independently of whether its object shape is reached through an alias.
+		RequiredMembers []string
 		// Branches are the alternatives of an untagged union; exactly one must match.
 		Branches []*JSONShape
 		// Closed rejects object members absent from Fields.
@@ -106,6 +115,11 @@ func (s *JSONShape) validate(seen map[*JSONShape]bool) error {
 			}
 		}
 	case "object":
+		if s.Additional != nil {
+			if err := s.Additional.validate(seen); err != nil {
+				return err
+			}
+		}
 		names := make(map[string]bool)
 		for _, field := range s.Fields {
 			if names[field.Name] {
@@ -183,6 +197,9 @@ func (s *JSONShape) match(wire jsontext.Value, depth int) (bool, error) {
 	if wire.Kind() == 'n' && s.Nullable {
 		return true, nil
 	}
+	if matched, err := s.requiredMembers(wire); err != nil || !matched {
+		return matched, err
+	}
 	length := -1
 	switch s.Kind {
 	case "alias":
@@ -249,6 +266,25 @@ func (s *JSONShape) union(wire jsontext.Value, depth int) (bool, error) {
 	return s.rules(wire, -1)
 }
 
+func (s *JSONShape) requiredMembers(wire jsontext.Value) (bool, error) {
+	if len(s.RequiredMembers) == 0 {
+		return true, nil
+	}
+	if wire.Kind() != '{' {
+		return false, nil
+	}
+	var members map[string]jsontext.Value
+	if err := json.Unmarshal(wire, &members); err != nil {
+		return false, err
+	}
+	for _, name := range s.RequiredMembers {
+		if _, present := members[name]; !present {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
 func (s *JSONShape) object(wire jsontext.Value, depth int) (bool, error) {
 	if wire.Kind() != '{' {
 		return false, nil
@@ -256,6 +292,11 @@ func (s *JSONShape) object(wire jsontext.Value, depth int) (bool, error) {
 	var members map[string]jsontext.Value
 	if err := json.Unmarshal(wire, &members); err != nil {
 		return false, err
+	}
+	for _, name := range s.ForbiddenMembers {
+		if _, present := members[name]; present {
+			return false, nil
+		}
 	}
 	for _, field := range s.Fields {
 		child, present := members[field.Name]
@@ -271,7 +312,18 @@ func (s *JSONShape) object(wire jsontext.Value, depth int) (bool, error) {
 		}
 		delete(members, field.Name)
 	}
-	return !s.Closed || len(members) == 0, nil
+	if s.Closed && len(members) > 0 {
+		return false, nil
+	}
+	if s.Additional != nil {
+		for _, child := range members {
+			matched, err := s.Additional.match(child, depth+1)
+			if err != nil || !matched {
+				return matched, err
+			}
+		}
+	}
+	return true, nil
 }
 
 func (s *JSONShape) mapping(wire jsontext.Value, depth int) (bool, error) {

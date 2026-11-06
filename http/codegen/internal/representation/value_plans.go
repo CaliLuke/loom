@@ -223,5 +223,5 @@ func (b *httpValuePlanBuilder) object(attribute *expr.AttributeExpr, actual *exp
 			return err
 		}
 	}
-	return nil
+	return b.walk(attribute.AdditionalAttributes, context, false, reachable)
 }

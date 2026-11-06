@@ -458,6 +458,11 @@ when the value type permits it. A missing key is absent. When generated code
 encodes a value, a map key that equals a declared attribute name is an error,
 because the encoded object would contain that member twice.
 
+Typed additional members use the same JSON representation as declared properties
+and map values. `Bytes` values encode as base64 strings, and byte-length constraints
+apply to decoded bytes. Regenerate OpenAPI documents to correct schemas and
+examples for byte-valued additional members, including nested collections.
+
 After upgrading from generated structs that gave required undeclared members
 their own fields, regenerate clients and servers. Replace accesses such as
 `labels.Count` with `labels.AdditionalAttributes["count"]` and initialize that

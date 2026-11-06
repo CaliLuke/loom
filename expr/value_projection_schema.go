@@ -19,6 +19,9 @@ func schemaJSON(plan *valuePlanNode, wire jsontext.Value) (bool, error) {
 	if plan == nil {
 		return false, fmt.Errorf("missing JSON schema plan")
 	}
+	if !additionalMembersPresent(plan, wire) {
+		return false, nil
+	}
 	matched, err := schemaJSONBody(plan, wire)
 	if err != nil || !matched {
 		return matched, err
@@ -126,10 +129,17 @@ func schemaJSONObject(plan *valuePlanNode, wire jsontext.Value) (bool, error) {
 			return matched, err
 		}
 	}
-	if !plan.schemaUnknown {
-		for name := range entries {
-			if !known[name] {
-				return false, nil
+	for name, child := range entries {
+		if known[name] {
+			continue
+		}
+		if !plan.schemaUnknown {
+			return false, nil
+		}
+		if plan.additional != nil {
+			matched, err := schemaJSON(plan.additional, child)
+			if err != nil || !matched {
+				return matched, err
 			}
 		}
 	}
