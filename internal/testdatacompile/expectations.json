@@ -191,12 +191,6 @@
     "reason": "intentional validation failure",
     "stage": "dsl"
   },
-  "expr/EndpointOptionalRequestBodyWithMultipart": {
-    "contains": "service \"Service\" HTTP endpoint \"Method\": HTTP endpoint cannot use OptionalRequestBody with MultipartRequest.",
-    "phase": "gen",
-    "reason": "intentional validation failure",
-    "stage": "dsl"
-  },
   "expr/EndpointPayloadMissingRequired": {
     "contains": "service \"Service\" HTTP endpoint \"Method\": The following HTTP request body attribute is required but the corresponding method payload attribute is not: nonreq. Use 'Required' to make the attribute required in the method payload as well.",
     "phase": "gen",
@@ -210,19 +204,19 @@
     "stage": "dsl"
   },
   "expr/EndpointUnionCookie": {
-    "contains": "service \"Service\" HTTP endpoint \"Method\": cookie \"filter\": unions have no parameter codec",
+    "contains": "service \"Service\" HTTP endpoint \"Method\": cookie \"filter\": tagged unions have no parameter codec",
     "phase": "gen",
     "reason": "intentional validation failure",
     "stage": "dsl"
   },
   "expr/EndpointUnionHeader": {
-    "contains": "service \"Service\" HTTP endpoint \"Method\": header \"filter\": unions have no parameter codec",
+    "contains": "service \"Service\" HTTP endpoint \"Method\": header \"filter\": tagged unions have no parameter codec",
     "phase": "gen",
     "reason": "intentional validation failure",
     "stage": "dsl"
   },
   "expr/EndpointUnionQueryParam": {
-    "contains": "service \"Service\" HTTP endpoint \"Method\": query \"filter\": unions have no parameter codec",
+    "contains": "service \"Service\" HTTP endpoint \"Method\": query \"filter\": tagged unions have no parameter codec",
     "phase": "gen",
     "reason": "intentional validation failure",
     "stage": "dsl"
@@ -468,7 +462,7 @@
     "stage": "dsl"
   },
   "http/codegen/PayloadQueryAnyDSL": {
-    "contains": "value shape has no supported parameter codec",
+    "contains": "nullable values require a JSON codec",
     "phase": "gen",
     "reason": "intentional validation failure",
     "stage": "dsl"
@@ -492,7 +486,7 @@
     "stage": "dsl"
   },
   "http/codegen/ResultHeaderAnyDSL": {
-    "contains": "value shape has no supported parameter codec",
+    "contains": "nullable values require a JSON codec",
     "phase": "gen",
     "reason": "intentional validation failure",
     "stage": "dsl"
