@@ -41,13 +41,24 @@ func FormRequest() {
 }
 
 // OptionalRequestBody indicates that HTTP requests made to the method may omit
-// the JSON request body entirely or provide a typed JSON request body.
+// the request body entirely or provide a typed body. The body uses the
+// endpoint's request encoding: JSON by default, or the generated FormRequest or
+// MultipartRequest contract.
 //
 // OptionalRequestBody must appear in a HTTP endpoint expression.
 //
-// Loom generates EOF-tolerant request decoding only for the explicit
-// OptionalRequestBody contract shape so required-body endpoints retain their
-// current strict behavior.
+// The body must be an object, map, or union that the selected encoding
+// supports. A payload attribute selected with Body must be optional. JSON and
+// form object bodies built from payload attributes cannot require members;
+// generated multipart objects may, and those members apply only when a body is
+// supplied. Custom multipart codecs and SkipRequestBodyEncodeDecode cannot be
+// combined with OptionalRequestBody.
+//
+// Generated servers treat an empty or JSON-whitespace-only JSON body and a
+// zero-byte form or multipart body as absent. Supplied bodies, including empty
+// form value sets and empty multipart envelopes, are decoded and validated
+// normally, and malformed input remains an error. Required bodies retain their
+// strict behavior.
 func OptionalRequestBody() {
 	e, ok := eval.Current().(*expr.HTTPEndpointExpr)
 	if !ok {

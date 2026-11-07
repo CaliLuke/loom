@@ -534,10 +534,11 @@ Direct `loomhttp.ReadMultipartForm[WithLimit]` callers now consume the ordered
 repeated fields. The request's complete encoded source still counts toward the
 body limit, and callers retain ownership of `Body.Close`.
 
-### Optional JSON and Form Bodies
+### Optional Request Bodies
 
 Use `OptionalRequestBody` when an endpoint accepts either no body or a typed
-JSON object body. Form requests may also use it with object or map bodies:
+body. It applies to JSON bodies and to generated `FormRequest` and
+`MultipartRequest` bodies:
 
 ```go
 Method("search", func() {
@@ -554,16 +555,29 @@ Method("search", func() {
 })
 ```
 
-The optional body must be an object body, or a map when `FormRequest` is set.
-A body built from the payload attributes cannot contain required attributes; a
-body selected with `Body("name")` must come from an optional payload
-attribute. It cannot be combined with `MultipartRequest` or raw request body
-streaming. JSON decoders tolerate `io.EOF` only for endpoints that opt into
-`OptionalRequestBody`. A required form body decodes zero bytes as an empty
-value set, then applies its field validations. For an optional form body,
-zero bytes mean absence; nonempty input such as `&&` is a present empty value
-set even though it has no decoded keys. These rules apply to ordinary objects,
-maps and unions. Malformed input and validation errors still fail normally.
+The optional body must be an object, map or union that its media type supports.
+JSON accepts objects, maps and unions; a JSON object or map payload must
+declare its body with `Body`, while a union payload uses its root body. Form
+bodies follow the form contract above: objects, maps, tagged unions, and
+untagged unions whose alternatives are non-nullable objects or maps. Multipart
+bodies must use the generated contract described under Multipart Requests;
+explicit custom carrier contracts and other shapes that need multipart
+callbacks cannot be optional. A body selected with `Body("name")` must come
+from an optional payload attribute. For JSON and form, an object body built
+from the payload attributes cannot contain required attributes; an optional
+multipart object may retain required members, checked when the body is
+supplied. `OptionalRequestBody` cannot be combined with raw request body
+streaming.
+
+The built-in JSON decoder reports an empty body, or one containing only JSON
+whitespace, as end of input. An optional body treats that as absence; a
+required body rejects it with `missing_payload`. A required form body decodes
+zero bytes as an empty value set, then applies its field validations. For an
+optional form body, zero bytes mean absence; nonempty input such as `&&` is a
+present empty value set even though it has no decoded keys. An optional
+multipart body is absent only when it has zero bytes; an empty MIME envelope is
+supplied. These rules apply to ordinary objects, maps and unions. Malformed
+input and validation errors still fail normally.
 
 An object or constructor union selected with `Body("name")` from an optional
 payload attribute is optional with or without `OptionalRequestBody`. When the
