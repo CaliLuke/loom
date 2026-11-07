@@ -391,6 +391,8 @@ resolution and graph retention outside its Boolean assumptions.
 
 Schema reference siblings: [conjunction and declaration storage](../../../../internal/openapiimport/tla/reference_siblings/README.md), with rejection, replacement, mutation and occurrence-storage counterexamples.
 
+Importer example membership: [final-graph phase](../../../../internal/openapiimport/tla/example_membership/README.md), with read-time, reference-first, missing-target and stale-registry counterexamples.
+
 The [reusable-reference model](../../../../internal/openapiimport/tla/reusable_references/README.md)
 checks component identity, occurrence overlays, immutable definitions and bounded
 forward-reference/cycle admission across request bodies, responses and headers.

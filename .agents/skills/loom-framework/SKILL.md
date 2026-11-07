@@ -1382,6 +1382,18 @@ There is one DSL parser, one shared semantic IR, and one renderer.
   `example` when a plural group survives projection; never wrap schema values
   in media-level Example Objects. Keep the schema-examples model and import
   round-trip coverage aligned.
+  Importer example membership is one final-graph phase:
+  `analyzer.retainMemberExamples` runs after components, operations, oneOf
+  sibling checks and constructor promotion, before selection pruning. Reading
+  admits decoding, literals and metadata only and binds each example to its
+  authored owner schema (`exampleSource.owner`) plus its path. Normalization
+  copies keep that binding; a retained example must match its owner and the
+  schema that renders it. The matcher conjoins local assertions, `Ref`,
+  `Bases` and exact-one `oneOf` over `Document.Components.Schemas`; missing
+  targets never match. It also returns the object members those contributors
+  evaluated, so `UnionClosed` admits only members evaluated by the matching
+  branch; `TestExampleMembershipClosureProfiles` holds it to the existing
+  closure profiles. Keep the example-membership model aligned.
   Import carries schema/media provenance through `openapi:example:scope`;
   select each scope's group and representative before rendering. An entirely
   excluded group suppresses synthesis. Apply examples by replacement so repeated

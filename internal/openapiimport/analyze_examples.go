@@ -18,8 +18,8 @@ import (
 func (a *analyzer) mediaExamples(media *v3.MediaType, schema *Schema, path string) []Example {
 	var examples []Example
 	if media.Example != nil {
-		if value, ok := a.exampleValue(media.Example, schema, path+"/example"); ok {
-			examples = append(examples, Example{Value: value})
+		if value, ok := a.exampleValue(media.Example, path+"/example"); ok {
+			examples = append(examples, Example{Value: value, source: exampleSource{owner: schema, path: path + "/example"}})
 		}
 	}
 	for name, source := range media.Examples.FromOldest() {
@@ -61,6 +61,12 @@ func (a *analyzer) componentExample(name string, source *base.Example, path stri
 	if !ok {
 		return Example{}, false
 	}
+	// A reusable example has no schema owner. Its schema-less domain excludes
+	// only null, which needs no graph; each media use is checked later.
+	if example.Value == nil {
+		a.unsupported("examples", example.source.path, "null example requires a nullable schema")
+		return Example{}, false
+	}
 	example.ComponentName = name
 	return example, true
 }
@@ -89,10 +95,7 @@ func (a *analyzer) referencedExample(reference string, schema *Schema, path stri
 		a.unsupported("examples", path, fmt.Sprintf("example component %q does not resolve", name))
 		return Example{}, false
 	}
-	if !a.exampleCompatibleWithSchema(schema, example.Value, make(map[string]struct{})) {
-		a.unsupported("examples", path, "referenced example value is not compatible with its schema")
-		return Example{}, false
-	}
+	example.source = exampleSource{owner: schema, path: path, referenced: true}
 	return example, true
 }
 
@@ -128,34 +131,41 @@ func (a *analyzer) normalizedExample(source *base.Example, schema *Schema, path 
 		a.unsupported("examples", path, "example needs value or dataValue to preserve its typed meaning")
 		return Example{}, false
 	}
-	value, ok := a.exampleValue(node, schema, valuePath)
+	value, ok := a.exampleValue(node, valuePath)
 	if !ok {
 		return Example{}, false
 	}
 	return Example{
 		Summary: source.Summary, Description: source.Description, Value: value,
 		DataValue: dataValue, SerializedValue: source.SerializedValue,
+		source: exampleSource{owner: schema, path: valuePath},
 	}, true
 }
 
 func (a *analyzer) schemaExamples(schema *Schema, source *base.Schema, path string) {
 	if source.Example != nil {
-		if value, ok := a.exampleValue(source.Example, schema, path+"/example"); ok {
-			schema.Examples = append(schema.Examples, Example{Value: value, Scope: "schema"})
+		if value, ok := a.exampleValue(source.Example, path+"/example"); ok {
+			schema.Examples = append(schema.Examples, Example{
+				Value: value, Scope: "schema", source: exampleSource{owner: schema, path: path + "/example"},
+			})
 		}
 	}
 	for index, node := range source.Examples {
-		if value, ok := a.exampleValue(node, schema, fmt.Sprintf("%s/examples/%d", path, index)); ok {
+		examplePath := fmt.Sprintf("%s/examples/%d", path, index)
+		if value, ok := a.exampleValue(node, examplePath); ok {
 			schema.Examples = append(schema.Examples, Example{
-				Scope: "schema",
-				Name:  fmt.Sprintf("example-%d", index+1),
-				Value: value,
+				Scope:  "schema",
+				Name:   fmt.Sprintf("example-%d", index+1),
+				Value:  value,
+				source: exampleSource{owner: schema, path: examplePath},
 			})
 		}
 	}
 }
 
-func (a *analyzer) exampleValue(node *yaml.Node, schema *Schema, path string) (any, bool) {
+// exampleValue admits a decoded literal. Membership in its owner's value
+// domain is decided over the final graph by retainMemberExamples.
+func (a *analyzer) exampleValue(node *yaml.Node, path string) (any, bool) {
 	if node == nil {
 		return nil, false
 	}
@@ -165,133 +175,13 @@ func (a *analyzer) exampleValue(node *yaml.Node, schema *Schema, path string) (a
 		return nil, false
 	}
 	if value == nil {
-		if a.exampleCompatibleWithSchema(schema, nil, make(map[string]struct{})) {
-			return nil, true
-		}
-		a.unsupported("examples", path, "null example requires a nullable schema")
-		return nil, false
+		return nil, true
 	}
 	if _, err := exampleLiteral(value); err != nil {
 		a.unsupported("examples", path, err.Error())
 		return nil, false
 	}
-	if !a.exampleCompatibleWithSchema(schema, value, make(map[string]struct{})) {
-		a.unsupported("examples", path, "example value is not compatible with its schema")
-		return nil, false
-	}
 	return value, true
-}
-
-func (a *analyzer) exampleCompatibleWithSchema(schema *Schema, value any, seen map[string]struct{}) bool {
-	if schema == nil {
-		return value != nil
-	}
-	// Classification owns the unconstrained domain, which includes null. A
-	// missing type alone is not that domain.
-	if schema.Unconstrained {
-		return true
-	}
-	if value == nil && schema.Nullable {
-		return true
-	}
-	if schema.Ref != "" {
-		return a.referencedSchemaExampleCompatible(schema.Ref, value, seen)
-	}
-	// Null is a union member only through exactly one branch, like any value.
-	if len(schema.OneOf) > 0 {
-		return a.oneOfExampleCompatible(schema.OneOf, value, seen)
-	}
-	if value == nil {
-		return false
-	}
-	if !normalizedExampleValidationMatches(schema, value) {
-		return false
-	}
-	return a.exampleTypeCompatible(schema, value)
-}
-
-func (a *analyzer) referencedSchemaExampleCompatible(ref string, value any, seen map[string]struct{}) bool {
-	name, err := openapiref.Name(ref, "#/components/schemas/")
-	if err != nil {
-		return false
-	}
-	if _, exists := seen[name]; exists {
-		return false
-	}
-	resolved, ok := a.schemas[name]
-	if !ok || resolved == nil {
-		return true
-	}
-	seen[name] = struct{}{}
-	matched := a.exampleCompatibleWithSchema(resolved, value, seen)
-	delete(seen, name)
-	return matched
-}
-
-func (a *analyzer) oneOfExampleCompatible(branches []*Schema, value any, seen map[string]struct{}) bool {
-	matches := 0
-	for _, branch := range branches {
-		if a.exampleCompatibleWithSchema(branch, value, seen) {
-			matches++
-		}
-	}
-	return matches == 1
-}
-
-func (a *analyzer) exampleTypeCompatible(schema *Schema, value any) bool {
-	switch schema.Type {
-	case "string":
-		_, ok := value.(string)
-		return ok
-	case "boolean":
-		_, ok := value.(bool)
-		return ok
-	case "integer":
-		return isExampleInteger(value)
-	case "number":
-		return isExampleInteger(value) || isExampleFloat(value)
-	case "array":
-		values, ok := value.([]any)
-		if !ok {
-			return false
-		}
-		for _, item := range values {
-			if !a.exampleCompatibleWithSchema(schema.Items, item, make(map[string]struct{})) {
-				return false
-			}
-		}
-		return true
-	case "object":
-		return a.exampleObjectCompatible(schema, value)
-	default:
-		return false
-	}
-}
-
-func (a *analyzer) exampleObjectCompatible(schema *Schema, value any) bool {
-	values, ok := value.(map[string]any)
-	if !ok {
-		return false
-	}
-	properties := make(map[string]*Schema, len(schema.Properties))
-	for _, property := range schema.Properties {
-		properties[property.Name] = property.Schema
-	}
-	for _, name := range schema.Required {
-		if _, ok := values[name]; !ok {
-			return false
-		}
-	}
-	for name, item := range values {
-		property, defined := properties[name]
-		if defined && !a.exampleCompatibleWithSchema(property, item, make(map[string]struct{})) {
-			return false
-		}
-		if !defined && schema.AdditionalProperties != nil && schema.AdditionalProperties.Allowed != nil && !*schema.AdditionalProperties.Allowed {
-			return false
-		}
-	}
-	return true
 }
 
 func normalizedExampleValidationMatches(schema *Schema, value any) bool {

@@ -441,6 +441,8 @@ type Example struct {
 	SerializedValue string
 	// Value is the decoded example value.
 	Value any
+	// source binds the example to its authored owner and source location.
+	source exampleSource
 }
 
 // SchemaDefault holds a decoded JSON Schema default value together with its

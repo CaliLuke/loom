@@ -226,6 +226,24 @@ Loom preserves supported forms of:
   `readOnly`, and `writeOnly`
 - JSON-compatible `x-*` extensions
 
+An example is kept only when its value belongs to the complete normalized
+schema that carries it: every local assertion, the referenced target, each
+inherited object base and exactly one `oneOf` branch. This holds for schema,
+media and referenced component examples regardless of component declaration
+order, including recursive and promoted object schemas. Reference siblings such
+as `minLength` beside `$ref` constrain the example in addition to the target.
+Null belongs only through a nullable type, a nullable wrapper such as
+`anyOf: [{$ref: ...}, {type: 'null'}]`, a nullable target, or exactly one
+`oneOf` branch. An example keeps the domain of the schema it was authored on
+when normalization flattens that schema: `example: null` on the string branch
+of `anyOf: [{type: string}, {type: 'null'}]` is rejected, while the same
+example on the wrapper is kept. A closed `oneOf` (`unevaluatedProperties:
+false`) keeps an object example only when the single matching branch evaluated
+every member: its declared properties, explicit `additionalProperties`, or the
+properties of its references and inherited bases. A property declared only by a
+non-matching branch does not count. Other examples receive a lossy `examples`
+diagnostic at their authored location and are omitted with `--allow-lossy`.
+
 Imported patterns must preserve ECMAScript acceptance in Loom's Go validators.
 The portable subset supports ordinary BMP Unicode literals, positive character
 classes, groups, alternatives, quantifiers, anchors, ASCII digit/word classes and

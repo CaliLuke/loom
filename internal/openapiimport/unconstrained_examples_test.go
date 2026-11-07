@@ -205,7 +205,7 @@ paths:
 func TestUnconstrainedExampleMatcher(t *testing.T) {
 	accepted, rejected := true, false
 	values := []any{map[string]any{"preserved": true}, []any{"x", nil}, "value", 1, 1.5, true, nil}
-	analyzer := &analyzer{}
+	graph := &exampleGraph{}
 	for _, tc := range []struct {
 		name   string
 		schema *Schema
@@ -220,7 +220,7 @@ func TestUnconstrainedExampleMatcher(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			for _, value := range values {
-				if got := analyzer.exampleCompatibleWithSchema(tc.schema, value, make(map[string]struct{})); got != tc.want {
+				if got, _ := graph.member(tc.schema, value, make(map[string]struct{})); got != tc.want {
 					t.Errorf("value %#v: got %t, want %t", value, got, tc.want)
 				}
 			}
@@ -236,7 +236,7 @@ func TestUnconstrainedExampleMatcher(t *testing.T) {
 		{value: 1, want: true},
 		{value: "value", want: false},
 	} {
-		if got := analyzer.exampleCompatibleWithSchema(union, tc.value, make(map[string]struct{})); got != tc.want {
+		if got, _ := graph.member(union, tc.value, make(map[string]struct{})); got != tc.want {
 			t.Errorf("oneOf value %#v: got %t, want %t", tc.value, got, tc.want)
 		}
 	}

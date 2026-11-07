@@ -183,6 +183,7 @@ func (a *analyzer) document(source *v3.Document) *Document {
 	a.prepareObjectConstructors(document)
 	assignSchemaNames(document.Components.Schemas)
 	assignSecuritySchemeNames(document.Components.SecuritySchemes, document.Components.Schemas)
+	a.retainMemberExamples(document)
 	return document
 }
 
@@ -239,28 +240,10 @@ func (a *analyzer) components(source *v3.Components) Components {
 }
 
 func (a *analyzer) componentSchemas(source *v3.Components) []NamedSchema {
-	type namedSchemaSource struct {
-		name   string
-		schema *base.SchemaProxy
-	}
-	sources := make([]namedSchemaSource, 0, orderedmap.Len(source.Schemas))
+	result := make([]NamedSchema, 0, orderedmap.Len(source.Schemas))
 	for name, schema := range source.Schemas.FromOldest() {
-		sources = append(sources, namedSchemaSource{name: name, schema: schema})
-	}
-	// Normalize non-oneOf components first so untagged-union examples can
-	// validate referenced branches regardless of source declaration order.
-	for _, oneOfPass := range []bool{false, true} {
-		for _, named := range sources {
-			sourceSchema := named.schema.Schema()
-			hasOneOf := sourceSchema != nil && len(sourceSchema.OneOf) > 0
-			if hasOneOf == oneOfPass {
-				a.schemas[named.name] = a.schema(named.schema, "#/components/schemas/"+escapeJSONPointer(named.name))
-			}
-		}
-	}
-	result := make([]NamedSchema, 0, len(sources))
-	for _, named := range sources {
-		result = append(result, NamedSchema{Name: named.name, Schema: a.schemas[named.name]})
+		a.schemas[name] = a.schema(schema, "#/components/schemas/"+escapeJSONPointer(name))
+		result = append(result, NamedSchema{Name: name, Schema: a.schemas[name]})
 	}
 	return result
 }
