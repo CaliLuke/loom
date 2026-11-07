@@ -307,19 +307,23 @@ func (b *payloadBuilder) buildMapQueryParam() *ParamData {
 				}
 			}
 		}
+		fieldType := attr.Type
+		attr = makeHTTPType(attr)
 		varName, locals := b.vars.allocate(codegen.Goify(param.Name, false), isMapQueryLocal)
 		defaultValue, _ := selectedTransportConstraints(attr).Default()
 		return &ParamData{
 			MapQueryParams: param.MapQueryParams,
 			Map:            expr.AsMap(b.payload.Type) != nil,
 			Element: &Element{
-				HTTPName: param.HTTPName,
-				Codec:    param.Codec,
+				attribute: attr,
+				context:   ctx,
+				HTTPName:  param.HTTPName,
+				Codec:     param.Codec,
 				AttributeData: &AttributeData{
 					Name:         param.Name,
 					VarName:      varName,
 					FieldName:    fieldName,
-					FieldType:    attr.Type,
+					FieldType:    fieldType,
 					Required:     param.Required,
 					Type:         attr.Type,
 					TypeName:     b.sd.Scope.GoTypeName(attr),
@@ -587,16 +591,16 @@ func (b *payloadBuilder) buildTransformCode(requestData *RequestData) (codegen.T
 			b.sd.ClientTransformHelpers = codegen.AppendHelpers(b.sd.ClientTransformHelpers, clientCode.Helpers)
 		}
 	} else if expr.IsArray(b.payload.Type) || expr.IsMap(b.payload.Type) {
-		if sourceParam, source := b.collectionPayloadSource(requestData); sourceParam != nil {
+		if source := collectionPayloadSource(requestData); source != nil {
 			var err error
-			serverCode, err = unmarshal(sourceParam, b.payload, source, b.httpsvrctx, b.svcctx)
+			serverCode, err = unmarshal(source.attribute, b.payload, source.VarName, source.context, b.svcctx)
 			if err != nil {
-				panic(codegen.NewError(b.sds.Ctx, sourceParam, fmt.Errorf("build HTTP server collection payload transform for %s: %w", b.endpointIR.MethodName, err)))
+				panic(codegen.NewError(b.sds.Ctx, source.attribute, fmt.Errorf("build HTTP server collection payload transform for %s: %w", b.endpointIR.MethodName, err)))
 			}
 			b.sd.ServerTransformHelpers = codegen.AppendHelpers(b.sd.ServerTransformHelpers, serverCode.Helpers)
-			clientCode, err = marshal(sourceParam, b.payload, source, "v", b.httpclictx, b.svcctx)
+			clientCode, err = marshal(source.attribute, b.payload, source.VarName, "v", source.context, b.svcctx)
 			if err != nil {
-				panic(codegen.NewError(b.sds.Ctx, sourceParam, fmt.Errorf("build HTTP client collection payload transform for %s: %w", b.endpointIR.MethodName, err)))
+				panic(codegen.NewError(b.sds.Ctx, source.attribute, fmt.Errorf("build HTTP client collection payload transform for %s: %w", b.endpointIR.MethodName, err)))
 			}
 			b.sd.ClientTransformHelpers = codegen.AppendHelpers(b.sd.ClientTransformHelpers, clientCode.Helpers)
 		}
@@ -604,26 +608,21 @@ func (b *payloadBuilder) buildTransformCode(requestData *RequestData) (codegen.T
 	return serverCode, clientCode, pointer, unionValue
 }
 
-// collectionPayloadSource selects the decoded transport collection used by a
-// bodyless whole-payload constructor. Its type must match the constructor
-// argument, including alias removal for ordinary parameters and headers.
-func (b *payloadBuilder) collectionPayloadSource(data *RequestData) (*expr.AttributeExpr, string) {
-	request := b.endpointIR.Request
+// collectionPayloadSource selects the prepared transport collection used by a
+// bodyless whole-payload constructor. Its attribute and physical context own
+// the declared argument, validation and conversion into the service payload.
+func collectionPayloadSource(data *RequestData) *Element {
 	switch {
 	case len(data.PathParams) > 0:
-		return makeHTTPType(request.PathParams[0].Attribute), data.PathParams[0].VarName
+		return data.PathParams[0].Element
 	case len(data.QueryParams) > 0:
-		param := request.QueryParams[0]
-		if param.MapQueryParams != nil {
-			return param.Attribute, data.QueryParams[0].VarName
-		}
-		return makeHTTPType(param.Attribute), data.QueryParams[0].VarName
+		return data.QueryParams[0].Element
 	case len(data.Headers) > 0:
-		return makeHTTPMappedType(request.Headers[0].Attribute, b.payload), data.Headers[0].VarName
+		return data.Headers[0].Element
 	case len(data.Cookies) > 0:
-		return data.Cookies[0].attribute, data.Cookies[0].VarName
+		return data.Cookies[0].Element
 	default:
-		return nil, ""
+		return nil
 	}
 }
 

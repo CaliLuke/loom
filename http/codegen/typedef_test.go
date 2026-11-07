@@ -194,6 +194,7 @@ func TestGoBodyTypeRefUsesJSONPresenceForNestedArrayElements(t *testing.T) {
 	scope := codegen.NewNameScope()
 	context := codegen.NewAttributeContext(true, false, false, "", scope)
 	context.JSONPresence = true
+	context.CollectionElementPresence = true
 	tests := []struct {
 		name      string
 		attribute *expr.AttributeExpr
