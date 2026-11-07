@@ -11,7 +11,7 @@ func DecodeMethodTagMultipleViewsResponse(decoder func(*http.Response) loomhttp.
 					body MethodTagMultipleViewsAcceptedResponseBody
 					err  error
 				)
-				err = decoder(resp).Decode(&body)
+				err = decoder(loomhttp.WithNonNullableResponseBody(resp)).Decode(&body)
 				if err != nil {
 					return nil, loomhttp.ErrDecodingError("ServiceTagMultipleViews", "MethodTagMultipleViews", err)
 				}
@@ -44,7 +44,7 @@ func DecodeMethodTagMultipleViewsResponse(decoder func(*http.Response) loomhttp.
 					body MethodTagMultipleViewsOKResponseBody
 					err  error
 				)
-				err = decoder(resp).Decode(&body)
+				err = decoder(loomhttp.WithNonNullableResponseBody(resp)).Decode(&body)
 				if err != nil {
 					return nil, loomhttp.ErrDecodingError("ServiceTagMultipleViews", "MethodTagMultipleViews", err)
 				}

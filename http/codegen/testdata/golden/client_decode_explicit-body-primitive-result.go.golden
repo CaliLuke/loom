@@ -12,7 +12,7 @@ func DecodeMethodExplicitBodyPrimitiveResultMultipleViewResponse(decoder func(*h
 					body string
 					err  error
 				)
-				err = decoder(resp).Decode(&body)
+				err = decoder(loomhttp.WithNonNullableResponseBody(resp)).Decode(&body)
 				if err != nil {
 					return nil, loomhttp.ErrDecodingError("ServiceExplicitBodyPrimitiveResultMultipleView", "MethodExplicitBodyPrimitiveResultMultipleView", err)
 				}

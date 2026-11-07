@@ -169,6 +169,11 @@ type (
 		// ValueRef is the Go type used for a transport body value. It differs
 		// from VarName when the declared body type has semantic presence.
 		ValueRef string
+		// AllowsNull reports whether generated response decoders admit a
+		// top-level JSON null for this body occurrence. It reflects the body's
+		// own null admission; parent nullability and optionality of a selected
+		// field do not extend it. Request bodies use RequestData.BodyAllowsNull.
+		AllowsNull bool
 		// validationFunction is the resolved callable for the complete definition.
 		validationFunction codegen.ValidationFunction
 		// ValidateDef contains the validation code.

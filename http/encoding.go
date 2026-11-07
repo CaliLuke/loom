@@ -257,6 +257,9 @@ func (je *jsonEncoder) GetBody() (io.ReadCloser, error) {
 //   - application/xml using package encoding/xml
 //   - application/gob using package encoding/gob
 //   - text/html and text/plain for strings
+//
+// JSON decoding rejects a top-level null for responses returned by
+// WithNonNullableResponseBody.
 func ResponseDecoder(resp *http.Response) Decoder {
 	if resp.Request != nil && mediaContractContext(resp.Request.Context()) {
 		rejectNull, _ := resp.Request.Context().Value(nonNullableBodyKey{}).(bool)
@@ -271,7 +274,13 @@ func ResponseDecoder(resp *http.Response) Decoder {
 	case httpcodec.Text:
 		return newTextDecoder(resp.Body, selected.Media, decodeResponse, DefaultMaxRequestBodyBytes)
 	default:
-		return newLimitedDecoder(resp.Body, decodeJSON, decodeResponse, DefaultMaxRequestBodyBytes)
+		decode := decodeJSON
+		if resp.Request != nil {
+			if rejectNull, _ := resp.Request.Context().Value(nonNullableBodyKey{}).(bool); rejectNull {
+				decode = decodeNonNullableJSON
+			}
+		}
+		return newLimitedDecoder(resp.Body, decode, decodeResponse, DefaultMaxRequestBodyBytes)
 	}
 }
 
@@ -409,7 +418,11 @@ func (d *limitedDecoder) Decode(v any) error {
 	if err != nil {
 		return requestBodyDecodeError(err, d.mode)
 	}
-	return d.decode(b, v)
+	err = d.decode(b, v)
+	if d.mode == decodeResponse && errors.Is(err, errNullRequestBody) {
+		return errNullResponseBody
+	}
+	return err
 }
 
 func (e *textDecoder) Decode(v any) error {

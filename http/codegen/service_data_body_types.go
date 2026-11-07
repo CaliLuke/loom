@@ -195,6 +195,13 @@ func requestBodyRequired(body, att *expr.AttributeExpr) bool {
 	return att.IsRequired(originKey(att, origin))
 }
 
+// bodyAllowsNull reports whether a body occurrence admits a top-level JSON
+// null: its DSL type does, or its explicit-presence carrier, such as an
+// authored nullable Go type, owns null decoding.
+func bodyAllowsNull(body *expr.AttributeExpr) bool {
+	return expr.AllowsNull(body) || codegen.IsExplicitPresenceType(body)
+}
+
 // originKey returns the object key of the attribute of parent that a body or
 // field selected by the attribute name origin holds, such as "v:x" for "v",
 // or origin when parent has no such attribute. Requiredness, defaults and
@@ -271,6 +278,7 @@ func (sds *ServicesData) buildResponseBodyType(body, att *expr.AttributeExpr, lo
 		Def:                data.def,
 		Ref:                data.ref,
 		ValueRef:           bodyValueRef(sd.Scope, body, data.varName, httpctx),
+		AllowsNull:         bodyAllowsNull(body),
 		Init:               init,
 		ValidateDef:        data.validateDef,
 		validationFunction: codegen.NamedValidationFunction(body, httpctx, "body"),

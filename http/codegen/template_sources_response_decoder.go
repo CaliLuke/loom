@@ -183,7 +183,7 @@ err = loomhttp.DecodeMediaResponse(&mediaResponse, &mediaValue, {{ .AllowsNull }
                 }
             }
             {{- else }}
-			err = decoder(resp).Decode(&body)
+			err = decoder({{ if .ClientBody.AllowsNull }}resp{{ else }}loomhttp.WithNonNullableResponseBody(resp){{ end }}).Decode(&body)
             {{- end }}
 			if err != nil {
 				return nil, loomhttp.ErrDecodingError("{{ $.ServiceName }}", "{{ $.Method.Name }}", err)

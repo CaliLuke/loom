@@ -43,7 +43,7 @@ func DecodeTickResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBo
 					body TickResponseBody
 					err  error
 				)
-				err = decoder(resp).Decode(&body)
+				err = decoder(loomhttp.WithNonNullableResponseBody(resp)).Decode(&body)
 				if err != nil {
 					return nil, loomhttp.ErrDecodingError("clock", "Tick", err)
 				}
@@ -91,7 +91,7 @@ func DecodeTockResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBo
 					body TockResponseBody
 					err  error
 				)
-				err = decoder(resp).Decode(&body)
+				err = decoder(loomhttp.WithNonNullableResponseBody(resp)).Decode(&body)
 				if err != nil {
 					return nil, loomhttp.ErrDecodingError("clock", "Tock", err)
 				}
@@ -159,7 +159,7 @@ func DecodeGuardedResponse(decoder func(*http.Response) loomhttp.Decoder, restor
 					body GuardedResponseBody
 					err  error
 				)
-				err = decoder(resp).Decode(&body)
+				err = decoder(loomhttp.WithNonNullableResponseBody(resp)).Decode(&body)
 				if err != nil {
 					return nil, loomhttp.ErrDecodingError("clock", "Guarded", err)
 				}
@@ -174,7 +174,7 @@ func DecodeGuardedResponse(decoder func(*http.Response) loomhttp.Decoder, restor
 					body GuardedUnauthorizedResponseBody
 					err  error
 				)
-				err = decoder(resp).Decode(&body)
+				err = decoder(loomhttp.WithNonNullableResponseBody(resp)).Decode(&body)
 				if err != nil {
 					return nil, loomhttp.ErrDecodingError("clock", "Guarded", err)
 				}

@@ -11,7 +11,7 @@ func DecodeMethodBodyMultipleViewResponse(decoder func(*http.Response) loomhttp.
 					body MethodBodyMultipleViewResponseBody
 					err  error
 				)
-				err = decoder(resp).Decode(&body)
+				err = decoder(loomhttp.WithNonNullableResponseBody(resp)).Decode(&body)
 				if err != nil {
 					return nil, loomhttp.ErrDecodingError("ServiceBodyMultipleView", "MethodBodyMultipleView", err)
 				}

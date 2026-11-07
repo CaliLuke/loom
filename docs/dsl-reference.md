@@ -129,6 +129,15 @@ including nullable collection items. Form and multipart roots must remain
 non-nullable; optional body absence is a separate contract. gRPC messages
 reject nullable shapes, with unconstrained `Any` as the exception.
 
+Generated HTTP clients reject a top-level JSON `null` response when the body
+contract is non-nullable, for both success and error responses. With
+`Body("field")`, nullability belongs to the selected field: making that field
+optional in its parent, or making the parent nullable, does not admit a null
+response. A selected nullable field can contain null. Custom decoder factories
+remain responsible for enforcing their declared body contract. Regenerate HTTP
+clients after upgrading to adopt this correction; previously a non-nullable
+null response could become a zero value instead of a decoding error.
+
 An HTTP WebSocket `StreamingPayload` cannot have a nullable root: a JSON `null`
 frame signals end of client input. Put nullable values in fields of a non-null
 payload object instead. Nullable fields, array elements, and map values inside

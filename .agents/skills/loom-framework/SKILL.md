@@ -2848,6 +2848,13 @@ filter, and serialization rules belong here.
   bodies. The built-in JSON decoder rejects root null before unmarshalling;
   optionality still controls EOF independently. Custom decoder factories own
   their codec contract.
+- Generated HTTP client response decoders apply the same policy per body
+  occurrence: `TypeData.AllowsNull` comes from the shared `bodyAllowsNull`
+  predicate at the emitted (possibly selected) body. Neither a nullable parent
+  nor optionality of the selected field licenses null for that body: optionality
+  controls absence and Nullable controls present null. Non-nullable ordinary
+  bodies pass `http.WithNonNullableResponseBody`, a shallow copy of the response
+  and request; media variants keep `DecodeMediaResponse` and their branch policy.
 - Projected collection view validation checks nil elements before calling the
   element validator. Reject non-nullable elements with an indexed error and
   skip validation of nullable nil elements.
