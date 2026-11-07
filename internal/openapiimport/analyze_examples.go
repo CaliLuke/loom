@@ -186,17 +186,23 @@ func (a *analyzer) exampleCompatibleWithSchema(schema *Schema, value any, seen m
 	if schema == nil {
 		return value != nil
 	}
+	// Classification owns the unconstrained domain, which includes null. A
+	// missing type alone is not that domain.
+	if schema.Unconstrained {
+		return true
+	}
 	if value == nil && schema.Nullable {
 		return true
 	}
 	if schema.Ref != "" {
 		return a.referencedSchemaExampleCompatible(schema.Ref, value, seen)
 	}
-	if value == nil {
-		return false
-	}
+	// Null is a union member only through exactly one branch, like any value.
 	if len(schema.OneOf) > 0 {
 		return a.oneOfExampleCompatible(schema.OneOf, value, seen)
+	}
+	if value == nil {
+		return false
 	}
 	if !normalizedExampleValidationMatches(schema, value) {
 		return false

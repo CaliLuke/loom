@@ -590,7 +590,6 @@ func (a *analyzer) schemaSource(source *base.Schema, path string) *Schema {
 	}
 	schema.sourceType = sourceEncodingType(source, make(map[*base.Schema]bool))
 	a.schemaDefault(schema, source, path)
-	a.schemaExamples(schema, source, path)
 	a.schemaFormat(schema, path)
 	a.schemaUnsupportedKeywords(
 		schema,
@@ -600,8 +599,10 @@ func (a *analyzer) schemaSource(source *base.Schema, path string) *Schema {
 		supportedNullableComposition,
 		supportedUntaggedOneOf,
 	)
-	a.schemaAnnotations(schema, source, path)
+	// Examples are members of the classified value domain.
 	schema.Unconstrained = isUnconstrainedSchema(schema)
+	a.schemaExamples(schema, source, path)
+	a.schemaAnnotations(schema, source, path)
 	return schema
 }
 
