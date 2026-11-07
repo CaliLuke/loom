@@ -15,6 +15,8 @@ type (
 		// DSLFunc contains the DSL used to initialize the expression.
 		eval.DSLFunc
 		declarationDSL func()
+		// template retains authoring provenance until effective publication.
+		template *attributeTemplate
 		// declarationFields preserves immutable physical field facts when a
 		// mapped projection removes a named edge. Semantic refinements remain
 		// on this occurrence and must not redefine the copied storage.
@@ -306,6 +308,10 @@ func (a *AttributeExpr) EvalName() string {
 // SetTitle sets the JSON Schema title for the attribute.
 func (a *AttributeExpr) SetTitle(title string) {
 	a.Title = title
+	if local := a.templateLocal(); local != nil {
+		local.Title = title
+		a.template.titleSet = true
+	}
 }
 
 // Finalize merges base and reference type attributes and finalizes the Type
@@ -554,6 +560,12 @@ func (a *AttributeExpr) AddMeta(name string, vals ...string) {
 		a.Meta = make(MetaExpr)
 	}
 	a.Meta[name] = append(a.Meta[name], vals...)
+	if local := a.templateLocal(); local != nil {
+		if local.Meta == nil {
+			local.Meta = make(MetaExpr)
+		}
+		local.Meta[name] = append(local.Meta[name], vals...)
+	}
 }
 
 // DeleteMeta removes the metadata entry with the given name.
@@ -563,6 +575,13 @@ func (a *AttributeExpr) DeleteMeta(name string) {
 	}
 	a.removedMeta[name] = true
 	delete(a.Meta, name)
+	if local := a.templateLocal(); local != nil {
+		if local.removedMeta == nil {
+			local.removedMeta = make(map[string]bool)
+		}
+		local.removedMeta[name] = true
+		delete(local.Meta, name)
+	}
 }
 
 // ExtractUserExamples return the examples defined in the design directly on the

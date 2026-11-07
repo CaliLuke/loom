@@ -40,7 +40,7 @@ func renderFormContentBranches(out *strings.Builder, element *Element, union *ex
 			renderFormContentBranches(out, element, nested, codec.Branches, id+"_")
 			fmt.Fprintf(out, "var path%s []int\nbranch%s := loomhttp.ComposeTextUnion(%s, branches%s_, %t, func(matched int) (bool, error) {\n", id, id, parameterWireName(element), id, branch.Attribute.UnionClosed())
 			if pointer {
-				fmt.Fprintf(out, "candidate%s = new(%s)\n", id, context.Scope.Name(branch.Attribute, context.Pkg(branch.Attribute), false, false))
+				fmt.Fprintf(out, "candidate%s = new(%s)\n", id, context.Scope.Name(branch.Attribute, context.Pkg(branch.Attribute), &codegen.AttributeContext{}))
 			}
 			fmt.Fprintf(out, "path%s = []int{matched}\n", id)
 			renderTextUnionSelection(out, nested, "candidate"+id, "path"+id, id+"_")

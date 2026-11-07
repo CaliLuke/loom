@@ -132,7 +132,7 @@ func transformAttribute(source, target *expr.AttributeExpr, sourceVar, targetVar
 	if ta.proto {
 		if isUnionMessage(target) {
 			ta = dupTransformAttrs(ta)
-			ta.message = ta.TargetCtx.Scope.Name(target, ta.TargetCtx.Pkg(target), false, false)
+			ta.message = ta.TargetCtx.Scope.Name(target, ta.TargetCtx.Pkg(target), &codegen.AttributeContext{})
 		}
 	} else {
 		if isUnionMessage(source) {
@@ -143,7 +143,7 @@ func transformAttribute(source, target *expr.AttributeExpr, sourceVar, targetVar
 
 	if err := protoMessageCompatible(source.Type, target.Type, sourceVar, targetVar); err != nil {
 		if ta.proto {
-			name := ta.TargetCtx.Scope.Name(target, ta.TargetCtx.Pkg(target), ta.TargetCtx.Pointer, ta.TargetCtx.UseDefault)
+			name := ta.TargetCtx.Scope.Name(target, ta.TargetCtx.Pkg(target), ta.TargetCtx)
 			initCode += renderJenLine(exprCode(targetVar).Op(":=").Op("&").Id(name).Values())
 			ta = wrappedUnionTransformAttrs(target, ta)
 			targetVar += "." + wrapperGoFieldName(target)
@@ -237,7 +237,7 @@ func transformObject(source, target *expr.AttributeExpr, sourceVar, targetVar st
 	if newVar {
 		assign = ":="
 	}
-	tname := ta.TargetCtx.Scope.Name(target, ta.TargetCtx.Pkg(target), ta.TargetCtx.Pointer, ta.TargetCtx.UseDefault)
+	tname := ta.TargetCtx.Scope.Name(target, ta.TargetCtx.Pkg(target), ta.TargetCtx)
 	fmt.Fprintf(buffer, "%s %s &%s{%s}\n", targetVar, assign, tname, initCode)
 	fmt.Fprint(buffer, postInitCode)
 
@@ -374,7 +374,7 @@ func compatibleTransformAttrs(srcc, tgtc *expr.AttributeExpr, ta *transformAttrs
 		return srcc, tgtc, nil
 	}
 	if ta.proto {
-		ta.targetInit = ta.TargetCtx.Scope.Name(tgtc, ta.TargetCtx.Pkg(tgtc), ta.TargetCtx.Pointer, ta.TargetCtx.UseDefault)
+		ta.targetInit = ta.TargetCtx.Scope.Name(tgtc, ta.TargetCtx.Pkg(tgtc), ta.TargetCtx)
 		tgtc = unwrapAttr(tgtc)
 	} else {
 		srcc = unwrapAttr(srcc)

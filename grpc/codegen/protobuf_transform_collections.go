@@ -76,7 +76,7 @@ func transformArrayElementAttrs(src, tgt *expr.AttributeExpr, ta *transformAttrs
 		return src, tgt, nil
 	}
 	if ta.proto {
-		ta.targetInit = ta.TargetCtx.Scope.Name(tgt, ta.TargetCtx.Pkg(tgt), ta.TargetCtx.Pointer, ta.TargetCtx.UseDefault)
+		ta.targetInit = ta.TargetCtx.Scope.Name(tgt, ta.TargetCtx.Pkg(tgt), ta.TargetCtx)
 		tgt = unwrapAttr(expr.DupAtt(tgt))
 	} else {
 		src = unwrapAttr(expr.DupAtt(src))
@@ -201,7 +201,7 @@ func collectionElemTypeRef(att *expr.AttributeExpr, ta *transformAttrs) string {
 	case *expr.Map:
 		return "map[" + ta.TargetCtx.Scope.Ref(actual.KeyType, ta.TargetCtx.Pkg(actual.KeyType)) + "]" + collectionElemTypeRef(actual.ElemType, ta)
 	default:
-		return "*" + ta.TargetCtx.Scope.Name(att, ta.TargetCtx.Pkg(att), ta.TargetCtx.Pointer, ta.TargetCtx.UseDefault)
+		return "*" + ta.TargetCtx.Scope.Name(att, ta.TargetCtx.Pkg(att), ta.TargetCtx)
 	}
 }
 
@@ -250,7 +250,7 @@ func transformMapElementAttrs(source, target *expr.Map, ta *transformAttrs) (*ex
 		return src, tgt, nil
 	}
 	if ta.proto {
-		ta.targetInit = ta.TargetCtx.Scope.Name(tgt, ta.TargetCtx.Pkg(tgt), ta.TargetCtx.Pointer, ta.TargetCtx.UseDefault)
+		ta.targetInit = ta.TargetCtx.Scope.Name(tgt, ta.TargetCtx.Pkg(tgt), ta.TargetCtx)
 		tgt = unwrapAttr(expr.DupAtt(tgt))
 	} else {
 		src = unwrapAttr(expr.DupAtt(src))
@@ -380,7 +380,7 @@ func transformUnionFromProto(source, target *expr.AttributeExpr, sourceVar, targ
 	}
 	init := targetVar
 	if targetPtr {
-		init = renderJen(jen.Op("&").Add(exprCode(ta.TargetCtx.Scope.Name(target, ta.TargetCtx.Pkg(target), false, false))).Values())
+		init = renderJen(jen.Op("&").Add(exprCode(ta.TargetCtx.Scope.Name(target, ta.TargetCtx.Pkg(target), &codegen.AttributeContext{}))).Values())
 	}
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "switch val := %s.(type) {\n", sourceVar)

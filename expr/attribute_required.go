@@ -244,6 +244,9 @@ func (a *AttributeExpr) SetDefault(def any) {
 	default:
 		a.DefaultValue = actual
 	}
+	if local := a.templateLocal(); local != nil {
+		local.DefaultValue = copyValueRaw(a.DefaultValue)
+	}
 }
 
 func (a *AttributeExpr) allRequired(active map[*AttributeExpr]bool) []string {

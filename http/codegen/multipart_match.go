@@ -12,7 +12,7 @@ import (
 
 func renderMultipartMatcher(body *TypeData, contract *expr.HTTPMultipartEncoding) string {
 	var out strings.Builder
-	name := body.context.Scope.Name(body.attribute, body.context.Pkg(body.attribute), false, false)
+	name := body.context.Scope.Name(body.attribute, body.context.Pkg(body.attribute), &codegen.AttributeContext{})
 	fmt.Fprintf(&out, "matchMultipart := func() (%s, []int, error) {\nvar result %s\n", name, name)
 	renderMultipartBranches(&out, body, contract, "")
 	fmt.Fprintf(&out, "matched, err := loomhttp.MatchUntaggedText(%q, branches, %t)\nif err != nil {\nreturn result, nil, err\n}\npath := []int{matched}\n", "multipart body", contract.Body.UnionClosed())

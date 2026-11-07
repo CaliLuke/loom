@@ -48,8 +48,7 @@ func transformOptionalField(
 	sourceVar, targetVar, name string,
 	ta *TransformAttrs,
 ) (*jen.Statement, error) {
-	sourceValue := concretePresenceAttribute(source)
-	targetValue := concretePresenceAttribute(target)
+	sourceValue, targetValue := concreteTransformPair(source, target, ta)
 	temp := presenceTempName(targetVar)
 	var conversion *jen.Statement
 	var err error
@@ -75,7 +74,7 @@ func transformOptionalField(
 		group.Add(conversion).Line()
 		group.Add(assignment)
 	})
-	assignment, err = presenceDefaultAssignment(target, targetVar, ta.TargetCtx.FieldPresence(targetParent, name, target), ta.DefaultForField(sourceParent, targetParent, name), ta.TargetCtx)
+	assignment, err = ta.DefaultForField(sourceParent, targetParent, name).assignment(targetVar, ta.TargetCtx.FieldPresence(targetParent, name, target), ta)
 	if err != nil {
 		return nil, err
 	}
@@ -91,8 +90,7 @@ func transformNativeToOptional(
 	sourceVar, targetVar, name string,
 	ta *TransformAttrs,
 ) (*jen.Statement, error) {
-	sourceValue := concretePresenceAttribute(source)
-	targetValue := concretePresenceAttribute(target)
+	sourceValue, targetValue := concreteTransformPair(source, target, ta)
 	temp := presenceTempName(targetVar)
 	actual := sourceVar
 	guard := ""
@@ -131,7 +129,7 @@ func transformNativeToOptional(
 	}
 	stmt := &jen.Statement{}
 	stmt.If(Expr(guard)).Block(body)
-	assignment, err := presenceDefaultAssignment(target, targetVar, OptionalPresence, ta.DefaultForField(sourceParent, targetParent, name), ta.TargetCtx)
+	assignment, err := ta.DefaultForField(sourceParent, targetParent, name).assignment(targetVar, OptionalPresence, ta)
 	if err != nil {
 		return nil, err
 	}
@@ -144,11 +142,10 @@ func transformNativeToOptional(
 func transformNullablePresence(source, target *expr.AttributeExpr, sourceVar, targetVar string, newVar bool, plan DefaultApplication, ta *TransformAttrs) (*jen.Statement, error) {
 	collectionLayoutDiffers := ta.SourceCtx.CollectionElementPresence != ta.TargetCtx.CollectionElementPresence &&
 		expr.ContainsNonNullableCollectionElement(source)
-	if plan.Value == nil && !collectionLayoutDiffers && nullablePhysicalTypeRef(source, ta.SourceCtx) == nullablePhysicalTypeRef(target, ta.TargetCtx) {
+	if plan.Value == nil && ta.failures.sourceDefaultNode(source, target, ta) == nil && !collectionLayoutDiffers && nullablePhysicalTypeRef(source, ta.SourceCtx) == nullablePhysicalTypeRef(target, ta.TargetCtx) {
 		return directAssignment(sourceVar, targetVar, newVar), nil
 	}
-	sourceValue := concretePresenceAttribute(source)
-	targetValue := concretePresenceAttribute(target)
+	sourceValue, targetValue := concreteTransformPair(source, target, ta)
 	temp := presenceTempName(targetVar)
 	objectTarget := expr.IsObject(targetValue.Type)
 	userObject := transformUsesHelper(sourceValue, targetValue)
@@ -186,7 +183,7 @@ func transformNullablePresence(source, target *expr.AttributeExpr, sourceVar, ta
 		group.Add(conversion).Line()
 		group.Add(presenceValueAssignment(targetValue, temp, targetVar, "NullableValue", userObject, ta.TargetCtx))
 	})
-	assignment, err := presenceDefaultAssignment(target, targetVar, NullablePresence, plan, ta.TargetCtx)
+	assignment, err := plan.assignment(targetVar, NullablePresence, ta)
 	if err != nil {
 		return nil, err
 	}
@@ -194,28 +191,6 @@ func transformNullablePresence(source, target *expr.AttributeExpr, sourceVar, ta
 		stmt.Else().Block(assignment)
 	}
 	return stmt, nil
-}
-
-// presenceDefaultAssignment materializes an admitted default in the declared
-// destination storage. SetValue retains named wrapper types without constructor
-// inference; object default expressions are pointers while field wrappers own values.
-func presenceDefaultAssignment(target *expr.AttributeExpr, targetVar string, presence PresenceKind, plan DefaultApplication, context *AttributeContext) (*jen.Statement, error) {
-	if !plan.Apply {
-		return nil, nil
-	}
-	concrete := concretePresenceAttribute(target)
-	value, err := context.DefaultValue(concrete, plan.Value)
-	if err != nil {
-		return nil, err
-	}
-	if presence == NativePresence {
-		return Expr(targetVar + " = " + value.Expression), nil
-	}
-	literal := value.Expression
-	if expr.IsObject(concrete.Type) {
-		literal = "*(" + literal + ")"
-	}
-	return Expr(targetVar + ".SetValue(" + literal + ")"), nil
 }
 
 // presenceValueAssignment preserves the target's declared type when wrapping a
@@ -243,8 +218,7 @@ func isNamedCollection(attribute *expr.AttributeExpr) bool {
 func transformRawAnyPresence(source, target *expr.AttributeExpr, sourceVar, targetVar string, newVar, targetNullable bool, ta *TransformAttrs) (*jen.Statement, error) {
 	stmt := &jen.Statement{}
 	if targetNullable {
-		sourceValue := concretePresenceAttribute(source)
-		targetValue := concretePresenceAttribute(target)
+		sourceValue, targetValue := concreteTransformPair(source, target, ta)
 		temp := presenceTempName(targetVar)
 		conversion, err := transformAttributeStmt(sourceValue, targetValue, sourceVar, temp, true, ta)
 		if err != nil {
@@ -264,8 +238,7 @@ func transformRawAnyPresence(source, target *expr.AttributeExpr, sourceVar, targ
 	if newVar {
 		stmt.Var().Add(Expr(targetVar)).Add(TypeRef(ta.TargetCtx.Scope.Ref(target, ta.TargetCtx.Pkg(target)))).Line()
 	}
-	sourceValue := concretePresenceAttribute(source)
-	targetValue := concretePresenceAttribute(target)
+	sourceValue, targetValue := concreteTransformPair(source, target, ta)
 	temp := presenceTempName(targetVar)
 	conversion, err := transformAttributeStmt(sourceValue, targetValue, "actual", temp, true, ta)
 	if err != nil {
@@ -312,7 +285,7 @@ func presenceValueTypeRef(attribute *expr.AttributeExpr, context *AttributeConte
 		// pointers, defaults and inline struct tags match.
 		return context.CollectionElementRef(concrete, false)
 	}
-	return context.Scope.Name(concrete, context.Pkg(concrete), false, context.UseDefault)
+	return context.Scope.Name(concrete, context.Pkg(concrete), context)
 }
 
 func concreteTransformProducesPointer(attribute *expr.AttributeExpr, context *AttributeContext) bool {

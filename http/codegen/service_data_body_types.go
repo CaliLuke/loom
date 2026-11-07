@@ -126,7 +126,7 @@ func buildUserRequestBodyTypeDetails(
 	if expr.IsUnion(userType.Attribute().Type) {
 		return details
 	}
-	details.definition = goValueTypeDef(sd.Scope, userType.Attribute(), httpctx.Pointer, httpctx.UseDefault, httpctx.JSONPresence)
+	details.definition = goValueTypeDef(sd.Scope, userType.Attribute(), &codegen.AttributeContext{Pointer: httpctx.Pointer, UseDefault: httpctx.UseDefault, JSONPresence: httpctx.JSONPresence, CollectionElementPresence: httpctx.JSONPresence})
 	if decode || containsUnionType(body) {
 		validationContext := httpctx
 		if expr.IsPrimitive(userType) {
@@ -338,7 +338,7 @@ func initResponseBodyTypeData(body, att *expr.AttributeExpr, httpctx *codegen.At
 func applyUserResponseBodyTypeData(data *responseBodyTypeData, body *expr.AttributeExpr, ut expr.UserType, endpointName string, httpctx *codegen.AttributeContext, sd *ServiceData, svr, allowValidateDef bool) {
 	data.varName = sd.Scope.GoValueTypeName(body)
 	if !expr.IsUnion(ut.Attribute().Type) {
-		data.def = goValueTypeDef(sd.Scope, ut.Attribute(), !svr, svr, !svr)
+		data.def = goValueTypeDef(sd.Scope, ut.Attribute(), &codegen.AttributeContext{Pointer: !svr, UseDefault: svr, JSONPresence: !svr, CollectionElementPresence: !svr})
 	}
 	data.desc = fmt.Sprintf("%s is the type of the %q service %q endpoint HTTP response body.", data.varName, sd.Service.Name, endpointName)
 	if !svr && allowValidateDef {
@@ -375,7 +375,7 @@ func applyStructuredResponseBodyTypeData(data *responseBodyTypeData, body *expr.
 		data.name = codegen.Goify(endpointName, true) + "ResponseBody"
 		data.varName = data.name
 		data.desc = fmt.Sprintf("%s is the type of the %q service %q endpoint HTTP response body.", data.varName, sd.Service.Name, endpointName)
-		data.def = goTypeDef(sd.Scope, body, !svr, svr, !svr)
+		data.def = goTypeDef(sd.Scope, body, &codegen.AttributeContext{Pointer: !svr, UseDefault: svr, JSONPresence: !svr, CollectionElementPresence: !svr})
 	} else {
 		data.varName = goBodyTypeRef(sd.Scope, body, httpctx)
 		data.desc = body.Description

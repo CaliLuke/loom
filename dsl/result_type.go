@@ -329,9 +329,9 @@ func Reference(t expr.DataType) {
 	}
 	switch def := eval.Current().(type) {
 	case *expr.ResultTypeExpr:
-		def.References = append(def.References, t)
+		def.AddReference(t)
 	case *expr.AttributeExpr:
-		def.References = append(def.References, t)
+		def.AddReference(t)
 	default:
 		eval.IncompatibleDSL()
 	}
@@ -370,9 +370,9 @@ func Extend(t expr.DataType) {
 	}
 	switch def := eval.Current().(type) {
 	case *expr.ResultTypeExpr:
-		def.Bases = append(def.Bases, t)
+		def.AddBase(t)
 	case *expr.AttributeExpr:
-		def.Bases = append(def.Bases, t)
+		def.AddBase(t)
 	default:
 		eval.IncompatibleDSL()
 	}

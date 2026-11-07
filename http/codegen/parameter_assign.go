@@ -46,7 +46,7 @@ func renderParameterAssignment(wire, physical *expr.AttributeExpr, ctx *codegen.
 // renderParameterObjectAssignment owns physical members, duplicate detection,
 // required fields and absent-field defaults for a decoded text object.
 func renderParameterObjectAssignment(code *strings.Builder, wire, physical *expr.AttributeExpr, object *expr.Object, ctx *codegen.AttributeContext, source, target, name string) {
-	fmt.Fprintf(code, "%s = new(%s)\nparameterSeen := make(map[string]bool, len(%s.Pairs))\nfor _, parameterPair := range %s.Pairs {\n", target, ctx.Scope.Name(physical, ctx.Pkg(physical), ctx.Pointer, ctx.UseDefault), source, source)
+	fmt.Fprintf(code, "%s = new(%s)\nparameterSeen := make(map[string]bool, len(%s.Pairs))\nfor _, parameterPair := range %s.Pairs {\n", target, ctx.Scope.Name(physical, ctx.Pkg(physical), ctx), source, source)
 	fmt.Fprintf(code, "if parameterSeen[parameterPair.Key] {\nreturn fmt.Errorf(\"%%s\", %q)\n}\nparameterSeen[parameterPair.Key] = true\nswitch parameterPair.Key {\n", "parameter "+name+": duplicate property")
 	for _, field := range *object {
 		key, member := physical.FindAttribute(expr.AttributeName(field.Name))

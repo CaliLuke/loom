@@ -167,7 +167,7 @@ func (sds *ServicesData) attributeTypeData(ut expr.UserType, req, ptr, server, j
 		Name:               ut.Name(),
 		VarName:            name,
 		Description:        desc,
-		Def:                goValueTypeDef(rd.Scope, ut.Attribute(), hctx.Pointer, hctx.UseDefault, hctx.JSONPresence),
+		Def:                goValueTypeDef(rd.Scope, ut.Attribute(), &codegen.AttributeContext{Pointer: hctx.Pointer, UseDefault: hctx.UseDefault, JSONPresence: hctx.JSONPresence, CollectionElementPresence: hctx.JSONPresence}),
 		Ref:                rd.Scope.GoTypeRef(att),
 		ValidateDef:        validate,
 		validationFunction: codegen.NamedValidationFunction(att, hctx, "body"),

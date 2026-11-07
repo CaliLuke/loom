@@ -214,7 +214,7 @@ func Docs(fn func()) {
 	case *expr.MethodExpr:
 		e.Docs = docs
 	case *expr.AttributeExpr:
-		e.Docs = docs
+		e.SetDocs(docs)
 	case *expr.HTTPFileServerExpr:
 		e.Docs = docs
 	default:

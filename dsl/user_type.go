@@ -291,6 +291,7 @@ func Key(fn func()) {
 		return
 	}
 	if m, ok := at.Type.(*expr.Map); ok {
+		at.CaptureTemplateChild(m.KeyType)
 		eval.Execute(fn, m.KeyType)
 		return
 	}
@@ -321,8 +322,10 @@ func Elem(fn func()) {
 	}
 	switch e := at.Type.(type) {
 	case *expr.Array:
+		at.CaptureTemplateChild(e.ElemType)
 		eval.Execute(fn, e.ElemType)
 	case *expr.Map:
+		at.CaptureTemplateChild(e.ElemType)
 		eval.Execute(fn, e.ElemType)
 	default:
 		eval.IncompatibleDSL()

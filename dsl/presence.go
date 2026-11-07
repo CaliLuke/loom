@@ -15,7 +15,7 @@ func Nullable() {
 		eval.IncompatibleDSL()
 		return
 	}
-	attribute.Nullable = true
+	attribute.SetNullable()
 }
 
 // Null returns the explicit null sentinel accepted by Example for nullable

@@ -25,6 +25,8 @@ type (
 
 	// dupper implements recursive and cycle safe copy of data types.
 	dupper struct {
+		// templateSnapshot copies complete declarations without registering DSL roots.
+		templateSnapshot bool
 		// Copy each source node once. Nominal IDs can be shared by distinct
 		// occurrence projections whose field names, layout or policy differ.
 		uts map[UserType]UserType
@@ -96,6 +98,7 @@ func (d *dupper) DupAttribute(att *AttributeExpr) *AttributeExpr {
 		return att
 	}
 	dup := *copyValueAttribute(att)
+	dup.template = d.copyTemplate(att.template)
 	dup.Type = d.DupType(att.Type)
 	// Declaration references remain governed by DupType/keep. Mutable local
 	// occurrence data and builtin authored values belong to this copy.
@@ -175,7 +178,7 @@ func (d *dupper) DupType(t DataType) DataType {
 		// the dup in the generated type list so that it gets properly
 		// eval'd.
 		if rt, ok := dp.(*ResultTypeExpr); ok {
-			if GeneratedResultType(rt.Identifier) != nil {
+			if !d.templateSnapshot && GeneratedResultType(rt.Identifier) != nil {
 				GeneratedResultTypes.Append(rt)
 			}
 		}

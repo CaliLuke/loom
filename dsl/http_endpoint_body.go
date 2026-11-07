@@ -254,9 +254,12 @@ func resolveBodyAttribute(args []any, ref *expr.AttributeExpr, kind string, open
 			}
 			return &expr.AttributeExpr{}, a, true
 		}
-		attr := &expr.AttributeExpr{References: []expr.DataType{ref.Type}}
+		attr := expr.NewBodyTemplate(ref)
+		attr.SetDSLSource(a)
 		return attr, func() {
+			defer attr.EndTemplateCapture()
 			a()
+			attr.EndTemplateCapture()
 			attr.Inherit(ref)
 		}, true
 	default:

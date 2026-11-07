@@ -26,7 +26,7 @@ func formUnionElement(body *TypeData, field *FormFieldData) *Element {
 			FieldPointer: expr.ServiceFieldLayout(body.attribute, key, physical, context.Pointer, context.UseDefault).Pointer,
 			Required:     field.Required,
 			Pointer:      true,
-			TypeName:     context.Scope.Name(physical, context.Pkg(physical), context.Pointer, context.UseDefault),
+			TypeName:     context.Scope.Name(physical, context.Pkg(physical), context),
 			TypeRef:      context.Scope.Ref(physical, context.Pkg(physical)),
 		},
 	}

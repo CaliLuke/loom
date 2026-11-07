@@ -24,7 +24,7 @@ func (p *protoBufScope) WithScope(scope *codegen.NameScope) codegen.Attributor {
 }
 
 // Name returns the protocol buffer type name.
-func (p *protoBufScope) Name(att *expr.AttributeExpr, pkg string, _, _ bool) string {
+func (p *protoBufScope) Name(att *expr.AttributeExpr, pkg string, _ *codegen.AttributeContext) string {
 	return protoBufGoFullTypeName(att, pkg, p.scope)
 }
 

@@ -212,7 +212,7 @@ func objectHelperTransformAttrs(source, target *expr.AttributeExpr, ta *transfor
 	dup := dupTransformAttrs(ta)
 	dup.errorAware = conversionCanFail(source, target, ta.SourceCtx, ta.TargetCtx)
 	if ta.proto && isUnionMessage(target) {
-		dup.message = dup.TargetCtx.Scope.Name(target, dup.TargetCtx.Pkg(target), false, false)
+		dup.message = dup.TargetCtx.Scope.Name(target, dup.TargetCtx.Pkg(target), &codegen.AttributeContext{})
 	} else if !ta.proto && isUnionMessage(source) {
 		dup.message = dup.SourceCtx.Scope.Ref(source, dup.SourceCtx.Pkg(source))
 	}
@@ -305,8 +305,8 @@ func transformHelperName(source, target *expr.AttributeExpr, ta *transformAttrs)
 				return nil
 			})
 		}
-		sname = codegen.Goify(ta.SourceCtx.Scope.Name(source, ta.SourceCtx.NamePkg(source), ta.TargetCtx.Pointer, ta.TargetCtx.UseDefault), true)
-		tname = codegen.Goify(ta.TargetCtx.Scope.Name(target, ta.TargetCtx.NamePkg(target), ta.TargetCtx.Pointer, ta.TargetCtx.UseDefault), true)
+		sname = codegen.Goify(ta.SourceCtx.Scope.Name(source, ta.SourceCtx.NamePkg(source), ta.TargetCtx), true)
+		tname = codegen.Goify(ta.TargetCtx.Scope.Name(target, ta.TargetCtx.NamePkg(target), ta.TargetCtx), true)
 		prefix = ta.Prefix
 	}
 	return codegen.Goify(prefix+sname+"To"+tname, false)

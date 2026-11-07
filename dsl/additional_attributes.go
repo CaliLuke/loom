@@ -74,5 +74,5 @@ func AdditionalAttributes(t any, fn ...func()) {
 	if at.Type == nil {
 		at.Type = &expr.Object{}
 	}
-	at.AdditionalAttributes = additional
+	at.SetAdditionalAttributes(additional)
 }

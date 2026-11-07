@@ -108,3 +108,14 @@ empty values, and explicit null. `TestCollectionDefaultPresenceStorage` compiles
 array/map/nested/object slots and a JSON collection alias inside a native context.
 The model abstracts concrete expressions and physical type classification; these
 compiled tests establish the implementation correspondence, including named types.
+
+## Admitted HTTP Body defaults
+
+The [Body admission model](body_admission/README.md) separates raw requiredness
+and union admission from materialization of the selected Body occurrence and
+ordinary target conversion. A local Body default is a runtime contract; it must
+not be replaced by the payload's different fallback after admission. The model
+is finite and does not prove nested materialization, helper closure, fallibility
+or scalar no-op equivalence. Its README records the bounded checker outcomes,
+actual shared consumers and opt-in reproduction instructions. Generic target
+conversion and the storage models above retain their existing semantics.

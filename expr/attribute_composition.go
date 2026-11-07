@@ -128,6 +128,9 @@ func (c *designComposer) walk(attribute *AttributeExpr, path string) {
 		compositionError(attribute, "%s: %v", path, err)
 		return
 	}
+	if !c.publishTemplate(attribute, path) {
+		return
+	}
 	attribute.compositionName = path
 	attribute.normalizeLegacyPresence(make(map[*AttributeExpr]struct{}))
 	if named, ok := attribute.Type.(UserType); ok {

@@ -85,6 +85,10 @@ func (n *unionBranchNames) walkAttribute(attribute *AttributeExpr, path string) 
 		return
 	}
 	n.attributes[attribute] = true
+	if template := attribute.template; template != nil {
+		n.walkAttribute(template.source, path)
+		n.walkAttribute(template.typeSource, path)
+	}
 	if err := attribute.resolveTypeRef(); err != nil {
 		eval.ReportError(err.Error())
 		return

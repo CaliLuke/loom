@@ -63,6 +63,7 @@ func newPayloadBuilder(sds *ServicesData, endpointIR *transportir.Endpoint, sd *
 		basic:        basic,
 	}
 	builder.httpsvrctx.JSONPresence = bodyAttr != nil && !endpointIR.Request.FormEncoded && !endpointIR.Request.Multipart
+	builder.httpsvrctx.CollectionElementPresence = builder.httpsvrctx.JSONPresence
 	builder.httpsvrctx.JSONPresenceTypes, builder.httpsvrctx.PresencePointerTypes, builder.httpsvrctx.PresenceUseDefaultTypes = typeLayoutMaps(sd, true)
 	return builder
 }
@@ -291,6 +292,7 @@ func isOptionalNilBody(request *transportir.Request) bool {
 }
 
 func (b *payloadBuilder) buildMapQueryParam() *ParamData {
+	ctx := serviceContext("", b.sd.Scope)
 	for _, param := range b.endpointIR.Request.QueryParams {
 		if param.MapQueryParams == nil {
 			continue
@@ -322,7 +324,7 @@ func (b *payloadBuilder) buildMapQueryParam() *ParamData {
 					Type:         attr.Type,
 					TypeName:     b.sd.Scope.GoTypeName(attr),
 					TypeRef:      b.sd.Scope.GoTypeRef(attr),
-					Validate:     codegen.AttributeValidationCode(attr, nil, b.httpsvrctx, param.Required, expr.IsAlias(attr.Type), varName, param.Name),
+					Validate:     codegen.AttributeValidationCode(attr, nil, ctx, param.Required, expr.IsAlias(attr.Type), varName, param.Name),
 					DefaultValue: defaultValue,
 					Example:      attr.Example(b.sds.examplesFor(b.sd)),
 					Locals:       locals,
@@ -563,10 +565,14 @@ func (b *payloadBuilder) buildTransformCode(requestData *RequestData) (codegen.T
 		}
 		var err error
 		serverContext := b.httpsvrctx.Dup()
-		serverContext.CollectionElementPresence = serverContext.JSONPresence
 		serverSource, clientSource := bodyTransformSources(request)
+		options := codegen.TransformOptions{}
+		if !b.endpointIR.IsJSONRPC {
+			options.AdmittedSource = fmt.Sprintf("http/request/%q/%q", b.svc.Name, b.endpointIR.MethodName)
+		}
 		serverCode, err = codegen.GoTransform(request.Body, pAtt, serverSource, "v", serverContext, b.svcctx, "unmarshal",
-			!requestData.OptionalObjectBody || b.selectedBody.Name != "")
+			!requestData.OptionalObjectBody || b.selectedBody.Name != "",
+			options)
 		if err != nil {
 			panic(codegen.NewError(b.sds.Ctx, b.bodyAttr, fmt.Errorf("build HTTP server payload transform for %s: %w", b.endpointIR.MethodName, err)))
 		}

@@ -26,14 +26,14 @@ func TestAttributeContextPhysicalLocations(t *testing.T) {
 	source := base.ForAttribute(parent("left"))
 	target := base.ForAttribute(parent("right"))
 	raw := &expr.AttributeExpr{Type: &expr.Union{TypeName: "Pick"}}
-	require.Equal(t, "leftAlias.Pick2", source.Scope.Name(raw, source.Pkg(raw), false, false))
-	require.Equal(t, "rightAlias.Pick3", target.Scope.Name(raw, target.Pkg(raw), false, false))
+	require.Equal(t, "leftAlias.Pick2", source.Scope.Name(raw, source.Pkg(raw), &AttributeContext{}))
+	require.Equal(t, "rightAlias.Pick3", target.Scope.Name(raw, target.Pkg(raw), &AttributeContext{}))
 	require.Equal(t, "left", source.NamePkg(raw))
 	require.Equal(t, "right", target.NamePkg(raw))
 	require.Equal(t, "service", base.DefaultPkg)
 	require.Equal(t, "service", base.Scope.Scope().typeLocation.RelImportPath)
 	require.Same(t, source, source.ForAttribute(raw), "bare children inherit the enclosing destination")
-	require.Equal(t, "leftAlias.Pick2", source.Scope.Name(raw, source.Pkg(raw), false, false), "target derivation must not mutate source")
+	require.Equal(t, "leftAlias.Pick2", source.Scope.Name(raw, source.Pkg(raw), &AttributeContext{}), "target derivation must not mutate source")
 	custom := &expr.AttributeExpr{Type: expr.String, Meta: expr.MetaExpr{"struct:field:type": {"opaque.Token", "example.com/opaque"}}}
 	require.Equal(t, "opaque.Token", target.Scope.Ref(custom, target.Pkg(custom)))
 	local := NewAttributeContext(false, false, true, "", source.Scope.Scope())

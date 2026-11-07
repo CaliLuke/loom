@@ -29,9 +29,9 @@ func Description(d string) {
 	case *expr.ServiceExpr:
 		e.Description = d
 	case *expr.ResultTypeExpr:
-		e.Description = d
+		e.SetDescription(d)
 	case *expr.AttributeExpr:
-		e.Description = d
+		e.SetDescription(d)
 	case *expr.DocsExpr:
 		e.Description = d
 	case *expr.MethodExpr:

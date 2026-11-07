@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/internal/representation"
 	"github.com/CaliLuke/loom/internal/httpencoding"
@@ -20,7 +21,7 @@ func formMapElement(body *TypeData, contract *expr.HTTPFormEncoding) *Element {
 		HTTPName: "map entry", Codec: *contract.Element,
 		AttributeData: &AttributeData{Type: mapping.ElemType.Type, FieldType: mapping.ElemType.Type,
 			Required: true, Pointer: strings.HasPrefix(ref, "*"),
-			TypeName: context.Scope.Name(mapping.ElemType, context.Pkg(mapping.ElemType), false, false), TypeRef: ref},
+			TypeName: context.Scope.Name(mapping.ElemType, context.Pkg(mapping.ElemType), &codegen.AttributeContext{}), TypeRef: ref},
 	}
 }
 

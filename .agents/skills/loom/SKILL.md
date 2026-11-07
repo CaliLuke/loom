@@ -1105,6 +1105,15 @@ clients and servers after upgrading to adopt typed Tag binding.
 - An explicitly selected zero-field object response remains `{}` in JSON.
   `Body(Empty)` declares no body; `OpenAPIBody` preserves the same schema
   distinction without changing encoding. Regenerate affected clients and servers.
+- Function-form `Body` selections inherit effective fields from inline or named
+  sources, including `Extend` properties. A local property replaces that template
+  property without dropping independent bounds or changing other bodies. Keep
+  explicit type arguments intentional and regenerate after changing inherited
+  definitions. Nested object, element and key refinements retain untouched fields.
+  Incoming HTTP body defaults apply after validation and before service conversion:
+  a body-local default replaces the payload default for an absent optional member.
+  Supplied zero, empty values and permitted null stay supplied. Defaults do not
+  satisfy missing required fields or create an absent optional whole body.
 - An explicit `Body(func() { ... })` inherits requiredness from both inline
   and named payloads for the fields it lists. A body `Required(...)` must agree
   with payload requiredness; parameter-only fields stay outside the body.

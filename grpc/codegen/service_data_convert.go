@@ -100,7 +100,7 @@ func (d *ServicesData) buildResponseConvertData(endpoint *transportir.Endpoint, 
 		sd.nameProtoConverter(data, result, svcCtx.Scope.Scope(), svr)
 		data.Description = fmt.Sprintf("%s builds the gRPC response type from the result of the %q endpoint of the %q service.", data.Name, endpoint.Name, svc.Name)
 		return &ConvertData{
-			SrcName: svcCtx.Scope.Name(result, svcCtx.Pkg(result), svcCtx.Pointer, svcCtx.UseDefault),
+			SrcName: svcCtx.Scope.Name(result, svcCtx.Pkg(result), svcCtx),
 			SrcRef:  svcCtx.Scope.Ref(result, svcCtx.Pkg(result)),
 			TgtName: protoBufGoFullTypeName(response, sd.PkgName, sd.Scope),
 			TgtRef:  protoBufGoFullTypeRef(response, sd.PkgName, sd.Scope),
@@ -122,7 +122,7 @@ func (d *ServicesData) buildResponseConvertData(endpoint *transportir.Endpoint, 
 	return &ConvertData{
 		SrcName:    protoBufGoFullTypeName(response, sd.PkgName, sd.Scope),
 		SrcRef:     protoBufGoFullTypeRef(response, sd.PkgName, sd.Scope),
-		TgtName:    svcCtx.Scope.Name(result, svcCtx.Pkg(result), svcCtx.Pointer, svcCtx.UseDefault),
+		TgtName:    svcCtx.Scope.Name(result, svcCtx.Pkg(result), svcCtx),
 		TgtRef:     svcCtx.Scope.Ref(result, svcCtx.Pkg(result)),
 		Init:       data,
 		Validation: addValidation(response, "message", sd, false),
@@ -171,7 +171,7 @@ func (d *ServicesData) buildInitData(source, target *expr.AttributeExpr, sourceV
 		args = []*InitArgData{{
 			Name:     sourceVar,
 			Ref:      sourceVar,
-			TypeName: srcCtx.Scope.Name(source, srcCtx.Pkg(source), srcCtx.Pointer, srcCtx.UseDefault),
+			TypeName: srcCtx.Scope.Name(source, srcCtx.Pkg(source), srcCtx),
 			TypeRef:  srcCtx.Scope.Ref(source, srcCtx.Pkg(source)),
 			Example:  source.Example(d.Root.API.ExampleGenerator),
 		}}
@@ -309,7 +309,7 @@ func (d *ServicesData) buildErrorConvertData(grpcErr *transportir.Error, endpoin
 		data.Name = fmt.Sprintf("New%s%sError", codegen.Goify(endpoint.Name, true), codegen.Goify(grpcErr.Name, true))
 		data.Description = fmt.Sprintf("%s builds the gRPC error response type from the error of the %q endpoint of the %q service.", data.Name, endpoint.Name, svc.Name)
 		return &ConvertData{
-			SrcName: svcCtx.Scope.Name(grpcErr.Attribute, svcCtx.Pkg(grpcErr.Attribute), svcCtx.Pointer, svcCtx.UseDefault),
+			SrcName: svcCtx.Scope.Name(grpcErr.Attribute, svcCtx.Pkg(grpcErr.Attribute), svcCtx),
 			SrcRef:  svcCtx.Scope.Ref(grpcErr.Attribute, svcCtx.Pkg(grpcErr.Attribute)),
 			TgtName: protoBufGoFullTypeName(grpcErr.Response.ProtoMessage, sd.PkgName, sd.Scope),
 			TgtRef:  protoBufGoFullTypeRef(grpcErr.Response.ProtoMessage, sd.PkgName, sd.Scope),
@@ -324,7 +324,7 @@ func (d *ServicesData) buildErrorConvertData(grpcErr *transportir.Error, endpoin
 	return &ConvertData{
 		SrcName:    protoBufGoFullTypeName(grpcErr.Response.ProtoMessage, sd.PkgName, sd.Scope),
 		SrcRef:     protoBufGoFullTypeRef(grpcErr.Response.ProtoMessage, sd.PkgName, sd.Scope),
-		TgtName:    svcCtx.Scope.Name(grpcErr.Attribute, svcCtx.Pkg(grpcErr.Attribute), svcCtx.Pointer, svcCtx.UseDefault),
+		TgtName:    svcCtx.Scope.Name(grpcErr.Attribute, svcCtx.Pkg(grpcErr.Attribute), svcCtx),
 		TgtRef:     svcCtx.Scope.Ref(grpcErr.Attribute, svcCtx.Pkg(grpcErr.Attribute)),
 		Init:       data,
 		Validation: addValidation(grpcErr.Response.ProtoMessage, "errmsg", sd, false),

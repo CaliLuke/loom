@@ -12,6 +12,15 @@ import (
 )
 
 type (
+	// DefaultValueOptions selects materialization timing without changing the
+	// context's declared pointer, presence, or collection representation.
+	DefaultValueOptions struct {
+		// MaterializeMembers fills absent members from their selected defaults
+		// after the containing source value has been admitted. It never creates
+		// an absent outer value or changes required-input validation.
+		MaterializeMembers bool
+	}
+
 	// DefaultValueCode binds a default expression to its runtime error channel.
 	// Error-aware expressions record the first materialization failure through
 	// transformErr, a nonnil *error owned by the enclosing conversion boundary.
@@ -23,9 +32,10 @@ type (
 	}
 
 	defaultRenderer struct {
-		values     *expr.ValueContext
-		active     map[expr.ValueIdentity]bool
-		errorAware bool
+		values             *expr.ValueContext
+		active             map[expr.ValueIdentity]bool
+		errorAware         bool
+		materializeMembers bool
 	}
 )
 
@@ -34,23 +44,23 @@ type (
 // default applies. Unrepresentable members return an error rather than being
 // dropped. Opaque values remain owned by an explicitly selected custom or raw
 // JSON representation; they are never reflected into guessed object fields.
-func (a *AttributeContext) DefaultValue(att *expr.AttributeExpr, value any) (code DefaultValueCode, err error) {
+func (a *AttributeContext) DefaultValue(att *expr.AttributeExpr, value any, options ...DefaultValueOptions) (code DefaultValueCode, err error) {
 	defer func() {
 		if err != nil {
 			err = &DefaultValueError{Attribute: att, Err: err}
 		}
 	}()
-	context := expr.NewValueContext()
-	occurrence, err := context.NewOccurrence(att)
-	if err != nil {
-		return DefaultValueCode{}, fmt.Errorf("default representation: %w", err)
+	if len(options) > 1 {
+		return DefaultValueCode{}, fmt.Errorf("DefaultValue accepts at most one options value")
 	}
-	result := context.Resolve(occurrence, context.SupplyValue(expr.ValueInput{Raw: value}), expr.ValueRoleDefault)
-	resolved, ok := result.RepresentationValue()
-	if !ok {
-		return DefaultValueCode{}, fmt.Errorf("default representation: cannot resolve value: %v", result.Diagnostics())
+	context, occurrence, resolved, err := resolveDefaultValue(att, value)
+	if err != nil {
+		return DefaultValueCode{}, err
 	}
 	renderer := &defaultRenderer{values: context, active: make(map[expr.ValueIdentity]bool)}
+	if len(options) == 1 {
+		renderer.materializeMembers = options[0].MaterializeMembers
+	}
 	expression, err := renderer.render(att, occurrence, resolved, a, "default")
 	return DefaultValueCode{Expression: expression, ErrorAware: renderer.errorAware}, err
 }
@@ -261,7 +271,7 @@ func (r *defaultRenderer) object(att *expr.AttributeExpr, occurrence expr.ValueO
 		carrier := att.AdditionalMembersCarrier()
 		fields = append(fields, expr.AdditionalAttributesFieldName+": "+context.CollectionElementRef(carrier, false)+"{"+strings.Join(extras, ", ")+"}")
 	}
-	ref := context.Scope.Name(att, context.Pkg(att), context.Pointer, context.UseDefault)
+	ref := context.Scope.Name(att, context.Pkg(att), context)
 	return "&" + ref + "{" + strings.Join(fields, ", ") + "}", nil
 }
 
@@ -277,7 +287,7 @@ func (r *defaultRenderer) declaredMember(att *expr.AttributeExpr, member expr.Va
 	if childValue.Presence() == expr.ValueAbsent {
 		// Query the mapped winner without copying its default or descendants.
 		raw := (&expr.AttributeExpr{Type: &expr.Object{winner}}).GetDefault(winner.Name)
-		if raw == nil || !context.UseDefault || context.Pointer {
+		if raw == nil || !r.materializeMembers && (!context.UseDefault || context.Pointer) {
 			return "", false, nil
 		}
 		if r.active[member.Occurrence.ID()] {
@@ -315,4 +325,20 @@ func (r *defaultRenderer) additionalMember(att *expr.AttributeExpr, occurrence e
 		return "", err
 	}
 	return strconv.Quote(field.Name) + ": " + value, nil
+}
+
+// resolveDefaultValue is the strict effective-value owner shared by literal
+// rendering and the bounded native-scalar default equivalence proof.
+func resolveDefaultValue(att *expr.AttributeExpr, value any) (*expr.ValueContext, expr.ValueOccurrence, expr.ResolvedValue, error) {
+	context := expr.NewValueContext()
+	occurrence, err := context.NewOccurrence(att)
+	if err != nil {
+		return nil, expr.ValueOccurrence{}, expr.ResolvedValue{}, fmt.Errorf("default representation: %w", err)
+	}
+	result := context.Resolve(occurrence, context.SupplyValue(expr.ValueInput{Raw: value}), expr.ValueRoleDefault)
+	resolved, ok := result.RepresentationValue()
+	if !ok {
+		return nil, expr.ValueOccurrence{}, expr.ResolvedValue{}, fmt.Errorf("default representation: cannot resolve value: %v", result.Diagnostics())
+	}
+	return context, occurrence, resolved, nil
 }

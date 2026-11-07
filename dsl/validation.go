@@ -105,20 +105,18 @@ func Enum(vals ...any) {
 			}
 		}
 		if ok {
-			if a.Validation == nil {
-				a.Validation = &expr.ValidationExpr{}
-			}
-			a.Validation.Values = make([]any, len(vals))
+			values := make([]any, len(vals))
 			for i, v := range vals {
 				switch actual := v.(type) {
 				case expr.MapVal:
-					a.Validation.Values[i] = actual.ToMap()
+					values[i] = actual.ToMap()
 				case expr.ArrayVal:
-					a.Validation.Values[i] = actual.ToSlice()
+					values[i] = actual.ToSlice()
 				default:
-					a.Validation.Values[i] = actual
+					values[i] = actual
 				}
 			}
+			a.SetEnum(values)
 		}
 	}
 }
@@ -168,10 +166,7 @@ func Format(f expr.ValidationFormat) {
 		if a.Type != nil && underlyingValidationKind(a.Type) != expr.StringKind {
 			incompatibleAttributeType("format", a.Type.Name(), "a string")
 		} else {
-			if a.Validation == nil {
-				a.Validation = &expr.ValidationExpr{}
-			}
-			a.Validation.Format = f
+			a.SetFormat(f)
 		}
 	}
 }
@@ -193,10 +188,7 @@ func Pattern(p string) {
 			if err != nil {
 				eval.ReportError("invalid pattern %#v, %s", p, err)
 			} else {
-				if a.Validation == nil {
-					a.Validation = &expr.ValidationExpr{}
-				}
-				a.Validation.Pattern = p
+				a.SetPattern(p)
 			}
 		}
 	}
@@ -211,9 +203,7 @@ func Pattern(p string) {
 //	    ExclusiveMinimum(100)
 //	})
 func ExclusiveMinimum(val any) {
-	setNumericValidation("exclusiveMinimum", "a number", val, func(validation *expr.ValidationExpr, value expr.NumericBound) {
-		validation.ExclusiveMinimum = &value
-	})
+	setNumericValidation("exclusiveMinimum", "a number", val, (*expr.AttributeExpr).SetExclusiveMinimum)
 }
 
 // Minimum adds a "minimum" validation to the attribute.
@@ -225,9 +215,7 @@ func ExclusiveMinimum(val any) {
 //	    Minimum(100)
 //	})
 func Minimum(val any) {
-	setNumericValidation("minimum", "a number", val, func(validation *expr.ValidationExpr, value expr.NumericBound) {
-		validation.Minimum = &value
-	})
+	setNumericValidation("minimum", "a number", val, (*expr.AttributeExpr).SetMinimum)
 }
 
 // ExclusiveMaximum adds a "exclusiveMaximum" validation to the attribute.
@@ -239,9 +227,7 @@ func Minimum(val any) {
 //	    ExclusiveMaximum(100)
 //	})
 func ExclusiveMaximum(val any) {
-	setNumericValidation("exclusiveMaximum", "a number", val, func(validation *expr.ValidationExpr, value expr.NumericBound) {
-		validation.ExclusiveMaximum = &value
-	})
+	setNumericValidation("exclusiveMaximum", "a number", val, (*expr.AttributeExpr).SetExclusiveMaximum)
 }
 
 // Maximum adds a "maximum" validation to the attribute.
@@ -253,12 +239,13 @@ func ExclusiveMaximum(val any) {
 //	    Maximum(100)
 //	})
 func Maximum(val any) {
-	setNumericValidation("maximum", "an integer or a number", val, func(validation *expr.ValidationExpr, value expr.NumericBound) {
-		validation.Maximum = &value
-	})
+	setNumericValidation("maximum", "an integer or a number", val, (*expr.AttributeExpr).SetMaximum)
 }
 
-func setNumericValidation(name, expectedType string, val any, apply func(*expr.ValidationExpr, expr.NumericBound)) {
+func setNumericValidation(
+	name, expectedType string, val any,
+	apply func(*expr.AttributeExpr, expr.NumericBound),
+) {
 	if a, ok := eval.Current().(*expr.AttributeExpr); ok {
 		kind := underlyingValidationKind(a.Type)
 		if a.Type != nil &&
@@ -272,10 +259,7 @@ func setNumericValidation(name, expectedType string, val any, apply func(*expr.V
 			if !ok {
 				return
 			}
-			if a.Validation == nil {
-				a.Validation = &expr.ValidationExpr{}
-			}
-			apply(a.Validation, f)
+			apply(a, f)
 		}
 	}
 }
@@ -325,10 +309,7 @@ func MinLength(val int) {
 				return
 			}
 		}
-		if a.Validation == nil {
-			a.Validation = &expr.ValidationExpr{}
-		}
-		a.Validation.MinLength = &val
+		a.SetMinLength(val)
 	}
 }
 
@@ -355,10 +336,7 @@ func MaxLength(val int) {
 				return
 			}
 		}
-		if a.Validation == nil {
-			a.Validation = &expr.ValidationExpr{}
-		}
-		a.Validation.MaxLength = &val
+		a.SetMaxLength(val)
 	}
 }
 
@@ -392,10 +370,7 @@ func Required(names ...string) {
 	if at.Type != nil && !expr.IsObject(at.Type) {
 		incompatibleAttributeType("required", at.Type.Name(), "an object")
 	} else {
-		if at.Validation == nil {
-			at.Validation = &expr.ValidationExpr{}
-		}
-		at.Validation.AddRequired(names...)
+		at.AddRequired(names...)
 	}
 }
 

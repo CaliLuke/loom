@@ -3,12 +3,19 @@ package codegen
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 
 	"github.com/dave/jennifer/jen"
 
 	"github.com/CaliLuke/loom/expr"
 )
+
+// admittedDefaultHelper identifies a changed conversion by the caller-owned
+// selection and discovered occurrence path, never pointer addresses or values.
+type admittedDefaultHelper struct {
+	role, path, source, target, base string
+}
 
 func transformArray(source, target *expr.Array, sourceVar, targetVar string, newVar bool, ta *TransformAttrs) (*jen.Statement, error) {
 	if err := IsCompatible(source.ElemType.Type, target.ElemType.Type, sourceVar+"[0]", targetVar+"[0]"); err != nil {
@@ -258,9 +265,8 @@ func renderJenniferSnippet(stmt *jen.Statement) string {
 func transformAttributeHelpers(source, target *expr.AttributeExpr, ta *TransformAttrs, seen map[string]*TransformFunctionData) (helpers []*TransformFunctionData, err error) {
 	ta = transformPresenceContext(source, target, ta)
 	if expr.IsNullable(source) || expr.IsNullable(target) {
-		concreteSource := concretePresenceAttribute(source)
-		concreteTarget := concretePresenceAttribute(target)
-		if nullablePhysicalTypeRef(source, ta.SourceCtx) != nullablePhysicalTypeRef(target, ta.TargetCtx) &&
+		concreteSource, concreteTarget := concreteTransformPair(source, target, ta)
+		if (nullablePhysicalTypeRef(source, ta.SourceCtx) != nullablePhysicalTypeRef(target, ta.TargetCtx) || ta.failures.sourceDefaultNode(source, target, ta) != nil) &&
 			transformUsesHelper(concreteSource, concreteTarget) {
 			helper, helperErr := generateHelper(concreteSource, concreteTarget, ta, seen)
 			if helperErr != nil {
@@ -286,8 +292,7 @@ func transformAttributeHelpers(source, target *expr.AttributeExpr, ta *Transform
 func collectHelpers(source, target *expr.AttributeExpr, ta *TransformAttrs, seen map[string]*TransformFunctionData) (helpers []*TransformFunctionData, err error) {
 	ta = transformPresenceContext(source, target, ta)
 	if expr.IsNullable(source) || expr.IsNullable(target) {
-		source = concretePresenceAttribute(source)
-		target = concretePresenceAttribute(target)
+		source, target = concreteTransformPair(source, target, ta)
 	}
 	name := transformHelperName(source, target, ta)
 	if _, ok := seen[name]; ok {
@@ -424,8 +429,8 @@ func generateHelper(source, target *expr.AttributeExpr, ta *TransformAttrs, seen
 // function for each pair of matched attributes. Both source and target must be
 // objects or else walkMatches panics.
 func walkMatches(source, target *expr.AttributeExpr, walker func(src, tgt *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, n string)) {
-	srcMatt := expr.NewMappedAttributeExpr(source)
-	tgtMatt := expr.NewMappedAttributeExpr(target)
+	srcMatt := transformMappedAttribute(source)
+	tgtMatt := transformMappedAttribute(target)
 	srcObj := expr.AsObject(srcMatt.Type)
 	tgtObj := expr.AsObject(tgtMatt.Type)
 	for _, nat := range *srcObj {
@@ -433,6 +438,17 @@ func walkMatches(source, target *expr.AttributeExpr, walker func(src, tgt *expr.
 			walker(srcMatt, tgtMatt, nat.Attribute, att, nat.Name)
 		}
 	}
+}
+
+// transformMappedAttribute detaches name and parent facts while retaining the
+// actual selected child occurrences. Transform consumers only read these children;
+// replacing them with deep copies would split discovery from helper emission.
+func transformMappedAttribute(attribute *expr.AttributeExpr) *expr.MappedAttributeExpr {
+	mapped := expr.NewMappedAttributeExpr(attribute)
+	for _, field := range *expr.AsObject(attribute.Type) {
+		expr.AsObject(mapped.Type).Set(expr.AttributeName(field.Name), field.Attribute)
+	}
+	return mapped
 }
 
 // transformHelperName returns the transformation function name to initialize a
@@ -449,12 +465,23 @@ func transformHelperName(source, target *expr.AttributeExpr, ta *TransformAttrs)
 		prefix string
 	)
 	{
-		sname = Goify(ta.SourceCtx.Scope.Name(source, ta.SourceCtx.NamePkg(source), ta.SourceCtx.Pointer, ta.SourceCtx.UseDefault), true)
-		tname = Goify(ta.TargetCtx.Scope.Name(target, ta.TargetCtx.NamePkg(target), ta.TargetCtx.Pointer, ta.TargetCtx.UseDefault), true)
+		sname = Goify(ta.SourceCtx.Scope.Name(source, ta.SourceCtx.NamePkg(source), ta.SourceCtx), true)
+		tname = Goify(ta.TargetCtx.Scope.Name(target, ta.TargetCtx.NamePkg(target), ta.TargetCtx), true)
 		prefix = ta.Prefix
 		if prefix == "" {
 			prefix = "transform"
 		}
 	}
-	return Goify(prefix+sname+"To"+tname, false)
+	name := Goify(prefix+sname+"To"+tname, false)
+	if node := ta.failures.sourceDefaultNode(source, target, ta); node != nil {
+		key := admittedDefaultHelper{role: ta.Options.AdmittedSource, path: node.path,
+			source: ta.SourceCtx.Scope.Ref(source, ta.SourceCtx.Pkg(source)),
+			target: ta.TargetCtx.Scope.Ref(target, ta.TargetCtx.Pkg(target)), base: name}
+		return ta.SourceCtx.Scope.Scope().HashedUnique(key, name+"Admitted")
+	}
+	return name
+}
+
+func (key admittedDefaultHelper) Hash() string {
+	return fmt.Sprintf("admitted-default/%q/%q/%q/%q/%q", key.role, key.path, key.source, key.target, key.base)
 }

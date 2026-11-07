@@ -39,7 +39,7 @@ func TestJSONPhysicalLayoutReadiness(t *testing.T) {
 				parent.Validation = &expr.ValidationExpr{Required: []string{"value"}}
 			}
 			service := codegen.NewNameScope().GoTypeDef(parent, tc.pointer, tc.defaults)
-			transport := goTypeDef(codegen.NewNameScope(), parent, tc.pointer, tc.defaults, tc.decode)
+			transport := goTypeDef(codegen.NewNameScope(), parent, &codegen.AttributeContext{Pointer: tc.pointer, UseDefault: tc.defaults, JSONPresence: tc.decode, CollectionElementPresence: tc.decode})
 			for _, output := range []struct{ name, definition, want string }{
 				{"service", service, tc.service},
 				{"transport", transport, tc.transport},

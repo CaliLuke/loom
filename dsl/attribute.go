@@ -150,10 +150,10 @@ func Attribute(name string, args ...any) {
 		dataType, description, fn := parseAttributeArgs(attr, args...)
 		if attr != nil {
 			if description != "" {
-				attr.Description = description
+				attr.SetDescription(description)
 			}
 			if dataType != nil {
-				attr.Type = dataType
+				assignAttributeType(attr, dataType, args)
 			}
 		} else {
 			attr = &expr.AttributeExpr{
@@ -183,7 +183,24 @@ func Attribute(name string, args ...any) {
 	appendUnionBranch(parent.Type.(*expr.Union), name, attr)
 }
 
+// assignAttributeType distinguishes an explicit operand from the provisional
+// type returned by argument parsing for an implicit template selection.
+func assignAttributeType(attribute *expr.AttributeExpr, typ expr.DataType, args []any) {
+	if len(args) == 0 {
+		attribute.Type = typ
+		return
+	}
+	if _, implicit := args[0].(func()); implicit {
+		attribute.Type = typ
+		return
+	}
+	attribute.SetAuthoredType(typ)
+}
+
 func attributeTemplate(parent *expr.AttributeExpr, name string) *expr.AttributeExpr {
+	if attribute, template := parent.TemplateAttribute(name); template {
+		return attribute
+	}
 	// Reference selects a template. Extend contributes constraints later;
 	// copying it here would confuse inherited values with authored choices.
 	template := *parent
@@ -423,7 +440,7 @@ func Example(args ...any) {
 		eval.ReportError("null example is incompatible with non-nullable attribute")
 		return
 	}
-	a.UserExamples = append(a.UserExamples, ex)
+	a.AddExample(ex)
 }
 
 func parseAttributeArgs(baseAttr *expr.AttributeExpr, args ...any) (expr.DataType, string, func()) {

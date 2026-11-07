@@ -53,7 +53,7 @@ func (b *errorBuilder) buildProblemClientResult(errorResponse *transportir.Respo
 		code.WriteString(plan.Code)
 		code.WriteByte('\n')
 	} else {
-		name := targetContext.Scope.Name(problem, targetContext.DefaultPkg, false, true)
+		name := targetContext.Scope.Name(problem, targetContext.DefaultPkg, &codegen.AttributeContext{UseDefault: true})
 		fmt.Fprintf(&code, "%s := &%s{}\n", variable, name)
 		if selected {
 			_, member := problem.FindAttribute(origin[0])

@@ -112,6 +112,16 @@ consumer validation.
   Keep the media-selection and physical-layout models and generated exchange
   specimen aligned.
 
+- Function-form HTTP body templates retain a source occurrence and a detached
+  authored property layer. Callbacks run once at normal DSL time, including
+  `CollectionOf` registration. The expression composer publishes completed
+  effective fields before transport preparation. Do not defer callbacks, infer
+  authorship from value equality, or replace selected bodies with whole source
+  graphs. Capture ends before framework writes; value snapshots discard capture
+  state. Keep the [body-template model](../../../expr/tla/body_template/README.md)
+  and nested/copy/generated regressions aligned. Expression publication does not
+  replace transport default-admission or conversion rules.
+
 - `expr.DupAtt` retains source-node identity within a detached graph: distinct
   nodes may share a nominal ID, while repeated edges and cycles share their copy.
   Mutating body traversals (`walkUserTypes`, HTTP alias lowering and transport IR
@@ -2012,6 +2022,20 @@ filter, and serialization rules belong here.
   strategy; clone embedded contexts before rebinding. The recursive default
   renderer derives location at its own entry, including child-object defaults
   passed from an enclosing context. This does not change value admission.
+  `Attributor.Name` receives the complete `AttributeContext`; implementations must
+  use the owning physical layout when naming inline object definitions. Migrate
+  custom Attributor implementations to this signature and regenerate. JSON field
+  presence and collection-element presence are independent layout facts.
+- `DefaultApplication` owns absent-field action selection. Incoming native HTTP
+  Body conversion opts into selected-source defaults after admission; JSON-RPC,
+  response, CLI and protobuf conversion remain target-owned. Materialize selected
+  nested defaults through the shared renderer, then convert using the same helper
+  graph that owns fallibility. Preserve whole-body absence and raw requiredness.
+  Unaffected helpers keep their names; changed closures use caller occurrence
+  identity and NameScope after discovery. Read original mapped children without
+  mutating them; nullable concrete pairs belong to their canonical graph node.
+  See the [Body admission models](../../../codegen/tla/default_application/body_admission/README.md)
+  and their explicit phase, layout and copy-identity limits.
 - A file imports a `struct:pkg:path` package under an alias, such as
   `security2`, only when its name clashes with another import that the same
   file lists (`codegen.AliasClashingImports`). A file builder lists its imports

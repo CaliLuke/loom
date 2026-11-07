@@ -114,7 +114,10 @@ type (
 // assigns the existing target, including clearing native collections for nil
 // sources.
 //
-// At most one options value may override helper naming. The same callback names
+// At most one options value may select admitted-source defaults or override
+// helper naming. Admitted-source defaults become supplied values before target
+// conversion, including pointer targets; ordinary conversions retain target
+// default timing. The same callback names
 // helper declarations, recursive references and calls; an empty name uses the
 // default physical-type naming rule.
 func GoTransform(source, target *expr.AttributeExpr, sourceVar, targetVar string, sourceCtx, targetCtx *AttributeContext, prefix string, newVar bool, options ...TransformOptions) (TransformPlan, error) {
@@ -247,7 +250,7 @@ func transformObject(source, target *expr.AttributeExpr, sourceVar, targetVar st
 	if newVar {
 		assign = ":="
 	}
-	name := ta.TargetCtx.Scope.Name(target, ta.TargetCtx.Pkg(target), ta.TargetCtx.Pointer, ta.TargetCtx.UseDefault)
+	name := ta.TargetCtx.Scope.Name(target, ta.TargetCtx.Pkg(target), ta.TargetCtx)
 	stmt := &jen.Statement{}
 	stmt.Add(Expr(targetVar)).Op(assign).Add(buildObjectLiteralExpr(name, deref == "&", initFields))
 
@@ -390,7 +393,7 @@ func transformObjectFieldCode(srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, 
 	if err := IsCompatible(srcc.Type, tgtc.Type, sourceVar, targetVar); err != nil {
 		return nil, err
 	}
-	if matchingExplicitType(srcc, tgtc) {
+	if matchingExplicitType(srcc, tgtc) && !ta.DefaultForField(srcMatt, tgtMatt, name).admittedSource {
 		return nil, nil
 	}
 
@@ -411,7 +414,7 @@ func transformObjectFieldCode(srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, 
 		return nil, err
 	}
 	code = wrapTransformObjectFieldCode(code, srcc, tgtc, srcMatt, srcFieldVar, tgtFieldVar, name, ta)
-	defaultCode, err := transformObjectDefaultValueCode(tgtc, srcMatt, tgtMatt, srcFieldVar, tgtFieldVar, name, ta)
+	defaultCode, err := transformObjectDefaultValueCode(srcMatt, tgtMatt, srcFieldVar, tgtFieldVar, name, ta)
 	if err != nil {
 		return nil, err
 	}
@@ -479,25 +482,17 @@ func shouldWrapTransformObjectField(srcc *expr.AttributeExpr, srcMatt *expr.Mapp
 	return !srcMatt.IsRequired(name) || ta.TargetCtx.Pointer || ta.SourceCtx.UseDefault && ta.TargetCtx.UseDefault
 }
 
-func transformObjectDefaultValueCode(tgtc *expr.AttributeExpr, srcMatt, tgtMatt *expr.MappedAttributeExpr, srcVar, tgtVar, name string, ta *TransformAttrs) (*jen.Statement, error) {
+func transformObjectDefaultValueCode(srcMatt, tgtMatt *expr.MappedAttributeExpr, srcVar, tgtVar, name string, ta *TransformAttrs) (*jen.Statement, error) {
 	plan := ta.DefaultForField(srcMatt, tgtMatt, name)
 	if !plan.Apply {
 		return nil, nil
 	}
-	defaultPlan, err := ta.TargetCtx.DefaultValue(tgtc, plan.Value)
+	assignment, err := plan.assignment(tgtVar, NativePresence, ta)
 	if err != nil {
 		return nil, err
 	}
-	defaultLiteral := defaultPlan.Expression
 	stmt := &jen.Statement{}
-	stmt.If(Expr(srcVar + " == nil")).BlockFunc(func(group *jen.Group) {
-		if ta.TargetCtx.IsPrimitivePointer(name, tgtMatt.AttributeExpr) && expr.IsPrimitive(tgtc.Type) {
-			group.Add(Expr("var tmp " + GoNativeTypeName(tgtc.Type) + " = " + defaultLiteral))
-			group.Add(Expr(tgtVar)).Op("=").Op("&").Id("tmp")
-		} else {
-			group.Add(Expr(tgtVar)).Op("=").Add(Expr(defaultLiteral))
-		}
-	})
+	stmt.If(Expr(srcVar + " == nil")).Block(assignment)
 	return stmt, nil
 }
 

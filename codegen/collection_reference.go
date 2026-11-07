@@ -78,7 +78,7 @@ func attributorCollectionElemTypeRef(attribute *expr.AttributeExpr, context *Att
 	var value string
 	switch actual := attribute.Type.(type) {
 	case *expr.Object:
-		name := context.Scope.Name(attribute, targetPkg, context.Pointer, context.UseDefault)
+		name := context.Scope.Name(attribute, targetPkg, context)
 		if IsExplicitPresenceType(attribute) {
 			// A presence type such as loom.Nullable[T] holds the struct value.
 			return name

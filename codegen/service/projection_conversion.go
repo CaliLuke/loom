@@ -48,7 +48,7 @@ func buildProjectionConversion(att, projected *expr.AttributeExpr, view, name, s
 		}
 		sourceID := projectionConversionTypeIdentity(source.Type)
 		targetID := projectionConversionTypeIdentity(target.Type)
-		base := "transform" + name + codegen.Goify(sourceCtx.Scope.Name(source, sourceCtx.NamePkg(source), sourceCtx.Pointer, sourceCtx.UseDefault), true) + "To" + codegen.Goify(targetCtx.Scope.Name(target, targetCtx.NamePkg(target), targetCtx.Pointer, targetCtx.UseDefault), true)
+		base := "transform" + name + codegen.Goify(sourceCtx.Scope.Name(source, sourceCtx.NamePkg(source), sourceCtx), true) + "To" + codegen.Goify(targetCtx.Scope.Name(target, targetCtx.NamePkg(target), targetCtx), true)
 		key := viewedHelperKey{role: "transform", source: sourceID, target: targetID, selection: name}
 		return scope.HashedUnique(key, base)
 	}}

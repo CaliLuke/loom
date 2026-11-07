@@ -193,7 +193,7 @@ func (b *payloadBuilder) jsonQueryCarrier(parameter *ParamData, attribute *expr.
 	}
 	context := httpContext(b.sd.Scope, true, true)
 	context.JSONPresence, context.CollectionElementPresence = true, true
-	parameter.JSONDecodeType = goTypeDef(b.sd.Scope, attribute, true, false, true)
+	parameter.JSONDecodeType = goTypeDef(b.sd.Scope, attribute, &codegen.AttributeContext{Pointer: true, UseDefault: false, JSONPresence: true, CollectionElementPresence: true})
 	if custom, _ := codegen.GetMetaType(attribute); custom != "" {
 		// Opaque custom types own their JSON decoding and null policy.
 		parameter.JSONDecodeType = parameter.TypeRef

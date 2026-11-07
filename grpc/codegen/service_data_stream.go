@@ -50,7 +50,7 @@ func (d *ServicesData) buildServerStreamData(endpoint *transportir.Endpoint, sd 
 		data.SendWithContextName = md.ServerStream.SendWithContextName
 		data.SendRef = ed.ResultRef
 		data.SendConvert = &ConvertData{
-			SrcName: resCtx.Scope.Name(result, resCtx.Pkg(result), resCtx.Pointer, resCtx.UseDefault),
+			SrcName: resCtx.Scope.Name(result, resCtx.Pkg(result), resCtx),
 			SrcRef:  resCtx.Scope.Ref(result, resCtx.Pkg(result)),
 			TgtName: protoBufGoFullTypeName(endpoint.Response.ProtoMessage, sd.PkgName, sd.Scope),
 			TgtRef:  protoBufGoFullTypeRef(endpoint.Response.ProtoMessage, sd.PkgName, sd.Scope),
@@ -65,7 +65,7 @@ func (d *ServicesData) buildServerStreamData(endpoint *transportir.Endpoint, sd 
 		data.RecvConvert = &ConvertData{
 			SrcName:    protoBufGoFullTypeName(endpoint.Request.ProtoStreamingInput, sd.PkgName, sd.Scope),
 			SrcRef:     protoBufGoFullTypeRef(endpoint.Request.ProtoStreamingInput, sd.PkgName, sd.Scope),
-			TgtName:    svcCtx.Scope.Name(endpoint.Request.StreamingPayload, svcCtx.Pkg(endpoint.Request.StreamingPayload), svcCtx.Pointer, svcCtx.UseDefault),
+			TgtName:    svcCtx.Scope.Name(endpoint.Request.StreamingPayload, svcCtx.Pkg(endpoint.Request.StreamingPayload), svcCtx),
 			TgtRef:     data.RecvRef,
 			Init:       d.buildInitData(endpoint.Request.ProtoStreamingInput, endpoint.Request.StreamingPayload, "v", "spayload", svcCtx, false, true, true, sd),
 			Validation: addValidation(endpoint.Request.ProtoStreamingInput, "stream", sd, true),
@@ -90,7 +90,7 @@ func (d *ServicesData) buildClientStreamData(endpoint *transportir.Endpoint, sd 
 		data.SendWithContextName = md.ClientStream.SendWithContextName
 		data.SendRef = streamDesc.Payload.Ref
 		data.SendConvert = &ConvertData{
-			SrcName: svcCtx.Scope.Name(endpoint.Request.StreamingPayload, svcCtx.Pkg(endpoint.Request.StreamingPayload), svcCtx.Pointer, svcCtx.UseDefault),
+			SrcName: svcCtx.Scope.Name(endpoint.Request.StreamingPayload, svcCtx.Pkg(endpoint.Request.StreamingPayload), svcCtx),
 			SrcRef:  data.SendRef,
 			TgtName: protoBufGoFullTypeName(endpoint.Request.ProtoStreamingInput, sd.PkgName, sd.Scope),
 			TgtRef:  protoBufGoFullTypeRef(endpoint.Request.ProtoStreamingInput, sd.PkgName, sd.Scope),
@@ -105,7 +105,7 @@ func (d *ServicesData) buildClientStreamData(endpoint *transportir.Endpoint, sd 
 		data.RecvConvert = &ConvertData{
 			SrcName:    protoBufGoFullTypeName(endpoint.Response.ProtoMessage, sd.PkgName, sd.Scope),
 			SrcRef:     protoBufGoFullTypeRef(endpoint.Response.ProtoMessage, sd.PkgName, sd.Scope),
-			TgtName:    resCtx.Scope.Name(result, resCtx.Pkg(result), resCtx.Pointer, resCtx.UseDefault),
+			TgtName:    resCtx.Scope.Name(result, resCtx.Pkg(result), resCtx),
 			TgtRef:     resCtx.Scope.Ref(result, resCtx.Pkg(result)),
 			Init:       d.buildInitData(endpoint.Response.ProtoMessage, result, "v", resVar, resCtx, false, false, true, sd),
 			Validation: addValidation(endpoint.Response.ProtoMessage, "stream", sd, false),

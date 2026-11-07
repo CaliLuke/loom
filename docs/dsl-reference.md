@@ -2348,6 +2348,27 @@ payloads inherit requiredness the same way. Only attributes listed in the body
 contribute required fields; fields mapped exclusively to parameters, headers,
 or cookies do not become required body properties.
 
+Function-form bodies inherit the complete effective field definition, including
+properties contributed by `Extend`, for both inline and named sources. A local
+property replaces that template property: `Minimum(1)` keeps an independently
+inherited `Maximum(10)`, while replacing the template's minimum. An explicit type
+argument remains explicit. Refining a nested object, array element or map key or
+value retains its other inherited properties and does not alter the source or
+another body. Empty `Pattern("")` and `Title("")` are explicit replacements;
+metadata additions and removals retain their authored order. This is field
+template selection, not a new `Extend` relationship between body and payload.
+Regenerate designs that select inherited fields; previously missing types or
+constraints can change the generated body and validation code.
+
+For an incoming HTTP body, validation and union selection happen before defaults
+are applied. An absent optional member then receives the selected body default
+before conversion to the service payload. For example, a body-local `Default(9)`
+replaces an inherited payload `Default(7)` for that missing member. Supplied zero,
+empty values and permitted null remain supplied; a default does not repair a
+missing required member or create an absent optional whole body. Nested defaults
+follow the selected body contract too. Regenerate affected HTTP transports.
+This does not change generic conversion, response, CLI, JSON-RPC or gRPC defaults.
+
 `Header`, `Param`, `Cookie`, `MapParams`, `Body` and route wildcards select a
 payload, result or error attribute declared with a suffix by its attribute
 name: with `Attribute("tok:t", String)` in the payload, `Header("tok")` reads

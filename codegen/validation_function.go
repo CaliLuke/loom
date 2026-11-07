@@ -37,7 +37,7 @@ func NamedValidationFunction(att *expr.AttributeExpr, ctx *AttributeContext, arg
 		prefix = "Validate"
 	}
 	return ValidationFunction{
-		Name:     prefix + ctx.Scope.Name(concretePresenceAttribute(att), "", mode.Pointer, mode.UseDefault),
+		Name:     prefix + ctx.Scope.Name(concretePresenceAttribute(att), "", mode),
 		Argument: argument,
 		Ref:      ctx.Scope.Ref(att, ctx.DefaultPkg),
 		mode:     mode,

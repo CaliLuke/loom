@@ -14,9 +14,9 @@ type (
 		// WithScope returns a detached attributor using scope while preserving
 		// its field and representation policy. It must not mutate the receiver.
 		WithScope(scope *NameScope) Attributor
-		// Name generates a valid name for the given attribute type. ptr and
-		// useDefault are used to generate inline struct type definitions.
-		Name(att *expr.AttributeExpr, pkg string, ptr, useDefault bool) string
+		// Name generates the declared type name or inline definition using the
+		// complete physical layout, including field and collection presence.
+		Name(att *expr.AttributeExpr, pkg string, layout *AttributeContext) string
 		// Ref generates a valid reference to the given attribute type.
 		Ref(att *expr.AttributeExpr, pkg string) string
 		// Field generates a valid data structure field identifier for the given
@@ -116,9 +116,14 @@ type (
 		FieldNames(obj *expr.AttributeExpr, name string) (string, []string, []string)
 	}
 
-	// TransformOptions configures helper allocation independently of the physical
-	// Go type names. The caller owns semantic conversion identity.
+	// TransformOptions selects admitted-source default timing and helper allocation.
+	// The caller owns semantic conversion identity independently of Go type names.
 	TransformOptions struct {
+		// AdmittedSource is a generation-stable identity for an already validated
+		// source occurrence whose defaults materialize before target conversion.
+		// Empty retains ordinary target-default semantics. Distinct selections
+		// requiring different conversions must use distinct identities.
+		AdmittedSource string
 		// HelperName returns the allocated helper name for a source/target pair.
 		// It must return the same name for semantically equivalent copies and
 		// distinct names when the same Go types need different conversions.
@@ -132,7 +137,7 @@ type (
 		SourceCtx, TargetCtx *AttributeContext
 		// Prefix is the transform function helper prefix.
 		Prefix string
-		// Options controls semantic helper identity.
+		// Options controls default timing and semantic helper identity.
 		Options  TransformOptions
 		failures *transformFailures
 	}
@@ -398,7 +403,7 @@ func (a *AttributeContext) Dup() *AttributeContext {
 }
 
 // Name returns the type name for the given attribute.
-func (a *AttributeScope) Name(att *expr.AttributeExpr, pkg string, ptr, useDefault bool) string {
+func (a *AttributeScope) Name(att *expr.AttributeExpr, pkg string, layout *AttributeContext) string {
 	if _, ok := att.Type.(expr.UserType); !ok && expr.IsObject(att.Type) {
 		// In the special case of anonymous / inline struct types the "name" is
 		// in fact the struct typedef. In this case we need to force the
@@ -408,7 +413,7 @@ func (a *AttributeScope) Name(att *expr.AttributeExpr, pkg string, ptr, useDefau
 		// the inline struct are qualified against the correct package (e.g.,
 		// use "types.UUID" instead of incorrectly qualifying with the service
 		// package alias).
-		return a.scope.GoTypeDefWithTargetPkg(att, ptr, useDefault, pkg)
+		return a.scope.GoTypeDefWithTargetPkg(att, layout.Pointer, layout.UseDefault, pkg)
 	}
 	if n, ok := att.Meta["struct:type:name"]; ok {
 		// If the attribute has a "struct:type:name" meta then use it as the

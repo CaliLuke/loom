@@ -25,7 +25,7 @@ func (s *messageScope) WithScope(scope *NameScope) Attributor {
 }
 
 // Name returns the name of the type of att.
-func (s *messageScope) Name(att *expr.AttributeExpr, pkg string, ptr, useDefault bool) string {
+func (s *messageScope) Name(att *expr.AttributeExpr, pkg string, _ *AttributeContext) string {
 	return s.scope.GoFullTypeName(att, pkg)
 }
 

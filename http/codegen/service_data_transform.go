@@ -258,11 +258,11 @@ func needInitAttribute(root, att *expr.AttributeExpr) bool {
 
 // Name returns the HTTP body type definition of an inline object attribute and
 // the shared attribute type name otherwise.
-func (s *httpAttributeScope) Name(att *expr.AttributeExpr, pkg string, ptr, useDefault bool) string {
+func (s *httpAttributeScope) Name(att *expr.AttributeExpr, pkg string, layout *codegen.AttributeContext) string {
 	if _, ok := att.Type.(expr.UserType); !ok && expr.IsObject(att.Type) {
-		return goTypeDef(s.Scope(), att, ptr, useDefault, false)
+		return goTypeDef(s.Scope(), att, layout)
 	}
-	return s.AttributeScope.Name(att, pkg, ptr, useDefault)
+	return s.AttributeScope.Name(att, pkg, layout)
 }
 
 // inlineConversionCode adapts an owned conversion plan inside an existing

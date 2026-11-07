@@ -42,7 +42,7 @@ func renderMultipartFieldBranches(out *strings.Builder, body *TypeData, field *F
 			renderMultipartFieldBranches(out, body, &childField, childCodec, id+"_")
 			fmt.Fprintf(out, "var path%s []int\nbranch%s := loomhttp.ComposeTextUnion(%q, branches%s_, %t, func(matched int) (bool, error) {\n", id, id, field.HTTPName, id, branch.Attribute.UnionClosed())
 			if pointer {
-				fmt.Fprintf(out, "candidate%s = new(%s)\n", id, context.Scope.Name(branch.Attribute, context.Pkg(branch.Attribute), false, false))
+				fmt.Fprintf(out, "candidate%s = new(%s)\n", id, context.Scope.Name(branch.Attribute, context.Pkg(branch.Attribute), &codegen.AttributeContext{}))
 			}
 			fmt.Fprintf(out, "path%s = []int{matched}\n", id)
 			renderTextUnionSelection(out, expr.AsUnion(branch.Attribute.Type), "candidate"+id, "path"+id, id+"_")

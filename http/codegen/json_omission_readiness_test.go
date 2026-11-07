@@ -34,7 +34,7 @@ func TestJSONOmissionReadinessBodyTags(t *testing.T) {
 			if tc.required {
 				parent.Validation = &expr.ValidationExpr{Required: []string{"value"}}
 			}
-			definition := goTypeDef(codegen.NewNameScope(), parent, false, tc.useDefault, false)
+			definition := goTypeDef(codegen.NewNameScope(), parent, &codegen.AttributeContext{Pointer: false, UseDefault: tc.useDefault, JSONPresence: false, CollectionElementPresence: false})
 			require.Contains(t, definition, tc.want)
 		})
 	}

@@ -97,7 +97,7 @@ func TestGoTypeDef(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
-			def := goTypeDef(codegen.NewNameScope(), c.Attr, c.UsePtr, c.UseDefault, false)
+			def := goTypeDef(codegen.NewNameScope(), c.Attr, &codegen.AttributeContext{Pointer: c.UsePtr, UseDefault: c.UseDefault, JSONPresence: false, CollectionElementPresence: false})
 			assert.Equal(t, c.Def, def)
 		})
 	}
@@ -108,7 +108,7 @@ func TestGoTypeDefKeepsAnyMapKeysComparable(t *testing.T) {
 		KeyType:  &expr.AttributeExpr{Type: expr.Any},
 		ElemType: &expr.AttributeExpr{Type: expr.String},
 	}}
-	definition := goTypeDef(codegen.NewNameScope(), attribute, false, false, false)
+	definition := goTypeDef(codegen.NewNameScope(), attribute, &codegen.AttributeContext{Pointer: false, UseDefault: false, JSONPresence: false, CollectionElementPresence: false})
 	require.Equal(t, "map[any]string", definition)
 
 	fset := token.NewFileSet()
@@ -129,7 +129,7 @@ func TestGoTypeDefUsesExplicitTypeForStructuredFields(t *testing.T) {
 	}
 	parent := &expr.AttributeExpr{Type: &expr.Object{{Name: "values", Attribute: field}}}
 
-	got := goTypeDef(scope, parent, true, false, false)
+	got := goTypeDef(scope, parent, &codegen.AttributeContext{Pointer: true, UseDefault: false, JSONPresence: false, CollectionElementPresence: false})
 	require.Contains(t, got, "Values loom.Nullable[[]string]")
 	require.NotContains(t, got, "*loom.Nullable")
 }
@@ -150,7 +150,7 @@ func TestGoTypeDefUsesJSONPresenceWrappers(t *testing.T) {
 		Validation: &expr.ValidationExpr{Required: []string{"required"}},
 	}
 
-	got := goTypeDef(codegen.NewNameScope(), attribute, true, false, true)
+	got := goTypeDef(codegen.NewNameScope(), attribute, &codegen.AttributeContext{Pointer: true, UseDefault: false, JSONPresence: true, CollectionElementPresence: true})
 	require.Contains(t, got, "Required *string")
 	require.Contains(t, got, "Optional loom.Optional[string]")
 	require.Contains(t, got, "Empty loom.Optional[[]loom.Optional[string]]")
@@ -170,7 +170,7 @@ func TestGoTypeDefUsesJSONValueForAnyResponseFields(t *testing.T) {
 		},
 	}
 
-	got := goTypeDef(codegen.NewNameScope(), attribute, false, true, false)
+	got := goTypeDef(codegen.NewNameScope(), attribute, &codegen.AttributeContext{Pointer: false, UseDefault: true, JSONPresence: false, CollectionElementPresence: false})
 	require.Contains(t, got, "Component loom.JSONValue")
 	require.Contains(t, got, `json:"component,omitzero"`)
 }
@@ -184,10 +184,10 @@ func TestGoTypeDefUsesJSONPresenceForArrayElements(t *testing.T) {
 	}}
 	scope := codegen.NewNameScope()
 
-	require.Equal(t, "[]string", goTypeDef(scope, nonNullable, true, false, false))
-	require.Equal(t, "[]loom.Optional[string]", goTypeDef(scope, nonNullable, true, false, true))
-	require.Equal(t, "[]loom.Nullable[string]", goTypeDef(scope, nullable, true, false, true))
-	require.Equal(t, "[]loom.Optional[loom.JSONValue]", goTypeDef(scope, requiredAny, true, false, true))
+	require.Equal(t, "[]string", goTypeDef(scope, nonNullable, &codegen.AttributeContext{Pointer: true, UseDefault: false, JSONPresence: false, CollectionElementPresence: false}))
+	require.Equal(t, "[]loom.Optional[string]", goTypeDef(scope, nonNullable, &codegen.AttributeContext{Pointer: true, UseDefault: false, JSONPresence: true, CollectionElementPresence: true}))
+	require.Equal(t, "[]loom.Nullable[string]", goTypeDef(scope, nullable, &codegen.AttributeContext{Pointer: true, UseDefault: false, JSONPresence: true, CollectionElementPresence: true}))
+	require.Equal(t, "[]loom.Optional[loom.JSONValue]", goTypeDef(scope, requiredAny, &codegen.AttributeContext{Pointer: true, UseDefault: false, JSONPresence: true, CollectionElementPresence: true}))
 }
 
 func TestGoBodyTypeRefUsesJSONPresenceForNestedArrayElements(t *testing.T) {
@@ -250,8 +250,8 @@ func TestGoValueTypeDefStripsNamedRootPresence(t *testing.T) {
 	attribute := &expr.AttributeExpr{Type: named, Nullable: true}
 	scope := codegen.NewNameScope()
 
-	require.Equal(t, "NullableText", goValueTypeDef(scope, attribute, false, true, true))
-	require.Equal(t, "loom.Nullable[NullableText]", goTypeDef(scope, attribute, false, true, true))
+	require.Equal(t, "NullableText", goValueTypeDef(scope, attribute, &codegen.AttributeContext{Pointer: false, UseDefault: true, JSONPresence: true, CollectionElementPresence: true}))
+	require.Equal(t, "loom.Nullable[NullableText]", goTypeDef(scope, attribute, &codegen.AttributeContext{Pointer: false, UseDefault: true, JSONPresence: true, CollectionElementPresence: true}))
 }
 
 var (

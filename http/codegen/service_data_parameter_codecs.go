@@ -130,7 +130,7 @@ func configureStyledCarrier(element *Element, ctx *codegen.AttributeContext) {
 	element.attribute = &att
 	element.context = ctx
 	element.Type = att.Type
-	element.TypeName = ctx.Scope.Name(&att, ctx.Pkg(&att), ctx.Pointer, ctx.UseDefault)
+	element.TypeName = ctx.Scope.Name(&att, ctx.Pkg(&att), ctx)
 	element.TypeRef = ctx.Scope.Ref(&att, ctx.Pkg(&att))
 	if expr.AsUnion(att.Type) != nil {
 		element.nativeContext = ctx

@@ -84,7 +84,7 @@ func Untagged() {
 		eval.ReportError("Untagged can only be used with OneOf")
 		return
 	}
-	union.Untagged = true
+	attribute.SetUntagged()
 }
 
 func oneOfAttribute(name string, args ...any) {

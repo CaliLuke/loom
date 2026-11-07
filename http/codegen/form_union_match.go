@@ -11,7 +11,7 @@ import (
 
 func renderFormUnionMatcher(body *TypeData, contract *expr.HTTPFormEncoding) string {
 	var out strings.Builder
-	name := body.context.Scope.Name(body.attribute, body.context.Pkg(body.attribute), false, false)
+	name := body.context.Scope.Name(body.attribute, body.context.Pkg(body.attribute), &codegen.AttributeContext{})
 	fmt.Fprintf(&out, "matchFormUnion := func() (%s, []int, error) {\nvar result %s\n", name, name)
 	renderFormUnionBranches(&out, body, contract, "")
 	fmt.Fprintf(&out, "matched, err := loomhttp.MatchUntaggedText(%q, branches, %t)\nif err != nil {\nreturn result, nil, err\n}\npath := []int{matched}\n", "form body", contract.Body.UnionClosed())
@@ -33,7 +33,7 @@ func renderFormUnionBranches(out *strings.Builder, body *TypeData, contract *exp
 			renderFormUnionBranches(out, child, captured, id+"_")
 			fmt.Fprintf(out, "var path%s []int\nbranch%s := loomhttp.ComposeTextUnion(%q, branches%s_, %t, func(matched int) (bool, error) {\n", id, id, "form body", id, captured.Body.UnionClosed())
 			if pointer {
-				fmt.Fprintf(out, "candidate%s = new(%s)\n", id, child.context.Scope.Name(branch.Attribute, child.context.Pkg(branch.Attribute), false, false))
+				fmt.Fprintf(out, "candidate%s = new(%s)\n", id, child.context.Scope.Name(branch.Attribute, child.context.Pkg(branch.Attribute), &codegen.AttributeContext{}))
 			}
 			fmt.Fprintf(out, "path%s = []int{matched}\n", id)
 			renderTextUnionSelection(out, nested, "candidate"+id, "path"+id, id+"_")
@@ -50,7 +50,7 @@ func renderFormUnionBranches(out *strings.Builder, body *TypeData, contract *exp
 		}
 		fmt.Fprintf(out, "var v %s\n", ref)
 		if pointer {
-			fmt.Fprintf(out, "v = new(%s)\n", child.context.Scope.Name(branch.Attribute, child.context.Pkg(branch.Attribute), false, false))
+			fmt.Fprintf(out, "v = new(%s)\n", child.context.Scope.Name(branch.Attribute, child.context.Pkg(branch.Attribute), &codegen.AttributeContext{}))
 		}
 		out.WriteString("if err := func() (err error) {\n")
 		out.WriteString(renderFormLeafDecode(child, captured, "v"))
@@ -67,7 +67,7 @@ func renderFormUnionBranches(out *strings.Builder, body *TypeData, contract *exp
 func formBranchBody(parent *TypeData, attribute *expr.AttributeExpr) *TypeData {
 	context := parent.context.Dup()
 	representation.ApplyLayout(context, attribute)
-	return &TypeData{attribute: attribute, context: context, Name: context.Scope.Name(attribute, context.Pkg(attribute), false, false)}
+	return &TypeData{attribute: attribute, context: context, Name: context.Scope.Name(attribute, context.Pkg(attribute), &codegen.AttributeContext{})}
 }
 
 func renderFormLeafDecode(body *TypeData, contract *expr.HTTPFormEncoding, target string) string {

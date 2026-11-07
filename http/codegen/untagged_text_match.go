@@ -41,7 +41,7 @@ func renderTextUnionBranches(out *strings.Builder, element *Element, union *expr
 			renderTextUnionBranches(out, branchElement, nested, codecs[index].Inner, location, id+"_")
 			fmt.Fprintf(out, "var path%s []int\nbranch%s := loomhttp.ComposeTextUnion(%s, branches%s_, %t, func(matched int) (bool, error) {\n", id, id, parameterWireName(element), id, branch.Attribute.UnionClosed())
 			if strings.HasPrefix(ref, "*") {
-				name := element.context.Scope.Name(branch.Attribute, element.context.Pkg(branch.Attribute), false, false)
+				name := element.context.Scope.Name(branch.Attribute, element.context.Pkg(branch.Attribute), &codegen.AttributeContext{})
 				fmt.Fprintf(out, "candidate%s = new(%s)\n", id, name)
 			}
 			fmt.Fprintf(out, "path%s = []int{matched}\n", id)
