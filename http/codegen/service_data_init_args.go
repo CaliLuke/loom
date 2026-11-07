@@ -99,22 +99,20 @@ func buildBasicAuthCLIArgs(ep *service.MethodData, payload *expr.AttributeExpr, 
 	return nil
 }
 
-func buildBodyInitArg(
-	scope *codegen.NameScope,
-	body *expr.AttributeExpr,
-	addressObject bool,
-	httpctx *codegen.AttributeContext,
-) *InitArgData {
+func buildBodyInitArg(body *TypeData) *InitArgData {
+	attribute, context := body.attribute, body.context
 	ref := "body"
-	if addressObject && (expr.IsObject(body.Type) || expr.IsUnion(body.Type)) && !expr.IsNullable(body) {
+	if (expr.IsObject(attribute.Type) || expr.IsUnion(attribute.Type)) && !expr.IsNullable(attribute) {
 		ref = "&body"
 	}
 	return &InitArgData{
-		Ref: ref,
+		attribute: attribute,
+		context:   context,
+		Ref:       ref,
 		AttributeData: &AttributeData{
 			Name:    "body",
 			VarName: "body",
-			TypeRef: goBodyTypeRef(scope, body, httpctx),
+			TypeRef: goBodyTypeRef(context.Scope.Scope(), attribute, context),
 		},
 	}
 }
@@ -123,7 +121,9 @@ func buildHeaderInitArgs(headers []*HeaderData) []*InitArgData {
 	args := make([]*InitArgData, 0, len(headers))
 	for _, header := range headers {
 		args = append(args, &InitArgData{
-			Ref: header.VarName,
+			attribute: header.attribute,
+			context:   header.context,
+			Ref:       header.VarName,
 			AttributeData: &AttributeData{
 				Name:          header.Name,
 				VarName:       header.VarName,
@@ -147,7 +147,9 @@ func buildCookieInitArgs(cookies []*CookieData) []*InitArgData {
 	args := make([]*InitArgData, 0, len(cookies))
 	for _, cookie := range cookies {
 		args = append(args, &InitArgData{
-			Ref: cookie.VarName,
+			attribute: cookie.attribute,
+			context:   cookie.context,
+			Ref:       cookie.VarName,
 			AttributeData: &AttributeData{
 				Name:         cookie.Name,
 				VarName:      cookie.VarName,

@@ -97,7 +97,7 @@ func TestAnalyzePanicsOnUnknownResponseBodyView(t *testing.T) {
 	require.ErrorContains(t, err, `project generated response body view "bogus"`)
 }
 
-func TestEffectiveClientResponseBodyPanicsOnUnknownView(t *testing.T) {
+func TestClientResponseBodyPreparationPanicsOnUnknownView(t *testing.T) {
 	root := RunHTTPDSL(t, testdata.ResultBodyMultipleViewsDSL)
 	services := CreateHTTPServices(root)
 	sd := services.Get("ServiceBodyMultipleView")
@@ -109,16 +109,13 @@ func TestEffectiveClientResponseBodyPanicsOnUnknownView(t *testing.T) {
 	rt, ok := endpoint.MethodExpr.Result.Type.(*expr.ResultTypeExpr)
 	require.True(t, ok)
 	body := &expr.AttributeExpr{Type: rt}
-	methodResult := &expr.AttributeExpr{
-		Type: rt,
-		Meta: expr.MetaExpr{expr.ViewMetaKey: []string{"bogus"}},
-	}
+	view := "bogus"
 
 	err := recoverAnalysisError(t, func() {
-		effectiveClientResponseBody(body, methodResult, md)
+		projectResponseBodyView(body, &view, false, sd)
 	})
 
-	require.ErrorContains(t, err, `project effective client response body view "bogus"`)
+	require.ErrorContains(t, err, `project generated response body view "bogus"`)
 }
 
 func TestAnalyzePanicsOnIncompatibleWebSocketStreamingBody(t *testing.T) {

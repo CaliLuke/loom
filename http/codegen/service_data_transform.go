@@ -44,12 +44,6 @@ func bodyCodecContext(scope *codegen.NameScope, decode bool) *codegen.AttributeC
 	return ctx
 }
 
-func responseHTTPContext(scope *codegen.NameScope) *codegen.AttributeContext {
-	ctx := httpContext(scope, false, false)
-	ctx.JSONPresence = true
-	return ctx
-}
-
 // serviceContext returns an attribute context for service types.
 func serviceContext(pkg string, scope *codegen.NameScope) *codegen.AttributeContext {
 	return codegen.NewAttributeContext(false, false, true, pkg, scope)

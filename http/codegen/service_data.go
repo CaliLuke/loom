@@ -652,6 +652,9 @@ type (
 
 	// InitArgData represents a single constructor argument.
 	InitArgData struct {
+		// attribute and context retain the actual decoded argument representation.
+		attribute           *expr.AttributeExpr
+		context             *codegen.AttributeContext
 		parameter           *Element
 		parameterValueVar   string
 		parameterSegmentVar string

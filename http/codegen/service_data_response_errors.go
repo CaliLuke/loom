@@ -11,12 +11,11 @@ import (
 )
 
 type errorBuilder struct {
-	sds        *ServicesData
-	endpoint   *transportir.Endpoint
-	sd         *ServiceData
-	svc        *service.Data
-	method     *service.MethodData
-	httpclictx *codegen.AttributeContext
+	sds      *ServicesData
+	endpoint *transportir.Endpoint
+	sd       *ServiceData
+	svc      *service.Data
+	method   *service.MethodData
 }
 
 func (sds *ServicesData) buildErrorsDataFromIR(endpointIR *transportir.Endpoint, sd *ServiceData) []*ErrorGroupData {
@@ -26,12 +25,11 @@ func (sds *ServicesData) buildErrorsDataFromIR(endpointIR *transportir.Endpoint,
 func newErrorBuilder(sds *ServicesData, endpointIR *transportir.Endpoint, sd *ServiceData) *errorBuilder {
 	svc := sd.Service
 	return &errorBuilder{
-		sds:        sds,
-		endpoint:   endpointIR,
-		sd:         sd,
-		svc:        svc,
-		method:     svc.Method(endpointIR.Name),
-		httpclictx: responseHTTPContext(sd.Scope),
+		sds:      sds,
+		endpoint: endpointIR,
+		sd:       sd,
+		svc:      svc,
+		method:   svc.Method(endpointIR.Name),
 	}
 }
 
@@ -71,15 +69,15 @@ func (b *errorBuilder) buildSingle(errorResponse *transportir.ResponseStatus) (s
 	errorDesc := service.BuildErrorDescriptor(b.svc, httpError.Name, httpError.Attribute)
 	pkg := errorDesc.Type.Package
 	errctx := serviceContext(pkg, b.sd.Service.Scope)
-	init := b.buildResultInit(errorResponse, pkg, errctx)
-	responseData := b.buildResponseData(errorResponse, errctx, init)
+	serverBodyData, clientBodyData := b.buildResponseBodyData(errorResponse)
+	init := b.buildResultInit(errorResponse, clientBodyData, pkg, errctx)
+	responseData := b.buildResponseData(errorResponse, serverBodyData, clientBodyData, errctx, init)
 	ref := errorDesc.Type.Ref
 	return ref, &ErrorData{Name: httpError.Name, Response: responseData, Ref: ref, Selector: errorResponse.ErrorSelector}
 }
 
-func (b *errorBuilder) buildResultInit(errorResponse *transportir.ResponseStatus, pkg string, errctx *codegen.AttributeContext) *InitData {
+func (b *errorBuilder) buildResultInit(errorResponse *transportir.ResponseStatus, clientBody *TypeData, pkg string, errctx *codegen.AttributeContext) *InitData {
 	httpError := errorResponse.Error
-	body := responseStatusBody(errorResponse).Type
 	if !needInit(httpError.Attribute) && !expr.ContainsNonNullableCollectionElement(responseStatusBody(errorResponse)) {
 		return nil
 	}
@@ -87,15 +85,15 @@ func (b *errorBuilder) buildResultInit(errorResponse *transportir.ResponseStatus
 	headers := b.sds.extractHeaders(errorResponse.Headers, httpError.Attribute, errctx, b.sd.Scope, vars, b.sds.examplesFor(b.sd))
 	cookies := b.sds.extractResponseCookies(errorResponse.Cookies, httpError.Attribute, errctx, b.sd.Scope, vars, b.sds.examplesFor(b.sd))
 	args := make([]*InitArgData, 0, len(headers)+len(cookies)+1)
-	if body != expr.Empty {
-		args = append(args, buildBodyInitArg(b.sd.Scope, responseStatusBody(errorResponse), true, b.httpclictx))
+	if clientBody != nil {
+		args = append(args, buildBodyInitArg(clientBody))
 	}
 	args = append(args, buildHeaderInitArgs(headers)...)
 	args = append(args, buildCookieInitArgs(cookies)...)
 	if errorResponse.StatusErrorName != "" {
 		args = append(args, b.statusErrorNameArg(errorResponse, errctx, vars))
 	}
-	code, field, skipFieldInit := b.buildResultInitCode(errorResponse, errctx, args)
+	code, field, skipFieldInit := b.buildResultInitCode(errorResponse, clientBody, errctx, args)
 	name := fmt.Sprintf("New%s%s", codegen.Goify(b.method.Name, true), codegen.Goify(httpError.Name, true))
 	return &InitData{
 		Name:                     name,
@@ -119,25 +117,25 @@ func (b *errorBuilder) buildResultInit(errorResponse *transportir.ResponseStatus
 // selection alone does not determine the constructor's result field.
 func (b *errorBuilder) buildResultInitCode(
 	errorResponse *transportir.ResponseStatus,
+	clientBody *TypeData,
 	errctx *codegen.AttributeContext,
 	args []*InitArgData,
 ) (codegen.TransformPlan, selectedServiceField, bool) {
 	httpError := errorResponse.Error
 	body := responseStatusBody(errorResponse)
 	if expr.IsDefaultErrorResult(httpError.Attribute.Type) {
-		return codegen.TransformPlan{Code: b.buildProblemClientResult(errorResponse, args)}, selectedServiceField{Attribute: httpError.Attribute}, true
+		return codegen.TransformPlan{Code: b.buildProblemClientResult(errorResponse, clientBody, args)}, selectedServiceField{Attribute: httpError.Attribute}, true
 	}
 	field := selectBodyField(httpError.Attribute, body)
-	code, err := b.sds.buildClientResultTransformCode(body, field.Attribute, httpError.Attribute, args, b.httpclictx, errctx, b.sd)
+	code, err := b.sds.buildClientResultTransformCode(clientBody, field.Attribute, httpError.Attribute, args, errctx, b.sd)
 	if err != nil {
 		panic(codegen.NewError(b.sds.Ctx, body, fmt.Errorf("build HTTP error response transform for %s: %w", httpError.Name, err)))
 	}
 	return code, field, false
 }
 
-func (b *errorBuilder) buildResponseData(errorResponse *transportir.ResponseStatus, errctx *codegen.AttributeContext, init *InitData) *ResponseData {
+func (b *errorBuilder) buildResponseData(errorResponse *transportir.ResponseStatus, serverBodyData []*TypeData, clientBodyData *TypeData, errctx *codegen.AttributeContext, init *InitData) *ResponseData {
 	httpError := errorResponse.Error
-	serverBodyData, clientBodyData := b.buildResponseBodyData(errorResponse)
 	for _, body := range serverBodyData {
 		attachMediaBodyData(body, errorResponse.MediaVariants)
 	}

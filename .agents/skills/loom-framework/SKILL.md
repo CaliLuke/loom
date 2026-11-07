@@ -2026,6 +2026,11 @@ filter, and serialization rules belong here.
   use the owning physical layout when naming inline object definitions. Migrate
   custom Attributor implementations to this signature and regenerate. JSON field
   presence and collection-element presence are independent layout facts.
+  Response constructor arguments, validation and conversion consume the prepared
+  body TypeData attribute/context used by the decoder, including named-type layout.
+  Prepare error bodies before their result constructors; do not reconstruct a
+  partial response context or repair it only inside conversion. Bodyless results
+  consume the decoded header/cookie binding context independently of body layout.
 - `DefaultApplication` owns absent-field action selection. Incoming native HTTP
   Body conversion opts into selected-source defaults after admission; JSON-RPC,
   response, CLI and protobuf conversion remain target-owned. Materialize selected

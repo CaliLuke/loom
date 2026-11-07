@@ -32,7 +32,7 @@ func responseBodySource(att *expr.AttributeExpr, loc *codegen.Location, server b
 	return att, serviceContext(data.Service.LocationPackageName(loc), data.Service.Scope), "res"
 }
 
-func (b *errorBuilder) buildProblemClientResult(errorResponse *transportir.ResponseStatus, args []*InitArgData) string {
+func (b *errorBuilder) buildProblemClientResult(errorResponse *transportir.ResponseStatus, clientBody *TypeData, args []*InitArgData) string {
 	problem, targetContext := problemRepresentation()
 	locals := codegen.NewNameScope()
 	locals.Unique("v")
@@ -44,8 +44,8 @@ func (b *errorBuilder) buildProblemClientResult(errorResponse *transportir.Respo
 	var code strings.Builder
 	var fields []*InitArgData
 	origin, selected := body.Meta["origin:attribute"]
-	if body.Type != expr.Empty && !selected {
-		plan, err := codegen.GoTransform(body, problem, "body", variable, b.httpclictx, targetContext, "unmarshal", true)
+	if clientBody != nil && !selected {
+		plan, err := codegen.GoTransform(clientBody.attribute, problem, "body", variable, clientBody.context.Dup(), targetContext, "unmarshal", true)
 		if err != nil {
 			panic(codegen.NewError(b.sds.Ctx, body, fmt.Errorf("project HTTP problem response: %w", err)))
 		}

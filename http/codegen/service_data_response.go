@@ -92,18 +92,16 @@ func (sds *ServicesData) buildResponsesFromIR(endpointIR *transportir.Endpoint, 
 	var (
 		responses = make([]*ResponseData, 0, len(endpointIR.Response.Responses))
 
-		svc        = sd.Service
-		md         = svc.Method(endpointIR.Name)
-		pkg        = svc.LocationPackageName(md.ResultLoc)
-		httpclictx = httpContext(sd.Scope, false, false)
-		svcctx     = serviceContext(pkg, sd.Service.Scope)
+		svc    = sd.Service
+		md     = svc.Method(endpointIR.Name)
+		pkg    = svc.LocationPackageName(md.ResultLoc)
+		svcctx = serviceContext(pkg, sd.Service.Scope)
 	)
-	httpclictx.JSONPresence = true
 	if viewed {
 		svcctx = viewContext(sd.Service.ViewsPkg, sd.Service.ViewScope)
 	}
 	for _, resp := range endpointIR.Response.Responses {
-		responses = append(responses, sds.buildSingleResponseData(endpointIR, resp, result, viewed, md, httpclictx, svcctx, sd))
+		responses = append(responses, sds.buildSingleResponseData(endpointIR, resp, result, viewed, md, svcctx, sd))
 	}
 	return responses
 }
@@ -114,7 +112,6 @@ func (sds *ServicesData) buildSingleResponseData(
 	result *expr.AttributeExpr,
 	viewed bool,
 	md *service.MethodData,
-	httpclictx *codegen.AttributeContext,
 	svcctx *codegen.AttributeContext,
 	sd *ServiceData,
 ) *ResponseData {
@@ -128,7 +125,7 @@ func (sds *ServicesData) buildSingleResponseData(
 		attachMediaBodyData(body, resp.MediaVariants)
 	}
 	attachMediaBodyData(clientBodyData, resp.MediaVariants)
-	init := sds.buildResponseResultInit(resp, result, field, md, httpclictx, svcctx, headersData, cookiesData, endpointIR, sd)
+	init := sds.buildResponseResultInit(resp, result, field, md, clientBodyData, svcctx, headersData, cookiesData, endpointIR, sd)
 	tag := responseTagData(resp.Tag, result, viewed, svcctx)
 	return newResponseData(
 		resp.Description,
@@ -209,51 +206,6 @@ func viewedResponseBodyViews(origin string, md *service.MethodData, methodResult
 	return views, clientView
 }
 
-// clientResponseViewName returns the response view used by client code
-// generation when the design fixes the response to a single view. An empty
-// string means the client must keep the unprojected transport body because the
-// server may render multiple views.
-func clientResponseViewName(methodResult *expr.AttributeExpr, md *service.MethodData) string {
-	if md == nil || md.ViewedResult == nil {
-		return ""
-	}
-	if methodResult != nil {
-		if v, ok := methodResult.Meta.Last(expr.ViewMetaKey); ok {
-			return v
-		}
-	}
-	if len(md.ViewedResult.Views) == 1 {
-		return md.ViewedResult.Views[0].Name
-	}
-	return ""
-}
-
-// effectiveClientResponseBody returns the response body shape used by client
-// code generation. When the design fixes the response to a single view, the
-// returned attribute uses that projected ResultType so type collection, union
-// collection, and client decode/init all agree on one transport body.
-func effectiveClientResponseBody(body, methodResult *expr.AttributeExpr, md *service.MethodData) *expr.AttributeExpr {
-	if body == nil {
-		return body
-	}
-	view := clientResponseViewName(methodResult, md)
-	if view == "" {
-		return body
-	}
-	body = expr.DupAtt(body)
-	rt, ok := body.Type.(*expr.ResultTypeExpr)
-	if !ok {
-		return body
-	}
-	projected, err := expr.Project(rt, view)
-	if err != nil {
-		panic(codegen.NewError(nil, body, fmt.Errorf("project effective client response body view %q: %w", view, err)))
-	}
-	body.Type = projected
-	body.Validation = projected.Validation
-	return body
-}
-
 func (sds *ServicesData) buildResponseBodyPair(
 	body, target *expr.AttributeExpr,
 	loc *codegen.Location,
@@ -282,7 +234,7 @@ func (sds *ServicesData) buildResponseResultInit(
 	result *expr.AttributeExpr,
 	field selectedServiceField,
 	md *service.MethodData,
-	httpclictx *codegen.AttributeContext,
+	clientBody *TypeData,
 	svcctx *codegen.AttributeContext,
 	headersData []*HeaderData,
 	cookiesData []*CookieData,
@@ -305,7 +257,7 @@ func (sds *ServicesData) buildResponseResultInit(
 	if strings.HasPrefix(codegen.Goify(md.Result, true), n) {
 		name = fmt.Sprintf("New%s%s", r, status)
 	}
-	code, pointer, clientArgs := sds.buildResponseResultInitCode(resp, result, field.Attribute, field.Name, md, httpclictx, svcctx, headersData, cookiesData, endpointIR, sd)
+	code, pointer, clientArgs := sds.buildResponseResultInitCode(resp, result, field.Attribute, field.Name, clientBody, svcctx, headersData, cookiesData, sd)
 	return &InitData{
 		returnContext:            svcctx,
 		Name:                     name,
@@ -328,40 +280,25 @@ func (sds *ServicesData) buildResponseResultInitCode(
 	result *expr.AttributeExpr,
 	resAttr *expr.AttributeExpr,
 	origin string,
-	md *service.MethodData,
-	httpclictx *codegen.AttributeContext,
+	clientBody *TypeData,
 	svcctx *codegen.AttributeContext,
 	headersData []*HeaderData,
 	cookiesData []*CookieData,
-	endpointIR *transportir.Endpoint,
 	sd *ServiceData,
 ) (codegen.TransformPlan, bool, []*InitArgData) {
-	body := effectiveClientResponseBody(resp.Body, endpointIR.Response.Result, md)
-	clientArgs := buildResponseResultInitArgs(resp, body, httpclictx, headersData, cookiesData, sd)
+	clientArgs := make([]*InitArgData, 0, 1+len(headersData)+len(cookiesData))
+	if clientBody != nil {
+		bodyArg := buildBodyInitArg(clientBody)
+		bodyArg.Validate = validationCodeForBodyArg(bodyArg.attribute, bodyArg.context)
+		clientArgs = append(clientArgs, bodyArg)
+	}
 	clientArgs = append(clientArgs, buildHeaderInitArgs(headersData)...)
 	clientArgs = append(clientArgs, buildCookieInitArgs(cookiesData)...)
-	code, err := sds.buildClientResultTransformCode(body, resAttr, result, clientArgs, httpclictx, svcctx, sd)
+	code, err := sds.buildClientResultTransformCode(clientBody, resAttr, result, clientArgs, svcctx, sd)
 	if err != nil {
-		panic(codegen.NewError(nil, body, fmt.Errorf("build HTTP response result transform: %w", err)))
+		panic(codegen.NewError(nil, resp.Body, fmt.Errorf("build HTTP response result transform: %w", err)))
 	}
 	return code, buildResponseResultPointer(resp, result, origin, svcctx), clientArgs
-}
-
-func buildResponseResultInitArgs(
-	resp *transportir.ResponseStatus,
-	body *expr.AttributeExpr,
-	httpclictx *codegen.AttributeContext,
-	headersData []*HeaderData,
-	cookiesData []*CookieData,
-	sd *ServiceData,
-) []*InitArgData {
-	clientArgs := make([]*InitArgData, 0, 1+len(headersData)+len(cookiesData))
-	if resp.Body.Type == expr.Empty {
-		return clientArgs
-	}
-	bodyArg := buildBodyInitArg(sd.Scope, body, true, httpclictx)
-	bodyArg.AttributeData.Validate = validationCodeForBodyArg(body, httpclictx)
-	return append(clientArgs, bodyArg)
 }
 
 func buildResponseResultPointer(resp *transportir.ResponseStatus, result *expr.AttributeExpr, origin string, targetctx *codegen.AttributeContext) bool {
@@ -383,16 +320,15 @@ func validationCodeForBodyArg(body *expr.AttributeExpr, httpclictx *codegen.Attr
 }
 
 func (sds *ServicesData) buildClientResultTransformCode(
-	body *expr.AttributeExpr,
+	body *TypeData,
 	bodyTarget *expr.AttributeExpr,
 	fallbackTarget *expr.AttributeExpr,
 	args []*InitArgData,
-	httpclictx *codegen.AttributeContext,
 	targetctx *codegen.AttributeContext,
 	sd *ServiceData,
 ) (codegen.TransformPlan, error) {
-	if body.Type != expr.Empty {
-		return sds.buildClientBodyUnmarshalCode(body, bodyTarget, httpclictx, targetctx, sd)
+	if body != nil {
+		return sds.buildClientResultUnmarshalCode(body.attribute, bodyTarget, "body", body.context, targetctx, sd)
 	}
 	if !expr.IsArray(fallbackTarget.Type) && !expr.IsMap(fallbackTarget.Type) {
 		return codegen.TransformPlan{}, nil
@@ -400,31 +336,19 @@ func (sds *ServicesData) buildClientResultTransformCode(
 	if len(args) != 1 {
 		return codegen.TransformPlan{}, nil
 	}
-	// A whole collection comes from the response's sole decoded binding.
-	// Request query parameters are unrelated to response reconstruction.
-	source := &expr.AttributeExpr{Type: args[0].Type}
-	return sds.buildClientBodyUnmarshalCode(source, fallbackTarget, httpclictx, targetctx, sd, args[0].VarName)
+	// A bodyless collection comes from its sole decoded native binding, whose
+	// physical representation is independent of JSON body layout.
+	argument := args[0]
+	return sds.buildClientResultUnmarshalCode(argument.attribute, fallbackTarget, argument.VarName, argument.context, targetctx, sd)
 }
 
-func (sds *ServicesData) buildClientBodyUnmarshalCode(
-	source *expr.AttributeExpr,
-	target *expr.AttributeExpr,
-	httpclictx *codegen.AttributeContext,
-	targetctx *codegen.AttributeContext,
+func (sds *ServicesData) buildClientResultUnmarshalCode(
+	source, target *expr.AttributeExpr,
+	sourceVar string,
+	sourcectx, targetctx *codegen.AttributeContext,
 	sd *ServiceData,
-	sourceVar ...string,
 ) (codegen.TransformPlan, error) {
-	src := "body"
-	if len(sourceVar) > 0 && sourceVar[0] != "" {
-		src = sourceVar[0]
-	}
-	sourceContext := httpclictx
-	if len(sourceVar) == 0 {
-		sourceContext = httpclictx.Dup()
-		sourceContext.CollectionElementPresence = sourceContext.JSONPresence
-		applyUserTypeLayout(sourceContext, sd, source, false)
-	}
-	plan, err := unmarshal(source, target, src, sourceContext, targetctx)
+	plan, err := unmarshal(source, target, sourceVar, sourcectx.Dup(), targetctx)
 	if err != nil {
 		return codegen.TransformPlan{}, err
 	}
