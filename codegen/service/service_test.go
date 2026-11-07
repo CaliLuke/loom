@@ -157,6 +157,37 @@ func TestRenderErrorMethodsUsesInstanceMessage(t *testing.T) {
 			},
 		},
 		{
+			name: "optional nullable message",
+			fields: expr.Object{
+				&expr.NamedAttributeExpr{Name: "message", Attribute: &expr.AttributeExpr{Type: expr.String, Nullable: true}},
+			},
+			contains: []string{
+				"if e != nil {\n\t\tif value, ok := e.Message.Value(); ok && value != \"\" {\n\t\t\treturn value\n\t\t}\n\t}",
+			},
+			excludes: []string{"e.Message != nil", "*e.Message"},
+		},
+		{
+			name: "required nullable string alias",
+			fields: expr.Object{
+				&expr.NamedAttributeExpr{
+					Name: "detail",
+					Attribute: &expr.AttributeExpr{
+						Type: &expr.UserTypeExpr{
+							AttributeExpr: &expr.AttributeExpr{Type: expr.String},
+							TypeName:      "ErrorDetail",
+						},
+						Nullable: true,
+					},
+				},
+			},
+			required: []string{"detail"},
+			contains: []string{
+				`if value, ok := e.Detail.Value(); ok && string(value) != ""`,
+				`return string(value)`,
+			},
+			excludes: []string{"string(e.Detail)"},
+		},
+		{
 			name: "error name field",
 			fields: expr.Object{
 				&expr.NamedAttributeExpr{Name: "error", Attribute: &expr.AttributeExpr{

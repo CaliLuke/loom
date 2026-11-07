@@ -10,12 +10,14 @@ import (
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/uniongen"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/encodingmeta"
 )
 
 type errorMessageField struct {
-	Name    string
-	Pointer bool
-	Alias   bool
+	Name     string
+	Pointer  bool
+	Nullable bool
+	Alias    bool
 }
 
 var errorMessageAttributeNames = []string{"message", "detail", "title", "error", "reason"}
@@ -91,10 +93,14 @@ func renderErrorMethods(data *UserTypeData) string {
 	var b strings.Builder
 	b.WriteString("// Error returns an error description.\n")
 	fmt.Fprintf(&b, "func (e %s) Error() string {\n", data.Ref)
+	pointerReceiver := strings.HasPrefix(data.Ref, "*")
 	for _, field := range errorMessageFields(data) {
 		accessor := "e." + field.Name
 		value := accessor
-		if field.Pointer {
+		switch {
+		case field.Nullable:
+			value = "value"
+		case field.Pointer:
 			value = "*" + accessor
 		}
 		if field.Alias {
@@ -104,7 +110,14 @@ func renderErrorMethods(data *UserTypeData) string {
 		if field.Pointer {
 			condition = accessor + " != nil && " + condition
 		}
-		if strings.HasPrefix(data.Ref, "*") {
+		if field.Nullable {
+			// Absent and null values have no message, like empty ones.
+			condition = "value, ok := " + accessor + ".Value(); ok && " + condition
+			if pointerReceiver {
+				fmt.Fprintf(&b, "\tif e != nil {\n\t\tif %s {\n\t\t\treturn %s\n\t\t}\n\t}\n", condition, value)
+				continue
+			}
+		} else if pointerReceiver {
 			condition = "e != nil && " + condition
 		}
 		fmt.Fprintf(&b, "\tif %s {\n\t\treturn %s\n\t}\n", condition, value)
@@ -140,10 +153,12 @@ func errorMessageFields(data *UserTypeData) []errorMessageField {
 				!isStringType(attribute.Attribute.Type) {
 				continue
 			}
+			layout := expr.ServiceFieldLayout(parent, attribute.Name, attribute.Attribute, false, true)
 			fields = append(fields, errorMessageField{
-				Name:    codegen.GoifyAtt(attribute.Attribute, attribute.Name, true),
-				Pointer: parent.IsPrimitivePointer(attribute.Name, true),
-				Alias:   expr.IsAlias(attribute.Attribute.Type),
+				Name:     codegen.GoifyAtt(attribute.Attribute, attribute.Name, true),
+				Pointer:  layout.Pointer,
+				Nullable: layout.JSON.Storage == encodingmeta.JSONPresence,
+				Alias:    expr.IsAlias(attribute.Attribute.Type),
 			})
 		}
 	}
