@@ -33,11 +33,11 @@ const (
 	templateKey
 )
 
-// NewBodyTemplate creates a selected object template bound to the complete
-// source occurrence. Its ordinary DSL callback must run before capture ends.
+// NewBodyTemplate creates an untyped selection template bound to the complete
+// source occurrence. Its ordinary DSL callback declares the selected shape and
+// must run before capture ends. A callback without a shape remains untyped.
 func NewBodyTemplate(source *AttributeExpr) *AttributeExpr {
 	return &AttributeExpr{
-		Type: &Object{},
 		template: &attributeTemplate{
 			source: source, local: &AttributeExpr{},
 			session: &templateCapture{active: true}, selectedRoot: true,

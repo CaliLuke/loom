@@ -35,6 +35,24 @@ func TestTemplateCopyMetadataRemovalIsolation(t *testing.T) {
 	}
 }
 
+func TestNewBodyTemplateDoesNotDeclareShape(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		source *AttributeExpr
+	}{
+		{name: "empty source", source: &AttributeExpr{Type: &Object{}}},
+		{name: "populated source", source: &AttributeExpr{Type: &Object{{Name: "value", Attribute: &AttributeExpr{Type: String}}}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			body := NewBodyTemplate(tc.source)
+			require.Nil(t, body.Type, "a template binding is not an authored type")
+			body.EndTemplateCapture()
+			body.Inherit(tc.source)
+			require.Nil(t, body.Type, "inheritance must not invent the selected body shape")
+		})
+	}
+}
+
 func TestTemplatePublicationKeepsAuthorshipAndEndsCapture(t *testing.T) {
 	minimum, err := NewNumericBound(0)
 	require.NoError(t, err)
@@ -49,6 +67,8 @@ func TestTemplatePublicationKeepsAuthorshipAndEndsCapture(t *testing.T) {
 	localMinimum, err := NewNumericBound(1)
 	require.NoError(t, err)
 	selected.SetMinimum(localMinimum)
+	// Attribute declares its parent object before inserting a selected member.
+	body.Type = &Object{}
 	AsObject(body.Type).Set("value", selected)
 	copied := DupAtt(body)
 	copiedValue := AsObject(copied.Type).Attribute("value")

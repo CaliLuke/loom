@@ -22,7 +22,9 @@ func (e *HTTPEndpointExpr) Validate() error {
 	e.validateRedirect(verr)
 	e.validateRoutes(verr)
 	e.validateResponses(verr)
-	e.validateBodyAndPayload(verr)
+	if !e.validateBodyAndPayload(verr) {
+		return verr
+	}
 	e.validateParameterSerialization(verr)
 	e.validateRequestContentType(verr)
 	e.validateMediaTypes(verr)
@@ -145,12 +147,19 @@ func (e *HTTPEndpointExpr) validateResponses(verr *eval.ValidationErrors) {
 	}
 }
 
-func (e *HTTPEndpointExpr) validateBodyAndPayload(verr *eval.ValidationErrors) {
+// validateBodyAndPayload reports whether request-body derivation may proceed.
+// An invalid authored body must retain its validation errors instead of reaching
+// analyses that require a valid attribute graph.
+func (e *HTTPEndpointExpr) validateBodyAndPayload(verr *eval.ValidationErrors) bool {
 	verr.Merge(e.validateParams())
 	verr.Merge(e.validateHeadersAndCookies())
 
 	if e.Body != nil {
-		verr.Merge(e.Body.Validate("HTTP body", e))
+		bodyErrors := e.Body.Validate("HTTP body", e)
+		verr.Merge(bodyErrors)
+		if bodyErrors != nil && len(bodyErrors.Errors) > 0 {
+			return false
+		}
 		validateBodyRequiredKeys(e.Body, "HTTP request body", e, verr)
 		if e.SkipRequestBodyEncodeDecode {
 			verr.Add(e, "Cannot define a request body when using SkipRequestBodyEncodeDecode.")
@@ -163,7 +172,7 @@ func (e *HTTPEndpointExpr) validateBodyAndPayload(verr *eval.ValidationErrors) {
 		hasHeaders = !e.Headers.IsEmpty()
 	)
 	if e.validateMissingPayload(verr, hasParams, hasHeaders) {
-		return
+		return true
 	}
 	e.validateRequestBodyOptions(verr)
 
@@ -176,6 +185,7 @@ func (e *HTTPEndpointExpr) validateBodyAndPayload(verr *eval.ValidationErrors) {
 	if e.SkipRequestBodyEncodeDecode && httpRequestBody(e).Type != Empty {
 		verr.Add(e, "HTTP endpoint request body must be empty when using SkipRequestBodyEncodeDecode but not all method payload attributes are mapped to headers and params. Make sure to define Headers and Params as needed.")
 	}
+	return true
 }
 
 // validateBodyRequiredPayloadAttributes checks that the payload requires each

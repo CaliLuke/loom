@@ -170,6 +170,10 @@ func (c *designComposer) walk(attribute *AttributeExpr, path string) {
 }
 
 func (c *designComposer) object(attribute *AttributeExpr, bases []*AttributeExpr, path string) {
+	// Resolved explicit Extend contributors declare an otherwise untyped object.
+	if attribute.Type == nil {
+		attribute.Type = &Object{}
+	}
 	object := AsObject(attribute.Type)
 	if object == nil {
 		compositionError(attribute, "%s: Extend requires an object", path)

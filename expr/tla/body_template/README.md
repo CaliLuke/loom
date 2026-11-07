@@ -71,3 +71,15 @@ independent tests. In particular, preserving a Body-local default does not prove
 that a later transport phase applies it. The generated HTTP template specimen
 checks that boundary separately; the source-target default phase must not be
 silently inferred from this model's green result.
+
+Constructor admission is checked separately from this selected-field model.
+`NewBodyTemplate` starts untyped: only authored shape declarations create its
+object. `Attribute` declares selected members; explicit `Extend` contributors
+supply shape when composition resolves them. An empty callback, descriptions,
+metadata, `Required`, or `Reference` alone do not declare a body. Explicit typed
+or selected empty objects remain valid. `TestNewBodyTemplateDoesNotDeclareShape`,
+`TestBodyTemplateShapeDeclarations`, `TestBodyTemplateWithoutDeclaredShapeRejected`
+and the explicit-empty request/response tests cover this boundary. Endpoint
+validation returns an authored body's structural errors before attempting
+request-body derivation. The model does not establish constructor admission or
+validation diagnostics; these corrections do not change its lifecycle transitions.

@@ -107,4 +107,162 @@ func TestUntypedEmptyBodyRemainsRejected(t *testing.T) {
 		})
 	})
 	require.ErrorContains(t, err, "attribute type is nil")
+	require.NotContains(t, err.Error(), "panic:")
+}
+
+// Descriptive and validation modifiers do not declare an object's shape.
+func TestBodyTemplateWithoutDeclaredShapeRejected(t *testing.T) {
+	for _, context := range []string{"request", "response", "documentation", "request documentation"} {
+		for _, modifier := range []struct {
+			name string
+			dsl  func()
+		}{
+			{name: "empty", dsl: func() {
+			}},
+			{name: "description", dsl: func() {
+				Description("Body details")
+			}},
+			{name: "metadata", dsl: func() {
+				Meta("test:body", "descriptive")
+			}},
+			{name: "required", dsl: func() {
+				Required("value")
+			}},
+		} {
+			t.Run(context+"/"+modifier.name, func(t *testing.T) {
+				err := expr.RunInvalidDSL(t, func() {
+					shape := Type("Record", func() {
+						Attribute("value", String)
+					})
+					Service("bodies", func() {
+						Method("show", func() {
+							Payload(shape)
+							Result(shape)
+							HTTP(func() {
+								POST("/show")
+								if context == "request" {
+									Body(modifier.dsl)
+								}
+								if context == "request documentation" {
+									SkipRequestBodyEncodeDecode()
+									Header("value")
+									OpenAPIRequestBody(modifier.dsl, "application/json", true)
+								}
+								Response(StatusOK, func() {
+									switch context {
+									case "response":
+										Body(modifier.dsl)
+									case "documentation":
+										OpenAPIBody(modifier.dsl)
+									}
+								})
+							})
+						})
+					})
+				})
+				require.ErrorContains(t, err, "attribute type is nil")
+				require.NotContains(t, err.Error(), "panic:")
+			})
+		}
+	}
+}
+
+func TestBodyTemplateShapeDeclarations(t *testing.T) {
+	for _, context := range []string{"request", "response", "documentation"} {
+		for _, kind := range []string{"attribute", "extend", "reference"} {
+			t.Run(context+"/"+kind, func(t *testing.T) {
+				design := func() {
+					shape := Type("Record", func() {
+						Attribute("value", String)
+					})
+					callback := func() {
+						switch kind {
+						case "attribute":
+							Attribute("value")
+						case "extend":
+							Extend(shape)
+						case "reference":
+							Reference(shape)
+						}
+					}
+					Service("bodies", func() {
+						Method("show", func() {
+							Payload(shape)
+							Result(shape)
+							HTTP(func() {
+								POST("/show")
+								if context == "request" {
+									Body(callback)
+								}
+								Response(StatusOK, func() {
+									switch context {
+									case "response":
+										Body(callback)
+									case "documentation":
+										OpenAPIBody(callback)
+									}
+								})
+							})
+						})
+					})
+				}
+				if kind == "reference" {
+					err := expr.RunInvalidDSL(t, design)
+					require.ErrorContains(t, err, "attribute type is nil")
+					require.NotContains(t, err.Error(), "panic:")
+					return
+				}
+				root := expr.RunDSL(t, design)
+				endpoint := root.API.HTTP.Services[0].HTTPEndpoints[0]
+				body := endpoint.Body
+				switch context {
+				case "response":
+					body = endpoint.Responses[0].Body
+				case "documentation":
+					body = endpoint.Responses[0].OpenAPIBody
+				}
+				require.NotNil(t, body.Find("value"))
+			})
+		}
+	}
+}
+
+func TestExplicitEmptyRequestBody(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		selected bool
+	}{
+		{name: "typed"},
+		{name: "selected", selected: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := expr.RunDSL(t, func() {
+				empty := Type("EmptyRecord", func() {
+				})
+				Service("bodies", func() {
+					Method("show", func() {
+						if tc.selected {
+							Payload(func() {
+								Attribute("body", empty)
+							})
+						} else {
+							Payload(empty)
+						}
+						HTTP(func() {
+							POST("/show")
+							if tc.selected {
+								Body("body")
+							} else {
+								Body(empty)
+							}
+						})
+					})
+				})
+			})
+			body := root.API.HTTP.Services[0].HTTPEndpoints[0].Body
+			require.NotNil(t, body)
+			require.True(t, expr.IsObject(body.Type))
+			require.Empty(t, *expr.AsObject(body.Type))
+		})
+	}
 }
