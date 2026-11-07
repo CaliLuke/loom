@@ -43,8 +43,9 @@ func renderMultipartEncodingBranches(out *strings.Builder, body *TypeData, contr
 			out.WriteString("if _, partError := func() (*loomhttp.MultipartForm, error) {\n")
 			out.WriteString(renderMultipartLeafEncode(child, contract.Branches[index], "v"))
 			out.WriteString("return multipartForm, nil\n}(); partError != nil {\nreturn partError\n}\n")
+			out.WriteString("return nil\n")
 		}
-		out.WriteString("return nil\n}\n")
+		out.WriteString("}\n")
 	}
 	out.WriteString("return fmt.Errorf(\"multipart union has no selected branch\")\n")
 }
