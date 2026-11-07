@@ -55,6 +55,9 @@ func (r *renderer) responseSchemaBody(call string, schema *Schema, path string) 
 	}
 	if object {
 		r.open("%s(func()", call)
+		if err := r.emitNullableGoType(schema, path); err != nil {
+			return err
+		}
 		if err := r.schemaBlock(schema, path, false, nil); err != nil {
 			return err
 		}
@@ -63,6 +66,9 @@ func (r *renderer) responseSchemaBody(call string, schema *Schema, path string) 
 	}
 	if r.hasSchemaBlock(schema) {
 		r.open("%s(%s, func()", call, expression)
+		if err := r.emitNullableGoType(schema, path); err != nil {
+			return err
+		}
 		if err := r.schemaAttributeBlock(schema, path, nil); err != nil {
 			return err
 		}
