@@ -181,7 +181,7 @@ func TestHTTPOptionalSelectedUnionRequired(t *testing.T) {
 	payload := &AttributeExpr{Type: &Object{{Name: "choice", Attribute: union}}, Validation: &ValidationExpr{Required: []string{"choice"}}}
 	endpoint := &HTTPEndpointExpr{MethodExpr: &MethodExpr{Payload: payload}, Body: union, OptionalRequestBody: true}
 	verr := newValidationErrors()
-	endpoint.validateObjectPayloadTransport(verr)
+	endpoint.validateRequestBodyOptions(verr)
 	require.ErrorContains(t, verr, "payload attribute mapped to the request body to be optional")
 }
 

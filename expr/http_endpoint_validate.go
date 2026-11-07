@@ -340,15 +340,6 @@ func (e *HTTPEndpointExpr) validateObjectPayloadTransport(verr *eval.ValidationE
 			verr.Add(e, "Body %q is not found in Payload.", prop)
 		}
 	}
-	if !e.OptionalRequestBody {
-		return
-	}
-	if selected && len(props) == 1 && e.MethodExpr.Payload.IsRequired(payloadKey(e.MethodExpr.Payload, props[0])) {
-		verr.Add(e, "OptionalRequestBody requires the payload attribute mapped to the request body to be optional.")
-	}
-	if !selected && !e.MultipartRequest && hasRequiredBodyAttributes(e.Body) {
-		verr.Add(e, "OptionalRequestBody requires the request body to have no required attributes.")
-	}
 }
 
 func (e *HTTPEndpointExpr) validateRequestBodyOptions(verr *eval.ValidationErrors) {
@@ -373,6 +364,16 @@ func (e *HTTPEndpointExpr) validateRequestBodyOptions(verr *eval.ValidationError
 	}
 	if e.OptionalRequestBody && (optionalBody == nil || optionalBody.Type == Empty) {
 		verr.Add(e, "HTTP endpoint uses OptionalRequestBody but does not define a request body.")
+	}
+	if !e.OptionalRequestBody || optionalBody == nil || !IsObject(e.MethodExpr.Payload.Type) {
+		return
+	}
+	props, selected := optionalBody.Meta["origin:attribute"]
+	if selected && len(props) == 1 && e.MethodExpr.Payload.IsRequired(payloadKey(e.MethodExpr.Payload, props[0])) {
+		verr.Add(e, "OptionalRequestBody requires the payload attribute mapped to the request body to be optional.")
+	}
+	if !selected && !e.MultipartRequest && hasRequiredBodyAttributes(optionalBody) {
+		verr.Add(e, "OptionalRequestBody requires the request body to have no required attributes.")
 	}
 }
 

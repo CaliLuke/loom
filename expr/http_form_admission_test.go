@@ -103,3 +103,81 @@ func TestHTTPFormRequestRejectsScalarMetadataPayload(t *testing.T) {
 	})
 	require.ErrorContains(t, err, "form body requires an object or map")
 }
+
+func TestHTTPOptionalObjectBodyAdmission(t *testing.T) {
+	for _, tc := range []struct {
+		name                                          string
+		explicit, required, optional, multipart, json bool
+		binding                                       string
+		want                                          string
+	}{
+		{name: "explicit required form", explicit: true, required: true, optional: true, want: "OptionalRequestBody requires the request body to have no required attributes."},
+		{name: "implicit required form", required: true, optional: true, want: "OptionalRequestBody requires the request body to have no required attributes."},
+		{name: "required header excluded", required: true, optional: true, binding: "header"},
+		{name: "required query excluded", required: true, optional: true, binding: "query"},
+		{name: "required path excluded", required: true, optional: true, binding: "path"},
+		{name: "optional members form", optional: true},
+		{name: "required body form", required: true},
+		{name: "explicit required multipart", explicit: true, required: true, optional: true, multipart: true},
+		{name: "implicit required multipart", required: true, optional: true, multipart: true},
+		{name: "implicit JSON remains missing body", required: true, optional: true, json: true, want: "HTTP endpoint uses OptionalRequestBody but does not define a request body."},
+		{name: "explicit required JSON", explicit: true, required: true, optional: true, json: true, want: "OptionalRequestBody requires the request body to have no required attributes."},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			design := func() {
+				Service("admission", func() {
+					Method("create", func() {
+						Payload(func() {
+							Attribute("token", String)
+							Attribute("note", String)
+							if tc.required {
+								Required("token")
+							}
+						})
+						HTTP(func() {
+							if tc.binding == "path" {
+								POST("/{token}")
+							} else {
+								POST("/")
+							}
+							if tc.optional {
+								OptionalRequestBody()
+							}
+							switch {
+							case tc.multipart:
+								MultipartRequest()
+							case !tc.json:
+								FormRequest()
+							}
+							switch tc.binding {
+							case "header":
+								Header("token")
+							case "query", "path":
+								Param("token")
+							}
+							if tc.explicit {
+								Body(func() {
+									Attribute("token")
+									Attribute("note")
+								})
+							}
+						})
+					})
+				})
+			}
+			if tc.want != "" {
+				require.ErrorContains(t, expr.RunInvalidDSL(t, design), tc.want)
+				return
+			}
+			root := expr.RunDSL(t, design)
+			body := root.API.HTTP.Service("admission").Endpoint("create").Body
+			if tc.binding != "" {
+				require.Empty(t, body.AllRequired())
+				_, token := body.FindAttribute("token")
+				require.Nil(t, token)
+			} else if tc.required {
+				require.Contains(t, body.AllRequired(), "token")
+			}
+		})
+	}
+}
