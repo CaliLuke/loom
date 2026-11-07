@@ -3,9 +3,10 @@ package openapiv3_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	openapiv3 "github.com/CaliLuke/loom/http/codegen/openapi/v3"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
-	"github.com/stretchr/testify/require"
 )
 
 func TestAdditionalBytesProjection(t *testing.T) {

@@ -35,6 +35,8 @@ type (
 		Shape ParamBranchShape
 		// Member tests schema membership on exact JSON data.
 		Member func(jsontext.Value) (bool, error)
+		// Evaluate returns evaluated object members for the matching JSON value.
+		Evaluate func(jsontext.Value) ([]string, error)
 		// Assign converts and validates into a private typed candidate.
 		Assign func(ParamValue) (bool, error)
 	}
@@ -49,20 +51,16 @@ const (
 	ParamNumber
 	// ParamString treats raw text as a JSON string.
 	ParamString
-	// ParamBytes treats raw byte text as a JSON string.
+	// ParamBytes projects raw byte text to its canonical JSON byte string for
+	// schema predicates. The location codec still sends and receives raw text.
 	ParamBytes
 )
 
 // ParamValueJSON converts a raw value into exact JSON data. False denotes an
 // ordinary syntax/domain mismatch; errors denote invalid evaluator configuration.
 func ParamValueJSON(value ParamValue, shape ParamBranchShape) (jsontext.Value, bool, error) {
-	if !paramKindValid(shape.Kind) || shape.Element > ParamBytes || shape.MapValue > ParamBytes {
-		return nil, false, fmt.Errorf("invalid parameter branch shape")
-	}
-	for _, kind := range shape.Properties {
-		if kind > ParamBytes {
-			return nil, false, fmt.Errorf("invalid parameter property kind")
-		}
+	if err := validateParamBranchShape(shape); err != nil {
+		return nil, false, err
 	}
 	if !value.Present || value.Kind != shape.Kind {
 		return nil, false, nil
@@ -76,6 +74,18 @@ func ParamValueJSON(value ParamValue, shape ParamBranchShape) (jsontext.Value, b
 	default:
 		return paramPairsJSON(value.Pairs, shape)
 	}
+}
+
+func validateParamBranchShape(shape ParamBranchShape) error {
+	if !paramKindValid(shape.Kind) || shape.Element > ParamBytes || shape.MapValue > ParamBytes {
+		return fmt.Errorf("invalid parameter branch shape")
+	}
+	for _, kind := range shape.Properties {
+		if kind > ParamBytes {
+			return fmt.Errorf("invalid parameter property kind")
+		}
+	}
+	return nil
 }
 
 func paramListJSON(items []string, element ParamScalarKind) (jsontext.Value, bool, error) {
@@ -141,7 +151,10 @@ func paramScalarJSON(text string, kind ParamScalarKind) (jsontext.Value, bool, e
 			return nil, false, nil
 		}
 		return jsontext.Value(strings.TrimSpace(text)), true, nil
-	case ParamString, ParamBytes:
+	case ParamBytes:
+		raw, err := json.Marshal([]byte(text))
+		return raw, err == nil, err
+	case ParamString:
 		if !utf8.ValidString(text) {
 			return nil, false, nil
 		}
@@ -161,6 +174,9 @@ func paramNumberMember(text string, kind ParamScalarKind) bool {
 func (b TextBranch) Schema() (bool, error) {
 	if b.View == nil || b.Member == nil {
 		return false, fmt.Errorf("text branch requires a view and membership evaluator")
+	}
+	if err := validateParamBranchShape(b.Shape); err != nil {
+		return false, err
 	}
 	value, err := b.View()
 	if err != nil {

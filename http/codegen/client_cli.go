@@ -439,12 +439,13 @@ func makeFlags(e *EndpointData, args []*InitArgData, payload expr.DataType, json
 	)
 	for i, arg := range args {
 		pInitArgs[i] = &codegen.InitArgData{
-			Name:         arg.VarName,
-			Pointer:      arg.Pointer,
-			FieldName:    arg.FieldName,
-			FieldPointer: arg.FieldPointer,
-			FieldType:    arg.FieldType,
-			Type:         arg.Type,
+			SourceContext: arg.nativeContext,
+			Name:          arg.VarName,
+			Pointer:       arg.Pointer,
+			FieldName:     arg.FieldName,
+			FieldPointer:  arg.FieldPointer,
+			FieldType:     arg.FieldType,
+			Type:          arg.Type,
 		}
 
 		f := makeFlagData(e, arg, jsonDecoder)
@@ -455,10 +456,13 @@ func makeFlags(e *EndpointData, args []*InitArgData, payload expr.DataType, json
 		}
 		var code *jen.Statement
 		var chek bool
-		if arg.IsTextUnmarshaler {
+		switch {
+		case isTextUnionArg(arg):
+			code = textUnionFieldLoadCode(f, arg, e.Payload.Ref)
+		case arg.IsTextUnmarshaler:
 			code, chek = textFieldLoadCode(f, arg, e.Payload.Ref)
-		} else {
-			code, chek = cli.FieldLoadCode(f, arg.VarName, arg.TypeName, arg.Validate, arg.DefaultValue, payload, e.Payload.Ref)
+		default:
+			code, chek = cli.FieldLoadCode(f, arg.VarName, arg.TypeName, arg.Validate, arg.DefaultValue, e.Payload.Ref)
 		}
 		check = check || chek
 		tn := arg.TypeRef
@@ -466,7 +470,7 @@ func makeFlags(e *EndpointData, args []*InitArgData, payload expr.DataType, json
 			// Anonymous service fields retain their pointer carrier so an
 			// omitted flag remains absent. JSON decoding allocates that pointer.
 			// Named values and body roots use the existing conversion carrier.
-			if _, inline := arg.Type.(*expr.Object); !inline || arg.FieldName == "" {
+			if _, inline := arg.Type.(*expr.Object); (!inline || arg.FieldName == "") && arg.nativeContext == nil {
 				tn = arg.TypeName
 			}
 		}
@@ -495,7 +499,7 @@ func makeFlags(e *EndpointData, args []*InitArgData, payload expr.DataType, json
 
 func makeFlagData(e *EndpointData, arg *InitArgData, jsonDecoder string) *cli.FlagData {
 	flagType := arg.TypeName
-	if arg.IsTextUnmarshaler {
+	if arg.IsTextUnmarshaler || isTextUnionArg(arg) {
 		flagType = "string"
 	}
 	flag := cli.NewFlagData(e.ServiceName, e.Method.Name, arg.VarName, flagType, arg.Description, arg.Required, arg.Example, arg.DefaultValue)

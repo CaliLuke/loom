@@ -327,7 +327,7 @@ func TestImportedUntaggedUnionRuntime(t *testing.T) {
 	require.NoError(t, err, string(output))
 }
 
-func TestUntaggedResponseOneOfKeepsUnsupportedShapesRejected(t *testing.T) {
+func TestUntaggedResponseOneOfAcceptsScalarAndSingleton(t *testing.T) {
 	tests := map[string]string{
 		"scalar branch": `oneOf: [{type: string}, {type: integer}]`,
 		"single branch": `oneOf: [{type: object, required: [data], properties: {data: {type: string}}}]`,
@@ -337,7 +337,7 @@ func TestUntaggedResponseOneOfKeepsUnsupportedShapesRejected(t *testing.T) {
 			source := []byte("openapi: 3.1.0\ninfo: {title: Gap, version: '1'}\npaths:\n  /items:\n    get:\n      operationId: getItem\n      responses:\n        '200':\n          description: OK\n          content:\n            application/json:\n              schema:\n                " + schema + "\n")
 			_, diagnostics, err := Analyze(source)
 			require.NoError(t, err)
-			requireDiagnosticCode(t, diagnostics, "schema-composition")
+			require.Empty(t, diagnostics)
 		})
 	}
 }
@@ -472,7 +472,7 @@ func TestHTTPUntaggedUnionRuntime(t *testing.T) {
 	require.NoError(t, err, string(output))
 }
 
-func TestUntaggedOneOfRejectsNestedObjectBranch(t *testing.T) {
+func TestUntaggedOneOfPromotesNestedObjectBranch(t *testing.T) {
 	source := []byte(`openapi: 3.1.0
 info: {title: Gap, version: '1'}
 paths:
@@ -499,10 +499,10 @@ paths:
 
 	_, diagnostics, err := Analyze(source)
 	require.NoError(t, err)
-	requireDiagnosticCode(t, diagnostics, "schema-oneof-branch")
+	require.Empty(t, diagnostics)
 }
 
-func TestUntaggedOneOfRejectsStringEncodedParameter(t *testing.T) {
+func TestUntaggedOneOfImportsStringEncodedParameter(t *testing.T) {
 	source := []byte(`openapi: 3.1.0
 info: {title: Gap, version: '1'}
 paths:
@@ -525,10 +525,10 @@ paths:
 
 	_, diagnostics, err := Analyze(source)
 	require.NoError(t, err)
-	requireDiagnosticCode(t, diagnostics, "schema-oneof-location")
+	require.Empty(t, diagnostics)
 }
 
-func TestUntaggedOneOfRejectsDeclaredErrorResponse(t *testing.T) {
+func TestUntaggedOneOfImportsDeclaredErrorResponse(t *testing.T) {
 	source := []byte(`openapi: 3.1.0
 info: {title: Gap, version: '1'}
 paths:
@@ -553,5 +553,5 @@ paths:
 
 	_, diagnostics, err := Analyze(source)
 	require.NoError(t, err)
-	requireDiagnosticCode(t, diagnostics, "schema-oneof-location")
+	require.Empty(t, diagnostics)
 }

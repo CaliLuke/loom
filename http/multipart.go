@@ -6,32 +6,40 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
-	"net/url"
 	"strings"
 
 	loom "github.com/CaliLuke/loom/pkg"
 )
 
 type (
-	// MultipartFile holds one multipart file part.
-	MultipartFile struct {
-		// Filename is the uploaded filename from the part headers.
+	// MultipartPart retains a physical part and its uninterpreted payload.
+	MultipartPart struct {
+		// Name is the literal Content-Disposition form name.
+		Name string
+		// Filename is the optional uploaded filename.
 		Filename string
-		// ContentType is the part content type.
+		// ContentType is the part media label.
 		ContentType string
-		// Data contains the full part payload.
+		// Data contains the complete raw part payload.
 		Data []byte
 	}
-
 	// MultipartForm is the parsed in-memory representation of a multipart
 	// request body.
 	MultipartForm struct {
-		// Values contains non-file part values keyed by form field name.
-		Values url.Values
-		// Files contains file parts keyed by form field name.
-		Files map[string][]MultipartFile
+		// Parts retains every physical part in source order, including empty names and files.
+		Parts []MultipartPart
+	}
+	multipartSource struct {
+		io.ReadCloser
+		read    int64
+		readErr error
 	}
 )
+
+// ErrMultipartBodyAbsent identifies an absent multipart source. It unwraps to
+// io.EOF for general body decoders; malformed envelopes and source failures never
+// match this sentinel, even when their underlying error wraps io.EOF.
+var ErrMultipartBodyAbsent = fmt.Errorf("multipart body is absent: %w", io.EOF)
 
 // ReadMultipartForm reads the request's multipart body using RequestBodyLimit.
 // The complete encoded body counts toward the limit, including headers,
@@ -47,13 +55,25 @@ func ReadMultipartForm(req *http.Request) (*MultipartForm, error) {
 // encoded source bytes. It returns no form on decoding or completion failure.
 // The request must not already have been parsed; the caller owns Body.Close.
 func ReadMultipartFormWithLimit(req *http.Request, maxBytes int64) (*MultipartForm, error) {
+	if req == nil {
+		return nil, fmt.Errorf("multipart request cannot be nil")
+	}
+	if req.Body == nil || req.Body == http.NoBody {
+		return nil, ErrMultipartBodyAbsent
+	}
+	tracked := &multipartSource{ReadCloser: req.Body}
+	request := *req
+	request.Body = tracked
 	var form *MultipartForm
-	err := DecodeMultipartRequestWithLimit(req, maxBytes, func(reader *multipart.Reader) error {
+	err := DecodeMultipartRequestWithLimit(&request, maxBytes, func(reader *multipart.Reader) error {
 		var err error
 		form, err = readMultipartForm(reader)
 		return err
 	})
 	if err != nil {
+		if errors.Is(err, io.EOF) && tracked.read == 0 && tracked.readErr == io.EOF { //nolint:errorlint // io.Reader absence requires bare EOF; wrapped EOF is a source failure.
+			return nil, ErrMultipartBodyAbsent
+		}
 		return nil, err
 	}
 	return form, nil
@@ -66,8 +86,11 @@ func ReadMultipartFormWithLimit(req *http.Request, maxBytes int64) (*MultipartFo
 // size violation remains a request_too_large error. Request fields are unchanged
 // and Body.Close remains caller-owned; decode must not retain the parser.
 func DecodeMultipartRequestWithLimit(req *http.Request, maxBytes int64, decode func(*multipart.Reader) error) error {
-	if req == nil || req.Body == nil {
-		return fmt.Errorf("multipart request and body cannot be nil")
+	if req == nil {
+		return fmt.Errorf("multipart request cannot be nil")
+	}
+	if req.Body == nil || req.Body == http.NoBody {
+		return io.EOF
 	}
 	if maxBytes <= 0 {
 		return fmt.Errorf("multipart request body limit must be positive")
@@ -111,10 +134,7 @@ func DecodeMultipartRequestWithLimit(req *http.Request, maxBytes int64, decode f
 }
 
 func readMultipartForm(mr *multipart.Reader) (*MultipartForm, error) {
-	form := &MultipartForm{
-		Values: url.Values{},
-		Files:  make(map[string][]MultipartFile),
-	}
+	form := &MultipartForm{}
 	for {
 		part, err := mr.NextPart()
 		if err != nil {
@@ -124,16 +144,6 @@ func readMultipartForm(mr *multipart.Reader) (*MultipartForm, error) {
 			return nil, err
 		}
 		name := part.FormName()
-		if name == "" {
-			_, readErr := io.Copy(io.Discard, part)
-			if readErr != nil {
-				return nil, readErr
-			}
-			if closeErr := part.Close(); closeErr != nil {
-				return nil, closeErr
-			}
-			continue
-		}
 		data, readErr := io.ReadAll(part)
 		if readErr != nil {
 			return nil, readErr
@@ -142,14 +152,18 @@ func readMultipartForm(mr *multipart.Reader) (*MultipartForm, error) {
 		if closeErr != nil {
 			return nil, closeErr
 		}
-		if filename := part.FileName(); filename != "" {
-			form.Files[name] = append(form.Files[name], MultipartFile{
-				Filename:    filename,
-				ContentType: strings.TrimSpace(part.Header.Get("Content-Type")),
-				Data:        data,
-			})
-			continue
-		}
-		form.Values.Add(name, string(data))
+		form.Parts = append(form.Parts, MultipartPart{
+			Name: name, Filename: part.FileName(),
+			ContentType: strings.TrimSpace(part.Header.Get("Content-Type")), Data: data,
+		})
 	}
+}
+
+func (s *multipartSource) Read(data []byte) (int, error) {
+	count, err := s.ReadCloser.Read(data)
+	s.read += int64(count)
+	if err != nil && s.readErr == nil {
+		s.readErr = err
+	}
+	return count, err
 }

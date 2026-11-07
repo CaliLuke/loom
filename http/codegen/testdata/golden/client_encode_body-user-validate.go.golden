@@ -6,7 +6,10 @@ func EncodeMethodBodyUserValidateRequest(encoder func(*http.Request) loomhttp.En
 		if !ok {
 			return loomhttp.ErrInvalidType("ServiceBodyUserValidate", "MethodBodyUserValidate", "*servicebodyuservalidate.PayloadType", v)
 		}
-		if p.A != nil {
+		if p == nil {
+			return loom.MissingPayloadError()
+		}
+		if !(p.A == nil) {
 			body := p.A
 			if err := encoder(req).Encode(&body); err != nil {
 				return loomhttp.ErrEncodingError("ServiceBodyUserValidate", "MethodBodyUserValidate", err)

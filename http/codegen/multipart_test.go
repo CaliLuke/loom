@@ -64,7 +64,6 @@ func TestClientMultipartFuncType(t *testing.T) {
 		DSL  func()
 	}{
 		{"multipart-body-primitive", testdata.PayloadMultipartPrimitiveDSL},
-		{"multipart-body-user-type", testdata.PayloadMultipartUserTypeDSL},
 		{"multipart-body-array-type", testdata.PayloadMultipartArrayTypeDSL},
 		{"multipart-body-map-type", testdata.PayloadMultipartMapTypeDSL},
 	}
@@ -113,11 +112,8 @@ func TestClientMultipartNewFunc(t *testing.T) {
 		DSL  func()
 	}{
 		{"client-multipart-body-primitive", testdata.PayloadMultipartPrimitiveDSL},
-		{"client-multipart-body-user-type", testdata.PayloadMultipartUserTypeDSL},
 		{"client-multipart-body-array-type", testdata.PayloadMultipartArrayTypeDSL},
 		{"client-multipart-body-map-type", testdata.PayloadMultipartMapTypeDSL},
-		{"client-multipart-with-param", testdata.PayloadMultipartWithParamDSL},
-		{"client-multipart-with-params-and-headers", testdata.PayloadMultipartWithParamsAndHeadersDSL},
 	}
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
@@ -154,6 +150,30 @@ func TestServerMultipartObjectUsesGeneratedDecoder(t *testing.T) {
 			code := codegen.SectionCode(t, sections[3])
 			require.NotContains(t, code, "DecoderFunc")
 			require.NotContains(t, code, "DecoderFn")
+		})
+	}
+}
+
+func TestClientMultipartObjectsUseGeneratedEncoder(t *testing.T) {
+	for name, design := range map[string]func(){
+		"object":             testdata.PayloadMultipartUserTypeDSL,
+		"params":             testdata.PayloadMultipartWithParamDSL,
+		"params and headers": testdata.PayloadMultipartWithParamsAndHeadersDSL,
+	} {
+		t.Run(name, func(t *testing.T) {
+			services := CreateHTTPServices(RunHTTPDSL(t, design))
+			files := ClientFiles("gen", services)
+			for _, file := range files {
+				for _, section := range file.AllSections() {
+					require.NotContains(t, section.SectionName(), "multipart-request-encoder")
+				}
+			}
+			for _, service := range services.Expressions.Services {
+				for _, endpoint := range services.Get(service.Name()).Endpoints {
+					require.True(t, endpoint.Payload.Request.MultipartGenerated)
+					require.Nil(t, endpoint.MultipartRequestEncoder)
+				}
+			}
 		})
 	}
 }

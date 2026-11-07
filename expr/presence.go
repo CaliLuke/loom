@@ -1,10 +1,44 @@
 package expr
 
 // AllowsNull reports whether an attribute occurrence accepts an explicit null
-// value. Any is intrinsically null-admitting, and nullable named types carry
-// their nullability to each occurrence.
+// value. Nullable named types carry their nullability to each occurrence. An
+// untagged union admits null only through exactly one alternative. Any admits
+// null unless an enum excludes it.
 func AllowsNull(attribute *AttributeExpr) bool {
-	return IsNullable(attribute) || attribute != nil && resolvesToAny(attribute.Type, make(map[string]struct{}))
+	return allowsNull(attribute, make(map[*AttributeExpr]bool))
+}
+
+func allowsNull(attribute *AttributeExpr, active map[*AttributeExpr]bool) bool {
+	if attribute == nil || active[attribute] {
+		return false
+	}
+	if IsNullable(attribute) {
+		return true
+	}
+	active[attribute] = true
+	defer delete(active, attribute)
+	for _, clause := range attribute.Validation.Enums() {
+		containsNull := false
+		for _, value := range clause {
+			containsNull = containsNull || valueNullInput(value)
+		}
+		if !containsNull {
+			return false
+		}
+	}
+	if named, ok := attribute.Type.(UserType); ok {
+		return allowsNull(named.Attribute(), active)
+	}
+	if union, ok := attribute.Type.(*Union); ok && union.Untagged {
+		matches := 0
+		for _, branch := range union.Values {
+			if allowsNull(branch.Attribute, active) {
+				matches++
+			}
+		}
+		return matches == 1
+	}
+	return attribute.Type == Any
 }
 
 // IsAny reports whether a data type resolves to Any through named types.

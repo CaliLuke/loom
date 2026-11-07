@@ -185,6 +185,7 @@ func serverEncodeDecodeImports(genpkg, svcName string, data *ServiceData) []*cod
 		{Path: "strconv"},
 		{Path: "strings"},
 		{Path: "encoding/json/v2", Name: "json"},
+		{Path: "encoding/json/jsontext"},
 		{Path: "unicode/utf8"},
 		codegen.LoomImport(""),
 		codegen.LoomNamedImport("http", "loomhttp"),
@@ -192,6 +193,7 @@ func serverEncodeDecodeImports(genpkg, svcName string, data *ServiceData) []*cod
 		{Path: genpkg + "/" + svcName, Name: data.Service.PkgName},
 		{Path: genpkg + "/" + svcName + "/" + "views", Name: data.Service.ViewsPkg},
 	}
+
 	if serviceUsesURLPackage(data) {
 		imports = append(imports, &codegen.ImportSpec{Path: "net/url"})
 	}
@@ -203,6 +205,20 @@ func serverEncodeDecodeImports(genpkg, svcName string, data *ServiceData) []*cod
 
 func serviceUsesURLPackage(data *ServiceData) bool {
 	for _, endpoint := range data.Endpoints {
+		if endpoint.Result != nil {
+			for _, response := range endpoint.Result.Responses {
+				if formUnionResponse(response) {
+					return true
+				}
+			}
+		}
+		for _, group := range endpoint.Errors {
+			for _, failure := range group.Errors {
+				if formUnionResponse(failure.Response) {
+					return true
+				}
+			}
+		}
 		if endpoint.Payload == nil || endpoint.Payload.Request == nil {
 			continue
 		}
@@ -262,21 +278,29 @@ func transTmplFuncs(s *expr.HTTPServiceExpr, services *ServicesData) map[string]
 			_, ok := dt.(expr.UserType)
 			return ok
 		},
-		"conversionData":          conversionData,
-		"scalarElementData":       scalarElementData,
-		"renderHeaderConversion":  renderHeaderConversion,
-		"renderStyledEncode":      renderStyledEncode,
-		"renderStyledFormEncode":  renderStyledFormEncode,
-		"renderMediaFormEncode":   renderMediaFormEncode,
-		"renderMediaFormDecode":   renderMediaFormDecode,
-		"renderStyledFormDecode":  renderStyledFormDecode,
-		"hasStyledQuery":          hasStyledQuery,
-		"hasOrdinaryQuery":        hasOrdinaryQuery,
-		"renderStyledDecode":      renderStyledDecode,
-		"transportFieldReference": transportFieldReference,
-		"transportScalarValue":    transportScalarValue,
-		"printValue":              printValue,
-		"viewedServerBody":        viewedServerBody,
+		"conversionData":               conversionData,
+		"scalarElementData":            scalarElementData,
+		"renderHeaderConversion":       renderHeaderConversion,
+		"renderStyledEncode":           renderStyledEncode,
+		"renderStyledFormEncode":       renderStyledFormEncode,
+		"formRootRequest":              formRootRequest,
+		"mediaFormCodec":               mediaFormCodec,
+		"renderMediaMultipartEncode":   renderMediaMultipartEncode,
+		"renderMediaMultipartDecode":   renderMediaMultipartDecode,
+		"renderMultipartRequestEncode": renderMultipartRequestEncode,
+		"renderMultipartRequestDecode": renderMultipartRequestDecode,
+		"renderFormRootRequestEncode":  renderFormRootRequestEncode,
+		"renderFormRootRequestDecode":  renderFormRootRequestDecode,
+		"renderMediaFormEncode":        renderMediaFormEncode,
+		"renderMediaFormDecode":        renderMediaFormDecode,
+		"renderStyledFormDecode":       renderStyledFormDecode,
+		"hasStyledQuery":               hasStyledQuery,
+		"hasOrdinaryQuery":             hasOrdinaryQuery,
+		"renderStyledDecode":           renderStyledDecode,
+		"transportFieldReference":      transportFieldReference,
+		"transportScalarValue":         transportScalarValue,
+		"printValue":                   printValue,
+		"viewedServerBody":             viewedServerBody,
 	}
 }
 

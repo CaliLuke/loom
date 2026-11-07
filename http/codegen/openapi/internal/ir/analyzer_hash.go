@@ -111,6 +111,10 @@ func (e *canonicalSchemaEncoder) writeAttribute(att *expr.AttributeExpr, closeOb
 		return
 	}
 	e.writeString("attribute")
+	if source, ok := att.Meta.Last("http:encoding:sourceType"); ok {
+		e.writeString("encoding-source-type")
+		e.writeString(source)
+	}
 	e.writeTitle(att.Title)
 	e.writeType(att, closeObjects, input)
 	if att.Type != nil && (att.Type.Kind() == expr.UserTypeKind || att.Type.Kind() == expr.ResultTypeKind) {
@@ -198,7 +202,7 @@ func (e *canonicalSchemaEncoder) writeTypeShape(att *expr.AttributeExpr, t expr.
 		e.writeString(view)
 		e.writeAttribute(resultType.Attribute(), closeObjects, e.childInput(resultType.Attribute(), input.occurrence.Underlying()))
 	case expr.UnionKind:
-		e.writeUnion(t.(*expr.Union), closeObjects, input)
+		e.writeUnion(att, closeObjects, input)
 	default:
 		panic(fmt.Sprintf("openapi: cannot fingerprint type %T", t))
 	}
@@ -272,8 +276,12 @@ func (e *canonicalSchemaEncoder) writeObject(att *expr.AttributeExpr, object *ex
 	}
 }
 
-func (e *canonicalSchemaEncoder) writeUnion(union *expr.Union, closeObjects bool, input schemaFingerprintInput) {
+func (e *canonicalSchemaEncoder) writeUnion(att *expr.AttributeExpr, closeObjects bool, input schemaFingerprintInput) {
+	union := att.Type.(*expr.Union)
 	e.writeString("union")
+	if att.UnionClosed() {
+		e.writeString("unevaluated-properties-false")
+	}
 	e.writeString(union.GetTypeKey())
 	e.writeBool(union.Untagged)
 	e.writeString(union.GetValueKey())
@@ -502,6 +510,20 @@ func (e *canonicalSchemaEncoder) writeUserTypeShape(att *expr.AttributeExpr, nam
 		// The occurrence references a component variant with its own policy.
 		base.Meta = base.Meta.Dup()
 		expr.CopyObjectOpenness(&base, att)
+		derived = true
+	}
+	if source, ok := att.Meta.Last("http:encoding:sourceType"); ok {
+		base.Meta = base.Meta.Dup()
+		if base.Meta == nil {
+			base.Meta = expr.MetaExpr{}
+		}
+		base.Meta["http:encoding:sourceType"] = []string{source}
+		derived = true
+	}
+	if att.UnionClosed() != base.UnionClosed() {
+		// Use the same occurrence metadata projection as the emitted component.
+		// Alias layers must carry closure to the underlying union as well.
+		base.Meta = componentAttribute(att, named).Meta
 		derived = true
 	}
 	underlying := e.childInput(original, input.occurrence.Underlying())

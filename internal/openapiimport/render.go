@@ -521,7 +521,7 @@ func (r *renderer) errorTypeClones() error {
 func (r *renderer) responseType(call, name string, response renderedResponse, path string) error {
 	responseSchema := schemaWithExamples(response.response.Schema, response.response.Examples)
 	wrapUnconstrainedError := call == "Error" && r.effectiveUnconstrained(responseSchema)
-	wrapMediaError := call == "Error" && responseSchema != nil && len(responseSchema.MediaTypes) > 0
+	wrapMediaError := call == "Error" && r.unionSchema(responseSchema)
 	prefix := call + "("
 	if name != "" {
 		prefix += strconv.Quote(name) + ", "

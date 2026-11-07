@@ -209,7 +209,7 @@ components:
     token: {type: mutualTLS}
   schemas:
     Pet:
-      oneOf:
+      anyOf:
         - {type: string}
         - {type: integer}
 `)

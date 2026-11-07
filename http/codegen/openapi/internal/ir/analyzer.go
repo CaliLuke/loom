@@ -24,6 +24,8 @@ type (
 	// Analyzer converts expr types into IR schemas and endpoint body models.
 	Analyzer struct {
 		semantic                *service.SemanticData
+		schemaDepth             int
+		canonicalComparisons    []canonicalComparison
 		err                     error
 		discriminatorReferences []discriminatorReference
 		declarationRoots        map[string]*Schema
@@ -192,6 +194,7 @@ func (a *Analyzer) analyzeStandaloneSchema(attr *expr.AttributeExpr, context str
 }
 
 func (a *Analyzer) analyzeSchema(attr *expr.AttributeExpr, context string, noref ...bool) *Schema {
+	defer a.schemaAnalysisScope()()
 	if attr == nil || attr.Type == expr.Empty {
 		return nil
 	}
@@ -208,7 +211,8 @@ func (a *Analyzer) analyzeSchema(attr *expr.AttributeExpr, context string, noref
 		s := a.analyzeUserType(attr, t, context, len(noref) > 0)
 		// A named occurrence's refinement constrains its non-null domain;
 		// inherited nullability must surround that complete refinement too.
-		if expr.IsNullable(attr) && (!expr.IsNullable(t.Attribute()) || hasUserTypeValidationOverlay(attr, t.Attribute())) {
+		if expr.IsNullable(attr) && (!expr.IsNullable(t.Attribute()) ||
+			hasUserTypeValidationOverlay(attr, t.Attribute()) || hasEncodingSourceOverlay(attr, t)) {
 			a.applySchemaExample(s, attr, context)
 			a.applyNullableSchema(s)
 		} else if expr.AllowsNull(t.Attribute()) && len(attr.UserExamples) > 0 {
@@ -220,6 +224,7 @@ func (a *Analyzer) analyzeSchema(attr *expr.AttributeExpr, context string, noref
 	s, note := a.analyzeInlineType(attr, context)
 	a.applySchemaAttributeDetails(s, attr, note, context)
 	s = a.analyzeCompositionReferences(s, attr, context)
+	s = a.applyEncodingSourceType(s, attr)
 	if expr.IsNullable(attr) {
 		a.applyNullableSchema(s)
 	}
@@ -467,6 +472,9 @@ func (a *Analyzer) analyzeInlineUnion(s *Schema, union *expr.Union, context stri
 }
 
 func (a *Analyzer) applySchemaAttributeDetails(s *Schema, attr *expr.AttributeExpr, note, context string) {
+	if attr.UnionClosed() {
+		s.UnevaluatedProperties = &BoolOrSchema{Bool: boolPtr(false)}
+	}
 	_, err := expr.EffectiveConstraintsFor(attr)
 	if err != nil {
 		panic(fmt.Sprintf("invalid effective constraints during OpenAPI analysis: %v", err))
@@ -508,17 +516,15 @@ func applyNullableSchema(schema *Schema) {
 		return
 	}
 	base := *schema
-	base.Title = ""
-	base.Description = ""
-	base.DefaultValue = nil
-	base.Example = nil
-	base.Examples = nil
-	base.ReadOnly = false
-	base.WriteOnly = false
-	base.Deprecated = false
-	base.XML = nil
-	base.Extensions = nil
-	*schema = Schema{
+	*schema = *takeSchemaAnnotations(&base)
+	schema.AnyOf = []*Schema{&base, {Type: string(openapi.Null)}}
+}
+
+// takeSchemaAnnotations moves occurrence annotations onto a new wrapper. The
+// wrapped assertion retains only constraints, so null and source-type wrappers
+// cannot accidentally limit annotations to a non-null or selected branch.
+func takeSchemaAnnotations(schema *Schema) *Schema {
+	wrapper := &Schema{
 		Title:        schema.Title,
 		Description:  schema.Description,
 		DefaultValue: schema.DefaultValue,
@@ -527,13 +533,20 @@ func applyNullableSchema(schema *Schema) {
 		ReadOnly:     schema.ReadOnly,
 		WriteOnly:    schema.WriteOnly,
 		Deprecated:   schema.Deprecated,
-		AnyOf: []*Schema{
-			&base,
-			{Type: string(openapi.Null)},
-		},
-		XML:        schema.XML,
-		Extensions: schema.Extensions,
+		XML:          schema.XML,
+		Extensions:   schema.Extensions,
 	}
+	schema.Title = ""
+	schema.Description = ""
+	schema.DefaultValue = nil
+	schema.Example = nil
+	schema.Examples = nil
+	schema.ReadOnly = false
+	schema.WriteOnly = false
+	schema.Deprecated = false
+	schema.XML = nil
+	schema.Extensions = nil
+	return wrapper
 }
 
 func applySchemaOpenAPIMetadata(s *Schema, meta expr.MetaExpr) {

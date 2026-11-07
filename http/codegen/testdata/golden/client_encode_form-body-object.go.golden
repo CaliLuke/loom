@@ -6,10 +6,46 @@ func EncodeMethodFormBodyObjectRequest(encoder func(*http.Request) loomhttp.Enco
 		if !ok {
 			return loomhttp.ErrInvalidType("ServiceFormBodyObject", "MethodFormBodyObject", "*serviceformbodyobject.MethodFormBodyObjectPayload", v)
 		}
-		body := NewMethodFormBodyObjectRequestBody(p)
-		if err := loomhttp.SetFormRequest(req, &body); err != nil {
-			return loomhttp.ErrEncodingError("ServiceFormBodyObject", "MethodFormBodyObject", err)
+		if p == nil {
+			return loom.MissingPayloadError()
 		}
+		body := NewMethodFormBodyObjectMethodFormBodyObjectRequestBodyForm(p)
+		{
+			parameterEncoded, parameterError := func() (string, error) {
+				parameterForm := make(map[string][]string)
+				var parameterBuilder loomhttp.RawPairsBuilder
+				if _, parameterError := loomhttp.EncodeFormValue(parameterForm, "client_id", body.ClientID); parameterError != nil {
+					return "", parameterError
+				}
+				{
+					parameterValue := loomhttp.ParamValue{Kind: loomhttp.ParamList}
+					if body.Scope != nil {
+						parameterValue.Present = true
+						parameterValue.Items = make([]string, 0, len(body.Scope))
+						for _, parameterValueItem := range body.Scope {
+							parameterValue.Items = append(parameterValue.Items, parameterValueItem)
+						}
+					}
+					if len(parameterValue.Items) == 0 {
+						return "", fmt.Errorf("%s", "parameter scope: required value produces no wire key")
+					}
+				}
+				if _, parameterError := loomhttp.EncodeFormValue(parameterForm, "scope", body.Scope); parameterError != nil {
+					return "", parameterError
+				}
+				if _, parameterError := loomhttp.EncodeFormValue(parameterForm, "active", body.Active); parameterError != nil {
+					return "", parameterError
+				}
+				return parameterBuilder.Encode(parameterForm), nil
+			}()
+			if parameterError != nil {
+				return parameterError
+			}
+			if parameterError := loomhttp.SetRawFormRequest(req, parameterEncoded); parameterError != nil {
+				return parameterError
+			}
+		}
+
 		return nil
 	}
 }

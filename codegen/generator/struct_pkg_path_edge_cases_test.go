@@ -94,7 +94,7 @@ func TestStructPkgPathEdgeCasesCompile(t *testing.T) {
 			DSL:  structPkgPathDesign{HTTP: true, Multipart: true, List: true, Service: "multipart"}.DSL,
 			Files: map[string][]string{
 				"multipart.go":        {"func (s *multipartsrvc) Put("},
-				"multipart_codecs.go": {`"mime/multipart"`, "func MultipartPutEncoderFunc(mw *multipart.Writer, p *common.Item) error"},
+				"multipart_codecs.go": {`"mime/multipart"`, "func MultipartBatchEncoderFunc(mw *multipart.Writer, p map[string]*common.Item) error"},
 			},
 		},
 	}

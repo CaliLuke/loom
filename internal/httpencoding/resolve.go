@@ -3,6 +3,18 @@ package httpencoding
 import "fmt"
 
 type (
+	// FieldCodec captures one form field's effective wire identity and grammar.
+	FieldCodec struct {
+		// Codec is the resolved value grammar; omitted fields have no grammar.
+		Codec
+		// Name is the effective outer form name after authored tag overrides.
+		Name string
+		// Omitted excludes this field from encoding, decoding and key claims.
+		Omitted bool
+		// Keys is the namespace claimed by this field's resolved grammar.
+		Keys KeySet
+	}
+
 	// Style identifies a resolved parameter serialization grammar.
 	Style uint8
 	// ScalarKind identifies a scalar's JSON domain, independently of Go width.
@@ -28,10 +40,21 @@ type (
 		// Domain records the property's value alphabet.
 		Domain ValueDomain
 	}
+	// Application identifies the source value to which a content encoding applies.
+	Application uint8
 	// BranchShape describes a binding or union alternative after resolving aliases.
 	BranchShape struct {
+		// Binary identifies a byte value for multipart raw-part encoding.
+		Binary bool
+		// SourceType retains the effective source JSON Schema type before normalization.
+		// Empty means native inference; "absent" preserves an omitted source type.
+		SourceType string
+		// Items retains the complete array item shape, including nested arrays/unions.
+		Items *BranchShape
 		// Shape is the value's structural category.
 		Shape Shape
+		// Nullable reports whether the value admits explicit JSON null.
+		Nullable bool
 		// Properties retains fixed scalar members in declaration order.
 		Properties []PropertyFact
 		// Keys describes a ScalarMap's dynamic key domain.
@@ -43,6 +66,10 @@ type (
 	}
 	// Codec is the resolved wire grammar of a binding.
 	Codec struct {
+		// Application distinguishes a whole field from one content value per array item.
+		Application Application
+		// Branches retains alternative grammars when a union has a style or item codec.
+		Branches []BranchCodec
 		// Style identifies the grammar, including JSON content and root layouts.
 		Style Style
 		// Explode is effective and normalized for this value shape.
@@ -59,6 +86,13 @@ type (
 		// Inner contains alternatives of a nested Union.
 		Inner []BranchCodec
 	}
+)
+
+const (
+	// Value applies the codec to the complete field value, or its style expansion.
+	Value Application = iota
+	// Items applies the content codec separately to each top-level array item.
+	Items
 )
 
 const (
@@ -82,6 +116,9 @@ const (
 	JSON
 	// Root preserves the unwrapped root layout.
 	Root
+	// Content retains per-branch content grammars for a source-array union field.
+	// Consumers must use Branches instead of treating this as one URI style.
+	Content
 )
 
 const (
@@ -99,9 +136,15 @@ const (
 
 // Resolve selects a codec and namespace for one named or root binding.
 func Resolve(loc Location, name string, value BranchShape, source Serialization) (Codec, KeySet, error) {
-	codec, err := effectiveCodec(loc, value.Shape, source)
+	if loc == FormField && !serializationFlags(source) {
+		return resolveFieldContent(name, value, source)
+	}
+	codec, err := effectiveCodec(loc, value, source)
 	if err != nil {
 		return Codec{}, KeySet{}, err
+	}
+	if value.Nullable && codec.Style != JSON {
+		return Codec{}, KeySet{}, fmt.Errorf("nullable values require a JSON codec")
 	}
 	if codec.Style == JSON || codec.Style == Root {
 		keys := KeySet{Literals: []string{name}}
@@ -111,28 +154,20 @@ func Resolve(loc Location, name string, value BranchShape, source Serialization)
 		return codec, keys, nil
 	}
 	if value.Shape == Union {
-		_, keys, err := resolveBranches(loc, name, value.Branches, codec)
+		branches, keys, err := resolveBranches(loc, name, value.Branches, codec)
+		codec.Branches = branches
 		return codec, keys, err
 	}
 	return resolveShape(loc, name, value, codec)
 }
 
-// ResolveUnion resolves every alternative under one effective serialization.
-func ResolveUnion(loc Location, name string, branches []BranchShape, source Serialization) ([]BranchCodec, KeySet, error) {
-	codec, err := effectiveCodec(loc, Union, source)
-	if err != nil {
-		return nil, KeySet{}, err
-	}
-	return resolveBranches(loc, name, branches, codec)
-}
-
-func effectiveCodec(loc Location, shape Shape, source Serialization) (Codec, error) {
-	codec := Codec{Shape: shape}
+func effectiveCodec(loc Location, value BranchShape, source Serialization) (Codec, error) {
+	codec := Codec{Shape: value.Shape}
 	if loc == WholeQuery || loc == FormRoot {
 		codec.Style = Root
 		return codec, nil
 	}
-	content, err := parameterContent(loc, shape, source)
+	content, err := parameterContent(loc, value, source)
 	if err != nil {
 		return Codec{}, err
 	}
@@ -226,12 +261,16 @@ func resolveBranches(loc Location, name string, branches []BranchShape, codec Co
 	resolved := make([]BranchCodec, 0, len(branches))
 	var keys KeySet
 	for i, branch := range branches {
+		if branch.Nullable && codec.Style != JSON {
+			return nil, KeySet{}, fmt.Errorf("branch %d: nullable values require a JSON codec", i)
+		}
 		current := BranchCodec{Codec: codec}
 		current.Codec.Shape = branch.Shape
 		var err error
 		switch {
 		case branch.Shape == Union:
 			current.Inner, current.Keys, err = resolveBranches(loc, name, branch.Branches, codec)
+			current.Codec.Branches = current.Inner
 		case codec.Style == JSON || codec.Style == Root:
 			current.Keys = KeySet{Literals: []string{name}}
 			if codec.Style == Root {
@@ -249,22 +288,12 @@ func resolveBranches(loc Location, name string, branches []BranchShape, codec Co
 	return resolved, keys, nil
 }
 
-func parameterContent(loc Location, shape Shape, source Serialization) (bool, error) {
-	flags := source.Style != "" || source.Explode != nil || source.AllowReserved != nil
+func parameterContent(loc Location, value BranchShape, source Serialization) (bool, error) {
+	shape := value.Shape
+	flags := serializationFlags(source)
 	switch loc {
 	case FormField:
-		if !flags {
-			composite := shape == Object || shape == ScalarMap || shape == Nested || shape == Union
-			if source.MediaType == "application/json" && composite || source.MediaType == "" && composite && shape != Union {
-				return true, nil
-			}
-			if source.MediaType != "" {
-				return false, fmt.Errorf("field media type %q has no equivalent codec", source.MediaType)
-			}
-			if shape == Union {
-				return false, fmt.Errorf("a typeless form field defaults to application/octet-stream")
-			}
-		}
+		// Content-based fields are resolved before style selection.
 	case NamedQuery:
 		content := source.MediaType != "" || (shape == ScalarMap || shape == Nested) && source.Style == "" && source.Explode == nil
 		if content {
@@ -284,4 +313,31 @@ func parameterContent(loc Location, shape Shape, source Serialization) (bool, er
 		return false, fmt.Errorf("unsupported parameter location %d", loc)
 	}
 	return false, nil
+}
+
+func serializationFlags(source Serialization) bool {
+	return source.Style != "" || source.Explode != nil || source.AllowReserved != nil
+}
+
+// textFieldShape checks the complete union grammar before choosing one shared
+// text codec. Repeated multipart framing may additionally admit scalar lists.
+func textFieldShape(value BranchShape, sequences bool) error {
+	if value.Nullable {
+		return fmt.Errorf("nullable values require a JSON codec")
+	}
+	if value.Shape == Scalar || sequences && value.Shape == Sequence {
+		return nil
+	}
+	if value.Shape != Union {
+		return fmt.Errorf("text/plain fields require scalar alternatives")
+	}
+	if len(value.Branches) == 0 {
+		return fmt.Errorf("union requires at least one branch")
+	}
+	for i, branch := range value.Branches {
+		if err := textFieldShape(branch, sequences); err != nil {
+			return fmt.Errorf("branch %d: %w", i, err)
+		}
+	}
+	return nil
 }

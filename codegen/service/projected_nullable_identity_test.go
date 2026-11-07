@@ -98,8 +98,9 @@ func TestNullableSelectedViewHelperNames(t *testing.T) {
 		require.Equal(t, function.Name+"Tiny", fields[0].Carrier.function.Name)
 	})
 	t.Run("projection helpers", func(t *testing.T) {
-		require.True(t, token.IsIdentifier(projectionHelperBaseName(scope, attribute)))
-		require.True(t, token.IsIdentifier(projectedResultInitHelperBaseName(scope, scope, attribute, attribute)))
+		names := allocateViewConversions(attribute, attribute, scope, scope)
+		require.True(t, token.IsIdentifier(names.projections["tiny"]))
+		require.True(t, token.IsIdentifier(names.reconstructions["tiny"]))
 	})
 }
 

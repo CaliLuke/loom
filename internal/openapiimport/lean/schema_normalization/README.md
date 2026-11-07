@@ -177,3 +177,90 @@ semantics, code generation, raw-body context traversal or example synthesis.
 and `TestBase64FormatAdmission` check those actual owning seams. The existing
 native Bytes projection proofs remain unchanged; encoded String needs no inverse
 length arithmetic. Run the same `lake build` and theorem manifest above.
+
+
+## Untagged `oneOf` null admission (#1014 design)
+
+`OneOfNormalization.lean` is a separate library in this Lake project. The
+historical `SchemaNormalization` library and its manifest are unchanged.
+
+The model has:
+
+- **Source branches.** Each branch has a non-null acceptance predicate over an
+  arbitrary value type, and admits null in one of three ways:
+  - `excluded`;
+  - `occurrence` (an inline `type: [T, null]`);
+  - `declared` (a referenced component that is declared nullable).
+- **Bare nulls.** A count of bare `{type: null}` branches.
+- **Source semantics.** JSON Schema `oneOf`: exactly one branch accepts, and
+  null is counted like any value.
+- **The Loom representation.** It keeps branch null admission and adds an
+  occurrence `nullable` flag, which accepts null before branch matching.
+
+`normalize_sound` proves, for **arbitrary branch lists and value types**, that
+every representation the candidate `normalize` admits accepts exactly the
+source domain. The candidate:
+
+- keeps branch null admission;
+- makes the occurrence nullable for one bare null with no other null admitter;
+- drops redundant bare nulls when null stays rejected;
+- removes an occurrence-local null beside a bare null;
+- rejects a declared nullable branch beside a bare null;
+- rejects a null-only domain.
+
+Branch null kinds are inputs to this proof:
+
+- `Any` (`{}`) admits null intrinsically and is `declared`;
+  `any_beside_bare_null_is_rejected`, `any_without_bare_null_counts_null` and
+  `any_as_excluded_counterexample` witness this.
+- Nested unions get their kind from their normalized alternatives. That
+  bottom-up classification is checked for bounded trees by
+  [`OneOfNull.tla`](../../tla/oneof_null/README.md).
+
+`naive_collapse_counterexample` reproduces revision 2's reviewed defect: making
+the occurrence nullable beside a nullable residual accepts the null the source
+rejects. `drop_bare_counterexample` rejects ignoring bare nulls.
+`declared_null_beside_bare_null_has_no_kept_representation` shows that
+rejection is needed within the representation family. The alternative of
+adding null to another authored branch is domain equal
+(`null_injection_alternative_is_domain_equal`). The design rejects it because
+it rewrites an authored branch; #1010's null-only branch is the intended
+carrier.
+
+Build and audit, preferably from a scratch copy so `.lake/` stays outside the
+repository:
+
+```sh
+lake build
+{ printf 'import OneOfNormalization\n'
+  while IFS= read -r t; do printf '#print axioms %s\n' "$t"; done < oneof-required-theorems.txt
+} | lake env lean --stdin
+```
+
+Observed with Lean 4.35.0:
+
+- the build succeeds with `warningAsError`;
+- `normalize_sound` depends on `propext`, `Classical.choice` and `Quot.sound`;
+- `count_none_strip` depends on `propext` and `Quot.sound`;
+- every other theorem among the 16 in `oneof-required-theorems.txt` depends
+  only on `propext`;
+- no theorem uses `sorryAx`;
+- the existing `SchemaNormalization` theorems keep their previous axiom profile.
+
+Assumptions and limits:
+
+- Branch non-null acceptance is an abstract predicate. The model does not
+  prove JSON parsing, JSON Schema evaluation, Go carriers, or the claim that
+  the generated decoder never assigns null to a non-nullable carrier (a
+  separate generated-test obligation).
+- Annotated or constrained null branches are outside the model and stay
+  rejected.
+- Implementation seams are `schemaUntaggedOneOf`, `normalizedNullKind` and
+  `removeOccurrenceNull` in `internal/openapiimport/oneof_normalize.go`, with
+  `ValidateUntaggedUnion` delegating to the expr grammar in
+  `expr/untagged_validation.go`. Reference ownership and sibling redundancy
+  are separate pre-render admission obligations outside this flat theorem.
+- `TestOneOfNormalizedFacts`, `TestOneOfImportBehaviorTable` and
+  `TestOneOfImportedDesignGenerates` connect the normalization rows to real
+  import, evaluation and regenerated-schema membership checks. Runtime null
+  attribution remains covered at the shared decoder boundary.

@@ -18,9 +18,7 @@ type viewValidationCarrier struct {
 func newViewValidationCarrier(att *expr.AttributeExpr, ctx *codegen.AttributeContext, view string) viewValidationCarrier {
 	declaration := &expr.AttributeExpr{Type: att.Type, Meta: att.Meta}
 	function := codegen.NamedValidationFunction(declaration, ctx, "result")
-	if view != expr.DefaultView {
-		function.Name += codegen.Goify(view, true)
-	}
+	function.Name += viewHelperSuffixes(att.Type)[view]
 	return viewValidationCarrier{
 		function:  function,
 		nullable:  expr.IsNullable(att),

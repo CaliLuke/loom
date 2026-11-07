@@ -1,9 +1,6 @@
 package openapiimport
 
 import (
-	"fmt"
-	"maps"
-	"slices"
 	"strconv"
 
 	"github.com/CaliLuke/loom/internal/httpencoding"
@@ -52,36 +49,4 @@ func parameterStyleName(style httpencoding.Style) string {
 		httpencoding.Form: "form", httpencoding.SpaceDelimited: "spaceDelimited", httpencoding.PipeDelimited: "pipeDelimited",
 		httpencoding.DeepObject: "deepObject", httpencoding.CookieStyle: "cookie",
 	}[style]
-}
-
-func (r *renderer) formEncodingMetadata(body RequestBody) ([]renderedMetadata, error) {
-	if len(body.FormEncoding) == 0 || body.Schema != nil && len(body.Schema.MediaTypes) > 0 {
-		return nil, nil
-	}
-	planner := documentPlanner{schemas: r.schemas}
-	properties := make(map[string]*Schema)
-	planner.formProperties(body.Schema, properties, make(map[*Schema]bool))
-	var metadata []renderedMetadata
-	for _, name := range slices.Sorted(maps.Keys(body.FormEncoding)) {
-		source := body.FormEncoding[name]
-		codec, _, err := httpencoding.Resolve(httpencoding.FormField, name, planner.urlShape(properties[name]), source)
-		if err != nil {
-			return nil, fmt.Errorf("form encoding %q: %w", name, err)
-		}
-		prefix := "openapi:encoding:" + name + ":"
-		if codec.Style == httpencoding.JSON {
-			metadata = append(metadata, renderedMetadata{name: prefix + "contentType", value: "application/json"})
-			continue
-		}
-		style := parameterStyleName(codec.Style)
-		// Explicit style prevents the Encoding Object's composite JSON default.
-		metadata = append(metadata, renderedMetadata{name: prefix + "style", value: style})
-		if codec.Style != httpencoding.DeepObject && codec.Explode != (style == "form") {
-			metadata = append(metadata, renderedMetadata{name: prefix + "explode", value: strconv.FormatBool(codec.Explode)})
-		}
-		if source.AllowReserved != nil {
-			metadata = append(metadata, renderedMetadata{name: prefix + "allowReserved", value: strconv.FormatBool(*source.AllowReserved)})
-		}
-	}
-	return metadata, nil
 }

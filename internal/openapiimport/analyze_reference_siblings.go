@@ -14,7 +14,7 @@ func (a *analyzer) schemaReference(proxy *base.SchemaProxy, path string) *Schema
 		return &Schema{Ref: ref, referenceError: &Diagnostic{Code: "schema-reference-siblings", Path: path, Message: message}}
 	}
 	if !proxy.IsTransformedRefWithSiblings() {
-		return &Schema{Ref: ref}
+		return &Schema{Ref: ref, declaredNull: sourceAdmitsNull(proxy, make(map[*base.Schema]bool))}
 	}
 	if strings.HasPrefix(a.version, "3.0.") {
 		return fail("schema reference siblings require OpenAPI 3.1 or 3.2")

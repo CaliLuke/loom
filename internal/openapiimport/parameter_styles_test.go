@@ -113,7 +113,32 @@ paths:
 			require.Empty(t, diagnostics)
 			rendered, err := Render(doc, Options{})
 			require.NoError(t, err)
-			require.Contains(t, string(rendered), `Meta("openapi:encoding:field:style", "form")`)
+			require.NotContains(t, string(rendered), `Meta("openapi:encoding:field:style"`)
+			if name == "form-content-explode" {
+				require.Contains(t, string(rendered), `Meta("openapi:encoding:field:contentType", "application/json")`)
+				require.Contains(t, string(rendered), `Meta("openapi:encoding:field:explode", "false")`)
+			} else {
+				require.Contains(t, string(rendered), `Meta("openapi:encoding:field:allowReserved", "false")`)
+			}
+			// Preserve authored flag presence; the shared owner, not the importer,
+			// derives the same grammar as an explicit form style after DSL evaluation.
+			requireRenderedDesignEvaluates(t, rendered, 1, `
+ body := expr.Root.Services[0].Methods[0].Payload
+ captured, err := expr.HTTPFormBodyEncoding(body)
+ if err != nil {
+  t.Fatal(err)
+ }
+ explicit := expr.DupAtt(body)
+ explicit.Meta["openapi:encoding:field:style"] = []string{"form"}
+ canonical, err := expr.HTTPFormBodyEncoding(explicit)
+ if err != nil {
+  t.Fatal(err)
+ }
+ actual, expected := captured.Fields["field"].Codec, canonical.Fields["field"].Codec
+ if actual.Style != expected.Style || actual.Explode != expected.Explode || actual.Application != expected.Application {
+  t.Fatalf("captured codec %v does not match explicit form %v", actual, expected)
+ }
+ `)
 		})
 	}
 }

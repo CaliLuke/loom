@@ -42,7 +42,7 @@ func TestOptionalValueRequestBody(t *testing.T) {
 			Attribute: func(_, _ any) { Attribute("v", String, func() { MinLength(2) }) },
 			Optional:  true,
 			Primitive: true,
-			Encode:    "\t\tif p.V != nil {\n\t\t\tbody := p.V\n",
+			Encode:    "\t\tif !(p.V == nil) {\n\t\t\tbody := p.V\n",
 			Decode: []string{
 				"\t\tvar (\n\t\t\tbody = new(string)\n\t\t)\n",
 				"\t\tvar err error\n",
@@ -64,7 +64,7 @@ func TestOptionalValueRequestBody(t *testing.T) {
 			Attribute: func(_, _ any) { Attribute("v", Int) },
 			Optional:  true,
 			Primitive: true,
-			Encode:    "\t\tif p.V != nil {\n\t\t\tbody := p.V\n",
+			Encode:    "\t\tif !(p.V == nil) {\n\t\t\tbody := p.V\n",
 			Decode: []string{
 				"\t\t\tbody = new(int)\n",
 				"\t\terr = decoder(loomhttp.WithNonNullableBody(r)).Decode(body)\n",
@@ -83,7 +83,7 @@ func TestOptionalValueRequestBody(t *testing.T) {
 			Collection: true,
 			Attribute:  func(_, _ any) { Attribute("v", ArrayOf(String), func() { MinLength(1) }) },
 			Optional:   true,
-			Encode:     "\t\tif p.V != nil {\n\t\t\tbody := p.V\n",
+			Encode:     "\t\tif !(p.V == nil) {\n\t\t\tbody := p.V\n",
 			Decode: []string{
 				"\t\terr = decoder(loomhttp.WithNonNullableBody(r)).Decode(&body)\n",
 				"\t\tif body != nil {\n\t\t\tif len(body) < 1 {\n",
@@ -103,7 +103,7 @@ func TestOptionalValueRequestBody(t *testing.T) {
 			Collection: true,
 			Attribute:  func(leaf, _ any) { Attribute("v", ArrayOf(leaf)) },
 			Optional:   true,
-			Encode:     "\t\tif p.V != nil {\n\t\t\tbody := NewLeafRequestBody(p)\n",
+			Encode:     "\t\tif !(p.V == nil) {\n\t\t\tbody := NewLeafRequestBody(p)\n",
 			Decode: []string{
 				"\t\tif body != nil {\n\t\t\tfor i, e := range body {\n",
 			},
@@ -119,7 +119,7 @@ func TestOptionalValueRequestBody(t *testing.T) {
 			Collection: true,
 			Attribute:  func(_, _ any) { Attribute("v", MapOf(String, Int)) },
 			Optional:   true,
-			Encode:     "\t\tif p.V != nil {\n\t\t\tbody := p.V\n",
+			Encode:     "\t\tif !(p.V == nil) {\n\t\t\tbody := p.V\n",
 			Decode: []string{
 				"\t\terr = decoder(loomhttp.WithNonNullableBody(r)).Decode(&body)\n",
 			},
@@ -134,7 +134,7 @@ func TestOptionalValueRequestBody(t *testing.T) {
 			Name:      "bytes",
 			Attribute: func(_, _ any) { Attribute("v", Bytes) },
 			Optional:  true,
-			Encode:    "\t\tif p.V != nil {\n\t\t\tbody := p.V\n",
+			Encode:    "\t\tif !(p.V == nil) {\n\t\t\tbody := p.V\n",
 			Decode: []string{
 				"\t\t\tbody []byte\n",
 				"\t\terr = decoder(loomhttp.WithNonNullableBody(r)).Decode(&body)\n",
@@ -151,7 +151,7 @@ func TestOptionalValueRequestBody(t *testing.T) {
 			Attribute: func(_, plain any) { Attribute("v", plain) },
 			Optional:  true,
 			Primitive: true,
-			Encode:    "\t\tif p.V != nil {\n\t\t\tbody := NewSendRequestBody(p)\n",
+			Encode:    "\t\tif !(p.V == nil) {\n\t\t\tbody := NewSendRequestBody(p)\n",
 			Decode: []string{
 				"\t\t\tbody = new(SendRequestBody)\n",
 				"\t\terr = decoder(loomhttp.WithNonNullableBody(r)).Decode(body)\n",
@@ -204,7 +204,7 @@ func TestOptionalValueRequestBody(t *testing.T) {
 				build := codegen.SectionCode(t, findFileWithSection(t, cliFiles, "cli-build-payload").Section("cli-build-payload")[0])
 				parse := codegen.SectionCode(t, findFileWithSection(t, cliFiles, "parse-endpoint").Section("parse-endpoint")[0])
 				if !optional {
-					assert.NotContains(t, encoder, "if p.V != nil {")
+					assert.NotContains(t, encoder, "if !(p.V == nil) {")
 					assert.NotContains(t, decoder, "body = nil")
 					if c.Collection {
 						// Required wire admission does not erase nil-preserving conversion.

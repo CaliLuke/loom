@@ -164,7 +164,11 @@ func parameterBindingMethod(binding parameterBinding) {
 				Param("control")
 			}
 			if binding.method == "CookieMap" {
-				Cookie("control:sid")
+				Cookie("control:sid", func() {
+					if binding.style == "form" {
+						Meta("openapi:style", "form")
+					}
+				})
 			}
 			Response(StatusNoContent)
 		})

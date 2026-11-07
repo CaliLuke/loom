@@ -13,8 +13,11 @@ import (
 type (
 	// NameScope defines a naming scope.
 	NameScope struct {
-		names  map[string]string // type hash to unique name
-		counts map[string]int    // raw type name to occurrence count
+		names        map[string]string                             // type hash to unique name
+		counts       map[string]int                                // raw type name to occurrence count
+		families     *nameFamilies                                 // shared declaration ownership, including type policy
+		typeNames    func(expr.DataType, *Location) (string, bool) // immutable generated destination names
+		typeLocation *Location                                     // physical package of bare nested declarations
 		// packages maps the relative import paths of struct:pkg:path
 		// packages to the names that qualify their types in the code
 		// generated with the scope, when these differ from the package
@@ -39,8 +42,9 @@ type (
 // NewNameScope creates an empty name scope.
 func NewNameScope() *NameScope {
 	return &NameScope{
-		names:  make(map[string]string),
-		counts: make(map[string]int),
+		names:    make(map[string]string),
+		counts:   make(map[string]int),
+		families: &nameFamilies{members: make(map[string][]string)},
 	}
 }
 
@@ -61,7 +65,10 @@ func NewNameScopeLike(s *NameScope) *NameScope {
 	if s == nil {
 		return NewNameScope()
 	}
-	return NewNameScopeWithPackageNames(s.packages)
+	result := NewNameScopeWithPackageNames(s.packages)
+	result.typeNames = s.typeNames
+	result.typeLocation = s.typeLocation
+	return result
 }
 
 // WithoutPackageNames returns a name scope that shares the names of s but
@@ -70,7 +77,7 @@ func NewNameScopeLike(s *NameScope) *NameScope {
 // identifiers do not depend on the aliases under which the files that use
 // them import the packages.
 func (s *NameScope) WithoutPackageNames() *NameScope {
-	return &NameScope{names: s.names, counts: s.counts}
+	return &NameScope{names: s.names, counts: s.counts, families: s.families, typeNames: s.typeNames, typeLocation: s.typeLocation}
 }
 
 // PackageName returns the name that qualifies the types generated at loc in
@@ -200,6 +207,9 @@ func (s *NameScope) goTypeDefWithPkgOverride(att *expr.AttributeExpr, ptr, useDe
 }
 
 func (s *NameScope) goValueTypeDefWithPkgOverride(att *expr.AttributeExpr, ptr, useDefault bool, pkg, targetPkg string) string {
+	if location := attributeTypeLocation(att); location != nil {
+		s = s.WithTypeNameLocation(location)
+	}
 	switch actual := att.Type.(type) {
 	case expr.Primitive:
 		return primitiveTypeDef(att, actual)
@@ -243,11 +253,16 @@ func (s *NameScope) mapKeyTypeDef(att *expr.AttributeExpr, ptr, useDefault bool,
 }
 
 func (s *NameScope) collectionElemTypeDef(att *expr.AttributeExpr, ptr, useDefault bool, pkg, targetPkg string) string {
-	def := s.goTypeDefWithPkgOverride(att, ptr, useDefault, pkg, targetPkg)
+	return collectionElementReference(att, s.goTypeDefWithPkgOverride(att, ptr, useDefault, pkg, targetPkg))
+}
+
+// collectionElementReference applies the collection storage contract to a
+// value type: ordinary objects use pointers; unions and presence types use values.
+func collectionElementReference(att *expr.AttributeExpr, value string) string {
 	if expr.IsObject(att.Type) && !IsExplicitPresenceType(att) {
-		return "*" + def
+		return "*" + value
 	}
-	return def
+	return value
 }
 
 func (s *NameScope) objectTypeDefWithPkgOverride(att *expr.AttributeExpr, actual *expr.Object, ptr, useDefault bool, pkg, targetPkg string) string {
@@ -269,9 +284,6 @@ func (s *NameScope) objectFieldTypeDef(parent *expr.AttributeExpr, name string, 
 	fn := GoifyAtt(at, name, true)
 	tdef := s.goTypeDefWithPkgOverride(at, ptr, useDefault, pkg, targetPkg)
 	layout := expr.ServiceFieldLayout(parent, name, at, ptr, useDefault)
-	if layout.WrapNullable {
-		tdef = "loom.Nullable[" + s.goValueTypeDefWithPkgOverride(at, ptr, useDefault, pkg, targetPkg) + "]"
-	}
 	if layout.Pointer {
 		tdef = "*" + tdef
 	}
@@ -433,40 +445,9 @@ func (s *NameScope) goFullValueTypeName(att *expr.AttributeExpr, pkg string, pkg
 			s.goFullMapKeyTypeName(actual.KeyType, s.pkgWithDefault(actual.KeyType.Type, pkg, pkgName), pkgName),
 			s.goFullCollectionElemTypeRef(actual.ElemType, s.pkgWithDefault(actual.ElemType.Type, pkg, pkgName), pkgName))
 	case *expr.Object:
-		return s.GoTypeDef(att, false, false)
+		return s.goValueTypeDefWithPkgOverride(att, false, false, "", "")
 	case expr.UserType, *expr.Union:
-		if expr.IsDefaultErrorResult(actual) {
-			return "loom.ServiceError"
-		}
-		// Qualified type references (pkg.Type) do not compete in the local
-		// identifier namespace.
-		//
-		// When generating qualified references, we must not blindly apply local
-		// scoping (suffixing) to the referenced type name, otherwise we can emit
-		// identifiers that do not exist in the referenced package (e.g., pkg.Foo2).
-		//
-		// However, when the scope already assigned a unique name to the referenced
-		// type (i.e., the type is defined in this scope and got suffixed due to a
-		// collision), qualified references must use that assigned name to stay
-		// consistent across packages. This is critical for transport packages that
-		// refer to types defined in the service package (e.g., grpc referencing a
-		// payload type defined as Request2).
-		base := Goify(actual.Name(), true)
-		if pkg == "" {
-			name := s.HashedUnique(actual, base, "")
-			// Keep reservations that protect generated helpers, but declare
-			// relocated types by the canonical name used by qualified references.
-			if UserTypeLocation(actual) != nil {
-				return base
-			}
-			return name
-		}
-		if UserTypeLocation(actual) == nil {
-			if n, ok := s.names[actual.Hash()]; ok {
-				return pkg + "." + n
-			}
-		}
-		return pkg + "." + base
+		return s.goNominalValueTypeName(actual, pkg)
 	case expr.CompositeExpr:
 		return s.goFullTypeName(actual.Attribute(), s.pkgWithDefault(actual.Attribute().Type, pkg, pkgName), pkgName)
 	default:
@@ -477,10 +458,7 @@ func (s *NameScope) goFullValueTypeName(att *expr.AttributeExpr, pkg string, pkg
 // goFullCollectionElemTypeRef preserves the value representation of unions in
 // collections while retaining object pointers and explicit presence wrappers.
 func (s *NameScope) goFullCollectionElemTypeRef(att *expr.AttributeExpr, pkg string, pkgName func(*Location) string) string {
-	if expr.IsUnion(att.Type) {
-		return s.goFullTypeName(att, pkg, pkgName)
-	}
-	return s.goFullTypeRef(att, pkg, pkgName)
+	return collectionElementReference(att, s.goFullTypeName(att, pkg, pkgName))
 }
 
 func (s *NameScope) goFullMapKeyTypeName(att *expr.AttributeExpr, pkg string, pkgName func(*Location) string) string {
@@ -506,13 +484,17 @@ func IsExplicitPresenceType(att *expr.AttributeExpr) bool {
 // or the empty string if neither sets one. The scope names the package, see
 // PackageName.
 func (s *NameScope) attributePkgName(att *expr.AttributeExpr) string {
+	return s.PackageName(attributeTypeLocation(att))
+}
+
+func attributeTypeLocation(att *expr.AttributeExpr) *Location {
 	if loc := UserTypeLocation(att.Type); loc != nil {
-		return s.PackageName(loc)
+		return loc
 	}
 	if p, ok := att.Meta.Last("struct:pkg:path"); ok && p != "" {
-		return s.PackageName(&Location{RelImportPath: naming.EscapeNonASCII(p)})
+		return &Location{RelImportPath: naming.EscapeNonASCII(p)}
 	}
-	return ""
+	return nil
 }
 
 // pkgWithDefault returns the package defining the given type. If the types is a

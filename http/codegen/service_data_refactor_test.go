@@ -218,50 +218,46 @@ func TestHTTPResponsesMoveTaglessCaseLast(t *testing.T) {
 
 func TestHTTPMultipartEncoderDecoderGating(t *testing.T) {
 	cases := []struct {
-		name               string
-		dsl                func()
-		expectDecoder      bool
-		expectGenerated    bool
-		expectFileFieldLen int
-		expectErrorVar     bool
+		name            string
+		dsl             func()
+		expectDecoder   bool
+		expectGenerated bool
+		expectErrorVar  bool
 	}{
 		{
-			name:               "custom multipart decoder required",
-			dsl:                testdata.PayloadMultipartPrimitiveDSL,
-			expectDecoder:      true,
-			expectGenerated:    false,
-			expectFileFieldLen: 0,
-			expectErrorVar:     false,
+			name:            "custom multipart decoder required",
+			dsl:             testdata.PayloadMultipartPrimitiveDSL,
+			expectDecoder:   true,
+			expectGenerated: false,
+			expectErrorVar:  false,
 		},
 		{
-			name:               "generated multipart object",
-			dsl:                testdata.PayloadMultipartObjectGeneratedDSL,
-			expectDecoder:      false,
-			expectGenerated:    true,
-			expectFileFieldLen: 1,
-			expectErrorVar:     true,
+			name:            "generated multipart object",
+			dsl:             testdata.PayloadMultipartObjectGeneratedDSL,
+			expectDecoder:   false,
+			expectGenerated: true,
+			expectErrorVar:  true,
 		},
 		{
-			name:               "generated optional multipart object",
-			dsl:                testdata.PayloadMultipartObjectGeneratedOptionalDSL,
-			expectDecoder:      false,
-			expectGenerated:    true,
-			expectFileFieldLen: 1,
-			expectErrorVar:     false,
+			name:            "generated optional multipart object",
+			dsl:             testdata.PayloadMultipartObjectGeneratedOptionalDSL,
+			expectDecoder:   false,
+			expectGenerated: true,
+			expectErrorVar:  false,
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			endpoint := firstEndpointData(t, c.dsl)
-			require.NotNil(t, endpoint.MultipartRequestEncoder)
 			if c.expectDecoder {
+				require.NotNil(t, endpoint.MultipartRequestEncoder)
 				require.NotNil(t, endpoint.MultipartRequestDecoder)
 			} else {
+				require.Nil(t, endpoint.MultipartRequestEncoder)
 				require.Nil(t, endpoint.MultipartRequestDecoder)
 			}
 			require.Equal(t, c.expectGenerated, endpoint.Payload.Request.MultipartGenerated)
-			require.Len(t, endpoint.Payload.Request.MultipartFileFields, c.expectFileFieldLen)
 			require.Equal(t, c.expectErrorVar, endpoint.Payload.Request.DecodePlan.NeedsErrorVar)
 		})
 	}

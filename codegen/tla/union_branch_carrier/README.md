@@ -133,3 +133,61 @@ cases and the 26 constructed-value cases pass after repair, including nil and
 nonnil empty objects. Nullable and collection rules remain independently tested.
 The enlarged physical model passes 84 states; its former narrower result is not
 used as evidence for the new cases.
+
+## Text-union candidate validation (#1014)
+
+Text decoding creates candidate variables with the same `Scope.Ref` branch
+storage as the sum union. Named scalar aliases are native values even when the
+HTTP enclosing field context forces pointers. Reusing that field context emitted
+`v != nil` and `string(*v)` against a named string, preventing generated code
+from compiling. `AttributeContext.UnionBranchContext` now owns the shared
+branch-storage decision for both sum validators and text candidate validators.
+It replaces the former private `unionValidationContext`; the physical model and
+its assumptions are unchanged. The model does not check Go typing.
+
+`TestTextUnionMatcherUsesScalarBranchStorage` reproduces the invalid code for
+named enum and pattern branches under enclosing pointer and value contexts.
+`TestUnionValidationUsesPhysicalBranchCarrier` keeps the existing object,
+collection, nested and nullable carrier controls. Imported explicit-text and
+source-scalar-default form fixtures compile and run their generated tests to
+check the emitted Go boundary.
+
+## Collection child storage (#1014)
+
+Collection traversal must resolve element storage independently of the parent
+collection's extracted-value flag. The Content-field array-union fixture exposed
+`ValidateItem(&e)` where `e` was already `*Item`. An initial repair then assumed
+JSON extraction yielded a struct, but actual generated collection declarations
+use `Optional[*Item]`, so that repair produced the same invalid extra pointer.
+Object fields can instead use `Optional[Item]`; their extraction policy does
+not determine collection element storage. The earlier eight-state model and
+string assertions assumed the wrong JSON representation and do not establish
+implementation correctness.
+
+`ChildCarrier.tla` now varies parent extraction, JSON wrapping and actual child
+pointer/value storage independently. `ChildInherited.cfg` reproduces inherited
+parent state; `ChildReset.cfg` rejects clearing all value mode (nil collection
+values must still run predicates); `ChildJSONValue.cfg` reproduces the incorrect
+JSON-implies-struct assumption. All three fail `CallMatchesStorage` in nine
+states. `ChildPhysical.cfg` passes sixteen states. Run with the same toolchain
+and command structure above, selecting `ChildCarrier.tla` and one of these
+configs. This remains an explicit design aid, outside CI. The model assumes the
+reported type reference agrees with emitted storage; compilation checks that
+correspondence and arbitrary custom Go types remain outside the finite model.
+
+`collectionElementValidationContext` resolves the underlying collection element
+through `collectionTypeRef`, the shared declaration/conversion owner. A standalone
+reference is insufficient: inline objects are pointers inside collections, while
+union collection elements are values. JSON Optional wrappers do not change that
+underlying storage. The context retains named field layout through
+`presenceValueContext`, then sets value mode from the element reference. Array
+and map iteration share it; map keys retain native scalar storage. Sum branches
+continue to use their own standalone reference contract.
+
+`TestCollectionValidationResolvesElementCarrier` checks both collection kinds,
+both parent modes and both wrapping modes. The physical-reference matrix includes
+named and inline objects/unions and nullable objects, alongside the existing
+inline-object map regression. Generated Content-field tests check actual
+compiler/runtime correspondence; existing union and nullable carrier tests remain
+controls. The model assumes the physical reference is correct; these declaration
+and compilation checks test that assumption rather than proving it.

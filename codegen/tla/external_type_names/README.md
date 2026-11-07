@@ -37,3 +37,16 @@ Import aliases, exact helper-name agreement between services, wire encoding and
 Go syntax are outside their scope. NameScope tests cover all six supported type
 shapes; generated fixture compilation checks service and transport references,
 including an authored type that shares a union discriminator's preferred name.
+
+## Current destination ownership
+
+These checked configurations describe historical policies with limited helper
+inventories. They do not prove collision freedom for the complete native union
+family. A real authored MovedUnionKind exposed that gap after family allocation
+was centralized. Current generated declarations and references use the shared
+physical destination owner described in
+[Destination families](../../service/tla/destination_families/README.md).
+That model retains the failing canonical-name policy and checks complete-family
+allocation/reference agreement. Canonical spelling is preserved when available;
+framework-generated relocated names may gain suffixes when their complete family
+collides. Opaque authored Go types and wire names are unchanged.

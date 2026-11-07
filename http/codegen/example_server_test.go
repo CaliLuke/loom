@@ -10,6 +10,7 @@ import (
 	"github.com/CaliLuke/loom/codegen"
 	ctestdata "github.com/CaliLuke/loom/codegen/example/testdata"
 	"github.com/CaliLuke/loom/codegen/service"
+	"github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
 )
 
@@ -19,11 +20,19 @@ func TestExampleServerFiles(t *testing.T) {
 			Name     string
 			DSL      func()
 			Expected string
+			Files    int
 		}{
 			{
 				Name:     "conflict with API name and service names including multipart",
 				DSL:      ctestdata.ConflictWithAPINameAndServiceNamesIncludingMultipartDSL,
+				Expected: "package main",
+				Files:    1,
+			},
+			{
+				Name:     "conflicting names with custom multipart codecs",
+				DSL:      customMultipartPackageConflictDSL,
 				Expected: "package alohaapi2",
+				Files:    2,
 			},
 		}
 		for _, c := range cases {
@@ -32,7 +41,7 @@ func TestExampleServerFiles(t *testing.T) {
 				require.Len(t, root.Services, 3)
 				httpServices := NewServicesData(service.NewServicesData(root), root.API.HTTP)
 				fs := ExampleServerFiles("", httpServices)
-				require.Len(t, fs, 2)
+				require.Len(t, fs, c.Files)
 				for i, f := range fs {
 					if i < len(fs)-1 {
 						// Skip example http server.
@@ -74,4 +83,19 @@ func TestExampleServerDisablesWriteTimeoutForStreamingServices(t *testing.T) {
 
 	require.Contains(t, code, "WriteTimeout:      0,")
 	require.NotContains(t, code, "WriteTimeout:      time.Second * 30,")
+}
+
+func customMultipartPackageConflictDSL() {
+	dsl.API("aloha", func() {})
+	for _, name := range []string{"aloha", "alohaapi", "alohaapi1"} {
+		dsl.Service(name, func() {
+			dsl.Method("create", func() {
+				dsl.Payload(dsl.MapOf(dsl.String, dsl.String))
+				dsl.HTTP(func() {
+					dsl.POST("/" + name)
+					dsl.MultipartRequest()
+				})
+			})
+		})
+	}
 }

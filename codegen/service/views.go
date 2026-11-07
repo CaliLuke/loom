@@ -11,6 +11,8 @@ import (
 type viewedType struct {
 	// Name is the type name.
 	Name string
+	// MapName is the allocated metadata map identifier.
+	MapName string
 	// Views is the view data for all views defined in the type.
 	Views []*ViewData
 }
@@ -100,12 +102,12 @@ func collectViewedTypes(svc *Data) []*viewedType {
 		if len(views) == 0 {
 			return
 		}
-		name := views[0].TypeVarName
-		if _, ok := seen[name]; ok {
+		name, mapName := views[0].TypeVarName, views[0].MapName
+		if _, ok := seen[mapName]; ok {
 			return
 		}
-		rtdata = append(rtdata, &viewedType{Name: name, Views: views})
-		seen[name] = struct{}{}
+		rtdata = append(rtdata, &viewedType{Name: name, MapName: mapName, Views: views})
+		seen[mapName] = struct{}{}
 	}
 	for _, t := range svc.viewedResultTypes {
 		appendViews(t.Views)

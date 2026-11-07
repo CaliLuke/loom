@@ -96,6 +96,8 @@ type analyzer struct {
 	version          string
 	numbers          map[string]numericSource
 	numericPositions map[numericPosition]numericSource
+	unionPrepared    map[*Schema]bool
+	unionSiblings    []oneOfSiblingCheck
 }
 
 var concreteHTTPStatus = regexp.MustCompile(`^[1-5][0-9]{2}$`)
@@ -425,8 +427,7 @@ func (a *analyzer) requestBody(source *v3.RequestBody, path string) RequestBody 
 	body := RequestBody{
 		Description: source.Description, Required: source.Required != nil && *source.Required,
 		ContentTypes: contentTypes, Schema: schema, Examples: examples,
-		Extensions:   a.extensions(path, source.Extensions),
-		FormEncoding: formSerialization(source.Content),
+		Extensions: a.extensions(path, source.Extensions),
 	}
 	return body
 }
@@ -580,15 +581,14 @@ func (a *analyzer) schemaSource(source *base.Schema, path string) *Schema {
 	a.schemaPattern(schema, path)
 	a.schemaNumericBounds(schema, source, path)
 	supportedNullableComposition := a.schemaNullableAnyOf(schema, source, path)
-	supportedNullableOneOf := schemaNullableReferenceOneOf(schema, source)
-	supportedUntaggedOneOf := false
-	if !supportedNullableOneOf {
-		supportedUntaggedOneOf = a.schemaUntaggedOneOf(schema, source, path)
-	}
+	supportedUntaggedOneOf := a.schemaUntaggedOneOf(schema, source, path)
 	supportedAllOf := a.schemaAllOf(schema, source, path)
-	a.schemaTypeAndProperties(schema, source, path)
-	a.schemaCollections(schema, source, path)
-	a.schemaValueDomain(schema, source, path)
+	if !supportedUntaggedOneOf {
+		a.schemaTypeAndProperties(schema, source, path)
+		a.schemaCollections(schema, source, path)
+		a.schemaValueDomain(schema, source, path)
+	}
+	schema.sourceType = sourceEncodingType(source, make(map[*base.Schema]bool))
 	a.schemaDefault(schema, source, path)
 	a.schemaExamples(schema, source, path)
 	a.schemaFormat(schema, path)
@@ -598,7 +598,7 @@ func (a *analyzer) schemaSource(source *base.Schema, path string) *Schema {
 		path,
 		supportedAllOf,
 		supportedNullableComposition,
-		supportedNullableOneOf || supportedUntaggedOneOf,
+		supportedUntaggedOneOf,
 	)
 	a.schemaAnnotations(schema, source, path)
 	schema.Unconstrained = isUnconstrainedSchema(schema)

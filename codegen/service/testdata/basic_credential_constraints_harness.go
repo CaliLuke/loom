@@ -12,7 +12,8 @@ func BasicCredentialConstraintsHarness(transport string) string {
 		source = strings.ReplaceAll(source, "EXTRA_METHODS", `methods = append(methods, "multipart", "custom", "bound")`)
 		source = strings.ReplaceAll(source, "EXTRA_ENDPOINTS", `Bound: svc.NewBoundEndpoint(impl, auth), Multipart: svc.NewMultipartEndpoint(impl, auth), Custom: svc.NewCustomEndpoint(impl, auth),`)
 		source = strings.ReplaceAll(source, "EXTRA_SERVER_ARGS", `, nil, func(_ *multipart.Reader, p **svc.CustomPayload) error {
- *p = &svc.CustomPayload{}
+ multipartCalls++
+ *p = &svc.CustomPayload{Files: [][]byte{[]byte("custom-decoded")}}
  return nil
 }`)
 		source = strings.ReplaceAll(source, "EXTRA_IMPLEMENTATIONS", `func (s *implementation) Bound(_ context.Context, p *svc.BoundPayload) error {
@@ -100,6 +101,7 @@ func TestBasicCredentialConstraints(t *testing.T) {
   } {
    t.Run(method+"/"+tc.name, func(t *testing.T) {
     impl, authCalls := &implementation{}, 0
+    multipartCalls := 0
     auth := func(ctx context.Context, _, _ string, _ *security.BasicScheme) (context.Context, error) {
  authCalls++
  return ctx, nil
@@ -120,7 +122,7 @@ func TestBasicCredentialConstraints(t *testing.T) {
     if method == "multipart" || method == "custom" {
      var body bytes.Buffer
      writer := multipart.NewWriter(&body)
-     require.NoError(t, writer.WriteField("unused", "value"))
+     require.NoError(t, writer.WriteField("file", "file-content"))
      require.NoError(t, writer.Close())
      req = httptest.NewRequest(http.MethodPost, "/"+method, &body)
      req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -182,6 +184,14 @@ require.Equal(t,http.StatusOK,rec.Code)
 require.Equal(t,http.StatusNoContent,rec.Code)
 }
      fields := reflect.ValueOf(impl.payload).Elem()
+     switch method {
+     case "custom":
+      require.Equal(t, 1, multipartCalls)
+      require.Equal(t, [][]byte{[]byte("custom-decoded")}, fields.FieldByName("Files").Interface())
+     case "multipart":
+      require.Zero(t, multipartCalls)
+      require.Equal(t, []byte("file-content"), fields.FieldByName("File").Interface())
+     }
      for _, item := range []struct {field, want string}{{"AuthUser",tc.user},{"AuthPassword",tc.pass}} {
       value := fields.FieldByName(item.field)
       if value.Kind() == reflect.Pointer {

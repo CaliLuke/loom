@@ -13,10 +13,9 @@ import (
 
 // TestJSONRPCOptionalUnionParamsClientEncoder asserts that the JSON-RPC
 // client request encoder omits params when the optional union payload
-// attribute mapped to the params with Body is nil and that the server request
-// decoder then decodes absent params as an empty body instead of {}. A
-// required union attribute is still always encoded and absent params still
-// decode as {}.
+// attribute mapped to the params with Body is nil or has no selected branch.
+// The server decodes absent params as an empty body instead of {}. A required
+// union rejects absence before encoding; absent params still decode as {}.
 func TestJSONRPCOptionalUnionParamsClientEncoder(t *testing.T) {
 	cases := []struct {
 		Name     string
@@ -29,14 +28,15 @@ func TestJSONRPCOptionalUnionParamsClientEncoder(t *testing.T) {
 				"\t\t\tJSONRPC: \"2.0\",\n" +
 				"\t\t\tMethod:  \"Pick\",\n" +
 				"\t\t}\n" +
-				"\t\tif p.U != nil {\n" +
+				"\t\tif !(p.U == nil || p.U.Kind() == \"\") {\n" +
 				"\t\t\tbody.Params = NewPickRequestBody(p)\n" +
 				"\t\t}\n",
 		},
 		{
 			Name:     "required",
 			Required: true,
-			Contains: "\t\tb := NewPickRequestBody(p)\n" +
+			Contains: "\t\tif p.U.Kind() == \"\" {\n\t\t\treturn loom.MissingPayloadError()\n\t\t}\n" +
+				"\t\tb := NewPickRequestBody(p)\n" +
 				"\t\tbody := &jsonrpc.Request{\n" +
 				"\t\t\tJSONRPC: \"2.0\",\n" +
 				"\t\t\tMethod:  \"Pick\",\n" +
@@ -57,7 +57,7 @@ func TestJSONRPCOptionalUnionParamsClientEncoder(t *testing.T) {
 			assert.Contains(t, code, c.Contains)
 			assert.Contains(t, code, "if err := encoder(req).Encode(&body); err != nil {")
 			if c.Required {
-				assert.NotContains(t, code, "if p.U != nil {")
+				assert.NotContains(t, code, "if !(p.U == nil || p.U.Kind() == \"\") {")
 			}
 
 			decoder := sectionSourceByName(t, requireEncodeDecodeFile(t, ServerFiles("", services), "server"), "jsonrpc-request-decoder")

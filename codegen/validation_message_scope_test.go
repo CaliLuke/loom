@@ -18,6 +18,12 @@ type (
 	}
 )
 
+func (s *messageScope) WithScope(scope *NameScope) Attributor {
+	copy := *s
+	copy.scope = scope
+	return &copy
+}
+
 // Name returns the name of the type of att.
 func (s *messageScope) Name(att *expr.AttributeExpr, pkg string, ptr, useDefault bool) string {
 	return s.scope.GoFullTypeName(att, pkg)

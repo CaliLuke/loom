@@ -46,9 +46,9 @@ func TestNullableUnionRequestBody(t *testing.T) {
 			assert.Contains(t, init, "\tres := &picker.PickPayload{\n\t\tU: v,\n\t}\n")
 			assert.NotContains(t, init, "U: *v")
 
-			guard := "\t\tif p.U.Present() {\n\t\t\tbody := NewLoomNullablePickRequestBody(p)\n"
+			guard := "\t\tif !(!p.U.Present()) {\n\t\t\tbody := NewLoomNullablePickRequestBody(p)\n"
 			if c.Required {
-				assert.NotContains(t, encoder, "p.U.Present()")
+				assert.Contains(t, encoder, "if !p.U.Present() {\n\t\t\treturn loom.MissingPayloadError()")
 				assert.Contains(t, decoder, "return payload, loom.MissingPayloadError()")
 				assert.Contains(t, decoder, "if !body.Present() {")
 				return

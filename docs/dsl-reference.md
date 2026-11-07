@@ -122,10 +122,12 @@ absent. An explicit null never activates a default.
 
 `Nullable` also works on array elements and map values. Map keys cannot be
 nullable. JSON HTTP bodies and JSON-RPC preserve all four combinations of
-requiredness and nullability. String-encoded HTTP parameters, headers, cookies,
-forms, multipart bodies, and gRPC messages reject nullable shapes during design
-validation because those transports cannot preserve the same JSON presence
-contract. An unconstrained `Any` value remains the gRPC exception.
+requiredness and nullability. Text-encoded HTTP parameters, headers, cookies,
+and form fields reject nullable shapes because text has no distinct JSON null
+state. JSON-valued form fields and multipart parts preserve nullable values,
+including nullable collection items. Form and multipart roots must remain
+non-nullable; optional body absence is a separate contract. gRPC messages
+reject nullable shapes, with unconstrained `Any` as the exception.
 
 An HTTP WebSocket `StreamingPayload` cannot have a nullable root: a JSON `null`
 frame signals end of client input. Put nullable values in fields of a non-null
@@ -159,6 +161,26 @@ Different objects can reuse the same block and branch names. Each branch keeps
 its declared type; Loom adds stable suffixes to generated Go type names when
 needed. These suffixes do not change the JSON discriminator values.
 
+Generated service, view and HTTP packages also reserve complete declaration
+families before assigning type names. A type that conflicts with `Server`, a
+validator, a union kind constant or a constructor receives a numeric suffix; its
+references and helpers use that same identity. Regenerate clients and servers
+after adopting this correction, and use the regenerated names in application
+code. Authored method names and wire values keep their existing meanings.
+
+Logical view names such as `tiny-view` and `tiny_view` remain distinct. Their
+generated validators and projection helpers receive distinct Go suffixes even
+when the authored names normalize to the same Go identifier. Regenerate the
+service and use its generated helper names; view selection keeps the authored
+strings.
+
+Generated union fields also avoid collisions with methods such as `Kind`,
+`Validate`, and the JSON and form codecs. Branch names that become the same Go
+identifier receive stable numeric suffixes in their generated accessors and
+constructors. Wire names and discriminator values remain unchanged. Regenerate
+clients and servers after this correction; use the generated `As*` and `Set*`
+methods instead of assuming a branch's storage field spelling.
+
 Named union branches may refer to types declared later. Recursion must pass
 through an object field. A union branch cycle without an object boundary, such
 as `Type("Tree", OneOf(Leaf, "Tree"))`, is rejected during design validation,
@@ -188,6 +210,35 @@ Method("next", func() {
     Result(OneOf(Created, Deleted))
 })
 ```
+
+`OneOf(func() { ... })` constructs a union from named branch attributes wherever
+a data type is accepted. Its root accepts branch declarations, `Untagged()`,
+`oneof:typename`, `oneof:type:field`, `oneof:value:field` metadata, and
+`Meta("openapi:unevaluatedProperties", "false")`. Each branch keeps its own
+attribute DSL, including constraints, nullability and examples.
+
+Settings on the whole union belong in its enclosing `Type`, `Attribute`,
+`Payload` or `Result` DSL. For example:
+
+```go
+var Choice = Type("Choice", OneOf(func() {
+    Untagged()
+    Attribute("Text", String, func() {
+        Pattern("^[a-z]+$")
+    })
+    Attribute("Number", Int)
+}), func() {
+    Nullable()
+    Description("A nullable text or number")
+    Example("chosen")
+})
+```
+
+Putting `Nullable()`, `Description`, `Title`, `Docs`, `Example`, validations,
+composition directives or unrelated metadata inside the constructor root is a
+design error. Earlier versions could accept and discard those settings; move
+them to the enclosing attribute DSL before regenerating. Whole-union defaults
+remain unsupported. Branch defaults retain their ordinary attribute rules.
 
 Loom encodes unions as objects with discriminator and value fields. The default
 field names are stable, and you can override them with metadata:
@@ -242,8 +293,7 @@ not distinguish nil maps from empty maps. Map key and value restrictions still
 apply: keys must be booleans, strings, or integers, and a union cannot be a map
 value or array element unless it is wrapped in an object with a `Field`.
 
-Use `Untagged()` when a JSON contract encodes a named object or array
-branch directly:
+Use `Untagged()` when a JSON contract encodes the selected branch directly:
 
 ```go
 var Items = Type("Items", ArrayOf(Item))
@@ -261,7 +311,7 @@ Method("lookup", func() {
 ```
 
 Generated Go keeps the same sum-type constructors, `Kind`, and `As...`
-accessors. JSON contains the selected array or object without an envelope.
+accessors. JSON contains the selected value without an envelope.
 Both encoding and decoding require exactly one schema match and one valid Go
 candidate, with the same branch identity. Overlapping schemas are rejected even
 if numeric widths let Go decode only one candidate. Encoding also rejects values
@@ -273,29 +323,38 @@ required and defaulted scalar fields are checked for absence before their values
 are validated. Regenerate affected clients and servers to pick up this correction.
 Selected-view validation remains separate from full union-branch matching.
 
-Branches must be concrete named objects or arrays. Their recursive contents may
-be primitives, named objects, untagged unions, arrays, and string-keyed maps of
-these shapes. Every nested union keeps its own exact-one rule and concrete named
-object/array branches. Empty arrays of union values remain valid unless constrained;
-a row matching zero or multiple branches rejects its enclosing candidate. JSON
-contains each nested value directly, without a synthetic discriminator.
-Map values retain their declared constraints, including named types, nullable
-values and recursive objects. Map length constraints count entries; an empty
-map is valid unless a minimum length rejects it. Map keys must be strings or
-named string types. Inline object leaves, tagged nested unions, opaque custom
-codecs, and schema encoding overrides are rejected throughout the branch. Matching preserves exact JSON names, required
-membership before defaults, nullability, closed-object policy, and effective
-value constraints. A selected nil slice encodes as `[]`; a nil object branch is
-invalid. Multiple array branches that accept `[]` make that value ambiguous.
-Declare nullability on the enclosing union occurrence, not on a branch.
+Branches may be primitives, `Any`, scalar aliases, named objects, arrays,
+string-keyed maps or nested untagged unions. Each branch may be nullable.
+Recursive fields and collection members follow the same grammar; every nested
+union keeps its own exact-one rule. Empty collections remain valid unless a
+length constraint rejects them, but multiple alternatives that accept the same
+empty value make it ambiguous. Inline object leaves, tagged nested unions,
+opaque custom codecs and unsupported schema overrides remain rejected.
 
-OpenAPI renders branch component references directly under `oneOf` and omits
-the discriminator. This encoding is for JSON bodies; string-encoded parameters,
-headers, cookies, forms, and multipart bodies do not support it. Protobuf keeps
-its existing explicitly numbered `oneof` alternatives and collection wrappers.
-Regenerate consumers to adopt map fields and these checks. Ambiguous objects
-remain invalid even when both branches contain maps. Map root branches remain
-unsupported; place a dictionary inside a named object or array branch.
+Matching preserves exact JSON names, required membership before defaults,
+nullability, object openness and effective value constraints. Null is counted
+against every branch: one nullable alternative can accept it, while two
+null-admitting alternatives make it ambiguous. An explicit outer `Nullable()`
+retains its wrapper. An implicitly null-admitting union instead retains its
+native selection, distinguishing an absent union from a selected null branch.
+
+`Meta("openapi:unevaluatedProperties", "false")` closes the union occurrence
+after unique selection. It uses the selected schema's evaluated members,
+including nested alternatives and additional-member policies. Applying closure
+before counting would incorrectly disambiguate overlapping branches.
+
+OpenAPI renders the alternatives under `oneOf` without a discriminator.
+Path, query, header and cookie unions require a supported text codec for every
+branch; nullable text values remain rejected. Form object/map roots and recursive
+untagged alternatives use their captured field codecs. Multipart roots require
+objects or recursive untagged object alternatives. JSON-valued fields and parts
+can preserve nullable values. See the [HTTP guide](http-guide.md) for field
+encoding and body presence. Protobuf keeps its explicitly numbered `oneof`
+alternatives, collection wrappers and separate admission rules.
+
+Regenerate service, client and server code together when adopting these shapes.
+Overlapping schemas are legal to declare, but only values with the same unique
+schema and Go decoder match can be exchanged.
 
 #### Result View Requiredness
 
@@ -496,9 +555,10 @@ not require it, and its undeclared attributes cannot use its name. OpenAPI
 forbids that name in the body schema, and the generated server rejects such a
 body as invalid.
 
-Objects with `AdditionalAttributes` are not supported in gRPC messages, form
-and multipart bodies, URL parameters, headers and cookies, untagged `OneOf`
-branches, or result types that declare views. Members cannot use the
+Objects with `AdditionalAttributes` retain their member policy inside JSON
+untagged `OneOf` branches. They are not supported in gRPC messages, form and
+multipart roots, URL parameters, headers and cookies, or result types that
+declare views. Members cannot use the
 `case:ignore` JSON tag option. As with `MapOf`, the XML encoder cannot encode
 the map of undeclared attributes.
 
@@ -2420,20 +2480,31 @@ Method("upload", func() {
 })
 ```
 
-`MultipartRequest` requires a payload and does not support constructor union
-payloads. Supported object payloads get generated multipart decoding. If the
-object contains a single `Bytes` file field, `filename` and `content_type`
-string attributes can be populated from the uploaded part metadata.
-Unsupported multipart shapes keep the custom decoder hook instead of generating
-partial framework-owned behavior.
+`MultipartRequest` requires a payload. Objects and recursive untagged `OneOf`
+object alternatives receive generated client and server codecs. Each incoming
+union requires one schema match and one typed decoder match; outgoing encoding
+must preserve the selected branch. Tagged constructor unions and map roots are
+not admitted by the generated multipart contract. Tagged unions, nullable values
+and recursive objects are supported inside JSON-valued fields.
 
-Use `OptionalRequestBody` for endpoints that accept either no JSON request body
-or an optional object body. It also supports object and map bodies with
-`FormRequest`. It cannot be combined with `MultipartRequest` or
-`SkipRequestBodyEncodeDecode`. Empty-body EOF is accepted only for opted-in JSON
-endpoints, and empty forms are accepted only for opted-in form endpoints.
-Required-body endpoints remain strict and malformed input still returns a
-decode error.
+Scalar byte fields carry raw bytes. Arrays encode one part per item, with the
+captured item codec; whole-value JSON remains available for typeless unions.
+Explicit styles override content types and operate on literal MIME names and
+values without URI escaping. Outer names follow form tags. One scalar byte field
+can supply absent string `filename` and `content_type` fields from file headers;
+explicit target parts, including empty parts, take precedence.
+
+Regenerate clients and servers and remove multipart callbacks for automatically
+supported bodies. Explicit custom Go carrier contracts retain their custom hooks.
+See [multipart requests](http-guide.md#multipart-requests) for codec and runtime
+carrier migration details.
+
+Use `OptionalRequestBody` for optional JSON object bodies, supported form object
+or map bodies, and supported multipart object or untagged object-union bodies.
+It cannot be combined with `SkipRequestBodyEncodeDecode`. An absent optional
+multipart source leaves the body absent; a present empty MIME envelope is a
+supplied object and still undergoes matching. Required bodies remain strict;
+malformed input and source failures always return decoding errors.
 
 Use `SkipRequestBodyEncodeDecode` and `SkipResponseBodyEncodeDecode` for raw
 HTTP body streaming with `io.Reader` values. These flags are HTTP-only and are

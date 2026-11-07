@@ -6,7 +6,7 @@ import "github.com/CaliLuke/loom/expr"
 // Retain the original declaration at each plan position: canonical names may
 // have JSON and text variants, but unrelated declarations must still collide.
 func (a *Analyzer) parameterSchemaTarget(attribute *expr.AttributeExpr, plan expr.ValuePlanNode, codec expr.ValueCodec) (*expr.AttributeExpr, func()) {
-	if !plan.Valid() || codec != expr.ValueCodecText && codec != expr.ValueCodecForm {
+	if !plan.Valid() || codec != expr.ValueCodecText && codec != expr.ValueCodecForm && codec != expr.ValueCodecMultipart {
 		return attribute, func() {}
 	}
 	previous := a.parameterSources

@@ -260,7 +260,7 @@ func (je *jsonEncoder) GetBody() (io.ReadCloser, error) {
 func ResponseDecoder(resp *http.Response) Decoder {
 	if resp.Request != nil && mediaContractContext(resp.Request.Context()) {
 		rejectNull, _ := resp.Request.Context().Value(nonNullableBodyKey{}).(bool)
-		return mediaDecoder(resp.Body, resp.Header.Get("Content-Type"), decodeResponse, DefaultMaxRequestBodyBytes, !rejectNull, mediaFormCodec(resp.Request.Context()))
+		return mediaDecoder(resp.Body, resp.Header.Get("Content-Type"), decodeResponse, DefaultMaxRequestBodyBytes, !rejectNull, mediaFormCodec(resp.Request.Context()), mediaMultipartCodec(resp.Request.Context()))
 	}
 	selected := httpcodec.ResponseDecode(resp.Header.Get("Content-Type"))
 	switch selected.Kind {

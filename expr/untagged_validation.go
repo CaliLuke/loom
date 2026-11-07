@@ -10,13 +10,13 @@ import (
 func validateUntaggedBranches(union *Union, ctx string, parent eval.Expression) *eval.ValidationErrors {
 	errors := new(eval.ValidationErrors)
 	for _, branch := range union.Values {
-		ut, named := branch.Attribute.Type.(UserType)
-		if !named || !IsObject(ut) && !IsArray(ut) {
-			errors.Add(parent, "%suntagged OneOf branch %q must be a concrete named object or array type", ctx, branch.Name)
+		if nested := AsUnion(branch.Attribute.Type); nested != nil && !nested.Untagged {
+			errors.Add(parent, "%suntagged OneOf branch %q cannot contain a tagged union", ctx, branch.Name)
 			continue
 		}
-		if AllowsNull(branch.Attribute) {
-			errors.Add(parent, "%suntagged OneOf branch %q cannot admit null; declare nullability on the enclosing union occurrence", ctx, branch.Name)
+		if !isUntaggedBranchFieldType(branch.Attribute.Type) {
+			errors.Add(parent, "%suntagged OneOf branch %q root must be primitive, a named object, an untagged union, or an array or string-keyed map", ctx, branch.Name)
+			continue
 		}
 		validateUntaggedShape(branch.Attribute, ctx, branch.Name, parent, errors, make(map[*AttributeExpr]bool))
 	}
@@ -54,11 +54,11 @@ func validateUntaggedShape(att *AttributeExpr, ctx, branch string, parent eval.E
 	if object == nil {
 		return
 	}
-	if att.TypedObjectDeclaration() != nil {
-		errors.Add(parent, "%suntagged OneOf branch %q cannot use AdditionalAttributes", ctx, branch)
-	}
-	if att.ObjectOpenness() == ObjectOpen {
-		errors.Add(parent, "%suntagged OneOf branch %q must use the default open object or openapi:additionalProperties false", ctx, branch)
+	if att.AdditionalAttributes != nil {
+		if !isUntaggedBranchFieldType(att.AdditionalAttributes.Type) {
+			errors.Add(parent, "%suntagged OneOf branch %q additional members must use the supported field grammar", ctx, branch)
+		}
+		validateUntaggedShape(att.AdditionalAttributes, ctx, branch, parent, errors, seen)
 	}
 	names := make(map[string]bool)
 	for _, field := range *object {

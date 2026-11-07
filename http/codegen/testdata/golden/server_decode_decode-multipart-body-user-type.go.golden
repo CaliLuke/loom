@@ -5,28 +5,57 @@ func DecodeMethodMultipartUserTypeRequest(mux loomhttp.Muxer, _ func(*http.Reque
 		var payload *servicemultipartusertype.MethodMultipartUserTypePayload
 		var err error
 		var (
-			body MethodMultipartUserTypeRequestBody
+			body MethodMultipartUserTypeMethodMultipartUserTypeRequestBodyForm
 		)
 		multipartForm, multipartErr := loomhttp.ReadMultipartForm(r)
 		if multipartErr != nil {
-			var gerr *loom.ServiceError
-			if errors.As(multipartErr, &gerr) {
-				return payload, gerr
-			}
-			return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(multipartErr))
-		}
-		if len(multipartForm.Values) == 0 && len(multipartForm.Files) == 0 {
-			return payload, loom.MissingPayloadError()
-		} else {
-			if _, multipartErr = loomhttp.DecodeFormValue(multipartForm.Values, "", &body); multipartErr != nil {
-				var gerr *loom.ServiceError
-				if errors.As(multipartErr, &gerr) {
-					return payload, gerr
+			if errors.Is(multipartErr, loomhttp.ErrMultipartBodyAbsent) {
+				return payload, loom.MissingPayloadError()
+			} else {
+				var serviceError *loom.ServiceError
+				if errors.As(multipartErr, &serviceError) {
+					return payload, serviceError
 				}
 				return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(multipartErr))
 			}
+		} else {
+			if partError := func() error {
+				{
+					parameterValue, partError := loomhttp.DecodeMultipartParam(multipartForm, "b", loomhttp.ParamCodec{Style: loomhttp.ParamForm, Explode: false}, loomhttp.ParamScalar, loomhttp.ParamNamespace{Literals: []string{"c"}, Prefixes: []string(nil), OwnedLiterals: []string(nil)})
+					partPresent := parameterValue.Present
+					if partError == nil && partPresent {
+						{
+							parameterValue := string(parameterValue.Text)
+							body.B = &parameterValue
+						}
+					}
+					if partError != nil {
+						return partError
+					}
+					if !partPresent {
+						return loom.MissingFieldError("b", "body")
+					}
+				}
+				{
+					partPresent, partError := loomhttp.DecodeMultipartJSON(multipartForm, "c", &body.C, false, loomhttp.FieldValue)
+					if partError != nil {
+						return partError
+					}
+					if !partPresent {
+						return loom.MissingFieldError("c", "body")
+					}
+				}
+				return nil
+			}(); partError != nil {
+				var serviceError *loom.ServiceError
+				if errors.As(partError, &serviceError) {
+					return payload, serviceError
+				}
+				return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(partError))
+			}
 		}
-		err = ValidateMethodMultipartUserTypeRequestBody(&body)
+
+		err = ValidateMethodMultipartUserTypeMethodMultipartUserTypeRequestBodyForm(&body)
 		if err != nil {
 			if multipartErr != nil {
 				err = loom.MergeErrors(multipartErr, err)

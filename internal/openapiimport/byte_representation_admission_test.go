@@ -33,10 +33,10 @@ func TestImportedBinaryRepresentationLocations(t *testing.T) {
       requestBody:
         content: {multipart/form-data: {schema: {type: object, properties: {data: {$ref: '#/components/schemas/Raw'}}}}}
       responses: {"204": {description: ok}}`, false},
-		{"multipart nested array", `post:
+		{"multipart repeated binary parts", `post:
       requestBody:
         content: {multipart/form-data: {schema: {type: object, properties: {data: {type: array, items: {$ref: '#/components/schemas/Raw'}}}}}}
-      responses: {"204": {description: ok}}`, true},
+      responses: {"204": {description: ok}}`, false},
 		{"multipart nested object", `post:
       requestBody:
         content: {multipart/form-data: {schema: {type: object, properties: {data: {type: object, properties: {value: {$ref: '#/components/schemas/Raw'}}}}}}}

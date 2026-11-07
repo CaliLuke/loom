@@ -6,6 +6,9 @@ func EncodeMethodBodyQueryPathUserRequest(encoder func(*http.Request) loomhttp.E
 		if !ok {
 			return loomhttp.ErrInvalidType("ServiceBodyQueryPathUser", "MethodBodyQueryPathUser", "*servicebodyquerypathuser.PayloadType", v)
 		}
+		if p == nil {
+			return loom.MissingPayloadError()
+		}
 		values := req.URL.Query()
 		if p.B != nil {
 			values.Add("b", *p.B)

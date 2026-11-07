@@ -129,7 +129,7 @@ func (r *renderer) responseMappingRawBody(response renderedResponse, path string
 
 func (r *renderer) responseMappingBody(response renderedResponse, failure bool, path string) error {
 	wrapUnconstrainedError := failure && r.effectiveUnconstrained(response.response.Schema)
-	wrapMediaError := failure && response.response.Schema != nil && len(response.response.Schema.MediaTypes) > 0
+	wrapMediaError := failure && r.unionSchema(response.response.Schema)
 	if response.body != "" && (len(response.headers) > 0 || wrapUnconstrainedError || wrapMediaError) {
 		r.line("Body(%q)", response.body)
 	}

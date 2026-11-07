@@ -115,6 +115,7 @@ type (
 		nullable            bool
 		nonNullableElements bool
 		untagged            bool
+		unionClosed         bool
 		typeKey             string
 		valueKey            string
 		schemaUnknown       bool

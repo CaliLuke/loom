@@ -24,19 +24,22 @@ type (
 		Child *JSONShape
 		// Fields are the visible object members in declaration order.
 		Fields []JSONShapeField
-		// Additional constrains every object member absent from Fields.
-		// A nil value leaves such members unconstrained unless Closed is set.
+		// Branches are the nonempty alternatives of an untagged union; exactly one must match.
+		Branches []*JSONShape
+		// Closed rejects object members absent from Fields.
+		Closed bool
+		// UnevaluatedClosed rejects members not evaluated by the selected union
+		// alternative, after unique matching. It applies to unions and their aliases.
+		UnevaluatedClosed bool
+		// Additional validates undeclared members. Nil means the schema did not
+		// supply additionalProperties; an any shape represents explicit true.
 		Additional *JSONShape
-		// ForbiddenMembers are declared members omitted from this representation.
-		// They may not reappear through Additional.
+		// ForbiddenMembers are physical members removed by a transport projection.
+		// An additional-member schema must never admit these reserved names.
 		ForbiddenMembers []string
 		// RequiredMembers requires exact object keys at this occurrence,
 		// independently of whether its object shape is reached through an alias.
 		RequiredMembers []string
-		// Branches are the alternatives of an untagged union; exactly one must match.
-		Branches []*JSONShape
-		// Closed rejects object members absent from Fields.
-		Closed bool
 		// NonNullableElements rejects null array elements independently of Child.
 		NonNullableElements bool
 		// Rules holds the occurrence's effective, conjoined predicates.
@@ -66,6 +69,11 @@ type (
 		// Enums conjoins clauses whose members are already projected JSON values.
 		Enums [][]jsontext.Value
 	}
+	// jsonShapeMatch retains annotations from the same successful traversal.
+	jsonShapeMatch struct {
+		matched   bool
+		evaluated []string
+	}
 )
 
 var jsonShapeBase64 = regexp.MustCompile(`\A(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?\z`)
@@ -74,13 +82,18 @@ var jsonShapeBase64 = regexp.MustCompile(`\A(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/
 // False is an ordinary contract mismatch; errors indicate invalid descriptions
 // or failures of the exact predicate evaluator.
 func (s *JSONShape) Match(wire jsontext.Value) (bool, error) {
+	result, err := s.evaluate(wire)
+	return result.matched, err
+}
+
+func (s *JSONShape) evaluate(wire jsontext.Value) (jsonShapeMatch, error) {
 	if err := s.validate(make(map[*JSONShape]bool)); err != nil {
-		return false, err
+		return jsonShapeMatch{}, err
 	}
 	if !wire.IsValid() {
-		return false, nil
+		return jsonShapeMatch{}, nil
 	}
-	return s.match(wire, 0)
+	return s.matchAnnotated(wire, 0)
 }
 
 func (s *JSONShape) validate(seen map[*JSONShape]bool) error {
@@ -91,6 +104,17 @@ func (s *JSONShape) validate(seen map[*JSONShape]bool) error {
 		return nil
 	}
 	seen[s] = true
+	if s.UnevaluatedClosed {
+		root := s
+		aliases := make(map[*JSONShape]bool)
+		for root != nil && root.Kind == "alias" && !aliases[root] {
+			aliases[root] = true
+			root = root.Child
+		}
+		if root == nil || root.Kind != "union" {
+			return fmt.Errorf("unevaluated closure requires a JSON union or union alias")
+		}
+	}
 	switch s.Kind {
 	case "any", "boolean", "string", "bytes", "integer", "number":
 	case "array", "map", "alias":
@@ -103,8 +127,8 @@ func (s *JSONShape) validate(seen map[*JSONShape]bool) error {
 			return err
 		}
 	case "union":
-		if len(s.Branches) < 2 {
-			return fmt.Errorf("JSON matching union requires at least two branches")
+		if len(s.Branches) == 0 {
+			return fmt.Errorf("JSON matching union requires at least one branch")
 		}
 		if err := s.validateAlternatives(make(map[*JSONShape]bool)); err != nil {
 			return err
@@ -115,25 +139,35 @@ func (s *JSONShape) validate(seen map[*JSONShape]bool) error {
 			}
 		}
 	case "object":
-		if s.Additional != nil {
-			if err := s.Additional.validate(seen); err != nil {
-				return err
-			}
-		}
-		names := make(map[string]bool)
-		for _, field := range s.Fields {
-			if names[field.Name] {
-				return fmt.Errorf("duplicate JSON matching member %q", field.Name)
-			}
-			names[field.Name] = true
-			if err := field.Shape.validate(seen); err != nil {
-				return err
-			}
+		if err := s.validateObject(seen); err != nil {
+			return err
 		}
 	default:
 		return fmt.Errorf("unsupported JSON matching kind %q", s.Kind)
 	}
 	return s.Rules.validate()
+}
+
+func (s *JSONShape) validateObject(seen map[*JSONShape]bool) error {
+	if s.Additional != nil {
+		if s.Closed {
+			return fmt.Errorf("closed JSON object cannot supply an additional matching shape")
+		}
+		if err := s.Additional.validate(seen); err != nil {
+			return err
+		}
+	}
+	names := make(map[string]bool)
+	for _, field := range s.Fields {
+		if names[field.Name] {
+			return fmt.Errorf("duplicate JSON matching member %q", field.Name)
+		}
+		names[field.Name] = true
+		if err := field.Shape.validate(seen); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // validateAlternatives rejects cycles that revisit the same wire value. Object
@@ -191,79 +225,104 @@ func (r JSONShapeRules) validate() error {
 }
 
 func (s *JSONShape) match(wire jsontext.Value, depth int) (bool, error) {
+	result, err := s.matchAnnotated(wire, depth)
+	return result.matched, err
+}
+
+func (s *JSONShape) matchAnnotated(wire jsontext.Value, depth int) (jsonShapeMatch, error) {
 	if s == nil || depth > 10000 {
-		return false, fmt.Errorf("invalid or cyclic JSON matching description")
+		return jsonShapeMatch{}, fmt.Errorf("invalid or cyclic JSON matching description")
 	}
 	if wire.Kind() == 'n' && s.Nullable {
-		return true, nil
+		return jsonShapeMatch{matched: true}, nil
 	}
 	if matched, err := s.requiredMembers(wire); err != nil || !matched {
-		return matched, err
+		return jsonShapeMatch{}, err
 	}
 	length := -1
+	result := jsonShapeMatch{matched: true}
 	switch s.Kind {
 	case "alias":
-		matched, err := s.Child.match(wire, depth+1)
-		if err != nil || !matched {
-			return matched, err
+		child, err := s.Child.matchAnnotated(wire, depth+1)
+		if err != nil || !child.matched {
+			return jsonShapeMatch{}, err
 		}
-		return s.rules(wire, s.length(wire))
+		return s.finishMatch(wire, s.length(wire), child)
 	case "any":
 	case "boolean":
 		if wire.Kind() != 't' && wire.Kind() != 'f' {
-			return false, nil
+			return jsonShapeMatch{}, nil
 		}
 	case "string", "bytes":
 		if wire.Kind() != '"' {
-			return false, nil
+			return jsonShapeMatch{}, nil
 		}
 		length = s.length(wire)
 		if length < 0 {
-			return false, nil
+			return jsonShapeMatch{}, nil
 		}
 	case "integer", "number":
-		if wire.Kind() != '0' {
-			return false, nil
-		}
-		number, err := exactnum.ParseJSON(string(wire))
-		if err != nil {
-			return false, err
-		}
-		if s.Kind == "integer" && !number.IsInt() {
-			return false, nil
+		if matched, err := s.matchNumericKind(wire); err != nil || !matched {
+			return jsonShapeMatch{}, err
 		}
 	case "array":
-		return s.array(wire, depth)
+		matched, err := s.array(wire, depth)
+		return jsonShapeMatch{matched: matched}, err
 	case "map":
 		return s.mapping(wire, depth)
 	case "union":
 		return s.union(wire, depth)
 	case "object":
-		matched, err := s.object(wire, depth)
-		if err != nil || !matched {
-			return matched, err
+		var err error
+		result, err = s.object(wire, depth)
+		if err != nil || !result.matched {
+			return jsonShapeMatch{}, err
 		}
 	default:
-		return false, fmt.Errorf("unsupported JSON matching kind %q", s.Kind)
+		return jsonShapeMatch{}, fmt.Errorf("unsupported JSON matching kind %q", s.Kind)
 	}
-	return s.rules(wire, length)
+	return s.finishMatch(wire, length, result)
 }
 
-func (s *JSONShape) union(wire jsontext.Value, depth int) (bool, error) {
+func (s *JSONShape) matchNumericKind(wire jsontext.Value) (bool, error) {
+	if wire.Kind() != '0' {
+		return false, nil
+	}
+	number, err := exactnum.ParseJSON(string(wire))
+	if err != nil {
+		return false, err
+	}
+	return s.Kind != "integer" || number.IsInt(), nil
+}
+
+func (s *JSONShape) finishMatch(wire jsontext.Value, length int, result jsonShapeMatch) (jsonShapeMatch, error) {
+	matched, err := s.rules(wire, length)
+	if err != nil || !matched {
+		return jsonShapeMatch{}, err
+	}
+	if matched, err = s.matchClosure(wire, result.evaluated); err != nil || !matched {
+		return jsonShapeMatch{}, err
+	}
+	return result, nil
+}
+
+func (s *JSONShape) union(wire jsontext.Value, depth int) (jsonShapeMatch, error) {
 	matches := 0
+	var selected jsonShapeMatch
 	for _, branch := range s.Branches {
-		matched, err := branch.match(wire, depth+1)
+		result, err := branch.matchAnnotated(wire, depth+1)
 		if err != nil {
-			return false, err
+			return jsonShapeMatch{}, err
 		}
-		if matched {
+		if result.matched {
 			matches++
+			selected = result
 		}
 	}
 	if matches != 1 {
-		return false, nil
+		return jsonShapeMatch{}, nil
 	}
-	return s.rules(wire, -1)
+	return s.finishMatch(wire, -1, selected)
 }
 
 func (s *JSONShape) requiredMembers(wire jsontext.Value) (bool, error) {
@@ -285,62 +344,67 @@ func (s *JSONShape) requiredMembers(wire jsontext.Value) (bool, error) {
 	return true, nil
 }
 
-func (s *JSONShape) object(wire jsontext.Value, depth int) (bool, error) {
+func (s *JSONShape) object(wire jsontext.Value, depth int) (jsonShapeMatch, error) {
 	if wire.Kind() != '{' {
-		return false, nil
+		return jsonShapeMatch{}, nil
 	}
 	var members map[string]jsontext.Value
 	if err := json.Unmarshal(wire, &members); err != nil {
-		return false, err
+		return jsonShapeMatch{}, err
 	}
 	for _, name := range s.ForbiddenMembers {
 		if _, present := members[name]; present {
-			return false, nil
+			return jsonShapeMatch{}, nil
 		}
 	}
+	result := jsonShapeMatch{matched: true}
 	for _, field := range s.Fields {
 		child, present := members[field.Name]
 		if !present {
 			if field.Required {
-				return false, nil
+				return jsonShapeMatch{}, nil
 			}
 			continue
 		}
 		matched, err := field.Shape.match(child, depth+1)
 		if err != nil || !matched {
-			return matched, err
+			return jsonShapeMatch{}, err
 		}
+		result.evaluated = append(result.evaluated, field.Name)
 		delete(members, field.Name)
 	}
-	if s.Closed && len(members) > 0 {
-		return false, nil
-	}
 	if s.Additional != nil {
-		for _, child := range members {
+		for name, child := range members {
 			matched, err := s.Additional.match(child, depth+1)
 			if err != nil || !matched {
-				return matched, err
+				return jsonShapeMatch{}, err
 			}
+			result.evaluated = append(result.evaluated, name)
 		}
 	}
-	return true, nil
+	if s.Closed && len(members) != 0 {
+		return jsonShapeMatch{}, nil
+	}
+	return result, nil
 }
 
-func (s *JSONShape) mapping(wire jsontext.Value, depth int) (bool, error) {
+func (s *JSONShape) mapping(wire jsontext.Value, depth int) (jsonShapeMatch, error) {
 	if wire.Kind() != '{' {
-		return false, nil
+		return jsonShapeMatch{}, nil
 	}
 	var members map[string]jsontext.Value
 	if err := json.Unmarshal(wire, &members); err != nil {
-		return false, err
+		return jsonShapeMatch{}, err
 	}
-	for _, child := range members {
+	result := jsonShapeMatch{matched: true}
+	for name, child := range members {
 		matched, err := s.Child.match(child, depth+1)
 		if err != nil || !matched {
-			return matched, err
+			return jsonShapeMatch{}, err
 		}
+		result.evaluated = append(result.evaluated, name)
 	}
-	return s.rules(wire, len(members))
+	return s.finishMatch(wire, len(members), result)
 }
 
 func (s *JSONShape) length(wire jsontext.Value) int {

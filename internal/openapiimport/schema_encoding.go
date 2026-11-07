@@ -1,6 +1,10 @@
 package openapiimport
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/CaliLuke/loom/internal/httpencoding"
+)
 
 type (
 	schemaEncodingRole uint8
@@ -14,7 +18,6 @@ type (
 const (
 	schemaEncodedValue schemaEncodingRole = iota
 	schemaRawBody
-	schemaMultipartBody
 )
 
 // schemaEncoding admits string representations at actual wire occurrences.
@@ -43,12 +46,8 @@ func (p *documentPlanner) schemaEncoding(schema *Schema, path string, role schem
 	if schema.Type == "string" && stringRepresentation(schema.Format).raw && role != schemaRawBody {
 		p.unsupported("schema-binary-location", path, "binary represents raw octets and requires a whole raw response body or multipart part")
 	}
-	childRole := schemaEncodedValue
-	if role == schemaMultipartBody {
-		childRole = schemaRawBody
-	}
 	for _, property := range schema.Properties {
-		p.schemaEncoding(property.Schema, path+"/properties/"+escapeJSONPointer(property.Name), childRole, active)
+		p.schemaEncoding(property.Schema, path+"/properties/"+escapeJSONPointer(property.Name), schemaEncodedValue, active)
 	}
 	p.schemaEncoding(schema.Items, path+"/items", schemaEncodedValue, active)
 	if schema.AdditionalProperties != nil {
@@ -60,4 +59,29 @@ func (p *documentPlanner) schemaEncoding(schema *Schema, path string, role schem
 	for index, branch := range schema.OneOf {
 		p.schemaEncoding(branch, fmt.Sprintf("%s/oneOf/%d", path, index), role, active)
 	}
+}
+
+// multipartSchemaEncoding applies the resolved field contract to schema wire
+// occurrences. Only actual raw parts receive raw permission: Items consumes one
+// array level, and an inner JSON array retains ordinary encoded-value checks.
+func (p *documentPlanner) multipartSchemaEncoding(schema *Schema, path string, codec httpencoding.MultipartCodec) {
+	if codec.Application == httpencoding.Items {
+		resolved := p.urlSchema(schema)
+		if resolved == nil {
+			return
+		}
+		if codec.Kind == httpencoding.BranchPart {
+			for index, branch := range resolved.OneOf {
+				p.multipartSchemaEncoding(branch, fmt.Sprintf("%s/oneOf/%d", path, index), codec.Branches[index])
+			}
+			return
+		}
+		schema = resolved.Items
+		path += "/items"
+	}
+	role := schemaEncodedValue
+	if codec.Kind == httpencoding.BinaryPart {
+		role = schemaRawBody
+	}
+	p.schemaEncoding(schema, path, role, make(map[schemaEncodingOccurrence]bool))
 }

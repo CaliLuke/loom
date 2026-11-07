@@ -5,8 +5,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-
-	"github.com/CaliLuke/loom/expr"
 )
 
 func TestFieldLoadValidationErrorScope(t *testing.T) {
@@ -30,7 +28,7 @@ func TestFieldLoadValidationErrorScope(t *testing.T) {
 					if validated {
 						validation = "err = validate(value)"
 					}
-					_, declErr := FieldLoadCode(&FlagData{FullName: "flag", Required: required}, "value", tc.typeName, validation, nil, &expr.Object{}, "*Payload")
+					_, declErr := FieldLoadCode(&FlagData{FullName: "flag", Required: required}, "value", tc.typeName, validation, nil, "*Payload")
 					want := tc.parseErr || validated
 					if !required && tc.localErr {
 						want = false // Conversion declares err inside its block.
@@ -39,5 +37,16 @@ func TestFieldLoadValidationErrorScope(t *testing.T) {
 				})
 			}
 		}
+	}
+}
+
+func TestFieldLoadErrorUsesDeclaredResultCarrier(t *testing.T) {
+	for _, ref := range []string{"loom.Nullable[Payload]", "*Payload", "[]string", "map[string]int", "Scalar"} {
+		t.Run(ref, func(t *testing.T) {
+			stmt, _ := FieldLoadCode(&FlagData{FullName: "flag", Required: true, Type: "JSON"}, "value", "Payload", "err = validate(value)", nil, ref)
+			rendered := renderStatement(t, stmt)
+			require.Contains(t, rendered, "var zero "+ref)
+			require.NotContains(t, rendered, "return nil,")
+		})
 	}
 }

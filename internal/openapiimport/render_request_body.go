@@ -176,7 +176,7 @@ func (r *renderer) renderRequestTransportBody(schema *Schema, path string) error
 			return err
 		}
 		r.line("Extend(%s)", expression)
-		return nil
+		return r.schemaAttributeBlock(schema, path, nil)
 	}
 	return r.schemaBlock(schema, path, false, nil)
 }

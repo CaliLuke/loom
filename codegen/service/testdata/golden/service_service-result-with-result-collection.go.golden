@@ -564,6 +564,9 @@ func transformNewRT2CollectionFromRT2CollectionViewTinyResultwithresulttypecolle
 // builds a value of type *resultwithresulttypecollectionviews.RT2View from a
 // value of type *RT2.
 func transformProjectRT2CollectionRT2ToResultwithresulttypecollectionviewsRT2View(v *RT2) *resultwithresulttypecollectionviews.RT2View {
+	if v == nil {
+		return nil
+	}
 	res := &resultwithresulttypecollectionviews.RT2View{
 		C: &v.C,
 		D: &v.D,
@@ -576,6 +579,9 @@ func transformProjectRT2CollectionRT2ToResultwithresulttypecollectionviewsRT2Vie
 // builds a value of type *resultwithresulttypecollectionviews.RT2View from a
 // value of type *RT2.
 func transformProjectRT2CollectionExtendedRT2ToResultwithresulttypecollectionviewsRT2View(v *RT2) *resultwithresulttypecollectionviews.RT2View {
+	if v == nil {
+		return nil
+	}
 	res := &resultwithresulttypecollectionviews.RT2View{
 		C: &v.C,
 		D: &v.D,
@@ -589,6 +595,9 @@ func transformProjectRT2CollectionExtendedRT2ToResultwithresulttypecollectionvie
 // builds a value of type *resultwithresulttypecollectionviews.RT2View from a
 // value of type *RT2.
 func transformProjectRT2CollectionTinyRT2ToResultwithresulttypecollectionviewsRT2View(v *RT2) *resultwithresulttypecollectionviews.RT2View {
+	if v == nil {
+		return nil
+	}
 	res := &resultwithresulttypecollectionviews.RT2View{
 		D: &v.D,
 	}

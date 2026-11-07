@@ -81,6 +81,13 @@ checks retained semantic input, policy-origin correspondence, representation
 admission and capture work under reordered traversal. It does not prove Go plan
 validation or custom materialization; recorded hashes and effect controls do.
 
+The [canonical acquisition model](../../../../http/codegen/openapi/internal/ir/tla/canonical_acquisition/README.md)
+checks recursive reference reservation before candidate traversal and completed
+baseline comparison before accepting a canonical claim. Expression fingerprint
+unfoldings do not establish schema inequality; representation graph quotienting
+remains a later, separate owner. Go tests cover actual graph extraction, multiple
+claims, rollback, annotations and occurrence-policy variants.
+
 The [scalar field facts model](../../../../expr/tla/field_facts/README.md) checks
 snapshot meaning and absence of repeated descendant copying. Borrowed mutation
 and per-query copying are negative controls; concrete mapped/default semantics
@@ -123,7 +130,8 @@ and emitted-signature tests complement generated HTTP/JSON-RPC compilation.
 | Resolved union branch names and discriminator identities before generator capture | [Union branch admission](../../../../expr/tla/union_branch_admission/README.md); current, early, single-identity and global-scope counterexamples, with evaluated and CLI rejection tests |
 | Copying incomplete union branch occurrences, mutable metadata ownership, recursive expansion | [Union copy models](../../../../dsl/tla/union_copy/README.md) |
 | Promoted union identity, authored-name reservations and deterministic allocation | [Union naming model](../../../../dsl/tla/union_names/README.md) |
-| Untagged JSON schema/decoder agreement, selected identity and transactional assignment | [Untagged matching model](../../../../pkg/tla/untagged_json/README.md) |
+| Union member fields, fixed methods and sanitized accessor collisions | [Union member namespace](../../../../codegen/unionnames/tla/README.md); one allocator shared by core generators and plugins |
+| Untagged JSON schema/decoder agreement, selected identity, transactional assignment and nonempty singleton cardinality | [Untagged matching model](../../../../pkg/tla/untagged_json/README.md); post-selection evaluated-member closure and minimum-two rejection counterexample; compact DSL syntax retains its separate two-argument requirement; ordinary-form key-count counterexample and generated raw-body presence controls |
 | JSON options at nested union/optional/nullable codec boundaries | [JSON options model](../../../../pkg/tla/json_options/README.md) |
 
 ## Generated declarations and transport mappings
@@ -136,6 +144,7 @@ and emitted-signature tests complement generated HTTP/JSON-RPC compilation.
 | HTTP streaming body selection and omitted mapped SSE data | [Selected-view stream bodies](../../../../http/codegen/tla/sse_view_body/README.md); first-body and absent-field counterexamples with generated SSE/WebSocket controls; assumes sequential view selection |
 | Service package declarations, error factories, method members and method-derived helpers | [Package symbol ownership](../../../../codegen/service/tla/package_symbols/README.md); missing reservations, shared-method-scope, unowned-helper and uncached error-factory counterexamples, with generated HTTP/gRPC/JSON-RPC controls |
 | Authored error names before method/service inheritance | [Error declaration admission](../../../../expr/tla/error_declaration_admission/README.md); current, post-merge and global-name counterexamples with scoped DSL/CLI rejection and cross-scope override controls |
+| Atomic nominal/helper allocation across service, view and HTTP packages | [Declaration families](../../../../codegen/tla/declaration_families/README.md); absent-fixed, fixed-only and late-reservation counterexamples, shared first-reference allocation and generated collision controls |
 | Service/view union references and declaration identity | [Service union declarations](../../../../codegen/service/tla/union_declarations/README.md) |
 | Complete recursive validator definitions, occurrence calls and diagnostic paths | [Recursive validation](../../../../codegen/tla/recursive_validation/README.md); bounded partial-buffer/path counterexamples, with generated finite-tree and named-nullable carrier controls |
 | Collection references to allocated service and external declarations | [Collection identity](../../../../codegen/tla/collection_identity/README.md); raw-name and blanket-local-allocation counterexamples, with generated collision/reservation round trips and external-package controls |
@@ -144,7 +153,11 @@ and emitted-signature tests complement generated HTTP/JSON-RPC compilation.
 | Unwrapped anonymous/named object carriers versus child field layout | [Validation carrier agreement](../../../../codegen/tla/validation_carrier/README.md); bounded invalid-guard and cleared-layout counterexamples, with generated HTTP/JSON-RPC enum and nested-object controls |
 | Named validator eligibility across physical field layouts and structural union presence | [Validation layout](../../../../codegen/tla/validation_layout/README.md); caller-layout closure and omitted structural-presence counterexamples, with nested-union runtime and both-order shared-attribute controls |
 | Selected sum-union branch storage and validator invocation | [Union branch carrier](../../../../codegen/tla/union_branch_carrier/README.md); nested-pointer panic, nil-collection false rejection and guard-only bypass counterexamples, paired with direct context and generated runtime controls |
-| Selected union branch conversion and nullable helper admission | [Union transform carrier](../../../../codegen/tla/union_transform_carrier/README.md); call/declaration and name-only carrier counterexamples, with direct shape controls and generated HTTP round trips |
+| Native null-admitting union field presence | [Union presence](../../../../codegen/tla/union_presence/README.md); absent versus selected-null state, rejected wrapper/pointer/Optional carriers and generated HTTP/JSON-RPC/gRPC checks |
+| Client root/member body presence before conversion | [Client body presence](../../../../http/codegen/tla/body_presence/README.md); convert-first and physical-only union counterexamples, required/optional root/member checks, and JSON/form/multipart controls |
+| Captured JSON form-field null and presence policy | [JSON field policy](../../../../http/tla/json_field_policy/README.md); blanket-admission/runtime counterexamples, nullable and native-null carriers, malformed-field and media-layout generated controls |
+| Authored form object versus root union layout | [Form body identity](../../../../http/codegen/tla/form_body_identity/README.md); one-field shape collision, named-codec checks and generated flat OAuth root controls |
+| Selected union branch conversion and nullable helper admission | [Union transform carrier](../../../../codegen/tla/union_transform_carrier/README.md); call/declaration, carrier and requiredness-dependent helper counterexamples, with direct shape controls and generated HTTP round trips |
 | Resolved defaults lowered into native physical layouts and finite nested expansion | [Default representation](../../../../codegen/tla/default_representation/README.md); bounded map/struct and recursive-expansion counterexamples, with three-transport compilation/runtime and codec controls |
 | Custom String representation, selected default/supplied conversion and recursive failure propagation | [Custom representation](../../../../codegen/tla/custom_representation/README.md); literal, panic, dropped failure and stale graph counterexamples, with service/HTTP/JSON-RPC/gRPC compiled runtime controls |
 | Tagged union envelope presence and semantic null admission | [Null admission](../../../../codegen/uniongen/tla/null_admission/README.md); blanket rejection/acceptance counterexamples, with service, projected and transport decoding controls |
@@ -158,7 +171,7 @@ and emitted-signature tests complement generated HTTP/JSON-RPC compilation.
 | Shared response projection before unary and streaming framing | [Response projection](../../../../http/codegen/tla/response_projection/README.md); constructor-free selection leaks in three channels, named-empty endpoint binding, rejected codec/view/SSE shortcuts and mounted wire/client/notification controls |
 | Selected-view nullable root, field and element carriers | [Selected-view carrier](../../../../codegen/service/tla/selected_view_carrier/README.md); ten rejected physical/admission/envelope/occurrence alternatives and 432 checked states, with complete generated HTTP/JSON-RPC runtime controls |
 | View union allocation before conversion references | [View union names](../../../../codegen/service/tla/view_union_names/README.md) |
-| Relocated type declarations, local reservations and union helpers | [External type names](../../../../codegen/tla/external_type_names/README.md) |
+| Relocated type declarations, destination families and shared references | [Destination families](../../../../codegen/service/tla/destination_families/README.md); [historical external type models](../../../../codegen/tla/external_type_names/README.md) |
 | Service-selected views, output validation and fault classification | [Result output boundary](../../../../codegen/service/tla/result_output/README.md); bounded legacy classification, unchecked-content and nil-element counterexamples |
 | Generated service client, transport and interceptor stream operation agreement | [Client stream contract](../../../../codegen/service/tla/client_stream_contract/README.md); role/signature/cleanup counterexamples with typed SSE/WebSocket clients and ordinary gRPC controls |
 | Client endpoint role and interception applicability | [Client interceptor dispatch](../../../../codegen/service/tla/client_interceptor_dispatch/README.md); mixed unary cast, lost payload and lost message counterexamples with typed and mounted clients and CLI role controls |
@@ -201,6 +214,7 @@ and emitted-signature tests complement generated HTTP/JSON-RPC compilation.
 | Map-key storage admission independent of ordinary type validation | [Map-key admission](../../../../expr/tla/map_key_admission/README.md); missing, type-global cached and primitive-only counterexamples, with evaluator rejection and generated comparable-key controls |
 | Protobuf fields, getters, synthetic oneofs and map-entry wrapper names | [Field names](../../../../grpc/codegen/tla/field_names/README.md) |
 | Generated import aliases, reciprocal local reservations and retained example bindings | [Import aliases](../../../../grpc/codegen/tla/import_aliases/README.md) |
+| Service union matcher and named-validator file-local imports | [Validation imports](../../../../codegen/service/tla/validation_imports/README.md); standalone-only and blanket-import counterexamples, with descriptor ownership, rendered imports and generated Unicode length controls |
 | Conversion default admission from actual source absence and target materialization | [Default application](../../../../codegen/tla/default_application/README.md); zero-substitution, bytes-kind, nil-only and target-only counterexamples, paired with shared and protobuf conversion plus mounted CLI/body controls |
 | CLI JSON decoding role, required admission and absence-only defaults | [CLI JSON input](../../../../http/codegen/tla/cli_json_input/README.md); bounded encoder-loss, zero-substitution and default-seeding counterexamples, with detached layout and mounted HTTP/JSON-RPC CLI controls |
 | Shared CLI direct input selection by logical payload source | [CLI source selection](../../../../http/codegen/tla/cli_sources/README.md); append and printed-name counterexamples, with preserved body carriers, named/defaulted credential and repeated wire controls |

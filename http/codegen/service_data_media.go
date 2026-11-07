@@ -2,12 +2,11 @@ package codegen
 
 import (
 	"fmt"
-	"maps"
-	"slices"
 	"strconv"
 	"strings"
 
-	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/codegen/unionnames"
+
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/internal/representation"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
@@ -25,21 +24,24 @@ type (
 	MediaVariantData struct {
 		// Tag is the service union discriminator selected by this media.
 		Tag string
-		// Field is the generated union field and setter suffix.
+		// Field is the generated union storage field.
 		Field string
+		// Method is the allocated setter and accessor suffix.
+		Method string
 		// TypeRef is the actual generated branch carrier.
 		TypeRef string
 		// AllowsNull records explicit JSON null admission for this branch.
 		AllowsNull bool
 		// Value retains the actual branch carrier's runtime representation plan.
 		Value *transportir.ValueTarget
-		// Parts is the Go literal of per-field multipart content types.
-		Parts string
+		// Multipart retains the complete captured contract for generated part codecs.
+		Multipart *expr.HTTPMultipartEncoding
 		// StyledFormFields retain per-occurrence form parameter grammars.
 		StyledFormFields []*FormFieldData
 		// OrdinaryFormFields retain JSON and repeated codecs beside styled fields.
 		OrdinaryFormFields []*FormFieldData
 		formBody           *TypeData
+		form               *expr.HTTPFormEncoding
 	}
 )
 
@@ -47,6 +49,7 @@ func attachMediaBodyData(body *TypeData, variants []*transportir.MediaVariant) {
 	if body == nil || len(variants) == 0 {
 		return
 	}
+	members := unionnames.Resolve(expr.AsUnion(body.attribute.Type))
 	data := &MediaBodyData{}
 	contracts := make([]string, len(variants))
 	for i, variant := range variants {
@@ -54,31 +57,27 @@ func attachMediaBodyData(body *TypeData, variants []*transportir.MediaVariant) {
 		if branch == nil {
 			panic(fmt.Sprintf("HTTP media branch %q is absent from emitted body %s", variant.Branch, body.Name))
 		}
+		branchContext := body.context.Dup()
+		representation.ApplyLayout(branchContext, branch.Attribute)
 		contracts[i] = strconv.Quote(variant.ContentType)
-		styled, ordinary := formFieldData(variant.Body, variant.FormFieldCodecs)
+		var styled, ordinary []*FormFieldData
+		if variant.Form != nil {
+			styled, ordinary = formFieldData(variant.Body, variant.Form.Fields)
+		}
 		data.Variants = append(data.Variants, &MediaVariantData{
 			Tag:                variant.Tag,
-			Parts:              mediaPartTypesLiteral(variant.PartTypes),
-			Field:              codegen.Goify(branch.Name, true),
+			Multipart:          variant.Multipart,
+			Field:              members[branch.Name].Field,
+			Method:             members[branch.Name].Method,
 			TypeRef:            body.context.Scope.Scope().GoTypeRef(branch.Attribute),
 			AllowsNull:         expr.AllowsNull(branch.Attribute),
-			Value:              representation.BuildValuePlan(variant.Value, branch.Attribute, body.context, expr.ValuePlanRuntime),
+			Value:              representation.BuildValuePlan(variant.Value, branch.Attribute, branchContext, expr.ValuePlanRuntime),
 			StyledFormFields:   styled,
 			OrdinaryFormFields: ordinary,
-			formBody:           &TypeData{Name: body.context.Scope.Scope().GoTypeName(branch.Attribute), attribute: branch.Attribute, context: body.context},
+			form:               variant.Form,
+			formBody:           &TypeData{Name: body.context.Scope.Scope().GoTypeName(branch.Attribute), attribute: branch.Attribute, context: branchContext},
 		})
 	}
 	data.Contracts = "[]string{" + strings.Join(contracts, ", ") + "}"
 	body.Media = data
-}
-
-func mediaPartTypesLiteral(parts map[string]string) string {
-	if len(parts) == 0 {
-		return "nil"
-	}
-	entries := make([]string, 0, len(parts))
-	for _, name := range slices.Sorted(maps.Keys(parts)) {
-		entries = append(entries, strconv.Quote(name)+":"+strconv.Quote(parts[name]))
-	}
-	return "map[string]string{" + strings.Join(entries, ",") + "}"
 }

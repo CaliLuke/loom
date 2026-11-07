@@ -1,0 +1,96 @@
+package nullfields_test
+
+import (
+	"context"
+	"encoding/json/v2"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"sync/atomic"
+	"testing"
+
+	client "example.com/nullfields/gen/TRANSPORT/nullfields/client"
+	server "example.com/nullfields/gen/TRANSPORT/nullfields/server"
+	svc "example.com/nullfields/gen/nullfields"
+	loomhttp "github.com/CaliLuke/loom/http"
+	"github.com/stretchr/testify/require"
+)
+
+func TestSelectedNullAndAbsence(t *testing.T) {
+	var calls atomic.Int32
+	echo := func(_ context.Context, value any) (any, error) {
+		calls.Add(1)
+		return value, nil
+	}
+	mux := loomhttp.NewMuxer()
+	server.Mount(mux, server.New(&svc.Endpoints{Echo: echo, Ambiguous: echo, RootAny: echo, RootNullable: echo}, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, SERVER_OPTIONS))
+	host := httptest.NewServer(mux)
+	defer host.Close()
+	c := client.NewClient("http", strings.TrimPrefix(host.URL, "http://"), host.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
+	for _, wire := range []string{
+		`{"required_any":null,"required_nullable":null}`,
+		`{"required_any":null,"required_nullable":null,"optional_any":null,"optional_nullable":null,"list":[null,"text"],"map":{"n":null,"v":true},"outer":null}`,
+		`{"required_any":"text","required_nullable":true,"optional_any":0,"optional_nullable":"value","outer":1}`,
+	} {
+		t.Run(wire, func(t *testing.T) {
+			var payload svc.Record
+			require.NoError(t, json.Unmarshal([]byte(wire), &payload))
+			require.NotEmpty(t, payload.RequiredAny.Kind())
+			require.NotEmpty(t, payload.RequiredNullable.Kind())
+			if strings.Contains(wire, `"optional_any"`) {
+				require.NotEmpty(t, payload.OptionalAny.Kind())
+			} else {
+				require.Empty(t, payload.OptionalAny.Kind())
+			}
+			before := calls.Load()
+			result, err := c.Echo()(t.Context(), &payload)
+			require.NoError(t, err)
+			require.Equal(t, before+1, calls.Load())
+			require.Equal(t, &payload, result)
+			output, err := json.Marshal(result, json.Deterministic(true))
+			require.NoError(t, err)
+			require.JSONEq(t, wire, string(output))
+		})
+	}
+	for _, wire := range []string{`null`, `"text"`, `0`} {
+		var payload svc.AnyChoice
+		require.NoError(t, json.Unmarshal([]byte(wire), &payload))
+		result, err := c.RootAny()(t.Context(), &payload)
+		require.NoError(t, err)
+		require.Equal(t, &payload, result)
+	}
+	for _, wire := range []string{`null`, `"text"`, `true`} {
+		var payload svc.NullableChoice
+		require.NoError(t, json.Unmarshal([]byte(wire), &payload))
+		result, err := c.RootNullable()(t.Context(), &payload)
+		require.NoError(t, err)
+		require.Equal(t, &payload, result)
+	}
+	for _, tc := range []struct{ method, wire string }{
+		{"echo", `{}`},
+		{"echo", `{"required_any":true,"required_nullable":null}`},
+		{"ambiguous", `null`},
+	} {
+		t.Run("reject "+tc.method+tc.wire, func(t *testing.T) {
+			before := calls.Load()
+			path, body := "/"+tc.method, tc.wire
+			if IS_RPC {
+				path = "/rpc"
+				body = `{"jsonrpc":"2.0","id":1,"method":"` + tc.method + `","params":` + tc.wire + `}`
+			}
+			response, err := host.Client().Post(host.URL+path, "application/json", strings.NewReader(body))
+			require.NoError(t, err)
+			raw, err := io.ReadAll(response.Body)
+			require.NoError(t, err)
+			require.NoError(t, response.Body.Close())
+			if IS_RPC {
+				require.Equal(t, http.StatusOK, response.StatusCode)
+				require.Contains(t, string(raw), `"code":-32602`)
+			} else {
+				require.Equal(t, http.StatusBadRequest, response.StatusCode, string(raw))
+			}
+			require.Equal(t, before, calls.Load())
+		})
+	}
+}

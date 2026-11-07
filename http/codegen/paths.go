@@ -69,6 +69,7 @@ func pathSections(genpkg string, svc *expr.HTTPServiceExpr, pkg string, services
 // pathImports returns the imports of the path builder files.
 func pathImports() []*codegen.ImportSpec {
 	return []*codegen.ImportSpec{
+		{Path: "encoding/json/jsontext"},
 		{Path: "fmt"},
 		{Path: "sort"},
 		{Path: "strconv"},

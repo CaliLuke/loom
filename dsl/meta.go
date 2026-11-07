@@ -406,6 +406,23 @@ const DefaultProtoc = expr.DefaultProtoc
 //	    Meta("openapi:additionalProperties", "false")
 //	})
 //
+// - "openapi:unevaluatedProperties" accepts "false" on a union occurrence.
+// After matching selects the same unique schema and typed alternative, it rejects
+// object members that the selected schema did not evaluate. It does not remove
+// members before matching or use closure to disambiguate overlapping branches.
+// The policy follows named aliases; setting it on an occurrence does not mutate
+// the referenced declaration. Other values and non-union attributes are errors.
+//
+// - "http:encoding:sourceType" retains an imported field's source schema type
+// for form and multipart encoding. Supported values are "absent", "array",
+// "object", "string", "integer", "number" and "boolean". "absent" records that
+// the source omitted type; it does not infer type from normalized alternatives.
+// The source assertion must agree with every admitted non-null alternative.
+// Source arrays apply content encoding to each item; typeless values use the
+// captured whole-value codec when available. Explicit style settings still
+// select parameter serialization. Imported designs preserve this metadata;
+// native designs normally use their declared type without setting it.
+//
 // - "openapi:closed-objects" enables contract-oriented OpenAPI emission where
 // ordinary object schemas are closed by default. Applicable to the API only.
 // Explicit maps and objects with "openapi:additionalProperties" "true" remain

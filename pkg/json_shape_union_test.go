@@ -45,7 +45,7 @@ func TestJSONShapeUnionRejectsMalformedDescriptions(t *testing.T) {
 	cycle.Branches = []*JSONShape{{Kind: "alias", Child: cycle}, {Kind: "string"}}
 	for _, shape := range []*JSONShape{
 		{Kind: "union"},
-		{Kind: "union", Branches: []*JSONShape{{Kind: "string"}}},
+		{Kind: "union", Branches: []*JSONShape{{Kind: "unknown"}}},
 		{Kind: "union", Branches: []*JSONShape{{Kind: "string"}, nil}},
 		{Kind: "union", Branches: []*JSONShape{{Kind: "string"}, {Kind: "unknown"}}},
 		cycle,

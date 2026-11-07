@@ -66,7 +66,7 @@ func TestBasicCLIDefaultsGenerated(t *testing.T) {
 	root := RunHTTPDSL(t, servicedata.BasicCLIDefaultsDSL("http"))
 	dir := t.TempDir()
 	renderHTTPModule(t, dir, "example.com/basic", root)
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "cli_defaults_test.go"), []byte(strings.NewReplacer("TRANSPORT", "http", "MULTIPARTARGS", ", nil, nil").Replace(servicedata.BasicCLIDefaultsHarness)), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "cli_defaults_test.go"), []byte(strings.NewReplacer("TRANSPORT", "http", "MULTIPARTARGS", ", nil").Replace(servicedata.BasicCLIDefaultsHarness)), 0o600))
 	runGoCommand(t, dir, "mod", "tidy")
 	runGoCommand(t, dir, "build", "./...")
 	runGoCommand(t, dir, "vet", "./...")

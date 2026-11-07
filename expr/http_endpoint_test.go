@@ -303,8 +303,6 @@ func TestHTTPEndpointValidation(t *testing.T) {
 		},
 		"endpoint-optional-request-body-with-multipart": {
 			DSL: testdata.EndpointOptionalRequestBodyWithMultipart,
-			Error: `service "Service" HTTP endpoint "Method": HTTP endpoint cannot use OptionalRequestBody with MultipartRequest.
-service "Service" HTTP endpoint "Method": HTTP endpoint defines MultipartRequest and body. At most one of these must be defined.`,
 		},
 		"endpoint-optional-request-body-required-attribute": {
 			DSL:   testdata.EndpointOptionalRequestBodyRequiredAttribute,
@@ -343,7 +341,6 @@ service "Service" HTTP endpoint "Method": HTTP endpoint request body must be emp
 		"endpoint-skip-request-encode-with-multipart-body": {
 			DSL: testdata.EndpointHasSkipRequestEncodeAndMultipartWithBody,
 			Error: `service "Service" HTTP endpoint "Method": Cannot define a request body when using SkipRequestBodyEncodeDecode.
-service "Service" HTTP endpoint "Method": HTTP endpoint defines MultipartRequest and body. At most one of these must be defined.
 service "Service" HTTP endpoint "Method": HTTP endpoint request body must be empty when using SkipRequestBodyEncodeDecode but not all method payload attributes are mapped to headers and params. Make sure to define Headers and Params as needed.`,
 		},
 		"endpoint-has-skip-request-encode-and-result-streaming": {
@@ -375,15 +372,15 @@ service "Service" HTTP endpoint "MethodC": HTTP endpoint request body must be em
 		},
 		"endpoint-union-query-param": {
 			DSL:   testdata.EndpointUnionQueryParam,
-			Error: `service "Service" HTTP endpoint "Method": query "filter": unions have no parameter codec`,
+			Error: `service "Service" HTTP endpoint "Method": query "filter": tagged unions have no parameter codec`,
 		},
 		"endpoint-union-header": {
 			DSL:   testdata.EndpointUnionHeader,
-			Error: `service "Service" HTTP endpoint "Method": header "filter": unions have no parameter codec`,
+			Error: `service "Service" HTTP endpoint "Method": header "filter": tagged unions have no parameter codec`,
 		},
 		"endpoint-union-cookie": {
 			DSL:   testdata.EndpointUnionCookie,
-			Error: `service "Service" HTTP endpoint "Method": cookie "filter": unions have no parameter codec`,
+			Error: `service "Service" HTTP endpoint "Method": cookie "filter": tagged unions have no parameter codec`,
 		},
 		"endpoint-multipart-constructor-union": {
 			DSL:   testdata.EndpointMultipartConstructorUnion,
@@ -477,34 +474,6 @@ func TestFormRequestMapBodies(t *testing.T) {
 	}
 }
 
-func TestFormRequestRejectsUntaggedOneOf(t *testing.T) {
-	err := expr.RunInvalidDSL(t, func() {
-		first := Type("FirstFormVariant", func() {
-			Attribute("first", String)
-		})
-		second := Type("SecondFormVariant", func() {
-			Attribute("second", String)
-		})
-		Service("Service", func() {
-			Method("Update", func() {
-				Payload(OneOf(first, second), func() {
-					Untagged()
-				})
-				HTTP(func() {
-					PATCH("/config")
-					FormRequest()
-				})
-			})
-		})
-	})
-
-	if err == nil {
-		t.Error("expected FormRequest with an untagged OneOf body to fail validation")
-	} else if !strings.Contains(err.Error(), "FormRequest does not support untagged OneOf request bodies") {
-		t.Errorf("got %q, expected untagged OneOf FormRequest validation error", err)
-	}
-}
-
 func TestEncodedRequestsRejectNestedUntaggedOneOf(t *testing.T) {
 	for name, requestDSL := range map[string]func(){
 		"form":      FormRequest,
@@ -535,7 +504,7 @@ func TestEncodedRequestsRejectNestedUntaggedOneOf(t *testing.T) {
 
 			if err == nil {
 				t.Errorf("expected %s request with a nested untagged OneOf to fail validation", name)
-			} else if !strings.Contains(err.Error(), "does not support untagged OneOf request bodies") {
+			} else if name == "form" && !strings.Contains(err.Error(), "application/octet-stream") || name == "multipart" && !strings.Contains(err.Error(), "application/octet-stream") {
 				t.Errorf("got %q, expected untagged OneOf request validation error", err)
 			}
 		})

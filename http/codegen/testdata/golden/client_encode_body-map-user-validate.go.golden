@@ -6,6 +6,9 @@ func EncodeMethodBodyMapUserValidateRequest(encoder func(*http.Request) loomhttp
 		if !ok {
 			return loomhttp.ErrInvalidType("ServiceBodyMapUserValidate", "MethodBodyMapUserValidate", "*servicebodymapuservalidate.MethodBodyMapUserValidatePayload", v)
 		}
+		if p == nil {
+			return loom.MissingPayloadError()
+		}
 		body := NewMethodBodyMapUserValidateRequestBody(p)
 		if err := encoder(req).Encode(&body); err != nil {
 			return loomhttp.ErrEncodingError("ServiceBodyMapUserValidate", "MethodBodyMapUserValidate", err)

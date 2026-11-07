@@ -8,7 +8,7 @@ func EncodeMethodQueryPrimitiveMapBoolArrayBoolValidateRequest(encoder func(*htt
 			return loomhttp.ErrInvalidType("ServiceQueryPrimitiveMapBoolArrayBoolValidate", "MethodQueryPrimitiveMapBoolArrayBoolValidate", "map[bool][]bool", v)
 		}
 		values := req.URL.Query()
-		if _, err := loomhttp.EncodeJSONField(values, "q", p); err != nil {
+		if _, err := loomhttp.EncodeJSONField(values, "q", p, loomhttp.FieldValue); err != nil {
 			return err
 		}
 		req.URL.RawQuery = values.Encode()

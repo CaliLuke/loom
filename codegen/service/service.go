@@ -14,6 +14,13 @@ import (
 )
 
 type (
+	// typeSectionIdentity identifies a declaration role in its physical package.
+	// File paths are relative to gen throughout section collection and selection.
+	typeSectionIdentity struct {
+		packagePath string
+		name        string
+	}
+
 	// serviceTypeSections holds the sections that define the types of a
 	// service, by the path of the file that defines them.
 	serviceTypeSections struct {
@@ -31,13 +38,14 @@ type (
 	}
 )
 
-// Files returns the generated files for the given service as well as a map
-// indexing user type names by custom path as defined by the "struct:pkg:path"
-// metadata. The map is built over each invocation of Files to avoid duplicate
-// type definitions.
+// Files returns the generated files for the given service. userTypePkgs records
+// emitted declaration roles by physical package path relative to gen. Callers
+// share this ledger across services in one generation and start a fresh ledger
+// for the next generation. The first service/file encounter owns placement;
+// service scaffolding and initialization remain service-owned.
 func Files(genpkg string, service *expr.ServiceExpr, services *ServicesData, userTypePkgs map[string][]string) []*codegen.File {
 	svc := services.Get(service.Name)
-	svcPath := filepath.Join(codegen.Gendir, svc.PathName, "service.go")
+	svcPath := filepath.Join(svc.PathName, "service.go")
 	types := collectServiceTypeSections(svc, svcPath)
 	fileSvc, imports := services.fileData(service.Name, serviceFileImports(genpkg, svc, types.validationUTF8Paths[svcPath]))
 	svcTypes := types
@@ -48,7 +56,8 @@ func Files(genpkg string, service *expr.ServiceExpr, services *ServicesData, use
 	def := serviceDefinitionSection(fileSvc)
 
 	files := make([]*codegen.File, 0, 1+len(svc.ServerInterceptors)+len(svc.ClientInterceptors))
-	files = append(files, &codegen.File{Path: svcPath, Sections: buildServiceFileSections(svcTypes.typeDefSections[svcPath], header, def, svcTypes.svcSections)})
+	typeSections, _ := collectTypeFileSections(svcPath, svcTypes.typesByPath[svcPath], svcTypes.typeDefSections[svcPath], userTypePkgs)
+	files = append(files, &codegen.File{Path: filepath.Join(codegen.Gendir, svcPath), Sections: buildServiceFileSections(typeSections, header, def, svcTypes.svcSections)})
 
 	files = append(files, InterceptorsFiles(genpkg, service, services)...)
 	files = append(files, authorizationFiles(genpkg, services, svc)...)
@@ -58,17 +67,17 @@ func Files(genpkg string, service *expr.ServiceExpr, services *ServicesData, use
 // collectServiceTypeSections returns the sections that define the types of
 // the service svc, whose service file is at svcPath.
 func collectServiceTypeSections(svc *Data, svcPath string) *serviceTypeSections {
-	seen := make(map[string]struct{})
+	seen := make(map[typeSectionIdentity]struct{})
 	types := &serviceTypeSections{
 		typeDefSections:     make(map[string]map[string]codegen.Section),
 		typesByPath:         make(map[string][]string),
-		validationUTF8Paths: make(map[string]bool),
+		validationUTF8Paths: collectUnionValidationUTF8Paths(svc, svcPath),
 		svcSections:         make([]codegen.Section, 0, 10),
 	}
 	addTypeDefSection := newTypeSectionCollector(types.typeDefSections, types.typesByPath, seen)
 	collectMethodTypeSections(svc, svcPath, addTypeDefSection, seen)
 	collectUserTypeSections(svc, svcPath, addTypeDefSection, seen)
-	collectUntaggedUnionValidationSections(svc, svcPath, addTypeDefSection, seen, types.validationUTF8Paths)
+	collectUntaggedUnionValidationSections(svc, svcPath, addTypeDefSection, seen)
 	errorTypes := collectErrorTypeSections(svc, svcPath, addTypeDefSection, seen)
 	types.svcSections = append(types.svcSections, buildErrorSections(errorTypes, svc, svcPath, addTypeDefSection)...)
 	types.svcSections = append(types.svcSections, buildTypeInitSections(svc)...)
@@ -103,18 +112,18 @@ func serviceFileImports(genpkg string, svc *Data, utf8 bool) []*codegen.ImportSp
 	return append(imports, svc.metaTypeImports...)
 }
 
-func newTypeSectionCollector(typeDefSections map[string]map[string]codegen.Section, typesByPath map[string][]string, seen map[string]struct{}) func(string, string, codegen.Section) {
+func newTypeSectionCollector(typeDefSections map[string]map[string]codegen.Section, typesByPath map[string][]string, seen map[typeSectionIdentity]struct{}) func(string, string, codegen.Section) {
 	return func(path, name string, section codegen.Section) {
 		if typeDefSections[path] == nil {
 			typeDefSections[path] = make(map[string]codegen.Section)
 		}
 		typeDefSections[path][name] = section
 		typesByPath[path] = append(typesByPath[path], name)
-		seen[name] = struct{}{}
+		seen[typeSectionIdentity{filepath.Dir(path), name}] = struct{}{}
 	}
 }
 
-func collectMethodTypeSections(svc *Data, svcPath string, addTypeDefSection func(string, string, codegen.Section), seen map[string]struct{}) {
+func collectMethodTypeSections(svc *Data, svcPath string, addTypeDefSection func(string, string, codegen.Section), seen map[typeSectionIdentity]struct{}) {
 	for _, method := range svc.Methods {
 		payloadPath := pathWithDefault(method.PayloadLoc, svcPath)
 		streamingPayloadPath := pathWithDefault(method.StreamingPayloadLoc, svcPath)
@@ -127,7 +136,7 @@ func collectMethodTypeSections(svc *Data, svcPath string, addTypeDefSection func
 	}
 }
 
-func collectUserTypeSections(svc *Data, svcPath string, addTypeDefSection func(string, string, codegen.Section), seen map[string]struct{}) {
+func collectUserTypeSections(svc *Data, svcPath string, addTypeDefSection func(string, string, codegen.Section), seen map[typeSectionIdentity]struct{}) {
 	for _, userType := range svc.userTypes {
 		maybeAddNamedTypeSection(true, userType.VarName, pathWithDefault(userType.Loc, svcPath), userTypeSection("service-user-type", userType), addTypeDefSection, seen)
 	}
@@ -136,13 +145,34 @@ func collectUserTypeSections(svc *Data, svcPath string, addTypeDefSection func(s
 	}
 }
 
-func collectUntaggedUnionValidationSections(svc *Data, svcPath string, addTypeDefSection func(string, string, codegen.Section), seen map[string]struct{}, validationUTF8Paths map[string]bool) {
+// collectUnionValidationUTF8Paths follows emitted validation code to its owning
+// file. Inline JSON matcher closures live with the union, while named validation
+// methods live with their branch declaration. Neither the branch's location nor
+// the cached field validation determines the matcher's imports.
+func collectUnionValidationUTF8Paths(svc *Data, svcPath string) map[string]bool {
+	paths := make(map[string]bool)
+	record := func(loc *codegen.Location, body string) {
+		if strings.Contains(body, "utf8.") {
+			paths[pathWithDefault(loc, svcPath)] = true
+		}
+	}
+	for _, union := range svc.unions {
+		if union.Untagged && union.JSON != nil {
+			for _, branch := range union.JSON.Branches {
+				record(union.Loc, branch.Validate)
+			}
+		}
+		for _, validation := range union.validations {
+			record(validation.loc, validation.data.Validate)
+		}
+	}
+	return paths
+}
+
+func collectUntaggedUnionValidationSections(svc *Data, svcPath string, addTypeDefSection func(string, string, codegen.Section), seen map[typeSectionIdentity]struct{}) {
 	for _, union := range svc.unions {
 		for _, validation := range union.validations {
 			path := pathWithDefault(validation.loc, svcPath)
-			if strings.Contains(validation.data.Validate, "utf8.") {
-				validationUTF8Paths[path] = true
-			}
 			maybeAddNamedTypeSection(
 				true,
 				validation.data.Name,
@@ -155,21 +185,20 @@ func collectUntaggedUnionValidationSections(svc *Data, svcPath string, addTypeDe
 	}
 }
 
-func collectErrorTypeSections(svc *Data, svcPath string, addTypeDefSection func(string, string, codegen.Section), seen map[string]struct{}) []*UserTypeData {
+func collectErrorTypeSections(svc *Data, svcPath string, addTypeDefSection func(string, string, codegen.Section), seen map[typeSectionIdentity]struct{}) []*UserTypeData {
 	var errorTypes []*UserTypeData
-	seenErrs := make(map[string]struct{})
+	seenErrs := make(map[typeSectionIdentity]struct{})
 	for _, errorType := range svc.errorTypes {
 		if expr.IsDefaultErrorResult(errorType.Type) {
 			continue
 		}
-		if _, ok := seenErrs[errorType.Name]; ok {
+		path := pathWithDefault(errorType.Loc, svcPath)
+		identity := typeSectionIdentity{filepath.Dir(path), errorType.VarName}
+		if _, ok := seenErrs[identity]; ok {
 			continue
 		}
-		seenErrs[errorType.Name] = struct{}{}
-		if _, ok := seen[errorType.VarName]; !ok {
-			addTypeDefSection(pathWithDefault(errorType.Loc, svcPath), errorType.Name, userTypeSection("error-user-type", errorType))
-			seen[errorType.VarName] = struct{}{}
-		}
+		seenErrs[identity] = struct{}{}
+		maybeAddNamedTypeSection(true, errorType.VarName, path, userTypeSection("error-user-type", errorType), addTypeDefSection, seen)
 		errorTypes = append(errorTypes, errorType)
 	}
 	return errorTypes
@@ -178,7 +207,7 @@ func collectErrorTypeSections(svc *Data, svcPath string, addTypeDefSection func(
 func buildErrorSections(errorTypes []*UserTypeData, svc *Data, svcPath string, addTypeDefSection func(string, string, codegen.Section)) []codegen.Section {
 	sections := make([]codegen.Section, 0, len(errorTypes)+len(svc.errorInits))
 	for _, errorType := range errorTypes {
-		addTypeDefSection(pathWithDefault(errorType.Loc, svcPath), "|"+errorType.Name, errorSection(errorType))
+		addTypeDefSection(pathWithDefault(errorType.Loc, svcPath), "|"+errorType.VarName, errorSection(errorType))
 	}
 	for _, errorInit := range svc.errorInits {
 		sections = append(sections, errorInitSection(errorInit))
@@ -211,18 +240,10 @@ func buildTypeInitSections(svc *Data) []codegen.Section {
 	return sections
 }
 
-func buildServiceFileSections(typeSections map[string]codegen.Section, header, def codegen.Section, svcSections []codegen.Section) []codegen.Section {
-	names := make([]string, 0, len(typeSections))
-	for name := range typeSections {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-
-	sections := make([]codegen.Section, 0, 2+len(names)+len(svcSections))
+func buildServiceFileSections(typeSections []codegen.Section, header, def codegen.Section, svcSections []codegen.Section) []codegen.Section {
+	sections := make([]codegen.Section, 0, 2+len(typeSections)+len(svcSections))
 	sections = append(sections, header, def)
-	for _, name := range names {
-		sections = append(sections, typeSections[name])
-	}
+	sections = append(sections, typeSections...)
 	return append(sections, svcSections...)
 }
 
@@ -232,7 +253,7 @@ func appendUserTypeFiles(files []*codegen.File, svcPath string, typeDefSections 
 		if path == svcPath {
 			continue
 		}
-		sections, hasUnion := collectUserTypeFileSections(path, typesByPath[path], typeDefSections[path], userTypePkgs)
+		sections, hasUnion := collectTypeFileSections(path, typesByPath[path], typeDefSections[path], userTypePkgs)
 		if len(sections) == 0 {
 			continue
 		}
@@ -250,19 +271,20 @@ func sortedTypePaths(typesByPath map[string][]string) []string {
 	return paths
 }
 
-func collectUserTypeFileSections(path string, typeNames []string, typeSections map[string]codegen.Section, userTypePkgs map[string][]string) ([]codegen.Section, bool) {
+func collectTypeFileSections(path string, typeNames []string, typeSections map[string]codegen.Section, userTypePkgs map[string][]string) ([]codegen.Section, bool) {
 	names := append([]string(nil), typeNames...)
 	sort.Strings(names)
 	sections := make([]codegen.Section, 0, len(names))
 	hasUnion := false
+	packagePath := filepath.Dir(path)
 	for _, name := range names {
+		if containsString(userTypePkgs[packagePath], name) {
+			continue
+		}
+		userTypePkgs[packagePath] = append(userTypePkgs[packagePath], name)
 		if strings.HasPrefix(name, "~union:") {
 			hasUnion = true
 		}
-		if containsString(userTypePkgs[path], name) {
-			continue
-		}
-		userTypePkgs[path] = append(userTypePkgs[path], name)
 		sections = append(sections, typeSections[name])
 	}
 	return sections, hasUnion
@@ -290,11 +312,11 @@ func newUserTypeFile(path string, sections []codegen.Section, hasUnion, needsUTF
 	return &codegen.File{Path: fullRelPath, Sections: append([]codegen.Section{header}, sections...)}
 }
 
-func maybeAddNamedTypeSection(enabled bool, name, path string, section codegen.Section, addTypeDefSection func(string, string, codegen.Section), seen map[string]struct{}) {
+func maybeAddNamedTypeSection(enabled bool, name, path string, section codegen.Section, addTypeDefSection func(string, string, codegen.Section), seen map[typeSectionIdentity]struct{}) {
 	if !enabled {
 		return
 	}
-	if _, ok := seen[name]; ok {
+	if _, ok := seen[typeSectionIdentity{filepath.Dir(path), name}]; ok {
 		return
 	}
 	addTypeDefSection(path, name, section)

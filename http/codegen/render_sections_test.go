@@ -74,7 +74,7 @@ func TestConvertedTypeRenderSections(t *testing.T) {
 	file := serverType("gen", root.API.HTTP.Services[0], services)
 
 	unionSection := codegen.SectionCode(t, file.Section("server-union-type")[0])
-	require.Contains(t, unionSection, "type Values struct {")
+	require.Contains(t, unionSection, "type MethodFormBodyUnionValuesJSON struct {")
 	renderGolden(t, unionSection, "render_union-type-values.golden")
 }
 

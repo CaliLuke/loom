@@ -15,7 +15,7 @@ func transformArray(source, target *expr.Array, sourceVar, targetVar string, new
 		return nil, err
 	}
 	data := transformArrayRenderData{
-		ElemTypeRef:    collectionTypeRef(target.ElemType, ta.TargetCtx, false),
+		ElemTypeRef:    ta.TargetCtx.CollectionElementRef(target.ElemType, false),
 		SourceElem:     source.ElemType,
 		TargetElem:     target.ElemType,
 		SourceVar:      sourceVar,
@@ -26,94 +26,9 @@ func transformArray(source, target *expr.Array, sourceVar, targetVar string, new
 		IsStruct:       expr.IsObject(target.ElemType.Type) && !expr.AllowsNull(target.ElemType),
 		ElemHelper:     transformUsesHelper(source.ElemType, target.ElemType),
 		SourcePresence: ta.SourceCtx.CollectionElementPresence && !expr.ArrayElementsAllowNull(source),
+		TargetPresence: ta.TargetCtx.CollectionElementPresence && !expr.ArrayElementsAllowNull(target),
 	}
 	return renderTransformGoArray(data)
-}
-
-func collectionTypeRef(attribute *expr.AttributeExpr, context *AttributeContext, mapKey bool) string {
-	pkg := ""
-	targetPkg := context.Pkg(attribute)
-	if context.SamePackageConversion {
-		pkg = context.DefaultPkg
-		targetPkg = ""
-	}
-	if pkg == "" && containsInlineObject(attribute) {
-		return attributorCollectionElemTypeRef(attribute, context, targetPkg)
-	}
-	scope := context.Scope.Scope()
-	if mapKey {
-		return scope.mapKeyTypeDef(
-			attribute,
-			context.Pointer,
-			context.UseDefault,
-			pkg,
-			targetPkg,
-		)
-	}
-	return scope.collectionElemTypeDef(
-		attribute,
-		context.Pointer,
-		context.UseDefault,
-		pkg,
-		targetPkg,
-	)
-}
-
-// attributorCollectionElemTypeRef renders the type of a collection element
-// that holds an inline object at any depth of arrays, maps and nullability.
-// The inline struct comes from the context Attributor so that it matches the
-// declaring type, which a transport may render differently from the shared
-// scope. It returns the same rendering as NameScope.collectionElemTypeDef when
-// the Attributor is AttributeScope.
-func attributorCollectionElemTypeRef(attribute *expr.AttributeExpr, context *AttributeContext, targetPkg string) string {
-	scope := context.Scope.Scope()
-	fallback := func() string {
-		return scope.collectionElemTypeDef(attribute, context.Pointer, context.UseDefault, "", targetPkg)
-	}
-	if metaType, _ := GetMetaType(attribute); metaType != "" {
-		return fallback()
-	}
-	var value string
-	switch actual := attribute.Type.(type) {
-	case *expr.Object:
-		name := context.Scope.Name(attribute, targetPkg, context.Pointer, context.UseDefault)
-		if IsExplicitPresenceType(attribute) {
-			// A presence type such as loom.Nullable[T] holds the struct value.
-			return name
-		}
-		return "*" + name
-	case *expr.Array:
-		value = "[]" + attributorCollectionElemTypeRef(actual.ElemType, context, targetPkg)
-	case *expr.Map:
-		key := scope.mapKeyTypeDef(actual.KeyType, context.Pointer, context.UseDefault, "", targetPkg)
-		value = "map[" + key + "]" + attributorCollectionElemTypeRef(actual.ElemType, context, targetPkg)
-	default:
-		return fallback()
-	}
-	switch {
-	case expr.IsNullable(attribute):
-		return "loom.Nullable[" + value + "]"
-	case IsExplicitPresenceType(attribute):
-		return fallback()
-	default:
-		return value
-	}
-}
-
-// containsInlineObject reports whether att is an inline object or a
-// collection whose elements hold one at any depth, without looking inside user
-// types.
-func containsInlineObject(att *expr.AttributeExpr) bool {
-	switch actual := att.Type.(type) {
-	case *expr.Object:
-		return true
-	case *expr.Array:
-		return containsInlineObject(actual.ElemType)
-	case *expr.Map:
-		return containsInlineObject(actual.ElemType)
-	default:
-		return false
-	}
 }
 
 // transformUsesHelper reports whether source converts to target through a
@@ -145,8 +60,8 @@ func transformMap(source, target *expr.Map, sourceVar, targetVar string, newVar 
 		return nil, err
 	}
 	data := transformMapRenderData{
-		KeyTypeRef:     collectionTypeRef(target.KeyType, ta.TargetCtx, true),
-		ElemTypeRef:    collectionTypeRef(target.ElemType, ta.TargetCtx, false),
+		KeyTypeRef:     ta.TargetCtx.CollectionElementRef(target.KeyType, true),
+		ElemTypeRef:    ta.TargetCtx.CollectionElementRef(target.ElemType, false),
 		SourceKey:      source.KeyType,
 		TargetKey:      target.KeyType,
 		SourceElem:     source.ElemType,
@@ -159,6 +74,7 @@ func transformMap(source, target *expr.Map, sourceVar, targetVar string, newVar 
 		IsElemStruct:   expr.IsObject(target.ElemType.Type) && !expr.AllowsNull(target.ElemType),
 		ElemHelper:     transformUsesHelper(source.ElemType, target.ElemType),
 		SourcePresence: ta.SourceCtx.CollectionElementPresence && !expr.MapValuesAllowNull(source),
+		TargetPresence: ta.TargetCtx.CollectionElementPresence && !expr.MapValuesAllowNull(target),
 	}
 	if depth := MapDepth(target); depth > 0 {
 		data.LoopVar = string(rune(97 + depth))
@@ -167,7 +83,7 @@ func transformMap(source, target *expr.Map, sourceVar, targetVar string, newVar 
 }
 
 func renderTransformGoArray(data transformArrayRenderData) (*jen.Statement, error) {
-	typeName := "[]" + data.ElemTypeRef
+	typeName := "[]" + collectionCarrierRef(data.ElemTypeRef, data.TargetPresence)
 	if data.TypeAliasName != "" {
 		typeName = data.TypeAliasName
 	}
@@ -178,7 +94,11 @@ func renderTransformGoArray(data transformArrayRenderData) (*jen.Statement, erro
 	}
 	if !data.IsStruct || !data.ElemHelper {
 		var err error
-		elemCode, err = transformCollectionElem(data.SourceElem, data.TargetElem, sourceElement, data.TargetVar+"["+data.LoopVar+"]", false, data.TransformAttrs)
+		target := data.TargetVar + "[" + data.LoopVar + "]"
+		if data.TargetPresence {
+			target = presenceTempName(target)
+		}
+		elemCode, err = transformCollectionElem(data.SourceElem, data.TargetElem, sourceElement, target, data.TargetPresence, data.TransformAttrs)
 		if err != nil {
 			return nil, err
 		}
@@ -193,25 +113,27 @@ func renderTransformGoArray(data transformArrayRenderData) (*jen.Statement, erro
 		}
 		if data.IsStruct {
 			group.If(Expr(sourceElement + " == nil")).BlockFunc(func(ifGroup *jen.Group) {
-				ifGroup.Add(Expr(data.TargetVar)).Index(Expr(data.LoopVar)).Op("=").Nil()
+				ifGroup.Add(assignCollectionValue(data.TargetVar+"["+data.LoopVar+"]", jen.Nil(), data.ElemTypeRef, data.TargetPresence))
 				ifGroup.Continue()
 			})
 		}
 		if data.IsStruct && data.ElemHelper {
-			group.Add(Expr(data.TargetVar)).
-				Index(Expr(data.LoopVar)).
-				Op("=").
-				Id(transformHelperName(data.SourceElem, data.TargetElem, data.TransformAttrs)).
+			value := jen.Id(transformHelperName(data.SourceElem, data.TargetElem, data.TransformAttrs)).
 				Call(transformCallArguments(data.SourceElem, data.TargetElem, sourceElement, data.TransformAttrs)...)
+			group.Add(assignCollectionValue(data.TargetVar+"["+data.LoopVar+"]", value, data.ElemTypeRef, data.TargetPresence))
 			return
 		}
 		group.Add(elemCode)
+		if data.TargetPresence {
+			target := data.TargetVar + "[" + data.LoopVar + "]"
+			group.Add(assignCollectionValue(target, Expr(presenceTempName(target)), data.ElemTypeRef, true))
+		}
 	})
 	return renderCollectionConversion(data.SourceVar, data.TargetVar, typeName, data.NewVar, stmt), nil
 }
 
 func renderTransformGoMap(data transformMapRenderData) (*jen.Statement, error) {
-	typeName := "map[" + data.KeyTypeRef + "]" + data.ElemTypeRef
+	typeName := "map[" + data.KeyTypeRef + "]" + collectionCarrierRef(data.ElemTypeRef, data.TargetPresence)
 	if data.TypeAliasName != "" {
 		typeName = data.TypeAliasName
 	}
@@ -240,34 +162,57 @@ func renderTransformGoMap(data transformMapRenderData) (*jen.Statement, error) {
 	stmt.For(
 		jen.List(jen.Id("key"), jen.Id("val")).Op(":=").Range().Add(Expr(data.SourceVar)),
 	).BlockFunc(func(group *jen.Group) {
-		if data.SourcePresence {
-			group.List(jen.Id("actual"), jen.Id("ok")).Op(":=").Id("val").Dot("Value").Call()
-			group.If(jen.Op("!").Id("ok")).Block(jen.Continue())
-		}
-		if data.IsKeyStruct {
-			group.Id("tk").Op(":=").Id(transformHelperName(data.SourceKey, data.TargetKey, data.TransformAttrs)).Call(transformCallArguments(data.SourceKey, data.TargetKey, "key", data.TransformAttrs)...)
-		} else {
-			group.Add(keyCode)
-		}
-		if data.IsElemStruct {
-			group.If(Expr(sourceElement + " == nil")).BlockFunc(func(ifGroup *jen.Group) {
-				ifGroup.Add(Expr(data.TargetVar)).Index(Expr("tk")).Op("=").Nil()
-				ifGroup.Continue()
-			})
-		}
-		if data.IsElemStruct && data.ElemHelper {
-			group.Add(Expr(data.TargetVar)).
-				Index(Expr("tk")).
-				Op("=").
-				Id(transformHelperName(data.SourceElem, data.TargetElem, data.TransformAttrs)).
-				Call(transformCallArguments(data.SourceElem, data.TargetElem, sourceElement, data.TransformAttrs)...)
-			return
-		}
-		temp := "tv" + data.LoopVar
-		group.Add(elemCode)
-		group.Add(Expr(data.TargetVar)).Index(Expr("tk")).Op("=").Add(Expr(temp))
+		renderTransformMapEntry(group, data, sourceElement, keyCode, elemCode)
 	})
 	return renderCollectionConversion(data.SourceVar, data.TargetVar, typeName, data.NewVar, stmt), nil
+}
+
+func renderTransformMapEntry(group *jen.Group, data transformMapRenderData, sourceElement string, keyCode, elemCode *jen.Statement) {
+	if data.IsKeyStruct {
+		group.Id("tk").Op(":=").Id(transformHelperName(data.SourceKey, data.TargetKey, data.TransformAttrs)).Call(transformCallArguments(data.SourceKey, data.TargetKey, "key", data.TransformAttrs)...)
+	} else {
+		group.Add(keyCode)
+	}
+	if data.SourcePresence {
+		group.List(jen.Id("actual"), jen.Id("ok")).Op(":=").Id("val").Dot("Value").Call()
+		group.If(jen.Op("!").Id("ok")).BlockFunc(func(ifGroup *jen.Group) {
+			// Keep invalid absent slots visible instead of dropping their keys.
+			// Native destinations cannot retain presence, but retain membership.
+			missing := presenceTempName(data.TargetVar + "Missing")
+			ifGroup.Var().Id(missing).Add(TypeRef(collectionCarrierRef(data.ElemTypeRef, data.TargetPresence)))
+			ifGroup.Add(Expr(data.TargetVar + "[tk]")).Op("=").Id(missing)
+			ifGroup.Continue()
+		})
+	}
+	if data.IsElemStruct {
+		group.If(Expr(sourceElement + " == nil")).BlockFunc(func(ifGroup *jen.Group) {
+			ifGroup.Add(assignCollectionValue(data.TargetVar+"[tk]", jen.Nil(), data.ElemTypeRef, data.TargetPresence))
+			ifGroup.Continue()
+		})
+	}
+	if data.IsElemStruct && data.ElemHelper {
+		value := jen.Id(transformHelperName(data.SourceElem, data.TargetElem, data.TransformAttrs)).
+			Call(transformCallArguments(data.SourceElem, data.TargetElem, sourceElement, data.TransformAttrs)...)
+		group.Add(assignCollectionValue(data.TargetVar+"[tk]", value, data.ElemTypeRef, data.TargetPresence))
+		return
+	}
+	temp := "tv" + data.LoopVar
+	group.Add(elemCode)
+	group.Add(assignCollectionValue(data.TargetVar+"[tk]", Expr(temp), data.ElemTypeRef, data.TargetPresence))
+}
+
+func collectionCarrierRef(valueRef string, presence bool) string {
+	if presence {
+		return "loom.Optional[" + valueRef + "]"
+	}
+	return valueRef
+}
+
+func assignCollectionValue(target string, value jen.Code, valueRef string, presence bool) *jen.Statement {
+	if presence {
+		value = jen.Id("loom.OptionalValue").Types(TypeRef(valueRef)).Call(value)
+	}
+	return Expr(target).Op("=").Add(value)
 }
 
 // renderCollectionConversion preserves native absence independently of the
@@ -311,12 +256,13 @@ func renderJenniferSnippet(stmt *jen.Statement) string {
 //
 // seen keeps track of generated transform functions to avoid infinite recursion.
 func transformAttributeHelpers(source, target *expr.AttributeExpr, ta *TransformAttrs, seen map[string]*TransformFunctionData) (helpers []*TransformFunctionData, err error) {
+	ta = transformPresenceContext(source, target, ta)
 	if expr.IsNullable(source) || expr.IsNullable(target) {
 		concreteSource := concretePresenceAttribute(source)
 		concreteTarget := concretePresenceAttribute(target)
 		if nullablePhysicalTypeRef(source, ta.SourceCtx) != nullablePhysicalTypeRef(target, ta.TargetCtx) &&
 			transformUsesHelper(concreteSource, concreteTarget) {
-			helper, helperErr := generateHelper(concreteSource, concreteTarget, true, ta, seen)
+			helper, helperErr := generateHelper(concreteSource, concreteTarget, ta, seen)
 			if helperErr != nil {
 				return nil, helperErr
 			}
@@ -328,7 +274,7 @@ func transformAttributeHelpers(source, target *expr.AttributeExpr, ta *Transform
 	// Non-nullable top-level user types are transformed inline and do not need
 	// their own helper. Nullable named object roots use a helper inside the
 	// presence transform and are collected above.
-	nested, err := appendNestedHelpers(source, target, true, ta, seen)
+	nested, err := appendNestedHelpers(source, target, ta, seen)
 	return append(helpers, nested...), err
 }
 
@@ -337,7 +283,8 @@ func transformAttributeHelpers(source, target *expr.AttributeExpr, ta *Transform
 // is array or map then the recursion is done via transformAttributeHelpers so that
 // the tope level conversion function is skipped as the generate code does not make
 // use of it (since it inlines that top-level transformation).
-func collectHelpers(source, target *expr.AttributeExpr, req bool, ta *TransformAttrs, seen map[string]*TransformFunctionData) (helpers []*TransformFunctionData, err error) {
+func collectHelpers(source, target *expr.AttributeExpr, ta *TransformAttrs, seen map[string]*TransformFunctionData) (helpers []*TransformFunctionData, err error) {
+	ta = transformPresenceContext(source, target, ta)
 	if expr.IsNullable(source) || expr.IsNullable(target) {
 		source = concretePresenceAttribute(source)
 		target = concretePresenceAttribute(target)
@@ -348,7 +295,7 @@ func collectHelpers(source, target *expr.AttributeExpr, req bool, ta *TransformA
 	}
 	if transformUsesHelper(source, target) {
 		var h *TransformFunctionData
-		h, err = generateHelper(source, target, req, ta, seen)
+		h, err = generateHelper(source, target, ta, seen)
 		if err != nil {
 			return helpers, err
 		}
@@ -357,28 +304,29 @@ func collectHelpers(source, target *expr.AttributeExpr, req bool, ta *TransformA
 		}
 	}
 	var other []*TransformFunctionData
-	if other, err = appendNestedHelpers(source, target, req, ta, seen); err != nil {
+	if other, err = appendNestedHelpers(source, target, ta, seen); err != nil {
 		return helpers, err
 	}
 	helpers = append(helpers, other...)
 	return helpers, err
 }
 
-func appendNestedHelpers(source, target *expr.AttributeExpr, req bool, ta *TransformAttrs, seen map[string]*TransformFunctionData) (helpers []*TransformFunctionData, err error) {
+func appendNestedHelpers(source, target *expr.AttributeExpr, ta *TransformAttrs, seen map[string]*TransformFunctionData) (helpers []*TransformFunctionData, err error) {
+	ta = transformPresenceContext(source, target, ta)
 	if matchingExplicitType(source, target) {
 		return helpers, nil
 	}
 	var other []*TransformFunctionData
 	switch {
 	case expr.IsArray(source.Type):
-		if other, err = collectHelpers(expr.AsArray(source.Type).ElemType, expr.AsArray(target.Type).ElemType, req, ta, seen); err == nil {
+		if other, err = collectHelpers(expr.AsArray(source.Type).ElemType, expr.AsArray(target.Type).ElemType, ta, seen); err == nil {
 			helpers = append(helpers, other...)
 		}
 	case expr.IsMap(source.Type):
 		sm, tm := expr.AsMap(source.Type), expr.AsMap(target.Type)
-		if other, err = collectHelpers(sm.ElemType, tm.ElemType, req, ta, seen); err == nil {
+		if other, err = collectHelpers(sm.ElemType, tm.ElemType, ta, seen); err == nil {
 			helpers = append(helpers, other...)
-			if other, err = collectHelpers(sm.KeyType, tm.KeyType, req, ta, seen); err == nil {
+			if other, err = collectHelpers(sm.KeyType, tm.KeyType, ta, seen); err == nil {
 				helpers = append(helpers, other...)
 			}
 		}
@@ -388,7 +336,7 @@ func appendNestedHelpers(source, target *expr.AttributeExpr, req bool, ta *Trans
 			return helpers, err
 		}
 		for i, st := range expr.AsUnion(source.Type).Values {
-			if other, err = collectHelpers(st.Attribute, tt.Values[i].Attribute, req, ta, seen); err == nil {
+			if other, err = collectHelpers(st.Attribute, tt.Values[i].Attribute, ta, seen); err == nil {
 				helpers = append(helpers, other...)
 			}
 		}
@@ -396,11 +344,11 @@ func appendNestedHelpers(source, target *expr.AttributeExpr, req bool, ta *Trans
 		if expr.IsUnion(target.Type) {
 			return helpers, err
 		}
-		walkMatches(source, target, func(srcMatt, _ *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, n string) {
+		walkMatches(source, target, func(_, _ *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, _ string) {
 			if err != nil {
 				return
 			}
-			if other, err = collectHelpers(srcc, tgtc, srcMatt.IsRequired(n), ta, seen); err == nil {
+			if other, err = collectHelpers(srcc, tgtc, ta, seen); err == nil {
 				helpers = append(helpers, other...)
 			}
 		})
@@ -410,7 +358,7 @@ func appendNestedHelpers(source, target *expr.AttributeExpr, req bool, ta *Trans
 		if err == nil {
 			sourceCarrier, targetCarrier := source.AdditionalMembersCarrier(), target.AdditionalMembersCarrier()
 			if sourceCarrier != nil && targetCarrier != nil {
-				if other, err = collectHelpers(sourceCarrier, targetCarrier, false, ta, seen); err == nil {
+				if other, err = collectHelpers(sourceCarrier, targetCarrier, ta, seen); err == nil {
 					helpers = append(helpers, other...)
 				}
 			}
@@ -423,7 +371,8 @@ func appendNestedHelpers(source, target *expr.AttributeExpr, req bool, ta *Trans
 // target. Both source and targe must be user types or generateHelper panics.
 // generateHelper returns nil if a helper has already been generated for the
 // pair source, target.
-func generateHelper(source, target *expr.AttributeExpr, req bool, ta *TransformAttrs, seen map[string]*TransformFunctionData) (*TransformFunctionData, error) {
+func generateHelper(source, target *expr.AttributeExpr, ta *TransformAttrs, seen map[string]*TransformFunctionData) (*TransformFunctionData, error) {
+	ta = transformPresenceContext(source, target, ta)
 	name := transformHelperName(source, target, ta)
 	if _, ok := seen[name]; ok {
 		return nil, nil
@@ -451,14 +400,17 @@ func generateHelper(source, target *expr.AttributeExpr, req bool, ta *TransformA
 	if err != nil {
 		return nil, err
 	}
-	if ta.SourceCtx.Pointer && !expr.IsPrimitive(source.Type) {
-		code = "if v == nil {\n\treturn nil\n}\n" + code
-	} else if !req && !expr.IsPrimitive(source.Type) {
+	// A helper is shared by all occurrences of the same type pair. Requiredness
+	// cannot change its conversion semantics or make its behavior depend on the
+	// first occurrence visited. Preserve nil from the actual pointer carrier;
+	// callers and validators still own whether that absence is admitted.
+	paramTypeRef := ta.SourceCtx.Scope.Ref(source, ta.SourceCtx.Pkg(source))
+	if strings.HasPrefix(paramTypeRef, "*") {
 		code = "if v == nil {\n\treturn nil\n}\n" + code
 	}
 	tfd := &TransformFunctionData{
 		Name:          name,
-		ParamTypeRef:  ta.SourceCtx.Scope.Ref(source, ta.SourceCtx.Pkg(source)),
+		ParamTypeRef:  paramTypeRef,
 		ResultTypeRef: ta.TargetCtx.Scope.Ref(target, ta.TargetCtx.Pkg(target)),
 		Code:          code,
 		ErrorAware:    ta.failures.fallible(source, target, ta),

@@ -6,7 +6,8 @@ func BuildMethodBodyInlineArrayUserPayload(serviceBodyInlineArrayUserMethodBodyI
 	{
 		err = loomhttpcli.UnmarshalNonNullableJSON([]byte(serviceBodyInlineArrayUserMethodBodyInlineArrayUserBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %w, \nexample of valid JSON:\n%s", err, "'[\n      {\n         \"a\": \"patterna\",\n         \"b\": \"patternb\"\n      },\n      {\n         \"a\": \"patterna\",\n         \"b\": \"patternb\"\n      },\n      {\n         \"a\": \"patterna\",\n         \"b\": \"patternb\"\n      },\n      {\n         \"a\": \"patterna\",\n         \"b\": \"patternb\"\n      }\n   ]'")
+			var zero []*servicebodyinlinearrayuser.ElemType
+			return zero, fmt.Errorf("invalid JSON for body, \nerror: %w, \nexample of valid JSON:\n%s", err, "'[\n      {\n         \"a\": \"patterna\",\n         \"b\": \"patternb\"\n      },\n      {\n         \"a\": \"patterna\",\n         \"b\": \"patternb\"\n      },\n      {\n         \"a\": \"patterna\",\n         \"b\": \"patternb\"\n      },\n      {\n         \"a\": \"patterna\",\n         \"b\": \"patternb\"\n      }\n   ]'")
 		}
 		for i, e := range body {
 			if actual, ok := e.Value(); ok {
@@ -20,7 +21,8 @@ func BuildMethodBodyInlineArrayUserPayload(serviceBodyInlineArrayUserMethodBodyI
 			}
 		}
 		if err != nil {
-			return nil, err
+			var zero []*servicebodyinlinearrayuser.ElemType
+			return zero, err
 		}
 	}
 	var v []*servicebodyinlinearrayuser.ElemType

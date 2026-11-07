@@ -1,0 +1,157 @@
+openapi: 3.2.0
+info:
+  title: OneOf symmetry
+  version: "1"
+tags:
+  - name: unions
+paths:
+  /values/{id}:
+    post:
+      operationId: exchange
+      tags: [unions]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            oneOf:
+              - {type: string, enum: [sample]}
+              - {type: integer, format: int64}
+        - name: query
+          in: query
+          schema: {$ref: '#/components/schemas/Atom'}
+        - name: X-Values
+          in: header
+          schema:
+            oneOf:
+              - {type: integer, format: int64}
+              - {type: array, items: {type: integer, format: int64}}
+        - name: session
+          in: cookie
+          style: form
+          explode: false
+          schema:
+            oneOf:
+              - {type: string, enum: [sample]}
+              - {type: boolean}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Envelope'}
+      responses:
+        "200":
+          description: Exchanged value.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Envelope'}
+        "400":
+          description: Rejected value.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Atom'}
+  /form:
+    post:
+      operationId: form
+      tags: [unions]
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                choice: {$ref: '#/components/schemas/Atom'}
+                textChoice: {$ref: '#/components/schemas/Atom'}
+                record:
+                  type: object
+                  oneOf:
+                    - {$ref: '#/components/schemas/RecordA'}
+                    - {$ref: '#/components/schemas/RecordB'}
+                items:
+                  type: array
+                  oneOf:
+                    - type: array
+                      items: {type: string, enum: [text]}
+                    - type: array
+                      items: {$ref: '#/components/schemas/RecordA'}
+            encoding:
+              choice: {contentType: application/json}
+              textChoice: {style: form, explode: false}
+      responses:
+        "204": {description: Accepted form.}
+components:
+  schemas:
+    ScalarAlias: {type: string, enum: [text]}
+    Atom:
+      oneOf:
+        - {$ref: '#/components/schemas/ScalarAlias'}
+        - {type: integer, format: int64}
+    NullOnce:
+      oneOf:
+        - {type: [string, 'null']}
+        - {type: integer, format: int64}
+    NullTwice:
+      oneOf:
+        - {type: [string, 'null']}
+        - {type: [integer, 'null'], format: int64}
+    AnyChoice:
+      oneOf:
+        - {}
+        - {type: string}
+    LocalNullRemoved:
+      oneOf:
+        - {type: [string, 'null']}
+        - {type: integer, format: int64}
+        - {type: 'null'}
+    DuplicateNull:
+      oneOf:
+        - {type: string}
+        - {type: 'null'}
+        - {type: 'null'}
+    MapChoice:
+      oneOf:
+        - {type: object, additionalProperties: {type: integer, format: int64}}
+        - {type: array, items: {type: integer, format: int64}}
+    Nested:
+      oneOf:
+        - {$ref: '#/components/schemas/Atom'}
+        - {type: boolean}
+    RecordA:
+      type: object
+      properties:
+        kind: {type: string, enum: [a]}
+        x: {type: integer, format: int64}
+      required: [kind, x]
+    RecordB:
+      type: object
+      properties:
+        kind: {type: string, enum: [b]}
+        label: {type: string}
+      required: [kind, label]
+    ClosedChoice:
+      oneOf:
+        - {$ref: '#/components/schemas/RecordA'}
+        - {$ref: '#/components/schemas/RecordB'}
+      unevaluatedProperties: false
+    InlineChoice:
+      oneOf:
+        - type: object
+          properties:
+            flag: {type: boolean}
+          required: [flag]
+          additionalProperties: false
+        - {type: string, enum: [inline]}
+    Envelope:
+      type: object
+      properties:
+        atom: {$ref: '#/components/schemas/Atom'}
+        once: {$ref: '#/components/schemas/NullOnce'}
+        twice: {$ref: '#/components/schemas/NullTwice'}
+        any: {$ref: '#/components/schemas/AnyChoice'}
+        localNull: {$ref: '#/components/schemas/LocalNullRemoved'}
+        duplicateNull: {$ref: '#/components/schemas/DuplicateNull'}
+        mapping: {$ref: '#/components/schemas/MapChoice'}
+        nested: {$ref: '#/components/schemas/Nested'}
+        closed: {$ref: '#/components/schemas/ClosedChoice'}
+        inline: {$ref: '#/components/schemas/InlineChoice'}

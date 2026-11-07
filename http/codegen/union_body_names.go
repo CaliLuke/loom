@@ -23,8 +23,8 @@ import (
 func nameUnionBodies(endpoints []*transportir.Endpoint) {
 	for _, endpoint := range endpoints {
 		if endpoint.Request != nil {
-			endpoint.Request.Body = namedUnionBody(endpoint.Request.Body, endpoint.Name+"RequestBody")
-			endpoint.Request.StreamingBody = namedUnionBody(endpoint.Request.StreamingBody, endpoint.Name+"StreamingBody")
+			endpoint.Request.Body = namedUnionBody(endpoint.Request.Body, endpoint.Name+"RequestBody", endpoint.Request.MediaVariants)
+			endpoint.Request.StreamingBody = namedUnionBody(endpoint.Request.StreamingBody, endpoint.Name+"StreamingBody", nil)
 		}
 		if endpoint.Response == nil {
 			continue
@@ -34,14 +34,15 @@ func nameUnionBodies(endpoints []*transportir.Endpoint) {
 			if len(endpoint.Response.Responses) > 1 {
 				name += http.StatusText(response.StatusCode)
 			}
-			response.Body = namedUnionBody(response.Body, name+"ResponseBody")
+			response.Body = namedUnionBody(response.Body, name+"ResponseBody", response.MediaVariants)
 		}
 	}
 }
 
 // namedUnionBody returns a copy of body named name when body is a union and
-// body itself otherwise.
-func namedUnionBody(body *expr.AttributeExpr, name string) *expr.AttributeExpr {
+// body itself otherwise. Media variants follow the copied branch occurrences so
+// subsequent codec projections and emitted union declarations share one graph.
+func namedUnionBody(body *expr.AttributeExpr, name string, variants []*transportir.MediaVariant) *expr.AttributeExpr {
 	if body == nil {
 		return nil
 	}
@@ -52,5 +53,8 @@ func namedUnionBody(body *expr.AttributeExpr, name string) *expr.AttributeExpr {
 	union := named.Type.(*expr.Union)
 	union.TypeName = name
 	union.ExplicitTypeName = true
+	for _, variant := range variants {
+		variant.Body = expr.HTTPMediaBranch(named, variant.Branch).Attribute
+	}
 	return named
 }

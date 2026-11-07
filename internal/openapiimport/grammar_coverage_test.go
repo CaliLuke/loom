@@ -103,7 +103,6 @@ func TestSchemaGrammarKeywordsAreNeverSilentlyIgnored(t *testing.T) {
 		"minProperties":         `type: object\nminProperties: 1`,
 		"multipleOf":            `type: number\nmultipleOf: 0.5`,
 		"not":                   `not: {type: string}`,
-		"oneOf":                 `oneOf: [{type: string}, {type: integer}]`,
 		"patternProperties":     `type: object\npatternProperties: {'^x-': {type: string}}`,
 		"prefixItems":           `type: array\nprefixItems: [{type: string}]`,
 		"propertyNames":         `type: object\npropertyNames: {pattern: '^[a-z]+$'}`,
@@ -631,8 +630,8 @@ func openAPIGrammarCoverage() []grammarObjectCoverage {
 			model: base.Schema{},
 			groups: []grammarFieldGroup{
 				group(grammarPreserved, "analyzer.schema normalization", "ExclusiveMaximum", "ExclusiveMinimum", "Properties", "Title", "Maximum", "Minimum", "MaxLength", "MinLength", "Pattern", "MaxItems", "MinItems", "Required", "Description", "Nullable", "ReadOnly", "WriteOnly", "Deprecated", "Extensions"),
-				group(grammarConditional, "schema normalization and render planning", "Type", "AllOf", "AnyOf", "OneOf", "Examples", "Items", "Format", "Enum", "Const", "AdditionalProperties", "Default", "Example"),
-				group(grammarRejected, "schemaUnsupportedKeywords", "SchemaTypeRef", "Discriminator", "PrefixItems", "Contains", "MinContains", "MaxContains", "If", "Else", "Then", "DependentSchemas", "DependentRequired", "PatternProperties", "Defs", "PropertyNames", "UnevaluatedItems", "UnevaluatedProperties", "Id", "Anchor", "DynamicAnchor", "DynamicRef", "Comment", "ContentSchema", "Vocabulary", "Not", "MultipleOf", "UniqueItems", "MaxProperties", "MinProperties", "ContentEncoding", "ContentMediaType", "XML", "ExternalDocs"),
+				group(grammarConditional, "schema normalization and render planning", "Type", "AllOf", "AnyOf", "OneOf", "UnevaluatedProperties", "Examples", "Items", "Format", "Enum", "Const", "AdditionalProperties", "Default", "Example"),
+				group(grammarRejected, "schemaUnsupportedKeywords", "SchemaTypeRef", "Discriminator", "PrefixItems", "Contains", "MinContains", "MaxContains", "If", "Else", "Then", "DependentSchemas", "DependentRequired", "PatternProperties", "Defs", "PropertyNames", "UnevaluatedItems", "Id", "Anchor", "DynamicAnchor", "DynamicRef", "Comment", "ContentSchema", "Vocabulary", "Not", "MultipleOf", "UniqueItems", "MaxProperties", "MinProperties", "ContentEncoding", "ContentMediaType", "XML", "ExternalDocs"),
 				group(grammarLibrary, "libopenapi schema proxy state", "ParentProxy"),
 			},
 		},

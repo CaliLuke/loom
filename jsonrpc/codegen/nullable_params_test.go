@@ -17,16 +17,17 @@ import (
 // of a nullable object or an Any payload attribute selected with Body to the
 // payload constructor by value, and that the client omits params for an
 // absent optional attribute while the server decodes absent params as an
-// absent value instead of substituting {}. A required attribute is always
-// encoded, and the server reports its absent params as a missing payload.
+// absent value instead of substituting {}. A required nullable attribute
+// rejects absence before encoding; required Any encodes nil as JSON null.
+// The server reports absent required params as a missing payload.
 func TestJSONRPCNullableParams(t *testing.T) {
 	cases := []struct {
 		Name string
-		// Guard is the client condition that sends the params.
-		Guard string
+		// Absent is the centralized client condition for an absent attribute.
+		Absent string
 	}{
-		{Name: "object", Guard: "p.O.Present()"},
-		{Name: "any", Guard: "p.A != nil"},
+		{Name: "object", Absent: "!p.O.Present()"},
+		{Name: "any", Absent: "p.A == nil"},
 	}
 	for _, c := range cases {
 		for _, required := range []bool{false, true} {
@@ -50,12 +51,18 @@ func TestJSONRPCNullableParams(t *testing.T) {
 				assert.Contains(t, decoder, "payload = New"+method+"Payload(body, ")
 				assert.NotContains(t, decoder, "Payload(&body")
 				if required {
-					assert.NotContains(t, encoder, c.Guard)
+					assert.NotContains(t, encoder, "if !("+c.Absent+") {")
+					if c.Name == "any" {
+						assert.NotContains(t, encoder, "if "+c.Absent+" {")
+						assert.Contains(t, encoder, "\t\tb := p.A\n\t\tbody := &jsonrpc.Request{")
+					} else {
+						assert.Contains(t, encoder, "\t\tif "+c.Absent+" {\n\t\t\treturn loom.MissingPayloadError()\n\t\t}\n\t\tb := NewLoomNullablePickObjectRequestBody(p)")
+					}
 					assert.NotContains(t, decoder, "params = []byte(\"{}\")")
 					assert.Contains(t, decoder, "return payload, loom.MissingPayloadError()")
 					return
 				}
-				assert.Contains(t, encoder, "\t\tif "+c.Guard+" {\n\t\t\tbody.Params = ")
+				assert.Contains(t, encoder, "\t\tif !("+c.Absent+") {\n\t\t\tbody.Params = ")
 				assert.NotContains(t, decoder, "params = []byte(\"{}\")")
 			})
 		}

@@ -6,6 +6,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/CaliLuke/loom/expr"
 )
 
 // encodingMetadataNode records the encoding families at one media or encoding
@@ -92,4 +94,21 @@ func validateEncodingMetadata(meta map[string][]string) error {
 		}
 	}
 	return nil
+}
+
+// mediaTypeMetadata captures only annotations lowered on the media object.
+// Body naming and schema annotations belong to the selected schema, not to
+// compatibility checks between media objects that can contain several schemas.
+func mediaTypeMetadata(meta expr.MetaExpr) map[string][]string {
+	var selected map[string][]string
+	for key, values := range meta {
+		if key == "openapi:itemSchema" || strings.HasPrefix(key, "openapi:encoding:") ||
+			strings.HasPrefix(key, "openapi:prefixEncoding:") || strings.HasPrefix(key, "openapi:itemEncoding:") {
+			if selected == nil {
+				selected = make(map[string][]string)
+			}
+			selected[key] = slices.Clone(values)
+		}
+	}
+	return selected
 }

@@ -29,10 +29,10 @@ func (e *mediaCodecError) Decode(any) error {
 
 func mediaRequestDecoder(request *http.Request) Decoder {
 	rejectNull, _ := request.Context().Value(nonNullableBodyKey{}).(bool)
-	return mediaDecoder(request.Body, request.Header.Get("Content-Type"), decodeRequest, RequestBodyLimit(request.Context()), !rejectNull, mediaFormCodec(request.Context()))
+	return mediaDecoder(request.Body, request.Header.Get("Content-Type"), decodeRequest, RequestBodyLimit(request.Context()), !rejectNull, mediaFormCodec(request.Context()), mediaMultipartCodec(request.Context()))
 }
 
-func mediaDecoder(reader io.Reader, media string, mode decodeMode, limit int64, allowsNull bool, form MediaFormCodec) Decoder {
+func mediaDecoder(reader io.Reader, media string, mode decodeMode, limit int64, allowsNull bool, form MediaFormCodec, multipartCodec MediaMultipartCodec) Decoder {
 	base, _, err := mime.ParseMediaType(media)
 	if err != nil {
 		return newUnsupportedDecoder(media)
@@ -62,16 +62,19 @@ func mediaDecoder(reader io.Reader, media string, mode decodeMode, limit int64, 
 			if err != nil {
 				return requestBodyDecodeError(err, mode)
 			}
-			for name, files := range form.Files {
-				if len(files) != 1 {
-					return fmt.Errorf("multiple multipart files provided for field %s", name)
-				}
-				if _, exists := form.Values[name]; exists {
-					return fmt.Errorf("duplicate multipart field %s", name)
-				}
-				form.Values.Set(name, string(files[0].Data))
+			if multipartCodec.Decode != nil {
+				return multipartCodec.Decode(form)
 			}
-			return decodeMediaFormValues(form.Values, target)
+			values := make(url.Values)
+			files := make(map[string]bool)
+			for _, part := range form.Parts {
+				if files[part.Name] || part.Filename != "" && len(values[part.Name]) > 0 {
+					return fmt.Errorf("duplicate multipart field %s", part.Name)
+				}
+				files[part.Name] = part.Filename != ""
+				values.Add(part.Name, string(part.Data))
+			}
+			return decodeMediaFormValues(values, target)
 		})
 	}
 	switch httpcodec.RequestContentType(media).Kind {
@@ -114,7 +117,7 @@ func mediaRawDecoder(reader io.Reader, media string, mode decodeMode, limit int6
 func mediaRequestEncoder(request *http.Request) Encoder {
 	return EncodingFunc(func(value any) error {
 		var buffer bytes.Buffer
-		encoder, media, err := mediaEncoder(&buffer, request.Header.Get("Content-Type"), mediaPartTypes(request.Context()), mediaFormCodec(request.Context()))
+		encoder, media, err := mediaEncoder(&buffer, request.Header.Get("Content-Type"), mediaPartTypes(request.Context()), mediaFormCodec(request.Context()), mediaMultipartCodec(request.Context()))
 		if err != nil {
 			return err
 		}
@@ -133,7 +136,7 @@ func mediaRequestEncoder(request *http.Request) Encoder {
 }
 
 func mediaResponseEncoder(ctx context.Context, writer http.ResponseWriter) Encoder {
-	encoder, media, err := mediaEncoder(writer, stringContextValue(ctx, ContentTypeKey), mediaPartTypes(ctx), mediaFormCodec(ctx))
+	encoder, media, err := mediaEncoder(writer, stringContextValue(ctx, ContentTypeKey), mediaPartTypes(ctx), mediaFormCodec(ctx), mediaMultipartCodec(ctx))
 	if err != nil {
 		return &mediaCodecError{err: err}
 	}
@@ -141,7 +144,7 @@ func mediaResponseEncoder(ctx context.Context, writer http.ResponseWriter) Encod
 	return encoder
 }
 
-func mediaEncoder(writer io.Writer, media string, parts map[string]string, form MediaFormCodec) (Encoder, string, error) {
+func mediaEncoder(writer io.Writer, media string, parts map[string]string, form MediaFormCodec, multipartCodec MediaMultipartCodec) (Encoder, string, error) {
 	base, params, err := mime.ParseMediaType(media)
 	if err != nil {
 		return nil, "", loom.UnsupportedMediaTypeError(media)
@@ -174,6 +177,15 @@ func mediaEncoder(writer io.Writer, media string, parts map[string]string, form 
 			}
 		}
 		params["boundary"] = multipartWriter.Boundary()
+		if multipartCodec.Encode != nil {
+			captured, err := multipartCodec.Encode()
+			if err != nil {
+				return nil, "", err
+			}
+			return EncodingFunc(func(any) error {
+				return WriteMultipartForm(multipartWriter, captured)
+			}), mime.FormatMediaType(base, params), nil
+		}
 		return EncodingFunc(func(value any) error {
 			return encodeMultipartMedia(multipartWriter, parts, value)
 		}), mime.FormatMediaType(base, params), nil

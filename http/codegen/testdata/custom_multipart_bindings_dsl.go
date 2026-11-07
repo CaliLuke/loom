@@ -17,7 +17,9 @@ func CustomMultipartBindingsDSL(location string) func() {
 					Security(bearer)
 				}
 				Payload(func() {
-					Attribute("files", ArrayOf(Bytes))
+					Attribute("files", ArrayOf(Bytes), func() {
+						Meta("struct:field:type", "[][]byte")
+					})
 					if location != "none" {
 						switch location {
 						case "custom_query":

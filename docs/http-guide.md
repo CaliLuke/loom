@@ -206,7 +206,9 @@ its `explode` flag has no effect. Space- and pipe-delimited styles require a
 collection and reject `explode: true`. Objects with `AdditionalAttributes`
 require JSON bodies; text bindings and form bodies do not support their
 undeclared members. Nested values need an admitted JSON
-content binding. Text `Any`, nullable text values and text unions are rejected.
+content binding. Text `Any` and nullable text values are rejected. Untagged text
+unions require a supported codec for every branch and the same unique schema
+and typed-decoder match on decode and encode.
 JSON body `Any` retains its existing behavior. `openapi:allowReserved` remains
 documentation metadata: it does not relax the selected codec's escaping or
 data-alphabet rules. Its explicit presence still selects form-field style rules.
@@ -384,6 +386,18 @@ type for custom JSON integrations. Do not use the legacy raw-message type.
 
 ### Form Requests
 
+Form encoding follows the authored body type. An object with one union field
+keeps that named field; it is not flattened. For a flat tagged form such as an
+OAuth grant, declare the payload as a root union with
+`Type("Grant", OneOf(func() { ... }))`. If an older design relied on implicit
+flattening, change it to a root union and regenerate. Generated service calls
+then use that union directly instead of a one-field wrapper.
+
+A form field whose encoding declares `application/json` can contain a nullable
+union. An absent optional field remains absent; a field containing `null` is
+present. Required fields must be present. Nullable styled text fields and
+nullable form body roots remain rejected. Regenerate adapters to capture these field policies.
+
 Use `FormRequest` for `application/x-www-form-urlencoded` endpoints:
 
 ```go
@@ -416,6 +430,12 @@ By default, a named object or map form field also holds one JSON document. For e
 form values; the form encoder percent-encodes the JSON strings on the wire.
 This applies at every nesting depth. JSON tags and custom JSON codecs determine
 member names inside these values; form tags determine the outer field name.
+For example, `Meta("struct:tag:form", "wire")` changes an outer field to `wire`
+for both generated clients and servers. A full `struct:tag:*` override replaces
+the generated tag set: if that set has no form tag, an empty form tag, or `-`,
+the field is omitted from form encoding. A JSON-name-only override preserves
+the default form name. Encoding metadata still uses the HTTP element name;
+OpenAPI exports the effective form name and rejects overlapping field claims.
 OpenAPI marks these fields with `contentType: application/json`, without a
 serialization style. Scalars and repeated scalar arrays retain their form
 encoding. To select a text grammar, put `openapi:encoding:<field>:style` and
@@ -472,24 +492,47 @@ Method("upload", func() {
 })
 ```
 
-For supported object payloads, Loom generates server-side multipart decoding.
-`Bytes` attributes receive file part content. When a payload has one file part,
-string attributes named `filename` and `content_type` are populated from the
-uploaded part metadata. Non-file scalar fields flow through the generated
-request-body constructor and normal validation path. Multipart request client
-encoding still accepts a generated hook so applications can control how files
-are read and written.
+Loom generates both client encoding and server decoding for object bodies and
+recursive untagged `OneOf` alternatives whose leaves are objects. Incoming
+untagged alternatives must have exactly one matching schema and one successful
+typed decoder. Outgoing values must decode back to the same selected branch,
+including nested selections. Ambiguous or unrepresentable values fail before
+request body publication. Tagged constructor unions remain unsupported as
+multipart roots; they may appear inside JSON-valued fields.
 
-Unsupported body shapes, such as arrays of file bytes, use the generated custom
-decoder callback. That callback owns body decoding and must construct the payload
-on success. The generated adapter then decodes and validates mapped path, query,
-header and cookie fields, followed by ordinary Basic credential checks. A failed
-callback or field validation prevents the endpoint from running. Regenerate after
-upgrading to pick up corrected custom adapters, including their shared credential
-framing and custom text-scalar decoding.
+`Bytes` fields carry raw part bytes. Arrays use one part per item: byte items
+remain raw, text items remain literal, and object or nested-array items use JSON.
+An explicit JSON Encoding Object on a typeless union encodes the whole selected
+value. JSON-valued parts retain JSON tags, nullable values and recursive shapes.
+Explicit style metadata selects the shared collection grammar and overrides
+content-type metadata. Multipart styles never URI-escape names or contents;
+plus signs and percent escapes stay literal. A delimiter inside a delimited
+collection item cannot be represented and is rejected; repeated parts retain it.
 
-`MultipartRequest` does not support constructor union payloads. Use form
-requests for union-shaped OAuth-style payloads.
+Outer part names follow form tags, independently of nested JSON tags. A body with
+one scalar byte field can derive string `filename` and `content_type` fields from
+that uploaded file's headers. An authored target part, even an empty one, takes
+precedence. Multiple byte fields disable derivation; duplicate scalar file parts
+are rejected. Derived metadata does not create extra physical parts for closed
+object or union matching.
+
+`OptionalRequestBody()` permits an absent multipart body. A present empty MIME
+envelope remains a supplied object and undergoes normal branch matching.
+Malformed envelopes and source failures remain errors for optional bodies.
+
+Regenerate clients and servers together. Automatically supported bodies no longer
+accept multipart encoder or decoder callbacks in generated constructors. Remove
+those callback arguments from application wiring. Explicit custom Go carrier
+contracts and unsupported ordinary root shapes retain custom callbacks. A custom
+decoder constructs the payload; the generated adapter then decodes and validates
+mapped parameters and credentials before invoking the endpoint.
+
+Direct `loomhttp.ReadMultipartForm[WithLimit]` callers now consume the ordered
+`MultipartForm.Parts` slice. Each `MultipartPart` contains `Name`, `Filename`,
+`ContentType` and raw `Data`; the separate `Values` and `Files` maps and
+`MultipartFile` type have been removed. Preserve slice order when interpreting
+repeated fields. The request's complete encoded source still counts toward the
+body limit, and callers retain ownership of `Body.Close`.
 
 ### Optional JSON and Form Bodies
 
@@ -516,14 +559,17 @@ A body built from the payload attributes cannot contain required attributes; a
 body selected with `Body("name")` must come from an optional payload
 attribute. It cannot be combined with `MultipartRequest` or raw request body
 streaming. JSON decoders tolerate `io.EOF` only for endpoints that opt into
-`OptionalRequestBody`; form decoders accept an empty form. Malformed input and
-validation errors still fail normally.
+`OptionalRequestBody`. A required form body decodes zero bytes as an empty
+value set, then applies its field validations. For an optional form body,
+zero bytes mean absence; nonempty input such as `&&` is a present empty value
+set even though it has no decoded keys. These rules apply to ordinary objects,
+maps and unions. Malformed input and validation errors still fail normally.
 
 An object or constructor union selected with `Body("name")` from an optional
 payload attribute is optional with or without `OptionalRequestBody`. When the
 attribute is nil, the generated client sends no request body, without a
 `Content-Type` header. The generated server decodes an empty or
-whitespace-only body, or an empty form, as a nil attribute. A present body is
+whitespace-only JSON body, or a zero-byte form body, as a nil attribute. A present body is
 decoded and validated normally, so the required fields of the object apply
 only when the client sends a body. The built-in JSON decoder rejects a
 `null` body with `decode_payload` unless the body allows null. Optionality
@@ -533,6 +579,14 @@ decodes absent `params` as a nil attribute. The server rejects non-nullable
 `"params": null` with `-32602`.
 An object value `{}` is decoded and validated normally; a union still needs
 its discriminator.
+
+For a generated union, an empty `Kind()` means absence even when the Go
+pointer is nonnil. The client omits an optional body in that state and rejects
+an absent required body before conversion or encoding. A selected null branch
+remains present when the union permits null. These presence rules apply to
+JSON, form and multipart bodies and to unions selected with `Body("name")`;
+separately mapped query and header values are still sent when the body is
+optional. Regenerate clients to obtain the corrected presence checks.
 
 A nullable attribute selected with `Body("name")`, such as a nullable object,
 array, map, primitive, or union, keeps the absent, null, and concrete states

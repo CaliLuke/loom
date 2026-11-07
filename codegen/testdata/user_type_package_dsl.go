@@ -8,8 +8,11 @@ import . "github.com/CaliLuke/loom/dsl"
 // and JSON-RPC, including JSON-RPC SSE and WebSocket streams of local
 // wrappers. Payloads also have a field named "common", so generated variables
 // must not shadow the package name. Relocated type names also match method
-// names in two services, so declarations must retain their canonical names.
-// An authored MovedUnionKind also reserves the preferred discriminator name.
+// names in two services, so references must share destination allocations.
+// An authored MovedUnionKind and an inline PickKind branch also compete with
+// union discriminator names in that physical package. One raw union also belongs
+// to two distinct destination packages and to one common package through
+// different service/file candidates.
 var UserTypePackageTransportsDSL = func() {
 	API("usertypepkg", func() {
 		JSONRPC(func() {})
@@ -38,10 +41,41 @@ var UserTypePackageTransportsDSL = func() {
 		Field(2, "items", ArrayOf(item))
 		Required("item")
 	})
+	// Explicit primitive representations keep this authored union raw when the
+	// same shape is reached from two different generated packages.
+	sharedChoice := OneOf(func() {
+		Field(1, "text", String, func() {
+			Meta("struct:field:type", "string")
+		})
+		Field(2, "count", Int, func() {
+			Meta("struct:field:type", "int")
+		})
+	})
+	left := Type("SharedLeft", func() {
+		Meta("struct:pkg:path", "left")
+		Field(1, "pick", sharedChoice)
+	})
+	right := Type("SharedRight", func() {
+		Meta("struct:pkg:path", "right")
+		Field(1, "pick", sharedChoice)
+	})
+	sharedDestinations := Type("SharedDestinations", func() {
+		Field(1, "left", left)
+		Field(2, "right", right)
+	})
+	globalLeft := Type("GlobalLeft", func() {
+		Meta("struct:pkg:path", "common")
+		Field(1, "pick", sharedChoice)
+	})
+	globalRight := Type("GlobalRight", func() {
+		Meta("struct:pkg:path", "common")
+		Field(1, "pick", sharedChoice)
+	})
 	relocated := []struct {
 		name  string
 		value any
 	}{
+		{"shared_destinations", sharedDestinations},
 		{"moved_empty", Type("MovedEmpty", func() {
 			Meta("struct:pkg:path", "common")
 		})},
@@ -56,6 +90,13 @@ var UserTypePackageTransportsDSL = func() {
 		})},
 		{"moved_primitive", Type("MovedPrimitive", String, func() {
 			Meta("struct:pkg:path", "common")
+		})},
+		{"moved_inline_union", Type("MovedInlineUnion", func() {
+			Meta("struct:pkg:path", "common")
+			OneOf("pick", func() {
+				Field(1, "Kind", String)
+				Field(2, "other", Int)
+			})
 		})},
 		{"moved_union", Type("MovedUnion", OneOf(inner, item), func() {
 			Meta("struct:pkg:path", "common")
@@ -73,6 +114,14 @@ var UserTypePackageTransportsDSL = func() {
 		Required("item")
 	}
 	Service("catalog", func() {
+		Method("global_left", func() {
+			Payload(globalLeft)
+			Result(globalLeft)
+			HTTP(func() {
+				POST("/names/global_left")
+			})
+			GRPC(func() {})
+		})
 		for _, shape := range relocated {
 			Method(shape.name, func() {
 				Payload(shape.value)
@@ -128,6 +177,14 @@ var UserTypePackageTransportsDSL = func() {
 		})
 	})
 	Service("catalogrpc", func() {
+		Method("global_right", func() {
+			Payload(func() {
+				ID("id", String)
+				Field(1, "value", globalRight)
+			})
+			Result(globalRight)
+			JSONRPC(func() {})
+		})
 		for _, shape := range relocated {
 			Method(shape.name, func() {
 				Payload(func() {

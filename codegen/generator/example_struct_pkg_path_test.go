@@ -17,7 +17,8 @@ import (
 // example output for services whose payloads and results use a user type
 // placed in its own package with "struct:pkg:path", then builds and vets the
 // module. The example service stubs and multipart.go must import that
-// package, under an alias when its name clashes with another import.
+// package, under an alias when its name clashes with another import. Multipart
+// cases combine an automatic object codec with custom map-root codecs.
 func TestExampleStructPkgPathTypesCompile(t *testing.T) {
 	cases := []struct {
 		Name   string
@@ -80,7 +81,10 @@ func TestExampleStructPkgPathTypesCompile(t *testing.T) {
 				multipart, err := os.ReadFile(filepath.Join(dir, "multipart.go"))
 				require.NoError(t, err)
 				require.Contains(t, string(multipart), multipartRef.Import)
-				require.Contains(t, string(multipart), "p *"+multipartRef.Qualifier+".Item) error")
+				require.Contains(t, string(multipart), "p map[string]*"+multipartRef.Qualifier+".Item) error")
+				require.Contains(t, string(multipart), "p *map[string]*"+multipartRef.Qualifier+".Item) error")
+				require.NotContains(t, string(multipart), "CatalogPutEncoderFunc")
+				require.NotContains(t, string(multipart), "CatalogPutDecoderFunc")
 			}
 
 			_, err = testingx.RunCmd(dir, "go", "mod", "tidy")
@@ -176,6 +180,15 @@ func (d structPkgPathDesign) DSL() {
 				}
 			})
 		})
+		if d.Multipart {
+			dsl.Method("batch", func() {
+				dsl.Payload(dsl.MapOf(dsl.String, item))
+				dsl.HTTP(func() {
+					dsl.POST("/batch")
+					dsl.MultipartRequest()
+				})
+			})
+		}
 		if d.List {
 			dsl.Method("list", func() {
 				dsl.Result(dsl.ArrayOf(item))

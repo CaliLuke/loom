@@ -11,6 +11,9 @@ type (
 	// generation.
 	Attributor interface {
 		Scoper
+		// WithScope returns a detached attributor using scope while preserving
+		// its field and representation policy. It must not mutate the receiver.
+		WithScope(scope *NameScope) Attributor
 		// Name generates a valid name for the given attribute type. ptr and
 		// useDefault are used to generate inline struct type definitions.
 		Name(att *expr.AttributeExpr, pkg string, ptr, useDefault bool) string
@@ -309,10 +312,10 @@ func (a *AttributeContext) IsPrimitivePointer(name string, att *expr.AttributeEx
 // field in this context. ObjectFields supplies a frozen pass snapshot; mutable
 // mappings supply current facts. A nil builtin provider means no parent.
 func (a *AttributeContext) FieldPresence(parent expr.FieldFactsProvider, name string, attribute *expr.AttributeExpr) PresenceKind {
-	if isAnyPresenceAttribute(attribute) && !expr.IsNullable(attribute) {
+	if expr.HasNativeJSONPresence(attribute) {
 		return NativePresence
 	}
-	if expr.AllowsNull(attribute) {
+	if expr.IsNullable(attribute) {
 		return NullablePresence
 	}
 	if a.JSONPresence && parent != nil {
@@ -360,6 +363,14 @@ func (a *AttributeContext) NamePkg(att *expr.AttributeExpr) string {
 	pkg := a.Pkg(att)
 	if loc := UserTypeLocation(att.Type); loc != nil && pkg != "" {
 		return loc.PackageName()
+	}
+	if pkg != "" && a.Scope != nil {
+		scope := a.Scope.Scope()
+		if scope.typeNames != nil && scope.typeLocation != nil {
+			if _, found := scope.typeNames(att.Type, scope.typeLocation); found {
+				return scope.typeLocation.PackageName()
+			}
+		}
 	}
 	return pkg
 }

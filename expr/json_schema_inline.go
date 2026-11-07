@@ -35,18 +35,21 @@ type (
 		Discriminator        *InlineDiscriminator `json:"discriminator,omitempty"`
 		Items                *InlineSchema        `json:"items,omitempty"`
 		AdditionalProperties any                  `json:"additionalProperties,omitempty"`
-		Enum                 []any                `json:"enum,omitempty"`
-		Default              any                  `json:"default,omitempty"`
-		Minimum              any                  `json:"minimum,omitempty"`
-		Maximum              any                  `json:"maximum,omitempty"`
-		ExclusiveMinimum     any                  `json:"exclusiveMinimum,omitempty"`
-		ExclusiveMaximum     any                  `json:"exclusiveMaximum,omitempty"`
-		MinLength            *int                 `json:"minLength,omitempty"`
-		MaxLength            *int                 `json:"maxLength,omitempty"`
-		Pattern              string               `json:"pattern,omitempty"`
-		Format               string               `json:"format,omitempty"`
-		MinItems             *int                 `json:"minItems,omitempty"`
-		MaxItems             *int                 `json:"maxItems,omitempty"`
+		// UnevaluatedProperties rejects object members not evaluated by the
+		// selected union alternative when false; nil leaves the union open.
+		UnevaluatedProperties any    `json:"unevaluatedProperties,omitempty"`
+		Enum                  []any  `json:"enum,omitempty"`
+		Default               any    `json:"default,omitempty"`
+		Minimum               any    `json:"minimum,omitempty"`
+		Maximum               any    `json:"maximum,omitempty"`
+		ExclusiveMinimum      any    `json:"exclusiveMinimum,omitempty"`
+		ExclusiveMaximum      any    `json:"exclusiveMaximum,omitempty"`
+		MinLength             *int   `json:"minLength,omitempty"`
+		MaxLength             *int   `json:"maxLength,omitempty"`
+		Pattern               string `json:"pattern,omitempty"`
+		Format                string `json:"format,omitempty"`
+		MinItems              *int   `json:"minItems,omitempty"`
+		MaxItems              *int   `json:"maxItems,omitempty"`
 	}
 
 	// InlineDiscriminator mirrors the JSON Schema/OpenAPI discriminator object.
@@ -120,6 +123,15 @@ func buildInlineJSONSchema(attr *AttributeExpr, visited map[any]struct{}, contex
 	schema, err = populateInlineJSONSchemaType(schema, attr, constraints, visited, context)
 	if err != nil {
 		return nil, err
+	}
+	if attr.UnionClosed() {
+		value := schema
+		// A named nullable type has already wrapped its non-null schema.
+		// Keep closure in that value arm when a reference adds the policy.
+		for len(value.AnyOf) == 2 && value.AnyOf[1].Type == jsonTypeNull {
+			value = value.AnyOf[0]
+		}
+		value.UnevaluatedProperties = false
 	}
 	// Occurrence constraints refine the non-null domain even when nullability
 	// comes from a named type. Lift the complete refinement into the value arm.

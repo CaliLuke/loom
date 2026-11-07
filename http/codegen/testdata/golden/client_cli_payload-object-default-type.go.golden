@@ -6,7 +6,8 @@ func BuildMethodBodyInlineObjectPayload(serviceBodyInlineObjectMethodBodyInlineO
 	{
 		err = loomhttpcli.UnmarshalNonNullableJSON([]byte(serviceBodyInlineObjectMethodBodyInlineObjectBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %w, \nexample of valid JSON:\n%s", err, "'{\n      \"a\": \"In voluptas ut voluptas quasi.\"\n   }'")
+			var zero *servicebodyinlineobject.MethodBodyInlineObjectPayload
+			return zero, fmt.Errorf("invalid JSON for body, \nerror: %w, \nexample of valid JSON:\n%s", err, "'{\n      \"a\": \"In voluptas ut voluptas quasi.\"\n   }'")
 		}
 	}
 	v := &servicebodyinlineobject.MethodBodyInlineObjectPayload{}

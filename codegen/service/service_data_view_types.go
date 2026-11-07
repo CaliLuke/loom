@@ -33,7 +33,7 @@ type (
 		OccurrenceNullable bool
 		ProjectedRef       string
 		TargetType         string
-		InitName           string
+		InitNames          map[string]string
 		ValidateName       string
 		ViewExpr           string
 	}
@@ -81,12 +81,16 @@ type (
 	ViewData struct {
 		// Name is the view name.
 		Name string
+		// helperSuffix is the allocated Go suffix shared by this view's helpers.
+		helperSuffix string
 		// Description is the view description.
 		Description string
 		// Attributes is the list of attributes rendered in the view.
 		Attributes []string
-		// TypeVarName is the Go variable name of the type that defines the view.
+		// TypeVarName is the service type name that defines the view.
 		TypeVarName string
+		// MapName is the allocated metadata map name in the views package.
+		MapName string
 	}
 
 	// ProjectedTypeData contains the data used to generate a projected type for

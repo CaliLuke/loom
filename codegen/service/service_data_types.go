@@ -8,14 +8,17 @@ import (
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/uniongen"
 	"github.com/CaliLuke/loom/codegen/unionjson"
+	"github.com/CaliLuke/loom/codegen/unionnames"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/naming"
 )
 
 func collectServiceUnions(service *expr.ServiceExpr, types, errTypes []*UserTypeData, scope *codegen.NameScope) []*UnionTypeData {
-	unionByHash := make(map[string]*UnionTypeData)
-	seen := make(map[string]struct{})
+	unionsByIdentity := make(map[destinationTypeIdentity]*UnionTypeData)
+	defaultPath := naming.ServiceDir(service.Name)
+	seen := make(map[destinationTypeIdentity]struct{})
 	collect := func(att *expr.AttributeExpr, loc *codegen.Location) {
-		collectUnionTypes(att, scope, loc, unionByHash, seen)
+		collectUnionTypes(att, scope, loc, defaultPath, unionsByIdentity, seen)
 	}
 	for _, t := range types {
 		collect(&expr.AttributeExpr{Type: t.Type}, t.Loc)
@@ -37,13 +40,24 @@ func collectServiceUnions(service *expr.ServiceExpr, types, errTypes []*UserType
 			collect(errExpr.AttributeExpr, codegen.UserTypeLocation(errExpr.Type))
 		}
 	}
-	unions := make([]*UnionTypeData, 0, len(unionByHash))
-	for _, union := range unionByHash {
-		unions = append(unions, union)
+	keys := make([]destinationTypeIdentity, 0, len(unionsByIdentity))
+	for key := range unionsByIdentity {
+		keys = append(keys, key)
 	}
-	sort.Slice(unions, func(i, j int) bool {
-		return unions[i].Name < unions[j].Name
+	sort.Slice(keys, func(i, j int) bool {
+		left, right := keys[i], keys[j]
+		if unionsByIdentity[left].Name != unionsByIdentity[right].Name {
+			return unionsByIdentity[left].Name < unionsByIdentity[right].Name
+		}
+		if left.path != right.path {
+			return left.path < right.path
+		}
+		return left.hash < right.hash
 	})
+	unions := make([]*UnionTypeData, 0, len(keys))
+	for _, key := range keys {
+		unions = append(unions, unionsByIdentity[key])
+	}
 	return unions
 }
 
@@ -67,13 +81,14 @@ func collectTypes(at *expr.AttributeExpr, scope *codegen.NameScope, seen map[str
 			typeLoc = loc
 		}
 		seen[dt.ID()] = struct{}{}
+		typeScope := scope.WithTypeNameLocation(typeLoc)
 		if expr.AsUnion(dt.Attribute().Type) == nil {
 			data = append(data, &UserTypeData{
 				Name:        dt.Name(),
-				VarName:     scope.GoValueTypeName(typeReference),
+				VarName:     typeScope.GoValueTypeName(typeReference),
 				Description: dt.Attribute().Description,
-				Def:         scope.GoValueTypeDef(dt.Attribute(), false, true),
-				Ref:         scope.GoValueTypeRef(typeReference),
+				Def:         typeScope.GoValueTypeDef(dt.Attribute(), false, true),
+				Ref:         typeScope.GoValueTypeRef(typeReference),
 				Loc:         typeLoc,
 				Type:        dt,
 			})
@@ -98,67 +113,75 @@ func collectTypes(at *expr.AttributeExpr, scope *codegen.NameScope, seen map[str
 }
 
 // collectUnionTypes traverses the attribute to gather all union sum-type
-// definitions referenced by the service. It keys declarations by the referenced
-// type's hash, matching NameScope, so a named wrapper and its underlying union
-// each get the declaration used by their references.
-func collectUnionTypes(att *expr.AttributeExpr, scope *codegen.NameScope, loc *codegen.Location, unions map[string]*UnionTypeData, seen map[string]struct{}) {
+// definitions referenced by the service. Allocation and emission share physical
+// package plus type-hash identity: one raw union can be declared in more than one
+// destination. defaultPath canonicalizes an implicit service location without
+// changing the declaration's original location or import qualification.
+func collectUnionTypes(att *expr.AttributeExpr, scope *codegen.NameScope, loc *codegen.Location, defaultPath string, unions map[destinationTypeIdentity]*UnionTypeData, seen map[destinationTypeIdentity]struct{}) {
 	if att == nil || att.Type == expr.Empty {
 		return
 	}
+	if explicit := codegen.UserTypeLocation(att.Type); explicit != nil {
+		loc = explicit
+	}
+	path := defaultPath
+	if loc != nil {
+		path = loc.RelImportPath
+	}
 	switch dt := att.Type.(type) {
 	case expr.UserType:
-		if _, ok := seen[dt.ID()]; ok {
+		key := destinationTypeIdentity{path: path, hash: dt.Hash()}
+		if _, ok := seen[key]; ok {
 			return
 		}
-		seen[dt.ID()] = struct{}{}
+		seen[key] = struct{}{}
 		if union := expr.AsUnion(dt.Attribute().Type); union != nil {
-			hash := dt.Hash()
-			if _, ok := unions[hash]; !ok {
-				name := scope.GoValueTypeName(&expr.AttributeExpr{Type: dt})
-				unions[hash] = buildUnionTypeData(union, scope, codegen.UserTypeLocation(dt), name)
+			if _, ok := unions[key]; !ok {
+				unions[key] = buildUnionTypeData(dt, scope, loc)
 			}
 			for _, nat := range union.Values {
-				collectUnionTypes(nat.Attribute, scope, codegen.UserTypeLocation(dt), unions, seen)
+				collectUnionTypes(nat.Attribute, scope, loc, defaultPath, unions, seen)
 			}
 			return
 		}
-		collectUnionTypes(dt.Attribute(), scope, codegen.UserTypeLocation(dt), unions, seen)
+		collectUnionTypes(dt.Attribute(), scope, loc, defaultPath, unions, seen)
 	case *expr.Object:
 		for _, nat := range sortedNamedAttributes(*dt) {
-			collectUnionTypes(nat.Attribute, scope, loc, unions, seen)
+			collectUnionTypes(nat.Attribute, scope, loc, defaultPath, unions, seen)
 		}
-		collectUnionTypes(att.AdditionalAttributes, scope, loc, unions, seen)
+		collectUnionTypes(att.AdditionalAttributes, scope, loc, defaultPath, unions, seen)
 	case *expr.Array:
-		collectUnionTypes(dt.ElemType, scope, loc, unions, seen)
+		collectUnionTypes(dt.ElemType, scope, loc, defaultPath, unions, seen)
 	case *expr.Map:
-		collectUnionTypes(dt.KeyType, scope, loc, unions, seen)
-		collectUnionTypes(dt.ElemType, scope, loc, unions, seen)
+		collectUnionTypes(dt.KeyType, scope, loc, defaultPath, unions, seen)
+		collectUnionTypes(dt.ElemType, scope, loc, defaultPath, unions, seen)
 	case *expr.Union:
-		hash := dt.Hash()
-		if _, ok := unions[hash]; !ok {
-			unions[hash] = buildUnionTypeData(dt, scope, loc)
+		key := destinationTypeIdentity{path: path, hash: dt.Hash()}
+		if _, ok := unions[key]; !ok {
+			unions[key] = buildUnionTypeData(dt, scope, loc)
 		}
 		for _, nat := range dt.Values {
-			collectUnionTypes(nat.Attribute, scope, loc, unions, seen)
+			collectUnionTypes(nat.Attribute, scope, loc, defaultPath, unions, seen)
 		}
 	}
 }
 
 // buildUnionTypeData creates the data needed to generate a sum-type union
 // struct, its discriminator kind, and branch metadata.
-func buildUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codegen.Location, names ...string) *UnionTypeData {
-	att := &expr.AttributeExpr{Type: u}
-	name := scope.GoTypeName(att)
-	if len(names) > 0 {
-		name = names[0]
-	}
-	kindName := scope.Unique(name + "Kind")
+func buildUnionTypeData(typ expr.DataType, scope *codegen.NameScope, loc *codegen.Location) *UnionTypeData {
+	scope = scope.WithTypeNameLocation(loc)
+	u := expr.AsUnion(typ)
+	name := scope.GoValueTypeName(&expr.AttributeExpr{Type: typ})
+	declarations := nativeTypeDeclarations(typ, name, nil)
+	kindName := declarations.union.KindName
 	unionPkg := scope.PackageName(loc)
 
+	members := unionnames.Resolve(u)
 	fields := make([]*uniongen.Field, len(u.Values))
 	hasScalarFormBranch := false
 	for i, nat := range u.Values {
-		fieldName := codegen.Goify(nat.Name, true)
+		member := members[nat.Name]
+		fieldName := member.Field
 		var pkg string
 		if tloc := codegen.UserTypeLocation(nat.Attribute.Type); tloc != nil {
 			pkg = scope.PackageName(tloc)
@@ -173,13 +196,14 @@ func buildUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codegen.Lo
 		// gets a named alias of loom.JSONValue.
 		emitPrimitiveAlias := hasPrimitiveAlias && primitiveAliasType == "loom.JSONValue" && !isUserType && pkg == ""
 		if emitPrimitiveAlias {
-			fieldType = scope.Unique(name + fieldName)
+			fieldType = declarations.aliases[nat.Name]
 		}
-		kindConst := kindName + codegen.Goify(nat.Name, true)
+		kindConst := declarations.union.Branches[nat.Name].KindConst
 		fields[i] = &uniongen.Field{
 			Name:                      expr.AttributeName(nat.Name),
 			KindConst:                 kindConst,
 			FieldName:                 fieldName,
+			MethodName:                member.Method,
 			FieldType:                 fieldType,
 			AllowsNull:                expr.AllowsNull(nat.Attribute),
 			FlatFormObject:            expr.IsObject(nat.Attribute.Type),
@@ -204,6 +228,7 @@ func buildUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codegen.Lo
 			TypeKey:             u.GetTypeKey(),
 			ValueKey:            u.GetValueKey(),
 			Untagged:            u.Untagged,
+			Closed:              u.Closed(),
 			JSON:                analyzeUnionJSON(name, u, fields),
 			HasScalarFormBranch: hasScalarFormBranch,
 		},
@@ -214,31 +239,32 @@ func buildUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codegen.Lo
 // buildViewUnionTypeData creates the data needed to generate a sum-type union
 // in the views package. Field types are computed using the view scope and are
 // always emitted unqualified so they refer to the view-local projected types.
-// The union takes the name given in names, if any, like in buildUnionTypeData.
-func buildViewUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codegen.Location, names ...string) *UnionTypeData {
-	att := &expr.AttributeExpr{Type: u}
-	name := scope.GoTypeName(att)
-	if len(names) > 0 {
-		name = names[0]
-	}
-	kindName := scope.Unique(name + "Kind")
+// The declaration uses the actual nominal type identity, as do its references.
+func buildViewUnionTypeData(typ expr.DataType, scope *codegen.NameScope, loc *codegen.Location) *UnionTypeData {
+	u := expr.AsUnion(typ)
+	name := scope.GoValueTypeName(&expr.AttributeExpr{Type: typ})
+	declarations := nativeTypeDeclarations(typ, name, viewValidatorNames(typ, name))
+	kindName := declarations.union.KindName
 
+	members := unionnames.Resolve(u)
 	fields := make([]*uniongen.Field, len(u.Values))
 	hasScalarFormBranch := false
 	for i, nat := range u.Values {
-		fieldName := codegen.Goify(nat.Name, true)
+		member := members[nat.Name]
+		fieldName := member.Field
 		fieldType := scope.GoTypeRef(nat.Attribute)
 		primitiveAliasType, hasPrimitiveAlias := primitiveAliasGoType(nat.Attribute.Type)
 		_, isUserType := nat.Attribute.Type.(expr.UserType)
 		emitPrimitiveAlias := hasPrimitiveAlias && primitiveAliasType == "loom.JSONValue" && !isUserType
 		if emitPrimitiveAlias {
-			fieldType = scope.Unique(name + fieldName)
+			fieldType = declarations.aliases[nat.Name]
 		}
-		kindConst := kindName + codegen.Goify(nat.Name, true)
+		kindConst := declarations.union.Branches[nat.Name].KindConst
 		fields[i] = &uniongen.Field{
 			Name:                      expr.AttributeName(nat.Name),
 			KindConst:                 kindConst,
 			FieldName:                 fieldName,
+			MethodName:                member.Method,
 			FieldType:                 fieldType,
 			AllowsNull:                expr.AllowsNull(nat.Attribute),
 			FlatFormObject:            expr.IsObject(nat.Attribute.Type),
@@ -263,6 +289,7 @@ func buildViewUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codege
 			TypeKey:             u.GetTypeKey(),
 			ValueKey:            u.GetValueKey(),
 			Untagged:            u.Untagged,
+			Closed:              u.Closed(),
 			JSON:                analyzeUnionJSON(name, u, fields),
 			HasScalarFormBranch: hasScalarFormBranch,
 		},
@@ -270,8 +297,10 @@ func buildViewUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codege
 }
 
 func unionBranchValidationCode(att *expr.AttributeExpr, ctx *codegen.AttributeContext, view bool) string {
-	ut := att.Type.(expr.UserType)
-	return codegen.ValidationCode(ut.Attribute(), ut, ctx, true, false, view, "v")
+	if ut, named := att.Type.(expr.UserType); named && !expr.IsNullable(att) {
+		return codegen.ValidationCode(ut.Attribute(), ut, ctx, true, expr.IsAlias(ut), view, "v")
+	}
+	return codegen.ValidationCode(att, nil, ctx, true, expr.IsAlias(att.Type), view, "v")
 }
 
 func buildUntaggedUnionValidations(union *expr.Union, scope *codegen.NameScope, loc *codegen.Location) []*unionValidationData {

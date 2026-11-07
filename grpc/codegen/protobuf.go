@@ -18,6 +18,11 @@ type (
 	}
 )
 
+// WithScope preserves protobuf naming and field layout while changing scopes.
+func (p *protoBufScope) WithScope(scope *codegen.NameScope) codegen.Attributor {
+	return &protoBufScope{scope: scope}
+}
+
 // Name returns the protocol buffer type name.
 func (p *protoBufScope) Name(att *expr.AttributeExpr, pkg string, _, _ bool) string {
 	return protoBufGoFullTypeName(att, pkg, p.scope)

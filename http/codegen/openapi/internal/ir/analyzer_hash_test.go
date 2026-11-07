@@ -294,6 +294,45 @@ func TestAnalyzerCollisionNamesAreStableForReorderedInputs(t *testing.T) {
 	require.Regexp(t, `^#/components/schemas/Payload_[0-9a-f]{16}$`, first)
 }
 
+func TestAttributeFingerprintIncludesEffectiveUnionClosure(t *testing.T) {
+	values := []*expr.NamedAttributeExpr{
+		{Name: "Object", Attribute: &expr.AttributeExpr{Type: &expr.Object{{Name: "x", Attribute: &expr.AttributeExpr{Type: expr.Int}}}}},
+		{Name: "Text", Attribute: &expr.AttributeExpr{Type: expr.String}},
+	}
+	open := &expr.AttributeExpr{Type: &expr.Union{TypeName: "Choice", Untagged: true, Values: values}}
+	closed := expr.DupAtt(open)
+	closed.Meta = expr.MetaExpr{"openapi:unevaluatedProperties": {"false"}}
+	captured, err := closed.CaptureUnionClosure()
+	require.NoError(t, err)
+	materialized := &expr.AttributeExpr{Type: captured}
+	for _, wrap := range []struct {
+		name  string
+		apply func(*expr.AttributeExpr) *expr.AttributeExpr
+	}{
+		{"raw", func(a *expr.AttributeExpr) *expr.AttributeExpr {
+			return a
+		}},
+		{"named", func(a *expr.AttributeExpr) *expr.AttributeExpr {
+			return &expr.AttributeExpr{Type: &expr.UserTypeExpr{TypeName: "Named", AttributeExpr: a}}
+		}},
+		{"alias", func(a *expr.AttributeExpr) *expr.AttributeExpr {
+			base := &expr.UserTypeExpr{TypeName: "Named", AttributeExpr: a}
+			return &expr.AttributeExpr{Type: &expr.UserTypeExpr{TypeName: "Alias", AttributeExpr: &expr.AttributeExpr{Type: base}}}
+		}},
+	} {
+		t.Run(wrap.name, func(t *testing.T) {
+			openUse, closedUse := wrap.apply(open), wrap.apply(closed)
+			occurrence := expr.DupAtt(openUse)
+			occurrence.Meta = expr.MetaExpr{"openapi:unevaluatedProperties": {"false"}}
+			for _, value := range []*expr.AttributeExpr{closedUse, occurrence, wrap.apply(materialized)} {
+				require.NotEqual(t, fingerprintAttribute(openUse, false), fingerprintAttribute(value, false))
+				require.Equal(t, fingerprintAttribute(materialized, false), fingerprintAttribute(value, false))
+			}
+			require.False(t, openUse.UnionClosed())
+		})
+	}
+}
+
 func fingerprintObject(members ...*expr.NamedAttributeExpr) *expr.AttributeExpr {
 	object := expr.Object(members)
 	return &expr.AttributeExpr{Type: &object}

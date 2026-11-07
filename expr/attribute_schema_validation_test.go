@@ -14,7 +14,7 @@ func TestSchemaValidationDoesNotAdmitUnsupportedCodecs(t *testing.T) {
 		}
 		t.Run(name, func(t *testing.T) {
 			union := &AttributeExpr{Type: &Union{TypeName: "ScalarChoice", Untagged: true, Values: []*NamedAttributeExpr{
-				{Name: "text", Attribute: &AttributeExpr{Type: String}},
+				{Name: "text", Attribute: &AttributeExpr{Type: String, Meta: MetaExpr{"struct:field:type": {"Custom"}}}},
 				{Name: "number", Attribute: &AttributeExpr{Type: Int}},
 			}}}
 			attribute := &AttributeExpr{Type: &Map{KeyType: &AttributeExpr{Type: String}, ElemType: &AttributeExpr{
@@ -24,7 +24,7 @@ func TestSchemaValidationDoesNotAdmitUnsupportedCodecs(t *testing.T) {
 				require.Empty(t, attribute.validateSchema("documentation", attribute).Errors)
 			}
 			checkRuntime := func() {
-				require.ErrorContains(t, attribute.Validate("runtime", attribute), "must be a concrete named object or array type")
+				require.ErrorContains(t, attribute.Validate("runtime", attribute), "opaque codec")
 			}
 			if schemaFirst {
 				checkSchema()

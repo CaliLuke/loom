@@ -32,7 +32,10 @@ func (d *ServicesData) analyze(service *expr.ServiceExpr) (data *Data) {
 	}()
 
 	scope, viewScope, pkgName, viewspkg := newServiceScopes(d.Root, service, d.packageNames)
+	scope.SetTypeFamilies(serviceTypeFamilies(d.Root, service))
+	viewScope.SetTypeFamilies(viewTypeFamilies)
 	symbols, interceptorSymbols := d.serviceSymbols(service, scope)
+	d.configureDestinationTypes(service, scope)
 	state := d.collectServiceAnalysisData(service, scope, viewScope, viewspkg)
 	seen := analysisSeenTypes(state.types, state.errTypes)
 	wrapRawObjectMethods(service, scope, seen)

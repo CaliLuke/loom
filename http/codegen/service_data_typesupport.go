@@ -5,6 +5,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/CaliLuke/loom/codegen/unionnames"
+
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/uniongen"
 	"github.com/CaliLuke/loom/codegen/unionjson"
@@ -21,7 +23,7 @@ func makeHTTPType(att *expr.AttributeExpr) *expr.AttributeExpr {
 		return nil
 	}
 	att = expr.DupAtt(att)
-	return makeHTTPTypeRecursive(att, make(map[string]struct{}))
+	return makeHTTPTypeRecursive(att, make(map[expr.UserType]struct{}))
 }
 
 // makeHTTPMappedType keeps mapping defaults and validation while taking Go
@@ -32,7 +34,7 @@ func makeHTTPMappedType(mapped, service *expr.AttributeExpr) *expr.AttributeExpr
 	return makeHTTPType(&attr)
 }
 
-func makeHTTPTypeRecursive(att *expr.AttributeExpr, seen map[string]struct{}) *expr.AttributeExpr {
+func makeHTTPTypeRecursive(att *expr.AttributeExpr, seen map[expr.UserType]struct{}) *expr.AttributeExpr {
 	constraints := selectedTransportConstraints(att)
 	defaultValue, hasDefault := constraints.Default()
 	switch dt := att.Type.(type) {
@@ -40,6 +42,7 @@ func makeHTTPTypeRecursive(att *expr.AttributeExpr, seen map[string]struct{}) *e
 		_, result := dt.(*expr.ResultTypeExpr)
 		alias := !result && !expr.IsObject(dt) && !expr.IsUnion(dt)
 		if alias {
+			att.Meta = expr.HTTPMediaMetadata(att)
 			att.Type = dt.Attribute().Type
 			att.Validation = constraints.Validation().Lowered()
 			if att.Validation.HasRequiredOnly() && len(att.Validation.Required) == 0 {
@@ -50,10 +53,10 @@ func makeHTTPTypeRecursive(att *expr.AttributeExpr, seen map[string]struct{}) *e
 			}
 			att.UserExamples = dt.Attribute().UserExamples
 		}
-		if _, ok := seen[dt.ID()]; ok {
+		if _, ok := seen[dt]; ok {
 			return att
 		}
-		seen[dt.ID()] = struct{}{}
+		seen[dt] = struct{}{}
 		dt.SetAttribute(makeHTTPTypeRecursive(dt.Attribute(), seen))
 		if alias {
 			// Use the fully normalized type without replacing the outer
@@ -160,7 +163,7 @@ func collectHTTPUnionTypes(att *expr.AttributeExpr, scope *codegen.NameScope, un
 			name := scope.GoValueTypeName(&expr.AttributeExpr{Type: dt})
 			if _, ok := unions[name]; !ok {
 				if allocated[name] == nil {
-					allocated[name] = buildHTTPUnionTypeData(union, scope, closedObjects, name)
+					allocated[name] = buildHTTPUnionTypeData(dt, scope, closedObjects)
 				}
 				unions[name] = allocated[name]
 			}
@@ -184,7 +187,7 @@ func collectHTTPUnionTypes(att *expr.AttributeExpr, scope *codegen.NameScope, un
 		name := scope.GoTypeName(&expr.AttributeExpr{Type: dt})
 		if _, ok := unions[name]; !ok {
 			if allocated[name] == nil {
-				allocated[name] = buildHTTPUnionTypeData(dt, scope, closedObjects, name)
+				allocated[name] = buildHTTPUnionTypeData(dt, scope, closedObjects)
 			}
 			unions[name] = allocated[name]
 		}
@@ -194,24 +197,27 @@ func collectHTTPUnionTypes(att *expr.AttributeExpr, scope *codegen.NameScope, un
 	}
 }
 
-func buildHTTPUnionTypeData(u *expr.Union, scope *codegen.NameScope, closedObjects bool, names ...string) *uniongen.Type {
-	att := &expr.AttributeExpr{Type: u}
-	name := scope.GoTypeName(att)
-	if len(names) > 0 {
-		name = names[0]
-	}
-	kindName := scope.Unique(name + "Kind")
+func buildHTTPUnionTypeData(typ expr.DataType, scope *codegen.NameScope, closedObjects bool) *uniongen.Type {
+	u := expr.AsUnion(typ)
+	name := scope.HashedUniqueFamily(typ, codegen.Goify(typ.Name(), true), func(name string) []string {
+		return unionnames.PackageDeclarations(u, name).Names
+	})
+	symbols := unionnames.PackageDeclarations(u, name)
+	kindName := symbols.KindName
 
+	members := unionnames.Resolve(u)
 	fields := make([]*uniongen.Field, len(u.Values))
 	hasScalarFormBranch := false
 	for i, nat := range u.Values {
-		fieldName := codegen.Goify(nat.Name, true)
+		member := members[nat.Name]
+		fieldName := member.Field
 		fieldType := scope.GoTypeRef(nat.Attribute)
-		kindConst := kindName + fieldName
+		kindConst := symbols.Branches[nat.Name].KindConst
 		fields[i] = &uniongen.Field{
 			Name:                      expr.AttributeName(nat.Name),
 			KindConst:                 kindConst,
 			FieldName:                 fieldName,
+			MethodName:                member.Method,
 			FieldType:                 fieldType,
 			AllowsNull:                expr.AllowsNull(nat.Attribute),
 			TypeTag:                   expr.UnionVariantTag(nat),
@@ -221,7 +227,12 @@ func buildHTTPUnionTypeData(u *expr.Union, scope *codegen.NameScope, closedObjec
 			EmitPrimitiveAlias:        false,
 		}
 		if u.Untagged {
-			fields[i].ValidateRef = unionBranchValidateRef(fieldType)
+			if _, named := nat.Attribute.Type.(expr.UserType); named && !expr.IsNullable(nat.Attribute) && !expr.IsPrimitive(nat.Attribute.Type) && !expr.IsUnion(nat.Attribute.Type) {
+				fields[i].ValidateRef = unionBranchValidateRef(fieldType)
+				fields[i].ValidateCode = "err = " + fields[i].ValidateRef
+			} else {
+				fields[i].ValidateCode = codegen.ValidationCode(nat.Attribute, nil, bodyCodecContext(scope, false), true, expr.IsAlias(nat.Attribute.Type), false, "v")
+			}
 		}
 		hasScalarFormBranch = hasScalarFormBranch || !fields[i].FlatFormObject
 	}
@@ -230,7 +241,7 @@ func buildHTTPUnionTypeData(u *expr.Union, scope *codegen.NameScope, closedObjec
 	if u.Untagged {
 		branches := make([]*unionjson.Branch, len(fields))
 		for i, field := range fields {
-			branches[i] = &unionjson.Branch{Type: field.FieldType, Field: field.FieldName, Kind: field.KindConst, Validate: "err = " + field.ValidateRef}
+			branches[i] = &unionjson.Branch{Type: field.FieldType, Field: field.FieldName, Kind: field.KindConst, Validate: field.ValidateCode}
 		}
 		jsonUnion = unionjson.Analyze(name, u, branches, expr.ElementName, closedObjects)
 	}
@@ -242,6 +253,7 @@ func buildHTTPUnionTypeData(u *expr.Union, scope *codegen.NameScope, closedObjec
 		TypeKey:             u.GetTypeKey(),
 		ValueKey:            u.GetValueKey(),
 		Untagged:            u.Untagged,
+		Closed:              u.Closed(),
 		JSON:                jsonUnion,
 		HasScalarFormBranch: hasScalarFormBranch,
 	}

@@ -45,7 +45,9 @@ func TestPlanOwnsRepresentationPolicy(t *testing.T) {
 				}}}
 			}
 			t.Run(fmt.Sprintf("%s/%s", tc.name, container), func(t *testing.T) {
-				plan, err := Plan(target, tc.fieldName, tc.schema, tc.closed)
+				plan, err := Plan(target, func(name string, attribute *expr.AttributeExpr) string {
+					return expr.JSONFieldName(tc.fieldName(name), attribute)
+				}, tc.schema, tc.closed)
 				require.NoError(t, err)
 				shape, err := plan.JSONShape()
 				require.NoError(t, err)
@@ -80,7 +82,7 @@ func TestPlanHonorsAuthoredOpenness(t *testing.T) {
 			branch := &expr.AttributeExpr{Type: &expr.UserTypeExpr{TypeName: "Branch", AttributeExpr: &expr.AttributeExpr{
 				Type: &expr.Object{{Name: "extras", Attribute: &expr.AttributeExpr{Type: &expr.UserTypeExpr{TypeName: "Extras", AttributeExpr: extras}}}},
 			}}}
-			plan, err := Plan(branch, expr.ElementName, true, tc.closed)
+			plan, err := Plan(branch, transportJSONFieldName, true, tc.closed)
 			require.NoError(t, err)
 			shape, err := plan.JSONShape()
 			require.NoError(t, err)
@@ -126,7 +128,7 @@ func TestPlanAppliesOccurrenceOpenness(t *testing.T) {
 		{"nested recursive occurrence", &expr.AttributeExpr{Type: node}, false, `{"next":{"next":{"id":"c","more":1}}}`, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			plan, err := Plan(tc.source, expr.ElementName, true, tc.closed)
+			plan, err := Plan(tc.source, transportJSONFieldName, true, tc.closed)
 			require.NoError(t, err)
 			shape, err := plan.JSONShape()
 			require.NoError(t, err)

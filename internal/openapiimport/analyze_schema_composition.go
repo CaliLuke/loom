@@ -40,7 +40,7 @@ func (a *analyzer) schemaNullableAnyOf(schema *Schema, source *base.Schema, path
 		}
 		value = a.schema(proxy, fmt.Sprintf("%s/anyOf/%d", path, index))
 	}
-	if value == nil || value.Type == "" && value.Ref == "" && !value.Unconstrained {
+	if value == nil || value.Type == "" && value.Ref == "" && !value.Unconstrained && len(value.OneOf) == 0 {
 		return false
 	}
 	*schema = *value
@@ -48,70 +48,6 @@ func (a *analyzer) schemaNullableAnyOf(schema *Schema, source *base.Schema, path
 	// is semantically redundant and does not need a separate nullable wrapper.
 	schema.Nullable = !schema.Unconstrained
 	return true
-}
-
-func schemaNullableReferenceOneOf(schema *Schema, source *base.Schema) bool {
-	if len(source.OneOf) != 2 || len(source.AnyOf) > 0 || len(source.AllOf) > 0 || hasDirectAllOfSchemaShape(source) {
-		return false
-	}
-	var ref string
-	for _, proxy := range source.OneOf {
-		if isNullOnlySchema(proxy) {
-			continue
-		}
-		if ref != "" || !isNonNullableLocalReference(proxy) {
-			return false
-		}
-		ref = proxy.GetReference()
-	}
-	if ref == "" {
-		return false
-	}
-	schema.Ref = ref
-	schema.Nullable = true
-	return true
-}
-
-func (a *analyzer) schemaUntaggedOneOf(schema *Schema, source *base.Schema, path string) bool {
-	if len(source.OneOf) < 2 || len(source.AnyOf) > 0 || len(source.AllOf) > 0 || hasDirectAllOfSchemaShape(source) {
-		return false
-	}
-	branches := make([]*Schema, 0, len(source.OneOf))
-	for index, proxy := range source.OneOf {
-		if proxy == nil || !isObjectSchemaProxy(proxy) && !isArraySchemaProxy(proxy) {
-			return false
-		}
-		branch := a.schema(proxy, fmt.Sprintf("%s/oneOf/%d", path, index))
-		if branch == nil || branch.unsupportedComposition {
-			return false
-		}
-		branches = append(branches, branch)
-	}
-	schema.OneOf = branches
-	return true
-}
-
-func isArraySchemaProxy(proxy *base.SchemaProxy) bool {
-	if proxy == nil || !proxy.IsReference() || !isNonNullableLocalReference(proxy) {
-		return false
-	}
-	resolved := proxy.Schema()
-	return len(resolved.Type) == 1 && resolved.Type[0] == "array"
-}
-
-func isObjectSchemaProxy(proxy *base.SchemaProxy) bool {
-	if proxy == nil {
-		return false
-	}
-	if proxy.IsReference() && !isNonNullableLocalReference(proxy) {
-		return false
-	}
-	resolved := proxy.Schema()
-	if resolved == nil || resolved.Nullable != nil && *resolved.Nullable {
-		return false
-	}
-	return len(resolved.Type) == 1 && resolved.Type[0] == "object" ||
-		len(resolved.Type) == 0 && orderedmap.Len(resolved.Properties) > 0
 }
 
 func isNullOnlySchema(proxy *base.SchemaProxy) bool {
@@ -124,18 +60,6 @@ func isNullOnlySchema(proxy *base.SchemaProxy) bool {
 	}
 	node := semanticSchemaNode(proxy)
 	return node != nil && len(node.Content) == 2 && node.Content[0].Value == "type"
-}
-
-func isNonNullableLocalReference(proxy *base.SchemaProxy) bool {
-	if proxy == nil || !proxy.IsReference() || proxy.IsTransformedRefWithSiblings() {
-		return false
-	}
-	if _, err := openapiref.Name(proxy.GetReference(), "#/components/schemas/"); err != nil {
-		return false
-	}
-	resolved := proxy.Schema()
-	return resolved != nil && len(resolved.Type) == 1 && resolved.Type[0] != "null" &&
-		(resolved.Nullable == nil || !*resolved.Nullable)
 }
 
 func (a *analyzer) schemaAllOf(schema *Schema, source *base.Schema, path string) bool {

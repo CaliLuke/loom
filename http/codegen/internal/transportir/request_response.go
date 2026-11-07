@@ -51,8 +51,9 @@ func buildRequest(endpoint *expr.HTTPEndpointExpr) *Request {
 		Cookies:              buildCookieParameters(endpoint),
 		MapQueryParams:       endpoint.MapQueryParams,
 		Multipart:            endpoint.MultipartRequest,
+		MultipartEncoding:    multipartBodyEncoding(body, endpoint.MultipartRequest),
 		FormEncoded:          endpoint.FormRequest,
-		FormFieldCodecs:      formFieldCodecs(body, endpoint.FormRequest),
+		Form:                 formBodyEncoding(body, endpoint.FormRequest),
 		OptionalBody:         endpoint.OptionalRequestBody,
 		MustHaveBody:         mustHaveBody,
 		SkipBodyEncode:       endpoint.SkipRequestBodyEncodeDecode,
@@ -371,13 +372,13 @@ func normalizeHTTPAttribute(attr *expr.AttributeExpr) *expr.AttributeExpr {
 	if err != nil {
 		panic(fmt.Sprintf("invalid HTTP attribute constraints: %v", err))
 	}
-	return normalizeHTTPAttributeRecursive(cloned, occurrence, make(map[string]struct{}))
+	return normalizeHTTPAttributeRecursive(cloned, occurrence, make(map[expr.UserType]struct{}))
 }
 
 func normalizeHTTPAttributeRecursive(
 	attr *expr.AttributeExpr,
 	occurrence expr.ValueOccurrence,
-	seen map[string]struct{},
+	seen map[expr.UserType]struct{},
 ) *expr.AttributeExpr {
 	if occurrence == (expr.ValueOccurrence{}) {
 		panic("invalid HTTP normalization: missing captured occurrence")
@@ -392,6 +393,14 @@ func normalizeHTTPAttributeRecursive(
 		_, result := actual.(*expr.ResultTypeExpr)
 		flattened := !result && !expr.IsObject(actual) && !hasCanonicalOpenAPITypeName(attr, actual)
 		if flattened {
+			// Source schema kind controls field encoding application. Retain its
+			// occurrence-first value before removing the named declaration.
+			if source, ok := expr.HTTPMediaMetadata(attr)["http:encoding:sourceType"]; ok {
+				if attr.Meta == nil {
+					attr.Meta = expr.MetaExpr{}
+				}
+				attr.Meta["http:encoding:sourceType"] = source
+			}
 			// Preserve inherited nullability before removing the named type.
 			attr.Nullable = expr.IsNullable(attr)
 			attr.Type = actual.Attribute().Type
@@ -403,10 +412,10 @@ func normalizeHTTPAttributeRecursive(
 				attr.DefaultValue = defaultValue
 			}
 		}
-		if _, ok := seen[actual.ID()]; ok {
+		if _, ok := seen[actual]; ok {
 			return attr
 		}
-		seen[actual.ID()] = struct{}{}
+		seen[actual] = struct{}{}
 		actual.SetAttribute(normalizeHTTPAttributeRecursive(actual.Attribute(), occurrence.Underlying(), seen))
 		if flattened {
 			attr.Type = actual.Attribute().Type
@@ -427,7 +436,7 @@ func normalizeHTTPAttributeRecursive(
 
 // normalizeHTTPObject normalizes the members of an object attribute, and its
 // typed AdditionalAttributes, against the captured occurrence.
-func normalizeHTTPObject(attr *expr.AttributeExpr, actual *expr.Object, occurrence expr.ValueOccurrence, seen map[string]struct{}) {
+func normalizeHTTPObject(attr *expr.AttributeExpr, actual *expr.Object, occurrence expr.ValueOccurrence, seen map[expr.UserType]struct{}) {
 	members := occurrence.Members()
 	if len(members) != len(*actual) {
 		panic("invalid HTTP normalization: captured object shape differs")

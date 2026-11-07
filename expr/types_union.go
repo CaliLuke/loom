@@ -16,6 +16,12 @@ func (u *Union) Hash() string {
 	return Hash(u, true, false, true)
 }
 
+// Closed reports whether this finalized union rejects object members that the
+// uniquely selected alternative does not evaluate. It never closes branches.
+func (u *Union) Closed() bool {
+	return u.closed
+}
+
 // IsCompatible returns true if u describes the (Go) type of val.
 func (u *Union) IsCompatible(val any) bool {
 	for _, nat := range u.Values {

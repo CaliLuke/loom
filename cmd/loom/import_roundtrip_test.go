@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -322,12 +323,20 @@ func compareOpenAPIContracts(expected, actual *openapiimport.Document) error {
 	if err != nil {
 		return err
 	}
+	if err := newComparisonSchemaResolver(expectedNormalized, expectedNormalized).normalizeReferences(expectedNormalized); err != nil {
+		return err
+	}
 	normalized, err := normalizeGeneratedOpenAPIContract(expected, actual)
 	if err != nil {
 		return err
 	}
 	normalizeEmptyOpenAPICollections(expectedNormalized)
 	normalizeEmptyOpenAPICollections(normalized)
+	for _, document := range []*openapiimport.Document{expectedNormalized, normalized} {
+		if err := normalizeComparisonUnionOrder(document); err != nil {
+			return err
+		}
+	}
 	expectedJSON, err := json.Marshal(expectedNormalized, json.Deterministic(true))
 	if err != nil {
 		return fmt.Errorf("marshal expected OpenAPI semantic contract: %w", err)
@@ -440,15 +449,6 @@ func normalizeOpenAPIParameter(parameter *openapiimport.Parameter) {
 
 func normalizeOpenAPIRequestBody(body *openapiimport.RequestBody) {
 	normalizeOpenAPISchema(body.Schema)
-	for name, source := range body.FormEncoding {
-		if source.Style != "" || source.Explode != nil || source.AllowReserved != nil {
-			if source.Style == "" {
-				source.Style = "form"
-			}
-			source.MediaType = "" // Style fields override contentType in form encoding.
-		}
-		body.FormEncoding[name] = normalizeComparisonSerialization(source)
-	}
 }
 
 // normalizeComparisonSerialization removes only fields equal to their effective
@@ -488,6 +488,20 @@ func normalizeOpenAPISchema(schema *openapiimport.Schema) {
 	if schema == nil {
 		return
 	}
+	// Nullable already records exactly this two-type domain. Do not remove
+	// broader type unions or a null spelling whose membership was excluded.
+	if schema.Nullable && schema.Type != "" && schema.Type != "null" && len(schema.TypeUnion) == 2 && slices.Contains(schema.TypeUnion, schema.Type) && slices.Contains(schema.TypeUnion, "null") {
+		schema.TypeUnion = nil
+	}
+	for name, source := range schema.MediaEncoding {
+		if source.Style != "" || source.Explode != nil || source.AllowReserved != nil {
+			if source.Style == "" {
+				source.Style = "form"
+			}
+			source.MediaType = "" // Style fields override contentType in field encoding.
+		}
+		schema.MediaEncoding[name] = normalizeComparisonSerialization(source)
+	}
 	if len(schema.Properties) == 0 {
 		schema.Properties = nil
 	}
@@ -499,6 +513,12 @@ func normalizeOpenAPISchema(schema *openapiimport.Schema) {
 	}
 	if len(schema.Enum) == 0 {
 		schema.Enum = nil
+	}
+	for _, branch := range schema.OneOf {
+		normalizeOpenAPISchema(branch)
+	}
+	for _, base := range schema.Bases {
+		normalizeOpenAPISchema(base)
 	}
 	normalizeOpenAPISchema(schema.Items)
 	if schema.AdditionalProperties != nil {
@@ -604,6 +624,9 @@ func normalizeGeneratedOpenAPIContract(expected, actual *openapiimport.Document)
 				actualParameter.Schema.Description = ""
 			}
 		}
+	}
+	if err := resolver.normalizeReferences(normalized); err != nil {
+		return nil, err
 	}
 	resolver.prune(normalized)
 	return normalized, nil

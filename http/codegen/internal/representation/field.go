@@ -30,21 +30,20 @@ func ResolveField(parent *expr.ObjectFields, name string, attribute *expr.Attrib
 	facts := parent.FieldFacts(name)
 	wireOptional := !facts.LayoutRequired || facts.HasDefault
 	explicit := codegen.IsExplicitPresenceType(attribute)
-	layout := encodingmeta.FieldLayout{
-		WrapNullable: expr.AllowsNull(attribute) && !expr.IsNullable(attribute) && !expr.IsAny(attribute.Type),
-	}
-	layout.WrapOptional = !layout.WrapNullable && jsonPresence && wireOptional && !expr.AllowsNull(attribute)
+	nativePresence := expr.HasNativeJSONPresence(attribute)
+	layout := encodingmeta.FieldLayout{}
+	layout.WrapOptional = !explicit && !nativePresence && jsonPresence && wireOptional
 	switch {
-	case explicit, jsonPresence && wireOptional:
+	case explicit, nativePresence, jsonPresence && wireOptional:
 	case expr.IsPrimitive(attribute.Type):
 		layout.Pointer = (pointer || facts.PrimitivePointer(useDefault)) && attribute.Type != expr.Bytes && !expr.IsAny(attribute.Type)
 	case expr.IsObject(attribute.Type), expr.IsUnion(attribute.Type) && !facts.LayoutRequired:
 		layout.Pointer = true
 	}
 	optional := objectFieldOptional(facts, pointer, useDefault)
-	normalize := wireOptional && (jsonPresence || explicit || expr.AllowsNull(attribute))
+	normalize := wireOptional && (jsonPresence || explicit || nativePresence)
 	layout.JSON = encodingmeta.JSONFieldPolicy{
-		Storage:       attribute.JSONFieldStorage(layout.Pointer, explicit || layout.WrapNullable || layout.WrapOptional),
+		Storage:       attribute.JSONFieldStorage(layout.Pointer, explicit || nativePresence || layout.WrapOptional),
 		Optional:      optional || normalize,
 		Presence:      normalize,
 		ForceOmission: isJSONRPCID(attribute),

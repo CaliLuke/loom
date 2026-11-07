@@ -26,7 +26,7 @@ func decodeJSON(plan *valuePlanNode, wire jsontext.Value) (ResolvedValue, bool) 
 		return ResolvedValue{}, false
 	}
 	decoded, valid := decodeJSONBody(plan, wire)
-	if !valid || !decodedJSONAllowed(plan, decoded, valueJSONValueDomain) {
+	if !valid || !decodedJSONAllowed(plan, decoded, valueJSONValueDomain) || !decodedUnionClosure(plan, wire, decoded) {
 		return ResolvedValue{}, false
 	}
 	return decoded, true
@@ -163,16 +163,16 @@ func decodeJSONObject(plan *valuePlanNode, wire jsontext.Value, result ResolvedV
 		return ResolvedValue{}, false
 	}
 	sort.Strings(extras)
-	if plan.preserveAdditional {
-		for _, name := range extras {
-			child := ResolvedValue{node: &resolvedValueNode{presence: ValuePresent, json: entries[name]}}
-			if plan.additional != nil {
-				var valid bool
-				child, valid = decodeJSON(plan.additional, entries[name])
-				if !valid {
-					return ResolvedValue{}, false
-				}
+	for _, name := range extras {
+		child := ResolvedValue{node: &resolvedValueNode{presence: ValuePresent, json: entries[name]}}
+		if plan.additional != nil {
+			var valid bool
+			child, valid = decodeJSON(plan.additional, entries[name])
+			if !valid {
+				return ResolvedValue{}, false
 			}
+		}
+		if plan.preserveAdditional {
 			result.node.fields = append(result.node.fields, ResolvedField{Name: name, Value: child})
 		}
 	}

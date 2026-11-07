@@ -30,7 +30,8 @@ func BuildInitializePayload(clockInitializeRPCID string) (*clock.InitializePaylo
 		if clockInitializeRPCID != "" {
 			err = loomhttpcli.UnmarshalNonNullableJSON([]byte(clockInitializeRPCID), &rpcID)
 			if err != nil {
-				return nil, fmt.Errorf("invalid JSON for rpcID, \nerror: %w, \nexample of valid JSON:\n%s", err, "\"Eos quibusdam non eligendi.\"")
+				var zero *clock.InitializePayload
+				return zero, fmt.Errorf("invalid JSON for rpcID, \nerror: %w, \nexample of valid JSON:\n%s", err, "\"Eos quibusdam non eligendi.\"")
 			}
 		}
 	}
@@ -48,7 +49,8 @@ func BuildTickPayload(clockTickBody string, clockTickRPCID string) (*clock.TickP
 	{
 		err = loomhttpcli.UnmarshalNonNullableJSON([]byte(clockTickBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %w, \nexample of valid JSON:\n%s", err, "'{\n      \"label\": \"Commodi fuga autem in aut.\"\n   }'")
+			var zero *clock.TickPayload
+			return zero, fmt.Errorf("invalid JSON for body, \nerror: %w, \nexample of valid JSON:\n%s", err, "'{\n      \"label\": \"Commodi fuga autem in aut.\"\n   }'")
 		}
 	}
 	var rpcID *string
@@ -56,7 +58,8 @@ func BuildTickPayload(clockTickBody string, clockTickRPCID string) (*clock.TickP
 		if clockTickRPCID != "" {
 			err = loomhttpcli.UnmarshalNonNullableJSON([]byte(clockTickRPCID), &rpcID)
 			if err != nil {
-				return nil, fmt.Errorf("invalid JSON for rpcID, \nerror: %w, \nexample of valid JSON:\n%s", err, "\"Provident magni doloribus incidunt quod.\"")
+				var zero *clock.TickPayload
+				return zero, fmt.Errorf("invalid JSON for rpcID, \nerror: %w, \nexample of valid JSON:\n%s", err, "\"Provident magni doloribus incidunt quod.\"")
 			}
 		}
 	}

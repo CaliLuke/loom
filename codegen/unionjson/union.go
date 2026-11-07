@@ -15,6 +15,8 @@ type (
 	Union struct {
 		// Name is the allocated Go union type name.
 		Name string
+		// Closed checks evaluated members after unique branch selection.
+		Closed bool
 		// Branches follow declaration order and carry allocated Go references.
 		Branches []*Branch
 	}
@@ -43,7 +45,9 @@ func Analyze(name string, union *expr.Union, branches []*Branch, fieldName func(
 		}{
 			{true, &branches[index].Schema}, {false, &branches[index].Runtime},
 		} {
-			plan, err := Plan(branch.Attribute, fieldName, target.schema, closedObjects)
+			plan, err := Plan(branch.Attribute, func(name string, attribute *expr.AttributeExpr) string {
+				return expr.JSONFieldName(fieldName(name), attribute)
+			}, target.schema, closedObjects)
 			if err != nil {
 				panic(err)
 			}
@@ -53,11 +57,12 @@ func Analyze(name string, union *expr.Union, branches []*Branch, fieldName func(
 			}
 		}
 	}
-	return &Union{Name: name, Branches: branches}
+	return &Union{Name: name, Closed: union.Closed(), Branches: branches}
 }
 
-// Plan captures the finalized JSON occurrence with explicit member spelling and visibility.
-func Plan(source *expr.AttributeExpr, fieldName func(string) string, schema, closedObjects bool) (expr.ValuePlan, error) {
+// Plan captures a finalized occurrence with explicit member spelling and visibility.
+// fieldName owns the complete wire name, including any codec-specific metadata.
+func Plan(source *expr.AttributeExpr, fieldName func(string, *expr.AttributeExpr) string, schema, closedObjects bool) (expr.ValuePlan, error) {
 	context := expr.NewValueContext()
 	occurrence, err := context.NewOccurrence(source)
 	if err != nil {
@@ -101,6 +106,9 @@ func Plan(source *expr.AttributeExpr, fieldName func(string) string, schema, clo
 				request.Fields = append(request.Fields, matchingFieldPolicy(att, field, fieldName, schema))
 				walk(field.Attribute)
 			}
+			if att.AdditionalAttributes != nil {
+				walk(att.AdditionalAttributes)
+			}
 		}
 	}
 	walk(target)
@@ -134,7 +142,11 @@ func (u *Union) Matcher() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "func (u %s) matchJSON(data []byte) (%s, int, error) {\n", u.Name, u.Name)
 	u.candidates(&b)
-	fmt.Fprintf(&b, "matched, err := loom.MatchUntaggedJSON(%q, data, candidates)\n", u.Name)
+	matcher := "MatchUntaggedJSON"
+	if u.Closed {
+		matcher = "MatchUntaggedJSONClosed"
+	}
+	fmt.Fprintf(&b, "matched, err := loom.%s(%q, data, candidates)\n", matcher, u.Name)
 	fmt.Fprintf(&b, "if err != nil {\nreturn %s{}, -1, err\n}\nswitch matched {\n", u.Name)
 	for index, branch := range u.Branches {
 		fmt.Fprintf(&b, "case %d:\nreturn %s{kind: %s, %s: value%d}, matched, nil\n", index, u.Name, branch.Kind, branch.Field, index)
@@ -143,7 +155,7 @@ func (u *Union) Matcher() string {
 	return b.String()
 }
 
-func matchingFieldPolicy(parent *expr.AttributeExpr, field *expr.NamedAttributeExpr, fieldName func(string) string, schema bool) expr.ValueFieldPolicy {
+func matchingFieldPolicy(parent *expr.AttributeExpr, field *expr.NamedAttributeExpr, fieldName func(string, *expr.AttributeExpr) string, schema bool) expr.ValueFieldPolicy {
 	visible := true
 	if hidden, ok := field.Attribute.Meta.Last("openapi:generate"); schema && ok && hidden == "false" {
 		visible = false
@@ -157,7 +169,7 @@ func matchingFieldPolicy(parent *expr.AttributeExpr, field *expr.NamedAttributeE
 	}
 	return expr.ValueFieldPolicy{
 		Parent: parent, Target: field.Attribute, Name: field.Name,
-		WireName: expr.JSONFieldName(fieldName(field.Name), field.Attribute),
+		WireName: fieldName(field.Name, field.Attribute),
 		Visible:  visible, Required: parent.IsRequired(field.Name),
 		Presence: expr.ValueFieldRetain, NumericKind: numeric,
 	}
@@ -166,8 +178,8 @@ func matchingFieldPolicy(parent *expr.AttributeExpr, field *expr.NamedAttributeE
 func (u *Union) candidates(b *strings.Builder) {
 	for index, branch := range u.Branches {
 		fmt.Fprintf(b, "var value%d %s\n", index, branch.Type)
-		renderShape(b, fmt.Sprintf("schema%d", index), branch.Schema)
-		renderShape(b, fmt.Sprintf("runtime%d", index), branch.Runtime)
+		RenderShape(b, fmt.Sprintf("schema%d", index), branch.Schema)
+		RenderShape(b, fmt.Sprintf("runtime%d", index), branch.Runtime)
 	}
 	b.WriteString("candidates := []loom.JSONUnionBranch{\n")
 	for index, branch := range u.Branches {

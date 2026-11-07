@@ -38,7 +38,7 @@ func buildClientOperationGroups(data *ServiceData, scope *gocodegen.NameScope) [
 	for _, name := range names {
 		fieldName := scope.Unique(name, "Operations")
 		groups = append(groups, clientOperationGroup{
-			Name:      fieldName + "Client",
+			Name:      data.Scope.Unique(fieldName + "Client"),
 			FieldName: fieldName,
 			Endpoints: byName[name],
 		})

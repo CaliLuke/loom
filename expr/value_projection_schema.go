@@ -26,6 +26,12 @@ func schemaJSON(plan *valuePlanNode, wire jsontext.Value) (bool, error) {
 	if err != nil || !matched {
 		return matched, err
 	}
+	if plan.unionClosed && wire.Kind() == '{' {
+		matched, err = schemaUnionClosure(plan, wire)
+		if err != nil || !matched {
+			return matched, err
+		}
+	}
 	// Nullable adds null to the complete value domain. Value predicates,
 	// including enums, constrain only the non-null branch of that domain.
 	if wire.Kind() == 'n' && IsNullable(plan.attribute) {

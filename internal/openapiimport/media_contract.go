@@ -49,14 +49,14 @@ func (p *documentPlanner) mediaContracts(schema *Schema, path string) {
 			p.unsupported("content-schema", mediaPath+"/schema", "content type has no schema")
 			continue
 		}
-		p.mediaBranchSchema(branch, media, mediaPath)
-		role := schemaEncodedValue
-		if isMultipartMediaType(media) {
-			role = schemaMultipartBody
-		} else if !isJSONMediaType(media) && !isFormMediaType(media) {
-			role = schemaRawBody
+		p.mediaBranchSchema(branch, media, mediaPath, false, mediaSchemaContext{})
+		if !isMultipartMediaType(media) {
+			role := schemaEncodedValue
+			if !isJSONMediaType(media) && !isFormMediaType(media) {
+				role = schemaRawBody
+			}
+			p.schemaEncoding(branch, mediaPath+"/schema", role, make(map[schemaEncodingOccurrence]bool))
 		}
-		p.schemaEncoding(branch, mediaPath+"/schema", role, make(map[schemaEncodingOccurrence]bool))
 		p.schema(branch, mediaPath+"/schema", objectField)
 	}
 }
@@ -90,6 +90,9 @@ func (r *renderer) mediaEncodingMetadata(schema *Schema) {
 			r.line("Meta(%q, %q)", prefix+"allowReserved", strconv.FormatBool(*encoding.AllowReserved))
 		}
 	}
+	if sourceType := schemaEncodingType(schema, r.schemas); sourceType != "" {
+		r.line("Meta(%q, %q)", "http:encoding:sourceType", sourceType)
+	}
 }
 
 func mediaRangeSchema(schema *Schema) bool {
@@ -122,26 +125,10 @@ func withMediaContentTypeHeader(headers []NamedHeader) []NamedHeader {
 	return append(slices.Clone(headers), NamedHeader{Name: "Content-Type", Header: Header{Schema: &Schema{Type: "string"}}})
 }
 
-func (p *documentPlanner) mediaEncodingFor(schema *Schema) map[string]httpencoding.Serialization {
-	seen := make(map[*Schema]bool)
-	for schema != nil && !seen[schema] {
-		seen[schema] = true
-		if schema.MediaEncoding != nil {
-			return schema.MediaEncoding
-		}
-		if schema.Ref == "" {
-			return nil
-		}
-		name, err := openapiref.Name(schema.Ref, "#/components/schemas/")
-		if err != nil {
-			return nil
-		}
-		schema = p.schemas[name].Schema
-	}
-	return nil
-}
-
-func (p *documentPlanner) mediaBranchSchema(branch *Schema, media, path string) {
+// mediaBranchSchema admits native roots independently of media selection and
+// union nesting. customMultipartMap preserves the ordinary single-media custom
+// codec seam; it never propagates into generated untagged alternatives.
+func (p *documentPlanner) mediaBranchSchema(branch *Schema, media, path string, customMultipartMap bool, context mediaSchemaContext) {
 	resolved := p.urlSchema(branch)
 	if resolved == nil {
 		return
@@ -150,79 +137,101 @@ func (p *documentPlanner) mediaBranchSchema(branch *Schema, media, path string) 
 	if err != nil {
 		return // The media map validator reports malformed keys.
 	}
+	p.mediaScalarSchema(resolved, base, path)
+	if !isFormMediaType(media) && !isMultipartMediaType(media) {
+		return
+	}
+	if context.active == nil {
+		context.active = make(map[*Schema]bool)
+	}
+	if context.active[resolved] {
+		return // The expression grammar owns unconsumed-cycle diagnostics.
+	}
+	context.active[resolved] = true
+	defer delete(context.active, resolved)
+	local := p.validatedMediaEncoding(branch, path)
+	context.encoding = mergeMediaEncoding(context.encoding, local)
+	if p.urlShape(branch).Nullable {
+		p.unsupported("media-schema", path, "form and multipart roots cannot encode null")
+		return
+	}
+	if len(resolved.OneOf) > 0 && len(resolved.MediaTypes) == 0 {
+		for index, alternative := range resolved.OneOf {
+			p.mediaBranchSchema(alternative, media, fmt.Sprintf("%s/oneOf/%d", path, index), false, context)
+		}
+		return
+	}
+	p.mediaObjectSchema(branch, resolved, media, path, customMultipartMap, context.encoding)
+}
+
+func (p *documentPlanner) mediaScalarSchema(resolved *Schema, base, path string) {
 	if httpcodec.RequestContentType(base).Kind == httpcodec.Text && (resolved.Type != "string" || resolved.Nullable) {
 		p.unsupported("media-schema", path, "text media requires a non-nullable string or byte schema")
 	}
 	if base == "application/octet-stream" && (resolved.Type != "string" || resolved.Format != "binary" || resolved.Nullable) {
 		p.unsupported("media-schema", path, "octet-stream media requires a non-nullable binary string schema")
 	}
-	if !isFormMediaType(media) && !isMultipartMediaType(media) {
-		return
-	}
-	if resolved.Type != "object" || classifyObject(resolved) != objectStructured || !p.mediaFormSchemaSupported(branch, make(map[*Schema]bool)) {
-		p.unsupported("media-schema", path, "form and multipart media require object schemas without nullable values or untagged unions")
-		return
-	}
-	p.mediaFieldEncodings(branch, media, path)
 }
 
-// mediaFormSchemaSupported mirrors the evaluated design's recursive form
-// admission, including alias occurrences and nested JSON-valued fields.
-func (p *documentPlanner) mediaFormSchemaSupported(schema *Schema, seen map[*Schema]bool) bool {
-	if schema == nil || seen[schema] {
-		return true
-	}
-	seen[schema] = true
-	if schema.Nullable || len(schema.OneOf) > 0 {
-		return false
-	}
-	if schema.Ref != "" {
-		name, err := openapiref.Name(schema.Ref, "#/components/schemas/")
-		if err == nil && !p.mediaFormSchemaSupported(p.schemas[name].Schema, seen) {
-			return false
+func (p *documentPlanner) validatedMediaEncoding(branch *Schema, path string) map[string]httpencoding.Serialization {
+	local := p.mediaEncodingFor(branch)
+	if len(local) > 0 {
+		names := make(map[string]bool)
+		p.mediaPropertyNames(branch, names, make(map[*Schema]bool))
+		for _, name := range slices.Sorted(maps.Keys(local)) {
+			if !names[name] {
+				p.unsupported("media-encoding", path+"/encoding/"+escapeJSONPointer(name), "encoding must name a body property")
+			}
 		}
 	}
-	for _, property := range schema.Properties {
-		if !p.mediaFormSchemaSupported(property.Schema, seen) {
-			return false
-		}
-	}
-	for _, base := range schema.Bases {
-		if !p.mediaFormSchemaSupported(base, seen) {
-			return false
-		}
-	}
-	if schema.AdditionalProperties != nil && !p.mediaFormSchemaSupported(schema.AdditionalProperties.Schema, seen) {
-		return false
-	}
-	return p.mediaFormSchemaSupported(schema.Items, seen)
+	return local
 }
 
-func (p *documentPlanner) mediaFieldEncodings(branch *Schema, media, path string) {
+func (p *documentPlanner) mediaObjectSchema(branch, resolved *Schema, media, path string, customMultipartMap bool, encoding map[string]httpencoding.Serialization) {
+	if resolved.Nullable || resolved.Type != "object" {
+		p.unsupported("media-schema", path, "form and multipart roots require non-nullable object or map branches")
+		return
+	}
+	representation := classifyObject(resolved)
+	if representation == objectTypedRecord || representation == objectFreeMap || !isFormMediaType(media) && !customMultipartMap && representation == objectTypedMap {
+		p.unsupported("media-schema", path, "this object member policy has no native form or multipart root codec")
+		return
+	}
+	if representation == objectTypedMap {
+		if isFormMediaType(media) {
+			// Map entries are dynamically named form fields. Resolve the value
+			// with the same default contract as expr.HTTPFormBodyEncoding;
+			// the enclosing map's URL-parameter shape is unrelated.
+			shape := p.urlShape(resolved.AdditionalProperties.Schema)
+			if _, _, err := httpencoding.Resolve(httpencoding.FormField, "", shape, httpencoding.Serialization{}); err != nil {
+				p.unsupported("media-schema", path, "form map value: "+err.Error())
+			}
+		} else if shape := p.urlShape(resolved); shape.Shape != httpencoding.ScalarMap {
+			p.unsupported("media-schema", path, "custom multipart root map values require scalar codecs")
+		}
+		return
+	}
+	p.mediaFieldEncodings(branch, media, path, encoding)
+}
+
+func (p *documentPlanner) mediaFieldEncodings(branch *Schema, media, path string, encoding map[string]httpencoding.Serialization) {
 	properties := make(map[string]*Schema)
 	p.formProperties(branch, properties, make(map[*Schema]bool))
-	encoding := p.mediaEncodingFor(branch)
 	var bindings []httpencoding.Binding
-	for _, name := range slices.Sorted(maps.Keys(encoding)) {
-		if _, exists := properties[name]; !exists {
-			p.unsupported("media-encoding", path+"/encoding/"+escapeJSONPointer(name), "encoding must name a body property")
-		}
-	}
 	for _, name := range slices.Sorted(maps.Keys(properties)) {
 		property := p.urlSchema(properties[name])
-		shape := p.urlShape(property)
+		shape := p.urlShape(properties[name])
 		value := encoding[name]
 		fieldPath := path + "/encoding/" + escapeJSONPointer(name)
 		if property == nil {
 			continue
 		}
 		if isMultipartMediaType(media) {
-			if _, err := httpencoding.MultipartContentType(shape.Shape, property.Type == "string" && stringRepresentation(property.Format).raw, value.MediaType); err != nil {
+			if codec, err := httpencoding.ResolveMultipart(name, shape, value); err != nil {
 				p.unsupported("media-encoding", fieldPath, err.Error())
-			}
-			value.MediaType = ""
-			if err := httpencoding.MatchMultipart(shape, value); err != nil {
-				p.unsupported("media-encoding", fieldPath, err.Error())
+			} else {
+				bindings = append(bindings, httpencoding.Binding{Name: name, Keys: codec.Keys})
+				p.multipartSchemaEncoding(properties[name], path+"/schema/properties/"+escapeJSONPointer(name), codec)
 			}
 			continue
 		}
@@ -232,9 +241,7 @@ func (p *documentPlanner) mediaFieldEncodings(branch *Schema, media, path string
 			bindings = append(bindings, httpencoding.Binding{Name: name, Keys: keys})
 		}
 	}
-	if !isMultipartMediaType(media) {
-		if err := httpencoding.CheckNamespaces(httpencoding.FormField, bindings); err != nil {
-			p.unsupported("media-encoding", path+"/encoding", err.Error())
-		}
+	if err := httpencoding.CheckNamespaces(httpencoding.FormField, bindings); err != nil {
+		p.unsupported("media-encoding", path+"/encoding", err.Error())
 	}
 }

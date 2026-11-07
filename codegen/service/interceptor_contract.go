@@ -70,18 +70,12 @@ func collectInterceptorBindings(names, parent *expr.AttributeExpr, scope *codege
 			continue
 		}
 		layout := expr.ServiceFieldLayout(parent, field.Name, attribute, false, true)
-		logical := attribute
-		if layout.WrapNullable {
-			copy := *attribute
-			copy.Nullable = true
-			logical = &copy
-		}
 		var pkg string
 		if loc := codegen.UserTypeLocation(attribute.Type); loc != nil {
 			pkg = scope.PackageName(loc)
 		}
-		ref := scope.GoFullTypeRef(logical, pkg)
-		valueType := scope.GoFullTypeName(logical, pkg)
+		ref := scope.GoFullTypeRef(attribute, pkg)
+		valueType := scope.GoFullTypeName(attribute, pkg)
 		logicalPointer := ref != valueType
 		bindings[index] = &interceptorAttributeBinding{
 			AttributeData: &AttributeData{

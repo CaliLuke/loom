@@ -6,7 +6,8 @@ func BuildMethodBodyInlineMapUserPayload(serviceBodyInlineMapUserMethodBodyInlin
 	{
 		err = loomhttpcli.UnmarshalNonNullableJSON([]byte(serviceBodyInlineMapUserMethodBodyInlineMapUserBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %w", err)
+			var zero map[*servicebodyinlinemapuser.KeyType]*servicebodyinlinemapuser.ElemType
+			return zero, fmt.Errorf("invalid JSON for body, \nerror: %w", err)
 		}
 		for k, v := range body {
 			if k != nil {
@@ -25,18 +26,21 @@ func BuildMethodBodyInlineMapUserPayload(serviceBodyInlineMapUserMethodBodyInlin
 			}
 		}
 		if err != nil {
-			return nil, err
+			var zero map[*servicebodyinlinemapuser.KeyType]*servicebodyinlinemapuser.ElemType
+			return zero, err
 		}
 	}
 	var v map[*servicebodyinlinemapuser.KeyType]*servicebodyinlinemapuser.ElemType
 	if body != nil {
 		v = make(map[*servicebodyinlinemapuser.KeyType]*servicebodyinlinemapuser.ElemType, len(body))
 		for key, val := range body {
+			tk := unmarshalCLIKeyTypeRequestBodyToServicebodyinlinemapuserKeyType(key)
 			actual, ok := val.Value()
 			if !ok {
+				var vMissingValue *servicebodyinlinemapuser.ElemType
+				v[tk] = vMissingValue
 				continue
 			}
-			tk := unmarshalCLIKeyTypeRequestBodyToServicebodyinlinemapuserKeyType(key)
 			if actual == nil {
 				v[tk] = nil
 				continue

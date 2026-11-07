@@ -6,6 +6,9 @@ func EncodeMethodBodyStringValidateRequest(encoder func(*http.Request) loomhttp.
 		if !ok {
 			return loomhttp.ErrInvalidType("ServiceBodyStringValidate", "MethodBodyStringValidate", "*servicebodystringvalidate.MethodBodyStringValidatePayload", v)
 		}
+		if p == nil {
+			return loom.MissingPayloadError()
+		}
 		body := NewMethodBodyStringValidateRequestBody(p)
 		if err := encoder(req).Encode(&body); err != nil {
 			return loomhttp.ErrEncodingError("ServiceBodyStringValidate", "MethodBodyStringValidate", err)

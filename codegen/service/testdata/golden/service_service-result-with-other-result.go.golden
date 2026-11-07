@@ -217,6 +217,9 @@ func transformNewMultipleViewsFromMultipleViewsViewResultwithotherresultviewsMul
 // builds a value of type *resultwithotherresultviews.MultipleViews2View from a
 // value of type *MultipleViews2.
 func transformProjectMultipleViewsMultipleViews2ToResultwithotherresultviewsMultipleViews2View(v *MultipleViews2) *resultwithotherresultviews.MultipleViews2View {
+	if v == nil {
+		return nil
+	}
 	res := &resultwithotherresultviews.MultipleViews2View{
 		A: &v.A,
 		B: v.B,

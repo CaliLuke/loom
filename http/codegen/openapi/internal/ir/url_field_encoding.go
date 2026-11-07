@@ -2,12 +2,27 @@ package ir
 
 import (
 	"fmt"
+	"maps"
+	"reflect"
+	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 	"github.com/CaliLuke/loom/internal/httpencoding"
 )
+
+// exportedFieldEncoding pairs one captured physical field with its authored
+// context. One OpenAPI Encoding Object must describe every occurrence of its
+// name, even when the body contains nested root alternatives.
+type exportedFieldEncoding struct {
+	name      string
+	shape     httpencoding.BranchShape
+	source    httpencoding.Serialization
+	form      *httpencoding.Codec
+	multipart *httpencoding.MultipartCodec
+}
 
 func validateURLFieldEncoding(endpoint *transportir.Endpoint) error {
 	for _, group := range []struct {
@@ -37,50 +52,145 @@ func validateURLFieldEncoding(endpoint *transportir.Endpoint) error {
 	if body == nil {
 		return nil
 	}
-	if object := expr.AsObject(body.Type); object != nil {
-		for _, field := range *object {
-			name := expr.ElementName(field.Name)
-			_, _, err := httpencoding.Resolve(httpencoding.FormField, name, expr.HTTPValueShape(field.Attribute), expr.HTTPParameterSerialization(body, "openapi:encoding:"+name+":"))
-			if err != nil {
-				return fmt.Errorf("form field %q: %w", name, err)
-			}
+	_, err := expr.HTTPFormBodyEncoding(body)
+	return err
+}
+
+func applyMediaFieldEncoding(request *transportir.Request, media *MediaType) error {
+	if request.SkipBodyEncode || request.DocumentBody != nil || (!request.FormEncoded && !request.Multipart) {
+		return nil
+	}
+	var fields []exportedFieldEncoding
+	if request.Form != nil {
+		fields = formExportFields(request.Form)
+	}
+	if request.MultipartEncoding != nil {
+		fields = multipartExportFields(request.MultipartEncoding)
+	}
+	if request.Form == nil && request.MultipartEncoding == nil || request.MultipartEncoding != nil && request.MultipartEncoding.Custom {
+		return nil
+	}
+	grouped := make(map[string][]exportedFieldEncoding)
+	for _, field := range fields {
+		grouped[field.name] = append(grouped[field.name], field)
+	}
+	metadata := maps.Clone(media.Metadata)
+	if metadata == nil {
+		metadata = make(map[string][]string)
+	}
+	// All field slots are rebuilt from the captured context, after full-tag
+	// renames and omission. This also removes semantic names from the wire map.
+	for key := range metadata {
+		if strings.HasPrefix(key, "openapi:encoding:") {
+			delete(metadata, key)
 		}
 	}
+	for _, name := range slices.Sorted(maps.Keys(grouped)) {
+		alternatives := grouped[name]
+		source, err := reconcileFieldEncoding(alternatives)
+		if err != nil {
+			return fmt.Errorf("field %q: %w", name, err)
+		}
+		writeFieldEncoding(metadata, name, source)
+	}
+	media.Metadata = metadata
 	return nil
 }
 
-func applyFormFieldEncoding(request *transportir.Request, media *MediaType) {
-	if !request.FormEncoded || request.SkipBodyEncode || request.DocumentBody != nil {
-		return
+func formExportFields(root *expr.HTTPFormEncoding) []exportedFieldEncoding {
+	var result []exportedFieldEncoding
+	for _, branch := range root.Branches {
+		result = append(result, formExportFields(branch)...)
 	}
-	if media.Metadata == nil {
-		media.Metadata = make(map[string][]string)
-	}
-	for name, codec := range request.FormFieldCodecs {
-		prefix := "openapi:encoding:" + name + ":"
-		if codec.Style == httpencoding.JSON {
-			media.Metadata[prefix+"contentType"] = []string{"application/json"}
-			delete(media.Metadata, prefix+"style")
-			delete(media.Metadata, prefix+"explode")
-			delete(media.Metadata, prefix+"allowReserved")
+	scoped := *root.Body
+	scoped.Meta = root.Metadata
+	for _, binding := range slices.Sorted(maps.Keys(root.Fields)) {
+		field := root.Fields[binding]
+		if field.Omitted {
 			continue
 		}
-		if codec.Style == httpencoding.Root {
+		attribute := expr.AsObject(root.Body.Type).Attribute(binding)
+		codec := field.Codec
+		result = append(result, exportedFieldEncoding{name: field.Name, shape: expr.HTTPValueShape(attribute), source: expr.HTTPParameterSerialization(&scoped, "openapi:encoding:"+expr.ElementName(binding)+":"), form: &codec})
+	}
+	return result
+}
+
+func multipartExportFields(root *expr.HTTPMultipartEncoding) []exportedFieldEncoding {
+	var result []exportedFieldEncoding
+	for _, branch := range root.Branches {
+		result = append(result, multipartExportFields(branch)...)
+	}
+	scoped := *root.Body
+	scoped.Meta = root.Metadata
+	for _, binding := range slices.Sorted(maps.Keys(root.Fields)) {
+		field := root.Fields[binding]
+		if field.Omitted {
 			continue
 		}
-		// Explicit style owns form encoding even if a contentType was authored.
-		// Objects/maps need style:form to override the Encoding Object JSON default.
-		delete(media.Metadata, prefix+"contentType")
-		if codec.Shape == httpencoding.Object || codec.Shape == httpencoding.ScalarMap || codec.Style != httpencoding.Form || codec.Explode != true {
-			media.Metadata[prefix+"style"] = []string{parameterStyleName(codec.Style)}
-		} else {
-			delete(media.Metadata, prefix+"style")
+		attribute := expr.AsObject(root.Body.Type).Attribute(binding)
+		codec := field.Codec
+		result = append(result, exportedFieldEncoding{name: field.Name, shape: expr.HTTPValueShape(attribute), source: expr.HTTPParameterSerialization(&scoped, "openapi:encoding:"+expr.ElementName(binding)+":"), multipart: &codec})
+	}
+	return result
+}
+
+func reconcileFieldEncoding(fields []exportedFieldEncoding) (httpencoding.Serialization, error) {
+	// Try authored contracts before the implicit default so explicit media labels
+	// survive whenever one label describes the entire field. Resolver comparison
+	// determines equivalence; the exporter never invents codec policy.
+	candidates := make([]httpencoding.Serialization, 0, len(fields)+1)
+	for _, field := range fields {
+		source := field.source
+		if source.Style != "" || source.Explode != nil || source.AllowReserved != nil {
+			source.MediaType = ""
+			// allowReserved:false is omitted by the OpenAPI renderer. An explicit
+			// default style retains the flag's presence-dependent codec selection.
+			if source.Style == "" {
+				source.Style = "form"
+			}
 		}
-		_, explode := parameterCodecFields("query", codec)
-		if explode == nil {
-			delete(media.Metadata, prefix+"explode")
-		} else {
-			media.Metadata[prefix+"explode"] = []string{strconv.FormatBool(*explode)}
+		if source != (httpencoding.Serialization{}) {
+			candidates = append(candidates, source)
 		}
+	}
+	if len(candidates) == 0 && len(fields) > 0 && fields[0].form != nil && fields[0].form.Style == httpencoding.JSON {
+		candidates = append(candidates, httpencoding.Serialization{MediaType: "application/json"})
+	}
+	candidates = append(candidates, httpencoding.Serialization{})
+	for _, candidate := range candidates {
+		matches := true
+		for _, field := range fields {
+			if field.form != nil {
+				codec, _, err := httpencoding.Resolve(httpencoding.FormField, field.name, field.shape, candidate)
+				matches = err == nil && reflect.DeepEqual(codec, *field.form)
+			} else {
+				codec, err := httpencoding.ResolveMultipart(field.name, field.shape, candidate)
+				matches = err == nil && reflect.DeepEqual(codec, *field.multipart)
+			}
+			if !matches {
+				break
+			}
+		}
+		if matches {
+			return candidate, nil
+		}
+	}
+	return httpencoding.Serialization{}, fmt.Errorf("root alternatives require incompatible Encoding Objects; OpenAPI provides only one encoding per physical field name")
+}
+
+func writeFieldEncoding(metadata map[string][]string, name string, source httpencoding.Serialization) {
+	prefix := "openapi:encoding:" + name + ":"
+	if source.MediaType != "" {
+		metadata[prefix+"contentType"] = []string{source.MediaType}
+	}
+	if source.Style != "" {
+		metadata[prefix+"style"] = []string{source.Style}
+	}
+	if source.Explode != nil {
+		metadata[prefix+"explode"] = []string{strconv.FormatBool(*source.Explode)}
+	}
+	if source.AllowReserved != nil {
+		metadata[prefix+"allowReserved"] = []string{strconv.FormatBool(*source.AllowReserved)}
 	}
 }

@@ -38,7 +38,12 @@ func recordServiceTypeLayouts(endpoints []*transportir.Endpoint, sd *ServiceData
 	}
 	server, client := representation.ServiceLayouts(endpoints)
 	for _, endpoint := range endpoints {
-		recordJSONFormCarriers(endpoint.Request, server)
+		for _, carrier := range formCarriers(endpoint) {
+			// JSON fields need the same presence-aware decoder contract for
+			// incoming decoding and outgoing exact-one replay.
+			recordFormFieldCarriers(carrier.body, carrier.contract, server)
+			recordFormFieldCarriers(carrier.body, carrier.contract, client)
+		}
 	}
 	sd.ServerJSONPresenceTypes, sd.ServerPresencePointerTypes, sd.ServerPresenceUseDefaultTypes = server.JSONPresence, server.Pointer, server.UseDefault
 	sd.ClientJSONPresenceTypes, sd.ClientPresencePointerTypes, sd.ClientPresenceUseDefaultTypes = client.JSONPresence, client.Pointer, client.UseDefault

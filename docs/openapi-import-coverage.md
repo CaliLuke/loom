@@ -309,18 +309,36 @@ The following constructs are conditional:
   annotation. Vendor extensions retain branch keys, with outer keys taking
   precedence. Re-import and regenerate affected designs to recover annotations
   lost by earlier importer versions.
-- A two-member `oneOf` containing one bare `null` schema and one local `$ref`
-  maps to a nullable named alias when the referenced schema explicitly excludes
-  null. Regeneration uses the equivalent nullable `anyOf` form.
+- `oneOf` normalization counts null admission across its alternatives. It does
+  not turn multiple null matches into an accepted null. Bare-null alternatives
+  can use the existing nullable representation when that preserves the accepted
+  domain; annotated or constrained null-only schemas remain unsupported.
 - A scalar `const` without a sibling `enum` maps to a one-member enum.
   Regeneration uses the semantically equivalent `enum` representation.
-- A `oneOf` of named object or array components in a JSON request or success
-  response maps to an untagged typed union. Recursive contents may be primitives,
-  named objects, and arrays of these shapes. Inline object branches are promoted
-  to deterministic components; inline array branches remain unsupported.
-  Both encoding and decoding require one schema match and one valid Go candidate
-  with the same identity. Exact member names, presence, nullability, closed-object
-  membership, element constraints, and inherited constraints participate.
+- Supported `oneOf` schemas map to untagged typed unions. Branches may be
+  primitives, unconstrained values, aliases, arrays, string-keyed maps, objects,
+  or nested untagged unions, including nullable alternatives. Inline object
+  shapes receive concrete named declarations where required; scalar and
+  collection branches retain their constraints without synthetic wrappers.
+  Overlapping alternatives are legal. Each input or emitted value must have
+  exactly one schema match and one valid Go candidate, with the same identity.
+  Zero or multiple matches report their count and domain; different unique
+  matches report an identity mismatch. Go numeric widths cannot disambiguate an
+  overlapping public schema.
+- JSON bodies, nested fields and error envelopes use the JSON union contract.
+  Path/query/header/cookie bindings and form or multipart fields additionally
+  require a codec for every alternative at that location. The parameter style
+  contract remains owned by [#968](https://github.com/CaliLuke/loom/issues/968).
+  Form roots admit supported object/map alternatives; multipart union roots
+  require objects. Text cannot encode nullable values; JSON-valued fields can.
+  Discriminator-driven import remains separate work in
+  [#1005](https://github.com/CaliLuke/loom/issues/1005).
+- `unevaluatedProperties: false` beside a supported union closes the selected
+  value after unique schema/decoder selection. It cannot make overlapping
+  alternatives unambiguous by removing unknown properties first. Closure uses
+  the selected schema's evaluated-member annotations, including nested unions
+  and additional-member policies. Other unevaluated-property policies and
+  general assertion intersections remain unsupported.
 - A memberless `type: object` maps to `map[string]loom.JSONValue` when
   `additionalProperties` is absent, true or an empty schema. Closed empty objects
   (`additionalProperties: false`) retain their object type and accept only `{}`,
@@ -351,8 +369,8 @@ The following constructs are conditional:
   `OptionalRequestBody()`.
 - A form map combined with transport parameters uses an object payload and a
   selected `Body(...)` attribute. Optional single-media multipart maps use
-  the documented raw-body contract. Multi-media form/multipart variants require
-  structured object schemas.
+  the documented raw-body contract. Multi-media multipart variants require
+  structured objects; form variants use the supported form-root codec.
 - A single-media form schema containing an unconstrained value, including a free-form
   `additionalProperties: true` map, stays raw because typed form decoding
   cannot reconstruct JSON-valued data.
@@ -369,7 +387,7 @@ Loom rejects other composition and structural keywords, including unsupported
 `oneOf` locations or branch shapes, unsupported `anyOf` and `allOf` forms,
 `not`, tuple and contains constraints,
 conditional schemas, dependent schemas, pattern properties, unevaluated
-constraints, property-count constraints, `multipleOf`,
+constraints other than the union closure described above, property-count constraints, `multipleOf`,
 `uniqueItems`, content annotations, XML, schema external documentation,
 discriminators, schema dialect controls, anchors, dynamic references, and
 local definitions.

@@ -1,0 +1,73 @@
+package nullfields_test
+
+import (
+	"context"
+	"encoding/json/v2"
+	"net"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/test/bufconn"
+
+	"example.com/grpcnullfields/gen/grpc/nullfields/client"
+	pb "example.com/grpcnullfields/gen/grpc/nullfields/pb"
+	"example.com/grpcnullfields/gen/grpc/nullfields/server"
+	svc "example.com/grpcnullfields/gen/nullfields"
+)
+
+func TestSelectedNullAndAbsence(t *testing.T) {
+	listener := bufconn.Listen(1024 * 1024)
+	srv := grpc.NewServer()
+	echo := func(_ context.Context, value any) (any, error) {
+		return value, nil
+	}
+	pb.RegisterNullfieldsServer(srv, server.New(&svc.Endpoints{Echo: echo, Root: echo}, nil))
+	go func() {
+		if err := srv.Serve(listener); err != nil {
+			t.Error(err)
+		}
+	}()
+	t.Cleanup(srv.Stop)
+	conn, err := grpc.NewClient("passthrough:///bufconn", grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
+		return listener.Dial()
+	}), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, conn.Close())
+	})
+	c := client.NewClient(conn)
+	for _, wire := range []string{
+		`{"required":null}`,
+		`{"required":null,"optional":null,"list":[{"choice":null},{"choice":"text"}],"map":{"n":{"choice":null},"s":{"choice":"text"}}}`,
+		`{"required":"text","optional":0}`,
+	} {
+		t.Run(wire, func(t *testing.T) {
+			var payload svc.Record
+			require.NoError(t, json.Unmarshal([]byte(wire), &payload))
+			require.NotEmpty(t, payload.Required.Kind())
+			if strings.Contains(wire, `"optional"`) {
+				require.NotEmpty(t, payload.Optional.Kind())
+			} else {
+				require.Empty(t, payload.Optional.Kind())
+			}
+			result, err := c.Echo()(t.Context(), &payload)
+			require.NoError(t, err)
+			require.Equal(t, &payload, result)
+			output, err := json.Marshal(result, json.Deterministic(true))
+			require.NoError(t, err)
+			require.JSONEq(t, wire, string(output))
+		})
+	}
+	for _, wire := range []string{`null`, `"text"`, `0`} {
+		var payload svc.Choice
+		require.NoError(t, json.Unmarshal([]byte(wire), &payload))
+		result, err := c.Root()(t.Context(), &payload)
+		require.NoError(t, err)
+		require.Equal(t, &payload, result)
+	}
+	_, err = c.Echo()(t.Context(), &svc.Record{})
+	require.Error(t, err)
+}

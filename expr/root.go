@@ -129,6 +129,9 @@ func (r *RootExpr) WalkSets(walk eval.SetWalker) {
 	walk(eval.ExpressionSet{r.API.GRPC})
 	walk(grpcsvcs)
 	walk(grpcepts)
+	// Representation identities depend on completed service and transport
+	// finalization. This expression only participates in the finalization pass.
+	walk(eval.ExpressionSet{&unionClosureFinalizer{root: r}})
 }
 
 // DependsOn returns nil, the core DSL has no dependency.

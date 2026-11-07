@@ -6,6 +6,9 @@ func EncodeMethodBodyArrayStringRequest(encoder func(*http.Request) loomhttp.Enc
 		if !ok {
 			return loomhttp.ErrInvalidType("ServiceBodyArrayString", "MethodBodyArrayString", "*servicebodyarraystring.MethodBodyArrayStringPayload", v)
 		}
+		if p == nil {
+			return loom.MissingPayloadError()
+		}
 		body := NewMethodBodyArrayStringRequestBody(p)
 		if err := encoder(req).Encode(&body); err != nil {
 			return loomhttp.ErrEncodingError("ServiceBodyArrayString", "MethodBodyArrayString", err)

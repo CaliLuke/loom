@@ -46,11 +46,15 @@ checks, and `ServerRequestValidationTypes` operate on generated body variants.
 They use generated type hashes. The existing type layout and union declaration
 registries already distinguish these physical identities.
 
-`makeHTTPTypeRecursive` retains design-identifier traversal: its caller first uses
-`expr.DupAtt`, whose canonical design clone is itself keyed by design identifier.
-The transport IR normalizer has the same clone boundary. Changing only their
-visited sets would not change that identity contract; this change does not alter
-canonical design cloning or OpenAPI schema identity.
+Copying and mutating a detached graph use source-node identity rather than a
+nominal design ID or generated hash. `expr.DupAtt` retains distinct source nodes
+that share an ID; `expr.walkUserTypes`, `makeHTTPTypeRecursive` and transport IR
+normalization visit each of those nodes once. The callback may rename a node,
+so the visited key must remain stable across mutation. Naming and package-path
+removal therefore cover every copied declaration without mutating service types.
+See the [source traversal model](../../../../expr/tla/type_copy/README.md).
+Generated declaration registries still use generated identity after normalization;
+this does not change OpenAPI schema identity or declaration deduplication.
 
 Run the implementation checks from the repository root:
 

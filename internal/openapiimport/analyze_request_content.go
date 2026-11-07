@@ -30,15 +30,15 @@ func (a *analyzer) requestContent(
 				a.unsupported("media-encoding", mediaPath, "media encodings are not in the strict import subset")
 			}
 			schema = a.schema(media.Schema, mediaPath+"/schema")
+			if schema != nil && (isFormMediaType(contentType) || isMultipartMediaType(contentType)) {
+				schema.MediaEncoding = a.mediaEncoding(media, mediaPath)
+			}
 			examples = a.mediaExamples(media, schema, mediaPath)
 			if len(contentTypes) == 1 {
 				singleExamples = examples
 			}
 			if orderedmap.Len(content) > 1 {
 				schema = schemaWithExamples(schema, examples)
-				if schema != nil {
-					schema.MediaEncoding = a.mediaEncoding(media, mediaPath)
-				}
 			}
 			a.unsupportedExtensions(mediaPath, media.Extensions)
 		}

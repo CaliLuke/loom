@@ -112,6 +112,9 @@ var PayloadBodyInlineRecursiveUserTransformCodeCLI2 = `// marshalServicebodyinli
 // builds a value of type *PayloadTypeRequestBody from a value of type
 // *servicebodyinlinerecursiveuser.PayloadType.
 func marshalServicebodyinlinerecursiveuserPayloadTypeToPayloadTypeRequestBody(v *servicebodyinlinerecursiveuser.PayloadType) *PayloadTypeRequestBody {
+	if v == nil {
+		return nil
+	}
 	res := &PayloadTypeRequestBody{
 		A: v.A,
 		B: v.B,

@@ -17,15 +17,15 @@ func TestGeneratedMultipartRecursiveTypes(t *testing.T) {
 		{"direct-recursion", multipartRecursiveDSL(func() {
 			Attribute("name", String)
 			Attribute("next", "Tree")
-		}), false},
+		}), true},
 		{"array-recursion", multipartRecursiveDSL(func() {
 			Attribute("name", String)
 			Attribute("children", ArrayOf("Tree"))
-		}), false},
+		}), true},
 		{"map-recursion", multipartRecursiveDSL(func() {
 			Attribute("name", String)
 			Attribute("lookup", MapOf(String, "Tree"))
-		}), false},
+		}), true},
 		{"repeated-non-recursive-type", multipartRepeatedTypeDSL, true},
 	}
 	for _, c := range cases {

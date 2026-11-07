@@ -35,14 +35,14 @@ func transformObjectPresenceField(
 		return nil, true, fmt.Errorf("cannot transform nullable field %s to a non-nullable representation", name)
 	}
 	if sourcePresence == OptionalPresence {
-		code, err := transformOptionalToNative(sourceParent, targetParent, source, target, sourceVar, targetVar, name, ta)
+		code, err := transformOptionalField(sourceParent, targetParent, source, target, sourceVar, targetVar, name, ta)
 		return code, true, err
 	}
-	code, err := transformNativeToOptional(sourceParent, source, target, sourceVar, targetVar, name, ta)
+	code, err := transformNativeToOptional(sourceParent, targetParent, source, target, sourceVar, targetVar, name, ta)
 	return code, true, err
 }
 
-func transformOptionalToNative(
+func transformOptionalField(
 	sourceParent, targetParent *expr.MappedAttributeExpr,
 	source, target *expr.AttributeExpr,
 	sourceVar, targetVar, name string,
@@ -65,7 +65,9 @@ func transformOptionalToNative(
 		return nil, err
 	}
 	assignment := Expr(targetVar + " = " + temp)
-	if nativeObjectFieldPointer(targetParent, name, target, ta.TargetCtx) && !concreteTransformProducesPointer(targetValue, ta.TargetCtx) {
+	if ta.TargetCtx.FieldPresence(targetParent, name, target) == OptionalPresence {
+		assignment = presenceValueAssignment(targetValue, temp, targetVar, "OptionalValue", transformUsesHelper(sourceValue, targetValue), ta.TargetCtx)
+	} else if nativeObjectFieldPointer(targetParent, name, target, ta.TargetCtx) && !concreteTransformProducesPointer(targetValue, ta.TargetCtx) {
 		assignment = Expr(targetVar + " = &" + temp)
 	}
 	stmt := &jen.Statement{}
@@ -73,19 +75,18 @@ func transformOptionalToNative(
 		group.Add(conversion).Line()
 		group.Add(assignment)
 	})
-	plan := ta.DefaultForField(sourceParent, targetParent, name)
-	if plan.Apply {
-		defaultPlan, err := ta.TargetCtx.DefaultValue(targetValue, plan.Value)
-		if err != nil {
-			return nil, err
-		}
-		stmt.Else().Block(Expr(targetVar + " = " + defaultPlan.Expression))
+	assignment, err = presenceDefaultAssignment(target, targetVar, ta.TargetCtx.FieldPresence(targetParent, name, target), ta.DefaultForField(sourceParent, targetParent, name), ta.TargetCtx)
+	if err != nil {
+		return nil, err
+	}
+	if assignment != nil {
+		stmt.Else().Block(assignment)
 	}
 	return stmt, nil
 }
 
 func transformNativeToOptional(
-	sourceParent *expr.MappedAttributeExpr,
+	sourceParent, targetParent *expr.MappedAttributeExpr,
 	source, target *expr.AttributeExpr,
 	sourceVar, targetVar, name string,
 	ta *TransformAttrs,
@@ -98,7 +99,7 @@ func transformNativeToOptional(
 	if nativeObjectFieldPointer(sourceParent, name, source, ta.SourceCtx) {
 		guard = sourceVar + " != nil"
 		actual = "*" + sourceVar
-	} else if expr.IsArray(source.Type) || expr.IsMap(source.Type) {
+	} else if defaultSourceUsesNil(source) {
 		guard = sourceVar + " != nil"
 	}
 	objectTarget := expr.IsObject(targetValue.Type)
@@ -130,6 +131,13 @@ func transformNativeToOptional(
 	}
 	stmt := &jen.Statement{}
 	stmt.If(Expr(guard)).Block(body)
+	assignment, err := presenceDefaultAssignment(target, targetVar, OptionalPresence, ta.DefaultForField(sourceParent, targetParent, name), ta.TargetCtx)
+	if err != nil {
+		return nil, err
+	}
+	if assignment != nil {
+		stmt.Else().Block(assignment)
+	}
 	return stmt, nil
 }
 
@@ -178,20 +186,36 @@ func transformNullablePresence(source, target *expr.AttributeExpr, sourceVar, ta
 		group.Add(conversion).Line()
 		group.Add(presenceValueAssignment(targetValue, temp, targetVar, "NullableValue", userObject, ta.TargetCtx))
 	})
-	if plan.Apply {
-		defaultPlan, err := ta.TargetCtx.DefaultValue(targetValue, plan.Value)
-		if err != nil {
-			return nil, err
-		}
-		value := defaultPlan.Expression
-		if expr.IsObject(targetValue.Type) {
-			value = "*(" + value + ")"
-		}
-		// The declared wrapper owns its value type. Generic constructor inference
-		// would turn a named Bytes default into Nullable[[]byte].
-		stmt.Else().Block(Expr(targetVar + ".SetValue(" + value + ")"))
+	assignment, err := presenceDefaultAssignment(target, targetVar, NullablePresence, plan, ta.TargetCtx)
+	if err != nil {
+		return nil, err
+	}
+	if assignment != nil {
+		stmt.Else().Block(assignment)
 	}
 	return stmt, nil
+}
+
+// presenceDefaultAssignment materializes an admitted default in the declared
+// destination storage. SetValue retains named wrapper types without constructor
+// inference; object default expressions are pointers while field wrappers own values.
+func presenceDefaultAssignment(target *expr.AttributeExpr, targetVar string, presence PresenceKind, plan DefaultApplication, context *AttributeContext) (*jen.Statement, error) {
+	if !plan.Apply {
+		return nil, nil
+	}
+	concrete := concretePresenceAttribute(target)
+	value, err := context.DefaultValue(concrete, plan.Value)
+	if err != nil {
+		return nil, err
+	}
+	if presence == NativePresence {
+		return Expr(targetVar + " = " + value.Expression), nil
+	}
+	literal := value.Expression
+	if expr.IsObject(concrete.Type) {
+		literal = "*(" + literal + ")"
+	}
+	return Expr(targetVar + ".SetValue(" + literal + ")"), nil
 }
 
 // presenceValueAssignment preserves the target's declared type when wrapping a
@@ -283,10 +307,10 @@ func nullablePhysicalTypeRef(attribute *expr.AttributeExpr, context *AttributeCo
 
 func presenceValueTypeRef(attribute *expr.AttributeExpr, context *AttributeContext) string {
 	concrete := concretePresenceAttribute(attribute)
-	if (expr.IsArray(concrete.Type) || expr.IsMap(concrete.Type)) && containsInlineObject(concrete) {
+	if expr.IsArray(concrete.Type) || expr.IsMap(concrete.Type) {
 		// Render the collection as its declaring type does so that element
 		// pointers, defaults and inline struct tags match.
-		return collectionTypeRef(concrete, context, false)
+		return context.CollectionElementRef(concrete, false)
 	}
 	return context.Scope.Name(concrete, context.Pkg(concrete), false, context.UseDefault)
 }
@@ -302,13 +326,10 @@ func concreteTransformProducesPointer(attribute *expr.AttributeExpr, context *At
 }
 
 func nativeObjectFieldPointer(parent *expr.MappedAttributeExpr, name string, attribute *expr.AttributeExpr, context *AttributeContext) bool {
-	if expr.IsObject(attribute.Type) {
-		return true
+	if parent == nil {
+		return expr.IsObject(attribute.Type)
 	}
-	if expr.IsUnion(attribute.Type) {
-		return parent != nil && !parent.IsRequired(name)
-	}
-	return expr.IsPrimitive(attribute.Type) && parent != nil && context.IsPrimitivePointer(name, parent.AttributeExpr)
+	return expr.ServiceFieldLayout(parent.AttributeExpr, name, attribute, context.Pointer, context.UseDefault).Pointer
 }
 
 func isAnyPresenceAttribute(attribute *expr.AttributeExpr) bool {

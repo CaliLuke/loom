@@ -31,6 +31,9 @@ func transportFieldBinding(name string, fieldAttr, svcAtt *expr.AttributeExpr, s
 	}
 	fieldType = svcField.Type
 	fieldName := codegen.GoifyAtt(svcField, name, true)
+	if expr.AsUnion(fieldType) != nil {
+		return fieldName, fieldType, expr.ServiceFieldLayout(svcAtt, key, svcField, false, true).Pointer
+	}
 	if svcCtx == nil {
 		return fieldName, fieldType, svcAtt.IsPrimitivePointer(key, true)
 	}

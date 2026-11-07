@@ -37,13 +37,14 @@ func (sds *ServicesData) analyze(httpSvc *expr.HTTPServiceExpr) (sd *ServiceData
 	nameBodyTypes(irService.Endpoints)
 	svc, scope := newHTTPAnalysisService(svc, sds.serviceImportAliases[httpSvc.Name()])
 	sd = newHTTPServiceData(svc, scope)
-	nameJSONFormCarriers(irService.Endpoints)
+	nameFormFieldCarriers(irService.Endpoints)
 	sd.exampleGenerator = examplegen.ForScope(sds.Root.API.ExampleGenerator, "http", httpSvc.Name())
 	sd.CORS = buildCORSData(httpSvc)
 	sd.MountPlan, err = httpSvc.MountPlan()
 	if err != nil {
 		panic(err)
 	}
+	sd.preparePackageSymbols(irService.Endpoints)
 	sd.FileServers = sds.buildFileServersData(httpSvc, sd.MountPlan, scope)
 	recordServiceTypeLayouts(irService.Endpoints, sd)
 	for _, httpEndpoint := range irService.Endpoints {
@@ -246,20 +247,20 @@ func (sds *ServicesData) buildEndpointDataFromIR(endpointIR *transportir.Endpoin
 		QuerySchemes:              qsch,
 		BasicScheme:               basic,
 		Routes:                    routes,
-		MountHandler:              fmt.Sprintf("Mount%sHandler", method.VarName),
-		HandlerInit:               fmt.Sprintf("New%sHandler", method.VarName),
-		RequestDecoder:            fmt.Sprintf("Decode%sRequest", method.VarName),
-		ResponseEncoder:           fmt.Sprintf("Encode%sResponse", method.VarName),
-		ErrorEncoder:              fmt.Sprintf("Encode%sError", method.VarName),
+		MountHandler:              httpEndpointSymbol(scope, method.VarName, "mount"),
+		HandlerInit:               httpEndpointSymbol(scope, method.VarName, "handler"),
+		RequestDecoder:            httpEndpointSymbol(scope, method.VarName, "decode-request"),
+		ResponseEncoder:           httpEndpointSymbol(scope, method.VarName, "encode-response"),
+		ErrorEncoder:              httpEndpointSymbol(scope, method.VarName, "encode-error"),
 		ClientStruct:              "Client",
 		EndpointInit:              method.VarName,
 		RequestInit:               requestInit,
 		HasMixedResults:           endpointIR.Response.HasMixedResults,
-		ResponseContractCasesInit: fmt.Sprintf("%sResponseContractCases", method.VarName),
+		ResponseContractCasesInit: httpEndpointSymbol(scope, method.VarName, "contracts"),
 		ResponseContractCases:     responseContractCases,
 		ResponseContractWarnings:  responseContractWarnings,
-		RequestEncoder:            endpointRequestEncoderName(method, payload, basch),
-		ResponseDecoder:           fmt.Sprintf("Decode%sResponse", method.VarName),
+		RequestEncoder:            endpointRequestEncoderSymbol(scope, method, payload, basch),
+		ResponseDecoder:           httpEndpointSymbol(scope, method.VarName, "decode-response"),
 		Requirements:              reqs,
 		CORS:                      sd.CORS,
 	}
@@ -351,7 +352,7 @@ func (sds *ServicesData) applyStreamingEndpointData(endpoint *EndpointData, endp
 }
 
 func (sds *ServicesData) applyMultipartEndpointData(endpoint *EndpointData, endpointIR *transportir.Endpoint, method *service.MethodData, svc *service.Data, scope *codegen.NameScope) {
-	sds.initEndpointMultipartData(endpoint, endpointIR, method, svc)
+	sds.initEndpointMultipartData(endpoint, endpointIR, method, svc, scope)
 	if endpointIR.Request.SkipBodyEncode {
 		endpoint.BuildStreamPayload = scope.Unique("Build" + codegen.Goify(method.Name, true) + "StreamPayload")
 	}

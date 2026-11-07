@@ -6,6 +6,9 @@ func EncodeMethodBodyQueryUserValidateRequest(encoder func(*http.Request) loomht
 		if !ok {
 			return loomhttp.ErrInvalidType("ServiceBodyQueryUserValidate", "MethodBodyQueryUserValidate", "*servicebodyqueryuservalidate.PayloadType", v)
 		}
+		if p == nil {
+			return loom.MissingPayloadError()
+		}
 		values := req.URL.Query()
 		values.Add("b", p.B)
 		req.URL.RawQuery = values.Encode()

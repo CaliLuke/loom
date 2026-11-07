@@ -40,12 +40,36 @@ func TestResolvedParameterCodecs(t *testing.T) {
 		})
 	}
 	form := endpoints["FormFields"].Request
-	require.Equal(t, httpencoding.DeepObject, form.FormFieldCodecs["filter"].Style)
-	require.Equal(t, httpencoding.Form, form.FormFieldCodecs["attributes"].Style)
-	require.False(t, form.FormFieldCodecs["attributes"].Explode)
-	require.Equal(t, httpencoding.Form, form.FormFieldCodecs["flags"].Style)
-	require.True(t, form.FormFieldCodecs["flags"].Explode)
-	require.NotEqual(t, httpencoding.JSON, form.FormFieldCodecs["attributes"].Style)
+	require.Equal(t, httpencoding.DeepObject, form.Form.Fields["filter"].Style)
+	require.Equal(t, httpencoding.Form, form.Form.Fields["attributes"].Style)
+	require.False(t, form.Form.Fields["attributes"].Explode)
+	require.Equal(t, httpencoding.Form, form.Form.Fields["flags"].Style)
+	require.True(t, form.Form.Fields["flags"].Explode)
+	require.NotEqual(t, httpencoding.JSON, form.Form.Fields["attributes"].Style)
 	require.True(t, endpoints["QueryResidual"].Request.QueryParams[0].Keys.Residual)
 	require.Equal(t, []string{"value[R]", "value[G]"}, endpoints["QueryObject"].Request.QueryParams[0].Keys.Literals)
+}
+
+func TestSingleUnionFormFieldKeepsNamedCodec(t *testing.T) {
+	root := testcodegen.RunDSL(t, testdata.UntaggedFormDSL)
+	service := transportir.BuildService(root.API.HTTP.Services[0])
+	checked := 0
+	for _, endpoint := range service.Endpoints {
+		switch endpoint.Name {
+		case "fields", "exploded", "Tags", "JSONField", "NullableJSONField", "Map", "MapJSON", "Object", "ObjectJSON":
+		default:
+			continue
+		}
+		checked++
+		t.Run(endpoint.Name, func(t *testing.T) {
+			codec, exists := endpoint.Request.Form.Fields["value"]
+			require.True(t, exists, "authored object property must retain its field codec")
+			if endpoint.Name == "Tags" || endpoint.Name == "JSONField" || endpoint.Name == "NullableJSONField" || endpoint.Name == "MapJSON" || endpoint.Name == "ObjectJSON" {
+				require.Equal(t, httpencoding.JSON, codec.Style)
+			} else {
+				require.Equal(t, httpencoding.Form, codec.Style)
+			}
+		})
+	}
+	require.Equal(t, 9, checked)
 }

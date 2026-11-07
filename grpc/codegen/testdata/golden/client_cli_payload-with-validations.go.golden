@@ -26,7 +26,8 @@ func BuildMethodAPayload(payloadWithValidationMethodAMetadataInt string, payload
 			val := int(v)
 			metadataInt = &val
 			if err != nil {
-				return nil, fmt.Errorf("invalid value for metadataInt, must be INT")
+				var zero *payloadwithvalidation.MethodAPayload
+				return zero, fmt.Errorf("invalid value for metadataInt, must be INT")
 			}
 			if *metadataInt < 0 {
 				err = loom.MergeErrors(err, loom.InvalidRangeError("MetadataInt", *metadataInt, "0", true))
@@ -35,7 +36,8 @@ func BuildMethodAPayload(payloadWithValidationMethodAMetadataInt string, payload
 				err = loom.MergeErrors(err, loom.InvalidRangeError("MetadataInt", *metadataInt, "100", false))
 			}
 			if err != nil {
-				return nil, err
+				var zero *payloadwithvalidation.MethodAPayload
+				return zero, err
 			}
 		}
 	}
@@ -50,7 +52,8 @@ func BuildMethodAPayload(payloadWithValidationMethodAMetadataInt string, payload
 				err = loom.MergeErrors(err, loom.InvalidLengthError("MetadataString", utf8.RuneCountInString(*metadataString), 10, false))
 			}
 			if err != nil {
-				return nil, err
+				var zero *payloadwithvalidation.MethodAPayload
+				return zero, err
 			}
 		}
 	}

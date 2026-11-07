@@ -14,10 +14,9 @@ import (
 )
 
 // TestExampleMultipartCompile generates the service, transport, and example
-// output for a design with a MultipartRequest method, then builds and vets
-// the module. A single example multipart.go must hold the functions of every
-// service and reference each payload through the service package import it
-// declares, and the example CLI must pass every client multipart encoder.
+// output for automatic object and custom map multipart methods, then builds
+// and vets the module. Only custom codecs belong in example multipart.go, and
+// the example CLI must pass the required custom client encoder.
 func TestExampleMultipartCompile(t *testing.T) {
 	source := loomModuleSource(t)
 	codegen.RunDSL(t, multipartExampleDesign)
@@ -33,14 +32,19 @@ func TestExampleMultipartCompile(t *testing.T) {
 	multipart, err := os.ReadFile(filepath.Join(dir, "multipart.go"))
 	require.NoError(t, err)
 	for _, want := range []string{
-		`files "example.com/upload/gen/files"`,
 		"func NotesUploadDecoderFunc(mr *multipart.Reader, p *map[string]string) error",
 		"func NotesUploadEncoderFunc(mw *multipart.Writer, p map[string]string) error",
-		"func FilesUploadEncoderFunc(mw *multipart.Writer, p *files.UploadPayload) error",
 	} {
 		require.Contains(t, string(multipart), want)
 	}
 	require.NotContains(t, string(multipart), "FilesUploadDecoderFunc")
+	require.NotContains(t, string(multipart), "FilesUploadEncoderFunc")
+	require.NotContains(t, string(multipart), `"example.com/upload/gen/files"`)
+
+	cli, err := os.ReadFile(filepath.Join(dir, "cmd", "upload-cli", "http.go"))
+	require.NoError(t, err)
+	require.Contains(t, string(cli), "upload.NotesUploadEncoderFunc")
+	require.NotContains(t, string(cli), "FilesUploadEncoderFunc")
 
 	_, err = testingx.RunCmd(dir, "go", "mod", "tidy")
 	require.NoError(t, err)
@@ -51,7 +55,7 @@ func TestExampleMultipartCompile(t *testing.T) {
 }
 
 // multipartExampleDesign declares a "files" service whose "upload" method
-// uses a generated multipart decoder, and a "notes" service whose "upload"
+// uses generated multipart codecs, and a "notes" service whose "upload"
 // method needs an application-provided multipart decoder.
 func multipartExampleDesign() {
 	dsl.API("upload", func() {})

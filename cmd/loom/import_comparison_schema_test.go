@@ -166,3 +166,70 @@ func comparisonFieldEmpty(value reflect.Value) bool {
 func comparisonSchemaReference(name string) string {
 	return "#/components/schemas/" + strings.ReplaceAll(strings.ReplaceAll(name, "~", "~0"), "/", "~1")
 }
+
+// normalizeReferences expands generated-only names and removes occurrence fields
+// only when identical to the referenced declaration. Distinct predicates and
+// annotations remain visible to the final comparison.
+func (r *comparisonSchemaResolver) normalizeReferences(document *openapiimport.Document) error {
+	// Keep reference targets immutable while detached occurrences are normalized.
+	snapshot := *r
+	snapshot.registry = make(map[string]*openapiimport.Schema, len(r.registry))
+	for ref, target := range r.registry {
+		cloned, err := cloneOpenAPIContractValue(target)
+		if err != nil {
+			return err
+		}
+		snapshot.registry[ref] = cloned
+	}
+	r = &snapshot
+	seen := make(map[*openapiimport.Schema]bool)
+	var normalize func(*openapiimport.Schema, map[string]bool) error
+	normalize = func(schema *openapiimport.Schema, active map[string]bool) error {
+		if seen[schema] {
+			return nil
+		}
+		seen[schema] = true
+		ref := schema.Ref
+		if ref != "" && !r.authored[ref] {
+			if active[ref] {
+				return fmt.Errorf("comparison cannot inline cyclic schema reference %q", ref)
+			}
+			resolved, err := r.resolve(schema, make(map[string]bool))
+			if err != nil {
+				return err
+			}
+			*schema = *resolved
+			active[ref] = true
+			defer delete(active, ref)
+		} else if ref != "" {
+			target := r.registry[ref]
+			if target == nil {
+				return fmt.Errorf("comparison cannot resolve schema reference %q", ref)
+			}
+			occurrence, declaration := reflect.ValueOf(schema).Elem(), reflect.ValueOf(target).Elem()
+			for index := 0; index < occurrence.NumField(); index++ {
+				field := occurrence.Field(index)
+				if !field.CanSet() || !field.CanInterface() || occurrence.Type().Field(index).Name == "Ref" {
+					continue
+				}
+				if reflect.DeepEqual(field.Interface(), declaration.Field(index).Interface()) {
+					field.SetZero()
+				}
+			}
+		}
+		var result error
+		walkComparisonSchemas(reflect.ValueOf(schema), func(child *openapiimport.Schema) {
+			if child != schema && result == nil {
+				result = normalize(child, active)
+			}
+		})
+		return result
+	}
+	var result error
+	walkComparisonSchemas(reflect.ValueOf(document), func(schema *openapiimport.Schema) {
+		if result == nil {
+			result = normalize(schema, make(map[string]bool))
+		}
+	})
+	return result
+}

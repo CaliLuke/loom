@@ -76,19 +76,6 @@ func (e *HTTPEndpointExpr) validateNullableTransportLocations(verr *eval.Validat
 			verr.Add(e, "HTTP map query parameters do not support nullable attributes")
 		}
 	}
-	body := e.Body
-	if body == nil && len(e.Routes) > 0 {
-		body = httpRequestBody(e)
-	}
-	if body == nil && e.MethodExpr != nil {
-		body = e.MethodExpr.Payload
-	}
-	if (e.FormRequest || e.MultipartRequest) && containsNullable(body) {
-		verr.Add(e, "HTTP form and multipart bodies do not support nullable attributes")
-	}
-	if (e.FormRequest || e.MultipartRequest) && containsTypedObject(body, make(map[*AttributeExpr]bool)) {
-		verr.Add(e, "HTTP form and multipart bodies do not support objects with AdditionalAttributes")
-	}
 	for _, response := range e.Responses {
 		validateNullableHTTPResponse(response, verr)
 	}
@@ -247,7 +234,9 @@ func containsString(values []string, target string) bool {
 }
 
 func (e *HTTPEndpointExpr) validateMissingPayload(verr *eval.ValidationErrors, hasParams, hasHeaders bool) bool {
-	if !isEmpty(e.MethodExpr.Payload) {
+	payload := e.MethodExpr.Payload
+	encodedObject := payload.Type != Empty && (e.FormRequest || e.MultipartRequest || len(e.MediaTypes) > 0)
+	if !isEmpty(payload) || encodedObject {
 		return false
 	}
 	if e.MapQueryParams != nil {
@@ -336,16 +325,12 @@ func (e *HTTPEndpointExpr) validateObjectPayloadTransport(verr *eval.ValidationE
 	if e.Body == nil {
 		return
 	}
-	if e.MultipartRequest {
-		verr.Add(e, "HTTP endpoint defines MultipartRequest and body. At most one of these must be defined.")
-	}
-	bObj := AsObject(e.Body.Type)
-	if bObj == nil {
-		return
-	}
-	var props []string
-	props, ok := e.Body.Meta["origin:attribute"]
-	if !ok {
+	props, selected := e.Body.Meta["origin:attribute"]
+	if !selected {
+		bObj := AsObject(e.Body.Type)
+		if bObj == nil {
+			return
+		}
 		for _, nat := range *bObj {
 			props = append(props, AttributeName(nat.Name))
 		}
@@ -358,10 +343,10 @@ func (e *HTTPEndpointExpr) validateObjectPayloadTransport(verr *eval.ValidationE
 	if !e.OptionalRequestBody {
 		return
 	}
-	if ok && len(props) == 1 && e.MethodExpr.Payload.IsRequired(payloadKey(e.MethodExpr.Payload, props[0])) {
+	if selected && len(props) == 1 && e.MethodExpr.Payload.IsRequired(payloadKey(e.MethodExpr.Payload, props[0])) {
 		verr.Add(e, "OptionalRequestBody requires the payload attribute mapped to the request body to be optional.")
 	}
-	if !ok && hasRequiredBodyAttributes(e.Body) {
+	if !selected && !e.MultipartRequest && hasRequiredBodyAttributes(e.Body) {
 		verr.Add(e, "OptionalRequestBody requires the request body to have no required attributes.")
 	}
 }
@@ -376,40 +361,18 @@ func (e *HTTPEndpointExpr) validateRequestBodyOptions(verr *eval.ValidationError
 	if e.OptionalRequestBody && e.SkipRequestBodyEncodeDecode {
 		verr.Add(e, "HTTP endpoint cannot use OptionalRequestBody with SkipRequestBodyEncodeDecode.")
 	}
-	if e.OptionalRequestBody && e.MultipartRequest {
-		verr.Add(e, "HTTP endpoint cannot use OptionalRequestBody with MultipartRequest.")
-	}
 	if e.OpenAPIRequestBody != nil {
 		e.validateOpenAPIRequestBody(verr)
 	}
 	optionalBody := e.Body
-	if optionalBody == nil && e.FormRequest {
+	if optionalBody == nil && (e.FormRequest || e.MultipartRequest || IsUnion(e.MethodExpr.Payload.Type)) {
 		optionalBody = httpRequestBody(e)
 	}
-	if e.OptionalRequestBody && optionalBody != nil && !(IsObject(optionalBody.Type) || IsMap(optionalBody.Type)) {
-		verr.Add(e, "OptionalRequestBody requires an object or map request body.")
+	if e.OptionalRequestBody && optionalBody != nil && !(IsObject(optionalBody.Type) || IsMap(optionalBody.Type) || IsUnion(optionalBody.Type)) {
+		verr.Add(e, "OptionalRequestBody requires an object, map, or union request body.")
 	}
 	if e.OptionalRequestBody && (optionalBody == nil || optionalBody.Type == Empty) {
 		verr.Add(e, "HTTP endpoint uses OptionalRequestBody but does not define a request body.")
-	}
-	formBody := e.MethodExpr.Payload
-	if e.Body != nil {
-		formBody = e.Body
-	}
-	if e.MultipartRequest && IsUnion(e.MethodExpr.Payload.Type) {
-		verr.Add(e, "MultipartRequest requires an object payload, constructor unions are not supported")
-	}
-	if e.MultipartRequest && containsUntaggedUnion(formBody) {
-		verr.Add(e, "MultipartRequest does not support untagged OneOf request bodies")
-	}
-	if e.FormRequest && !(IsUnion(formBody.Type) || IsObject(formBody.Type) || IsMap(formBody.Type)) {
-		verr.Add(e, "FormRequest requires an object, map, or constructor union payload")
-	}
-	if e.FormRequest && containsUntaggedUnion(formBody) {
-		verr.Add(e, "FormRequest does not support untagged OneOf request bodies")
-	}
-	if e.FormRequest && e.Body != nil && IsUnion(formBody.Type) {
-		verr.Add(e, "FormRequest does not support selecting a constructor union with Body")
 	}
 }
 

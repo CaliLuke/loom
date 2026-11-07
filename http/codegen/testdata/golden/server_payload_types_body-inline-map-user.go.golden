@@ -5,11 +5,13 @@ func NewMethodBodyInlineMapUserMapKeyTypeElemType(body map[*KeyTypeRequestBody]l
 	if body != nil {
 		v = make(map[*servicebodyinlinemapuser.KeyType]*servicebodyinlinemapuser.ElemType, len(body))
 		for key, val := range body {
+			tk := unmarshalKeyTypeRequestBodyToServicebodyinlinemapuserKeyType(key)
 			actual, ok := val.Value()
 			if !ok {
+				var vMissingValue *servicebodyinlinemapuser.ElemType
+				v[tk] = vMissingValue
 				continue
 			}
-			tk := unmarshalKeyTypeRequestBodyToServicebodyinlinemapuserKeyType(key)
 			if actual == nil {
 				v[tk] = nil
 				continue

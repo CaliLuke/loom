@@ -100,6 +100,7 @@ func transformPresenceContext(source, target *expr.AttributeExpr, ta *TransformA
 }
 
 func transformPhysicalContext(attribute *expr.AttributeExpr, context *AttributeContext) *AttributeContext {
+	context = context.ForAttribute(attribute)
 	if attribute == nil || context == nil {
 		return context
 	}

@@ -165,9 +165,9 @@ func renderViewedTypeMap(rtdata []*viewedType) string {
 	var b strings.Builder
 	b.WriteString("var (\n")
 	for _, vt := range rtdata {
-		b.WriteString(codegen.Indent(codegen.Comment(fmt.Sprintf("%sMap is a map indexing the attribute names of %s by view name.", vt.Name, vt.Name)), "\t"))
+		b.WriteString(codegen.Indent(codegen.Comment(fmt.Sprintf("%s is a map indexing the attribute names of %s by view name.", vt.MapName, vt.Name)), "\t"))
 		b.WriteString("\n")
-		fmt.Fprintf(&b, "\t%sMap = map[string][]string{\n", vt.Name)
+		fmt.Fprintf(&b, "\t%s = map[string][]string{\n", vt.MapName)
 		for _, view := range vt.Views {
 			fmt.Fprintf(&b, "\t\t%q: {\n", view.Name)
 			for _, attr := range view.Attributes {

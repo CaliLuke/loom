@@ -60,12 +60,15 @@ func TestStructPkgPathFrameworkImportNamesCompile(t *testing.T) {
 		{
 			Name: "multipart",
 			Files: map[string][]string{
-				"gen/http/shop/client/client.go":        {`"mime/multipart"`, `multipart2 "example.com/probe/gen/types/multipart"`, "type ShopUploadEncoderFunc func(*multipart.Writer, *multipart2.Item) error"},
-				"gen/http/shop/client/encode_decode.go": {`multipart2 "example.com/probe/gen/types/multipart"`, "mw := multipart.NewWriter(body)", "p, ok := v.(*multipart2.Item)"},
+				"gen/http/shop/client/client.go":        {`"mime/multipart"`, `multipart2 "example.com/probe/gen/types/multipart"`, "type ShopUploadBatchEncoderFunc func(*multipart.Writer, map[string]*multipart2.Item) error"},
+				"gen/http/shop/client/encode_decode.go": {`multipart2 "example.com/probe/gen/types/multipart"`, "mw := multipart.NewWriter(body)", "p, ok := v.(map[string]*multipart2.Item)", "body := NewUploadUploadRequestBodyForm(p)"},
+				"gen/http/shop/server/server.go":        {`"mime/multipart"`, `multipart2 "example.com/probe/gen/types/multipart"`, "type ShopUploadBatchDecoderFunc func(*multipart.Reader, *map[string]*multipart2.Item) error"},
 				"gen/grpc/shop/server/types.go":         {`multipart "example.com/probe/gen/types/multipart"`},
 			},
 			Absent: map[string][]string{
-				"gen/grpc/shop/server/types.go": {"multipart2"},
+				"gen/grpc/shop/server/types.go":  {"multipart2"},
+				"gen/http/shop/client/client.go": {"type ShopUploadEncoderFunc"},
+				"gen/http/shop/server/server.go": {"type ShopUploadDecoderFunc"},
 			},
 		},
 		{Name: "path"},
@@ -312,6 +315,15 @@ func structPkgPathClashDSL(name string, interceptors bool) func() {
 				dsl.Result(item)
 				dsl.HTTP(func() {
 					dsl.POST("/v1/upload")
+					dsl.MultipartRequest()
+				})
+			})
+			// A root map requires custom multipart callbacks; the object upload
+			// above keeps automatic multipart encoding in the same design.
+			dsl.Method("upload_batch", func() {
+				dsl.Payload(dsl.MapOf(dsl.String, item))
+				dsl.HTTP(func() {
+					dsl.POST("/v1/upload-batch")
 					dsl.MultipartRequest()
 				})
 			})

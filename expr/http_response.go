@@ -181,7 +181,7 @@ func (r *HTTPResponseExpr) validateStatusAndBody(e *HTTPEndpointExpr, verr *eval
 }
 
 func (r *HTTPResponseExpr) validateTextContentType(e *HTTPEndpointExpr, verr *eval.ValidationErrors) {
-	if (r.ContentType != "text/html" && r.ContentType != "text/plain") || e.SkipRequestBodyEncodeDecode || e.FileResponse {
+	if (r.ContentType != "text/html" && r.ContentType != "text/plain") || e.SkipResponseBodyEncodeDecode || e.FileResponse {
 		return
 	}
 	if r.OpenAPIBody != nil && r.OpenAPIBody.Type != String && r.OpenAPIBody.Type != Bytes {

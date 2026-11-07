@@ -8,7 +8,7 @@ func EncodeMethodQueryMapIntMapStringArrayIntValidateRequest(encoder func(*http.
 			return loomhttp.ErrInvalidType("ServiceQueryMapIntMapStringArrayIntValidate", "MethodQueryMapIntMapStringArrayIntValidate", "map[int]map[string][]int", v)
 		}
 		values := req.URL.Query()
-		if _, err := loomhttp.EncodeJSONField(values, "q", p); err != nil {
+		if _, err := loomhttp.EncodeJSONField(values, "q", p, loomhttp.FieldValue); err != nil {
 			return err
 		}
 		req.URL.RawQuery = values.Encode()

@@ -4,9 +4,9 @@ import (
 	"encoding/json/jsontext"
 	"encoding/json/v2"
 	"errors"
-	"fmt"
 
 	"github.com/CaliLuke/loom/internal/jsondecode"
+	"github.com/CaliLuke/loom/internal/unionmatch"
 )
 
 type (
@@ -19,11 +19,6 @@ type (
 		// mismatch, or an error for a broken matcher or unsupported operation.
 		Decode func(jsontext.Value) (bool, error)
 	}
-	// jsonUnionMismatch marks an ordinary generated union contract mismatch.
-	// Evaluator/configuration and application codec failures retain their causes.
-	jsonUnionMismatch struct {
-		message string
-	}
 )
 
 // MatchUntaggedJSON requires the same unique schema and typed decoder match.
@@ -34,41 +29,52 @@ func MatchUntaggedJSON(name string, data []byte, branches []JSONUnionBranch) (in
 	if err := json.Unmarshal(data, &wire); err != nil {
 		return -1, err
 	}
-	if len(branches) < 2 {
-		return -1, fmt.Errorf("%s: untagged union requires at least two candidates", name)
-	}
-	schemaCount, decodedCount, schemaIndex, decodedIndex := 0, 0, -1, -1
+	candidates := make([]unionmatch.Candidate, len(branches))
 	for index, branch := range branches {
-		if branch.Schema == nil || branch.Decode == nil {
-			return -1, fmt.Errorf("%s: untagged union candidate %d is incomplete", name, index)
+		if branch.Schema != nil {
+			candidates[index].Schema = func() (bool, error) {
+				return branch.Schema.Match(wire)
+			}
 		}
-		matches, err := branch.Schema.Match(wire)
-		if err != nil {
-			return -1, fmt.Errorf("%s schema candidate %d: %w", name, index, err)
-		}
-		if matches {
-			schemaCount++
-			schemaIndex = index
-		}
-		matches, err = branch.Decode(wire)
-		if err != nil {
-			return -1, fmt.Errorf("%s decoder candidate %d: %w", name, index, err)
-		}
-		if matches {
-			decodedCount++
-			decodedIndex = index
+		if branch.Decode != nil {
+			candidates[index].Decode = func() (bool, error) {
+				return branch.Decode(wire)
+			}
 		}
 	}
-	if schemaCount != 1 {
-		return -1, &jsonUnionMismatch{message: fmt.Sprintf("decode %s: untagged union matched %d branches in schema", name, schemaCount)}
+	return unionmatch.Select(name, candidates)
+}
+
+// MatchUntaggedJSONClosed selects against the original branches, then rejects
+// object members not evaluated by the selected schema. Candidates remain private.
+func MatchUntaggedJSONClosed(name string, data []byte, branches []JSONUnionBranch) (int, error) {
+	index, err := MatchUntaggedJSON(name, data, branches)
+	if err != nil {
+		return -1, err
 	}
-	if decodedCount != 1 {
-		return -1, &jsonUnionMismatch{message: fmt.Sprintf("decode %s: untagged union matched %d branches in decoder", name, decodedCount)}
+	var wire jsontext.Value
+	if err := json.Unmarshal(data, &wire); err != nil {
+		return -1, err
 	}
-	if schemaIndex != decodedIndex {
-		return -1, &jsonUnionMismatch{message: fmt.Sprintf("decode %s: untagged union schema and decoder identities differ", name)}
+	if wire.Kind() != '{' {
+		return index, nil
 	}
-	return decodedIndex, nil
+	evaluated, err := branches[index].Schema.Evaluated(wire)
+	if err != nil {
+		return -1, err
+	}
+	var object map[string]jsontext.Value
+	if err := json.Unmarshal(wire, &object); err != nil {
+		return -1, err
+	}
+	members := make([]string, 0, len(object))
+	for name := range object {
+		members = append(members, name)
+	}
+	if err := unionmatch.CheckEvaluated(name, members, evaluated); err != nil {
+		return -1, err
+	}
+	return index, nil
 }
 
 // DecodeJSONCandidate decodes an already structurally checked candidate.
@@ -80,14 +86,9 @@ func DecodeJSONCandidate[T any](wire jsontext.Value, destination *T) (bool, erro
 	if err == nil {
 		return true, nil
 	}
-	var nested *jsonUnionMismatch
+	var nested *unionmatch.Mismatch
 	if jsondecode.IsMismatch(err) || errors.As(err, &nested) {
 		return false, nil
 	}
 	return false, err
-}
-
-// Error returns the union contract mismatch without hiding its classification.
-func (e *jsonUnionMismatch) Error() string {
-	return e.message
 }

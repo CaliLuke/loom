@@ -82,6 +82,9 @@ func requestBodyModeFor(contentType, path string) (requestBodyMode, error) {
 }
 
 func (r *renderer) singleRequestBody(body RequestBody, mode requestBodyMode, path string) (*renderedBody, error) {
+	if mode != requestBodyJSON && r.unionSchema(body.Schema) {
+		return &renderedBody{body: body, field: "body", mode: mode, mapPayload: true}, nil
+	}
 	if mode != requestBodyJSON {
 		if err := r.validateRequestTransportBodySchema(body.Schema, path+"/schema"); err != nil {
 			return nil, err

@@ -576,7 +576,7 @@ func TestImportReportsInheritedPolicyURLField(t *testing.T) {
 		want    string
 	}{
 		{"untyped base", strings.Replace(inheritedPolicySchemas, "      additionalProperties: {type: string}\n", "", 1), ""},
-		{"typed base", inheritedPolicySchemas, "form-serialization"},
+		{"typed base", inheritedPolicySchemas, "media-encoding"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			source := []byte(`openapi: 3.2.0

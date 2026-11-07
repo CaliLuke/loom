@@ -267,13 +267,13 @@ func TestRenderUnionUnmarshalFormReturnsStructuredEnumError(t *testing.T) {
 
 func collectServiceUnionTypeNames(att *expr.AttributeExpr, loc *codegen.Location) map[string]string {
 	scope := codegen.NewNameScope()
-	seen := make(map[string]struct{})
-	unionByHash := make(map[string]*UnionTypeData)
-	collectUnionTypes(att, scope, loc, unionByHash, seen)
+	seen := make(map[destinationTypeIdentity]struct{})
+	unionByHash := make(map[destinationTypeIdentity]*UnionTypeData)
+	collectUnionTypes(att, scope, loc, "", unionByHash, seen)
 
 	names := make(map[string]string, len(unionByHash))
 	for hash, data := range unionByHash {
-		names[hash] = data.Name
+		names[hash.hash] = data.Name
 	}
 	return names
 }

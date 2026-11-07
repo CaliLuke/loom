@@ -10,7 +10,8 @@ func BuildMethodQueryUInt32Payload(serviceQueryUInt32MethodQueryUInt32Q string) 
 			val := uint32(v)
 			q = &val
 			if err != nil {
-				return nil, fmt.Errorf("invalid value for q, must be UINT32")
+				var zero *servicequeryuint32.MethodQueryUInt32Payload
+				return zero, fmt.Errorf("invalid value for q, must be UINT32")
 			}
 		}
 	}

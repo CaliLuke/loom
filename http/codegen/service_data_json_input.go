@@ -109,7 +109,7 @@ func newJSONBodyInput(attribute *expr.AttributeExpr, endpoint string, sd *Servic
 }
 
 func jsonInputTypeData(attribute *expr.AttributeExpr, endpoint string, sd *ServiceData, ctx *codegen.AttributeContext) *TypeData {
-	details := buildRequestBodyTypeDetails(attribute, endpoint, false, true, true, sd, ctx)
+	details := buildRequestBodyTypeDetails(attribute, endpoint, true, true, sd, ctx)
 	valueRef := details.valueRef
 	if valueRef == "" {
 		valueRef = details.varName

@@ -75,14 +75,51 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- `encodingmeta.StructTags`, `FormFieldName` and `FormTagName` own full-tag
+  replacement and form omission. `expr.HTTPFormBodyEncoding` and
+  `expr.HTTPMultipartBodyEncoding` capture recursive root alternatives, effective
+  names, omission, codecs and physical key claims. Transport IR, generation,
+  representation plans and OpenAPI consume those contracts. Codegen's private
+  `bodyCarrierPlan` projects captured JSON/native storage roles for naming and
+  layout; it does not resolve codecs again or infer them from MIME labels. Authored encoding metadata uses element names; export remaps
+  a detached metadata copy to wire names. Form names stay at the form root;
+  nested JSON fields keep their own tags. Keep the
+  [form-tag model](../../../internal/encodingmeta/tla/form_tags/README.md) aligned.
+  Form field generation consumes captured codecs for ordinary and styled
+  properties. Keep null admission separate from structural shape and pass it
+  explicitly to JSON field decoding. Outgoing field presence follows the
+  physical carrier, including native union Kind. Media branch field contexts
+  apply their own recorded layout before projection; never inherit parent
+  JSON-union presence into a native form branch. Keep the JSON field-policy
+  model under `http/tla/json_field_policy` aligned with runtime and generated
+  required/optional-field controls.
+  `renderFormRootRequestDecode` owns body presence for ordinary, map and union
+  form requests. It uses `ParseRawFormWithLimit` and captured raw-input presence,
+  never decoded key count. Required forms decode even a zero-byte empty value
+  set; optional forms skip decoding only when raw input is empty. Preserve
+  selected-object nil absence, field validation and body-limit errors. Keep the
+  untagged-presence model and maintained ordinary-form generated controls aligned.
+
 - Distinct HTTP media mappings belong to endpoint/response occurrences, not to
   reusable service unions. Transport IR retains each branch's schema, examples,
   codec and field encoding. Form roots have independent native-presence carriers;
-  nested JSON fields retain JSON carriers. Conversion contexts must honor both
-  true and false recorded presence policies. Incoming matching and outgoing
+  nested JSON fields retain JSON carriers in both directions, including outgoing
+  decoder replay. Alias flattening preserves occurrence-first HTTP media metadata
+  before discarding the alias, including imported source type facts. Copying a
+  union body rebinds every media variant to its branch in the copied graph.
+  Conversion contexts must honor both true and false recorded presence policies. Incoming matching and outgoing
   consistency share `internal/httpcodec`; select factories before response status.
   Keep the media-selection and physical-layout models and generated exchange
   specimen aligned.
+
+- `expr.DupAtt` retains source-node identity within a detached graph: distinct
+  nodes may share a nominal ID, while repeated edges and cycles share their copy.
+  Mutating body traversals (`walkUserTypes`, HTTP alias lowering and transport IR
+  normalization) visit by source reference and register before mutation. Every
+  physical copy needs suffixing and service-package removal; generated naming
+  registries keep their separate declaration identity. Keep the
+  [source-copy and traversal models](../../../expr/tla/type_copy/README.md) and
+  compiled custom-package/default transport controls aligned.
 
 - `admission.Rate` serializes the maintained token bucket's Allow and complete
   rate/burst policy updates. Preserve accrued allowance, clamp on reductions and
@@ -561,6 +598,24 @@ consumer validation.
   remain separate. A corrected service method identity also changes the gRPC RPC
   name derived from it, so retain descriptor and regeneration migration coverage.
 
+- `NameScope.SetTypeFamilies` installs package-owned declaration inventories at
+  the first local nominal reference. `HashedUniqueFamily` atomically reserves
+  the primary and companions before caching that identity. Service/view and HTTP
+  owners supply their emitted roles; `unionnames.PackageDeclarations` and
+  `BranchDeclarations` own common union names used by allocation and emission.
+  Reserve fixed HTTP package roles before resolving types. Keep receiver/member
+  scopes independent and preserve canonical located-type ownership. Late or
+  changed family inventories are generator errors, never a reason to rename
+  references already captured. Keep the declaration-family model and compiled
+  ordinary/collision specimens aligned. Service-owned native alias and logical
+  view-suffix inventories resolve intrinsic family conflicts before returning
+  companions. Preserve free natural spellings before suffixing displaced roles;
+  declarations and every projection/validation call consume those same maps.
+  Logical view names remain authored wire identities. Service projection and
+  occurrence wrappers use stable physical-role keys in the same service scope;
+  allocate each helper before its declarations and callers capture a name. Late
+  projected identities never justify renaming an existing nominal declaration.
+
 - `observability/otel.New` stages all enabled providers and their shutdown
   callbacks before publishing SDK globals. Failed construction uses
   `rollbackProviders` with a bounded uncanceled context; both it and successful
@@ -864,10 +919,20 @@ consumer validation.
   concrete helper and preserves absent/null/value states. Helper collection and
   invocation must agree on physical carriers; a name-only repair is insufficient.
   Keep `codegen/tla/union_transform_carrier` and direct/generated controls aligned.
+  Named-object helpers preserve nil according to their resolved pointer carrier.
+  Requiredness belongs to each occurrence's validation and must not affect the
+  shared helper or make its behavior depend on which occurrence is visited first.
 - `codegen/uniongen` owns the common Go union declaration and codec emitter.
   These public codegen packages are also the plugin extension boundary. JSON-only
   plugins set `Type.JSONOnly`; built-in service and HTTP emission retains form
   codecs. Plugins supply finalized expressions and NameScope-derived references.
+  `codegen/unionnames.Resolve` owns branch member allocation for core generators
+  and plugins: storage fields avoid fixed and branch methods, while sanitized
+  accessor collisions receive stable suffixes without changing wire identity.
+  Populate both `uniongen.Field.FieldName` and its required `MethodName` from that
+  allocation. Transforms, validation and transport adapters consume the same
+  names; do not derive members independently with `Goify` or alias a conflicting
+  storage field back to its old name.
   Service and HTTP analysis supply that model; service-only validation helpers
   stay in service analysis. Keep untagged occurrence matching in
   `codegen/unionjson`, and do not fork emitted union methods by transport.
@@ -1469,11 +1534,12 @@ filter, and serialization rules belong here.
 - Plan imported request bodies explicitly as raw, direct typed payloads, or
   selected-body envelopes. Schema-valued dynamic form maps use direct map
   payloads when body-only, selected `Body(...)` attributes when transport
-  fields coexist, and raw contracts for multi-media or optional multipart
-  bodies.
-- The shared import planner admits cookie schemas only when they are primitive,
-  resolving component schemas before checking. Array and object cookies fail
-  with a blocking location-specific diagnostic before rendering.
+  fields coexist, and captured entry codecs for multi-media form variants.
+  Optional single-media multipart maps retain their raw contract; multipart
+  union and multi-media roots require objects.
+- The shared import planner resolves cookie occurrences through the parameter
+  codec owner, including supported styled collections and untagged alternatives.
+  Unsupported shapes fail with a location-specific diagnostic before rendering.
 - Parameter reference descriptions retain occurrence presence separately from
   the resolved component. Resolve by copying the parameter value and applying
   the override; never mutate the component or infer presence from nonempty text.
@@ -1523,19 +1589,19 @@ filter, and serialization rules belong here.
 - Normalize `anyOf: [{}, {type: "null"}]` to unconstrained `Any`. The empty
   schema already accepts null, so the explicit null branch adds no contract
   semantics and must not force a nullable wrapper.
-- Normalize `oneOf: [$ref, {type: "null"}]` to a nullable named alias only
-  when the local referenced schema explicitly excludes null. Regeneration may
-  use nullable `anyOf`; reject already-nullable targets because the two
-  applicators are not equivalent in that case.
-- Normalize JSON request and success-response `oneOf` named object/array branches
-  to an explicit untagged union. Recursively admit primitives, named objects and
-  arrays; reject maps, nested unions, inline object leaves and opaque codecs.
-  Promote inline object branches to deterministic components; inline array
-  branches remain unsupported. `expr.ValuePlan.JSONShape` lowers captured
-  effective predicates. `codegen/unionjson` projects service or HTTP member
-  layouts and renders typed adapters; `pkg.MatchUntaggedJSON` owns orchestration.
-  Runtime DSL branches additionally admit string-keyed map fields (#1041) and
-  nested untagged unions (#1036); import's narrower admission remains separate.
+- Normalize supported `oneOf` branches by their admitted value domains, preserving
+  null multiplicity, local assertions and source encoding facts. Primitive and
+  Any roots, aliases, arrays, string-keyed maps, named objects and nested untagged
+  unions share the recursive grammar. Promote inline object shapes where a
+  concrete declaration is required; retain inline scalar and collection branches.
+  Overlap is legal and rejected per ambiguous value, not by branch-pair admission.
+  Transport codecs own each location's narrower wire grammar; gRPC and opaque
+  codec restrictions remain independent. `expr.ValuePlan.JSONShape` lowers
+  effective predicates. `codegen/unionjson` projects service or HTTP layouts and
+  renders typed adapters; `internal/unionmatch.Select` owns independent schema
+  and decoder counts through the JSON and text entry points. Apply occurrence
+  closure after unique selection, using evaluated members rather than declared
+  property names alone. Keep the import normalization/null models aligned.
   Lower nested alternatives into `JSONShape.Branches`, traverse their member
   policies and preserve exact-one matching at every level. Only internal typed
   union contract mismatches become ordinary failed decoder candidates; malformed
@@ -1551,6 +1617,19 @@ filter, and serialization rules belong here.
   the first successful branch, or mutate a destination before matching succeeds.
   Preserve API-level closed-object policy in the HTTP schema projection. See the
   [matching design](../../../codegen/unionjson/README.md) and its bounded model.
+  Retained singleton oneOf occurrences use the function constructor, keeping
+  union closure separate from branch openness. Shared exact-one matching and
+  JSONShape descriptors accept nonempty branch sets, including one branch, while
+  rejecting empty configurations. The compact `OneOf(type, type, ...)` API
+  retains its two-argument requirement. Render constructor tagging from the
+  schema/media representation owner; never invent an alternative or discard
+  closure to satisfy constructor syntax. Keep singleton model profiles and the
+  maintained importer closure oracle aligned.
+  The exact two-alternative nullable `anyOf: [value, null]` normalizer admits
+  already-normalized OneOf values, retaining their complete branch grammar and
+  closure before adding occurrence nullability. A missing direct Type/Ref does
+  not make such a value unsupported. General anyOf and unsupported typeless
+  compositions remain rejected; keep nullable-wrapper reimport controls aligned.
 
 - Normalize a scalar JSON Schema `const` without a sibling `enum` to a
   one-member Loom enum. Keep structured constants and combined `const` plus
@@ -1601,9 +1680,12 @@ filter, and serialization rules belong here.
   Keep `http/tla/forwarded_client` aligned with metadata, accessor and log tests.
 
 - HTTP error response analysis retains the selected `Body` field in
-  `ResponseData.ResultAttr`. Resolve its Go selector and client constructor
-  pointer semantics through `transportFieldBinding`, just like other service
-  field mappings. The shared response renderer consumes that selection when
+  `ResponseData.ResultAttr`. Resolve its Go selector through `selectedServiceField`.
+  Client constructor field and pointer metadata follow the conversion's native
+  target, using the shared selected-field and response-pointer owners. The
+  built-in problem adapter returns a complete native error even when its wire
+  input selects one public member; never wrap that result into the wire member.
+  The shared response renderer consumes the wire selection when
   no body constructor is needed; explicit object bodies keep their constructor.
   `TestErrorBodyProjectionGenerated` covers exact wire bytes and typed client
   reconstruction, including raw JSON precision, renamed fields and pointers.
@@ -1897,14 +1979,36 @@ filter, and serialization rules belong here.
   imports. The generators add only `struct:field:type` imports afterward. Do
   not reintroduce a blanket pass that hides a missing import in a direct file
   builder.
-- Declarations of types placed with `struct:pkg:path` use their canonical Go
-  name, just like qualified references. `NameScope.goFullValueTypeName` keeps
-  the existing conservative reservations that protect generated helper names,
-  then returns the canonical name for a relocated declaration. Removing those
-  reservations lets a union discriminator steal an authored `ChoiceKind`
-  name. The models under `codegen/tla/external_type_names` check declaration
-  consistency and preservation of authored names; the shared transport fixture
-  covers all six type shapes and an authored union-discriminator name.
+- `ServicesData` owns generated relocated type families by physical destination
+  path. It allocates reachable nominal declarations and nested bare unions once,
+  independently of service analysis order and import aliases. Native union
+  declaration collection and visited state use the same physical-path/type-hash
+  identity; equal allocated names sort by path then hash. `NameScope` type
+  references consume that read-only owner; `NewNameScopeLike` and
+  `WithoutPackageNames` retain it. Definition traversal and union builders pass
+  their physical location, including inherited generated wrappers. Local type
+  families retain their own lazy allocation. Opaque authored Go type spellings
+  remain outside this owner. Keep the destination-family model under
+  `codegen/service/tla/destination_families` and the shared custom-package
+  HTTP/gRPC/JSON-RPC fixture aligned. The earlier external-type models record
+  historical fixes and their limited assumptions; canonical spelling alone does
+  not prevent complete union-family collisions.
+  Generation-wide section emission uses the existing `Files` ledger, keyed by
+  physical package and allocated declaration role for service and custom files.
+  Keep section paths relative to gen until output File.Path construction; authored
+  gen/foo remains a real subpackage. Semantic ServicesData does not own mutable
+  emission state. First encountered existing file placement is deterministic for
+  fixed evaluated service order; fresh ledgers allow repeated generation.
+  Every section producer supplies its allocated Go identity: error type and
+  method roles use VarName, not authored Name; wire error names remain under
+  the error renderer.
+  `AttributeContext.ForAttribute` carries physical destination through conversion
+  and default rendering; an import alias alone cannot identify a bare nested
+  declaration. Derive source and target contexts before helper identity and
+  seen keys. `Attributor.WithScope` preserves each concrete representation
+  strategy; clone embedded contexts before rebinding. The recursive default
+  renderer derives location at its own entry, including child-object defaults
+  passed from an enclosing context. This does not change value admission.
 - A file imports a `struct:pkg:path` package under an alias, such as
   `security2`, only when its name clashes with another import that the same
   file lists (`codegen.AliasClashingImports`). A file builder lists its imports
@@ -2375,8 +2479,10 @@ filter, and serialization rules belong here.
   have different layouts. OpenAPI keeps the service union names, so do not
   rename the union in `expr` or in the shared IR.
 - `internal/httpencoding.Resolve` owns parameter grammar, defaults and key
-  claims. `ResolveUnion` resolves one effective grammar across alternatives;
-  it is a seam for text-union work, not permission to admit text unions today.
+  claims. Its recursive `Codec.Branches` retains each alternative's effective
+  grammar and source-aware whole-value/item application. Captured union codecs
+  drive schema and typed decoding independently; do not reconstruct policy in
+  individual transports.
   `expr.HTTPValueShape` and the importer's independent `urlShape` adapter retain
   scalar property and key/value domain facts. `CheckNamespaces` owns literal,
   bracket-prefix and residual claims. Keep exporter/importer/expr decisions here.
@@ -2644,6 +2750,9 @@ filter, and serialization rules belong here.
   metadata do not inherit that exception. Keep both ordering and local-traversal
   models in `expr/tla/grpc_presence_admission` aligned with complete DSL and
   generated Any roundtrip controls.
+- CLI field loading returns the zero value of the declared builder result type
+  on conversion or validation failure. Schema kind cannot decide Go nilability:
+  nullable and custom carriers can be values even for object-shaped payloads.
 - Preserve custom scalar conversion metadata and allocated raw/value locals
   when deriving HTTP payload constructor arguments. CLI custom string fields
   parse raw flags with UnmarshalText, validate the raw text, and retain optional

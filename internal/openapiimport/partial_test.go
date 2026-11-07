@@ -33,7 +33,7 @@ components:
   schemas:
     Good: {type: string}
     Bad:
-      oneOf:
+      anyOf:
         - {type: string}
         - {type: integer}
 `)

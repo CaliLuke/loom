@@ -249,6 +249,7 @@ func (b *valuePlanBuilder) nodeAssociated(
 		codec:      codec, documentary: b.request.Use == ValuePlanDocumentation, schemaOnly: b.request.Use == ValuePlanSchema,
 		nullable: target.attribute.Nullable, nonNullableElements: decl.nonNullableElements,
 		untagged: decl.untagged, typeKey: decl.typeKey, valueKey: decl.valueKey,
+		unionClosed:   target.attribute.UnionClosed(),
 		schemaUnknown: target.attribute.ObjectOpenness().AdmitsUndeclared(),
 	}
 	if !b.enumConstant {

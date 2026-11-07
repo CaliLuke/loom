@@ -96,18 +96,7 @@ func (r *renderer) schemaExpression(schema *Schema, path string) (string, bool, 
 		return r.schemaReferenceExpression(schema.Ref, path)
 	}
 	if len(schema.OneOf) > 0 {
-		branches := make([]string, 0, len(schema.OneOf))
-		for index, branch := range schema.OneOf {
-			expression, object, err := r.schemaExpression(branch, fmt.Sprintf("%s/oneOf/%d", path, index))
-			if err != nil {
-				return "", false, err
-			}
-			if object {
-				return "", false, fmt.Errorf("render OpenAPI design: %s/oneOf/%d inline object union branch is not renderable", path, index)
-			}
-			branches = append(branches, expression)
-		}
-		return "OneOf(" + strings.Join(branches, ", ") + ")", false, nil
+		return r.oneOfExpression(schema, path)
 	}
 	if schema.Unconstrained {
 		return "Any", false, nil
@@ -316,6 +305,9 @@ func (r *renderer) schemaAttributeBlock(schema *Schema, path string, description
 		return err
 	}
 	r.untaggedValidation(schema)
+	if schema.UnionClosed {
+		r.line("Meta(%q, %q)", "openapi:unevaluatedProperties", "false")
+	}
 	r.referenceOverlayMetadata(schema)
 	if err := r.schemaAnnotations(schema, description); err != nil {
 		return err
@@ -439,7 +431,7 @@ func (r *renderer) hasSchemaBlock(schema *Schema) bool {
 	if schema == nil {
 		return false
 	}
-	if len(schema.MediaEncoding) > 0 || schema.Title != "" || schema.Description != "" || len(schema.OneOf) > 0 || len(schema.Bases) > 0 || len(schema.Properties) > 0 || len(schema.Required) > 0 || len(schema.Enum) > 0 ||
+	if schema.UnionClosed || len(schema.MediaEncoding) > 0 || schemaEncodingType(schema, r.schemas) != "" || schema.Title != "" || schema.Description != "" || len(schema.OneOf) > 0 || len(schema.Bases) > 0 || len(schema.Properties) > 0 || len(schema.Required) > 0 || len(schema.Enum) > 0 ||
 		schema.Pattern != "" || schema.Minimum != nil || schema.Maximum != nil || schema.ExclusiveMinimum != nil ||
 		schema.ExclusiveMaximum != nil || schema.MinLength != nil || schema.MaxLength != nil ||
 		schema.MinItems != nil || schema.MaxItems != nil ||

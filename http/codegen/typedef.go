@@ -132,9 +132,7 @@ func goObjectFieldDef(scope *codegen.NameScope, ma *expr.ObjectFields, name stri
 	fieldName := codegen.GoifyAtt(att, name, true)
 	typeDef := goTypeDef(scope, att, ptr, useDefault, jsonPresence)
 	field := representation.ResolveField(ma, name, att, ptr, useDefault, jsonPresence)
-	if field.Layout.WrapNullable {
-		typeDef = "loom.Nullable[" + goValueTypeDef(scope, att, ptr, useDefault, jsonPresence) + "]"
-	} else if field.Layout.WrapOptional {
+	if field.Layout.WrapOptional {
 		typeDef = "loom.Optional[" + typeDef + "]"
 	}
 	if field.Layout.Pointer {

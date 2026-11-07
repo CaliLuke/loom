@@ -6,7 +6,8 @@ func BuildMethodAPayload(serviceWithParamsAndHeadersBlockMethodABody string, ser
 	{
 		err = loomhttpcli.UnmarshalNonNullableJSON([]byte(serviceWithParamsAndHeadersBlockMethodABody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %w, \nexample of valid JSON:\n%s", err, "'{\n      \"body\": \"Sit dolor quo.\"\n   }'")
+			var zero *servicewithparamsandheadersblock.MethodAPayload
+			return zero, fmt.Errorf("invalid JSON for body, \nerror: %w, \nexample of valid JSON:\n%s", err, "'{\n      \"body\": \"Sit dolor quo.\"\n   }'")
 		}
 	}
 	var path uint
@@ -15,7 +16,8 @@ func BuildMethodAPayload(serviceWithParamsAndHeadersBlockMethodABody string, ser
 		v, err = strconv.ParseUint(serviceWithParamsAndHeadersBlockMethodAPath, 10, strconv.IntSize)
 		path = uint(v)
 		if err != nil {
-			return nil, fmt.Errorf("invalid value for path, must be UINT")
+			var zero *servicewithparamsandheadersblock.MethodAPayload
+			return zero, fmt.Errorf("invalid value for path, must be UINT")
 		}
 	}
 	var optional *int
@@ -26,7 +28,8 @@ func BuildMethodAPayload(serviceWithParamsAndHeadersBlockMethodABody string, ser
 			val := int(v)
 			optional = &val
 			if err != nil {
-				return nil, fmt.Errorf("invalid value for optional, must be INT")
+				var zero *servicewithparamsandheadersblock.MethodAPayload
+				return zero, fmt.Errorf("invalid value for optional, must be INT")
 			}
 		}
 	}
@@ -36,7 +39,8 @@ func BuildMethodAPayload(serviceWithParamsAndHeadersBlockMethodABody string, ser
 		v, err = strconv.ParseFloat(serviceWithParamsAndHeadersBlockMethodAOptionalButRequiredParam, 32)
 		optionalButRequiredParam = float32(v)
 		if err != nil {
-			return nil, fmt.Errorf("invalid value for optionalButRequiredParam, must be FLOAT32")
+			var zero *servicewithparamsandheadersblock.MethodAPayload
+			return zero, fmt.Errorf("invalid value for optionalButRequiredParam, must be FLOAT32")
 		}
 	}
 	var required string
@@ -49,7 +53,8 @@ func BuildMethodAPayload(serviceWithParamsAndHeadersBlockMethodABody string, ser
 		v, err = strconv.ParseFloat(serviceWithParamsAndHeadersBlockMethodAOptionalButRequiredHeader, 32)
 		optionalButRequiredHeader = float32(v)
 		if err != nil {
-			return nil, fmt.Errorf("invalid value for optionalButRequiredHeader, must be FLOAT32")
+			var zero *servicewithparamsandheadersblock.MethodAPayload
+			return zero, fmt.Errorf("invalid value for optionalButRequiredHeader, must be FLOAT32")
 		}
 	}
 	v := &servicewithparamsandheadersblock.MethodAPayload{}

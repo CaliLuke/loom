@@ -303,18 +303,18 @@ func TestUnionSectionStructuredDeclarations(t *testing.T) {
 			ValueKey: "value",
 			Fields: []*uniongen.Field{
 				{
-					Name:               "text",
-					KindConst:          "SelectionKindText",
-					FieldName:          "Text",
+					Name:      "text",
+					KindConst: "SelectionKindText",
+					FieldName: "Text", MethodName: "Text",
 					FieldType:          "SelectionText",
 					EmitPrimitiveAlias: true,
 					PrimitiveAliasType: "string",
 					TypeTag:            "text",
 				},
 				{
-					Name:               "count",
-					KindConst:          "SelectionKindCount",
-					FieldName:          "Count",
+					Name:      "count",
+					KindConst: "SelectionKindCount",
+					FieldName: "Count", MethodName: "Count",
 					FieldType:          "SelectionCount",
 					EmitPrimitiveAlias: true,
 					PrimitiveAliasType: "int",
@@ -341,7 +341,7 @@ func TestUnionSectionAliasesAnyAsRawJSONValue(t *testing.T) {
 			TypeKey:  "type",
 			ValueKey: "value",
 			Fields: []*uniongen.Field{{
-				Name: "raw", KindConst: "SelectionKindRaw", FieldName: "Raw", FieldType: "SelectionRaw",
+				Name: "raw", KindConst: "SelectionKindRaw", FieldName: "Raw", MethodName: "Raw", FieldType: "SelectionRaw",
 				EmitPrimitiveAlias: true, PrimitiveAliasType: "loom.JSONValue", TypeTag: "raw",
 			}},
 		},

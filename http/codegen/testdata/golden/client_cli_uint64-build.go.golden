@@ -10,7 +10,8 @@ func BuildMethodQueryUIntPayload(serviceQueryUIntMethodQueryUIntQ string) (*serv
 			val := uint(v)
 			q = &val
 			if err != nil {
-				return nil, fmt.Errorf("invalid value for q, must be UINT")
+				var zero *servicequeryuint.MethodQueryUIntPayload
+				return zero, fmt.Errorf("invalid value for q, must be UINT")
 			}
 		}
 	}

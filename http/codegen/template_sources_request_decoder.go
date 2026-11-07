@@ -39,85 +39,9 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ el
 		{{- end }}
 		)
 	{{- if .Payload.Request.MultipartGenerated }}
-		multipartForm, multipartErr := loomhttp.ReadMultipartForm(r)
-		if multipartErr != nil {
-			var gerr *loom.ServiceError
-			if errors.As(multipartErr, &gerr) {
-				return payload, gerr
-			}
-			return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(multipartErr))
-		}
-		if len(multipartForm.Values) == 0 && len(multipartForm.Files) == 0 {
-		{{- if .Payload.Request.MustHaveBody }}
-			return payload, loom.MissingPayloadError()
-		{{- end }}
-		} else {
-		{{- range .Payload.Request.MultipartFileFields }}
-			switch files := multipartForm.Files["{{ .HTTPName }}"]; len(files) {
-			case 0:
-				// A missing required file is reported by the body validation
-				// below, which independently detects the resulting nil field.
-			case 1:
-				multipartForm.Values.Set("{{ .HTTPName }}", string(files[0].Data))
-			{{- if .PopulateFilename }}
-				if _, ok := multipartForm.Values["filename"]; !ok && files[0].Filename != "" {
-					multipartForm.Values.Set("filename", files[0].Filename)
-				}
-			{{- end }}
-			{{- if .PopulateContentType }}
-				if _, ok := multipartForm.Values["content_type"]; !ok && files[0].ContentType != "" {
-					multipartForm.Values.Set("content_type", files[0].ContentType)
-				}
-			{{- end }}
-			default:
-				return payload, loom.DecodePayloadError("multiple multipart files provided for field {{ .HTTPName }}")
-			}
-		{{- end }}
-			if _, multipartErr = loomhttp.DecodeFormValue(multipartForm.Values, "", &body); multipartErr != nil {
-				var gerr *loom.ServiceError
-				if errors.As(multipartErr, &gerr) {
-					return payload, gerr
-				}
-				return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(multipartErr))
-			}
-		}
+{{ renderMultipartRequestDecode .Payload.Request }}
 	{{- else if .Payload.Request.FormEncoded }}
-		{{- if .Payload.Request.StyledFormFields }}
-parameterFormPairs, parameterFormError := loomhttp.ParseRawFormWithLimit(r, loomhttp.RequestBodyLimit(r.Context()))
-err = parameterFormError
-		if err != nil {
-{{- else }}
-		if err = loomhttp.ParseFormWithLimit(r, loomhttp.RequestBodyLimit(r.Context())); err != nil {
-{{- end }}
-			var gerr *loom.ServiceError
-			if errors.As(err, &gerr) {
-				return payload, gerr
-			}
-			return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(err))
-		}
-		if len(r.PostForm) == 0 {
-		{{- if .Payload.Request.MustHaveBody }}
-			return payload, loom.MissingPayloadError()
-		{{- else if .Payload.Request.OptionalObjectBody }}
-			body = nil
-		{{- end }}
-		} else {
-{{- if .Payload.Request.StyledFormFields }}
- if parameterError := func() error {
- {{ renderStyledFormDecode .Payload.Request }}
- }(); parameterError != nil {
- return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(parameterError))
- }
- {{- else }}
-			if _, err = loomhttp.DecodeFormValue(r.PostForm, "", {{ if not .Payload.Request.OptionalObjectBody }}&{{ end }}body); err != nil {
-				var gerr *loom.ServiceError
-				if errors.As(err, &gerr) {
-					return payload, gerr
-				}
-				return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(err))
-			}
-{{- end }}
-		}
+{{ renderFormRootRequestDecode .Payload.Request }}
 	{{- else }}
 {{- if .Payload.Request.ServerBody.Media }}
         {
@@ -129,14 +53,17 @@ err = parameterFormError
                 {{- range $i, $variant := .Payload.Request.ServerBody.Media.Variants }}
                 case {{ $i }}:
                     var mediaValue {{ .TypeRef }}
-{{- if .StyledFormFields }}
+{{- if .Multipart }}
+mediaRequest := r.WithContext({{ renderMediaMultipartDecode . "r.Context()" "mediaValue" }})
+err = loomhttp.DecodeMediaRequest(mediaRequest, &mediaValue, {{ .AllowsNull }}, nil, decoder)
+{{- else if mediaFormCodec . }}
 mediaRequest := r.WithContext({{ renderMediaFormDecode . "r.Context()" "mediaValue" }})
-err = loomhttp.DecodeMediaRequest(mediaRequest, &mediaValue, {{ .AllowsNull }}, {{ .Parts }}, decoder)
+err = loomhttp.DecodeMediaRequest(mediaRequest, &mediaValue, {{ .AllowsNull }}, nil, decoder)
 {{- else }}
-                    err = loomhttp.DecodeMediaRequest(r, &mediaValue, {{ .AllowsNull }}, {{ .Parts }}, decoder)
+                    err = loomhttp.DecodeMediaRequest(r, &mediaValue, {{ .AllowsNull }}, nil, decoder)
 {{- end }}
                     if err == nil {
-                        body.Set{{ .Field }}(mediaValue)
+                        body.Set{{ .Method }}(mediaValue)
                     }
                 {{- end }}
                 }

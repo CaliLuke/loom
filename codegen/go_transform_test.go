@@ -273,8 +273,8 @@ func TestGoTransformUsesValueUnionArrayElements(t *testing.T) {
 			Meta: expr.MetaExpr{"struct:pkg:path": {"example.com/service"}},
 		},
 	}}}}
-	require.Contains(t, collectionTypeRef(locatedLocal, samePackageCtx, false), "LocalAlias")
-	require.NotContains(t, collectionTypeRef(locatedLocal, samePackageCtx, false), "service.LocalAlias")
+	require.Contains(t, samePackageCtx.CollectionElementRef(locatedLocal, false), "LocalAlias")
+	require.NotContains(t, samePackageCtx.CollectionElementRef(locatedLocal, false), "service.LocalAlias")
 }
 
 func TestGoTransformRendersTypedMapDefaultFromMapVal(t *testing.T) {

@@ -358,6 +358,7 @@ import (
 	"strconv"
 	"strings"
 	json "encoding/json/v2"
+	"encoding/json/jsontext"
 	"unicode/utf8"
 	loom "github.com/CaliLuke/loom/pkg"
 	loomhttp "github.com/CaliLuke/loom/http"

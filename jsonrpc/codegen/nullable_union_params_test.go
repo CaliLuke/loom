@@ -15,8 +15,9 @@ import (
 // loom.Nullable params of a nullable union payload attribute selected with
 // Body to the payload constructor by value, and that the client omits params
 // for an absent optional attribute while the server decodes absent params as
-// an absent value instead of substituting {}. A required attribute is always
-// encoded, and the server reports its absent params as a missing payload.
+// an absent value instead of substituting {}. A required attribute rejects
+// absence before encoding, and the server reports its absent params as a
+// missing payload.
 func TestJSONRPCNullableUnionParams(t *testing.T) {
 	for _, required := range []bool{false, true} {
 		name := "optional"
@@ -36,12 +37,13 @@ func TestJSONRPCNullableUnionParams(t *testing.T) {
 			assert.Contains(t, decoder, "payload = NewPickPayload(body, ")
 			assert.NotContains(t, decoder, "NewPickPayload(&body")
 			if required {
-				assert.NotContains(t, encoder, "p.U.Present()")
+				assert.NotContains(t, encoder, "if !(!p.U.Present()) {")
+				assert.Contains(t, encoder, "\t\tif !p.U.Present() {\n\t\t\treturn loom.MissingPayloadError()\n\t\t}\n\t\tb := NewLoomNullablePickRequestBody(p)")
 				assert.NotContains(t, decoder, "params = []byte(\"{}\")")
 				assert.Contains(t, decoder, "return payload, loom.MissingPayloadError()")
 				return
 			}
-			assert.Contains(t, encoder, "\t\tif p.U.Present() {\n\t\t\tbody.Params = NewLoomNullablePickRequestBody(p)\n\t\t}\n")
+			assert.Contains(t, encoder, "\t\tif !(!p.U.Present()) {\n\t\t\tbody.Params = NewLoomNullablePickRequestBody(p)\n\t\t}\n")
 			assert.NotContains(t, decoder, "params = []byte(\"{}\")")
 		})
 	}

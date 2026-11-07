@@ -5,27 +5,28 @@ func DecodeMethodFormBodyInvalidRequest(mux loomhttp.Muxer, _ func(*http.Request
 		var payload *serviceformbodyinvalid.MethodFormBodyInvalidPayload
 		var err error
 		var (
-			body MethodFormBodyInvalidRequestBody
+			body MethodFormBodyInvalidMethodFormBodyInvalidRequestBodyForm
 		)
-		if err = loomhttp.ParseFormWithLimit(r, loomhttp.RequestBodyLimit(r.Context())); err != nil {
-			var gerr *loom.ServiceError
-			if errors.As(err, &gerr) {
-				return payload, gerr
+		_, parseError := loomhttp.ParseRawFormWithLimit(r, loomhttp.RequestBodyLimit(r.Context()))
+		err = parseError
+		if err != nil {
+			var serviceError *loom.ServiceError
+			if errors.As(err, &serviceError) {
+				return payload, serviceError
 			}
 			return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(err))
 		}
-		if len(r.PostForm) == 0 {
-			return payload, loom.MissingPayloadError()
-		} else {
-			if _, err = loomhttp.DecodeFormValue(r.PostForm, "", &body); err != nil {
-				var gerr *loom.ServiceError
-				if errors.As(err, &gerr) {
-					return payload, gerr
-				}
-				return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(err))
+		if parameterError := func() error {
+			parameterForm := r.PostForm
+			if _, parameterError := loomhttp.DecodeFormValue(parameterForm, "count", &body.Count); parameterError != nil {
+				return parameterError
 			}
+			return nil
+		}(); parameterError != nil {
+			return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(parameterError))
 		}
-		err = ValidateMethodFormBodyInvalidRequestBody(&body)
+
+		err = ValidateMethodFormBodyInvalidMethodFormBodyInvalidRequestBodyForm(&body)
 		if err != nil {
 			return payload, err
 		}

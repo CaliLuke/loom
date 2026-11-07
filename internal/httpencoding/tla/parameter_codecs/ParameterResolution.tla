@@ -60,10 +60,10 @@ Exposed(l, s, e, sh) ==
 
 \* ---- Design algorithm (Resolve pseudocode) ----
 \* Shapes with an existing JSON carrier. Whole metadata-free query maps and
-\* form-field objects/maps default to it; an explicit JSON content type also
-\* selects it for unions (#1014's JSON matcher).
+\* form-field objects/maps default to it. Explicit JSON selects every supported
+\* form-field shape, including scalars/lists, and query unions (#1014).
 JSONDefaultShape(l, sh) == (l = "query" /\ sh \in {"smap", "nmap"}) \/ (l = "formfield" /\ sh \in {"object", "smap", "nmap"})
-ContentCarrier(l, sh) == JSONDefaultShape(l, sh) \/ (URLLike(l) /\ sh \in {"union_ss", "union_so", "union_sm"})
+ContentCarrier(l, sh) == l = "formfield" \/ JSONDefaultShape(l, sh) \/ (URLLike(l) /\ sh \in {"union_ss", "union_so", "union_sm"})
 \* Rejected candidate form-explicit-false-ignored treats an explicit false as absent.
 FormFlags(s, e, r) == IF Policy = "form-explicit-false-ignored" THEN s # "absent" \/ e = "true" \/ r = "true"
                       ELSE Flags(s, e, r)

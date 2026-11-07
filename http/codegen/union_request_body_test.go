@@ -142,8 +142,8 @@ func optionalUnionRequestBodyDSL() {
 
 // TestOptionalUnionRequestBodyClientEncoder asserts that the client request
 // encoder sends no body when the optional union payload attribute mapped to
-// the request body is nil, and that a required union body is still always
-// encoded.
+// the request body is absent, including an empty union kind. Required
+// selected bodies reject absence before transport conversion.
 func TestOptionalUnionRequestBodyClientEncoder(t *testing.T) {
 	cases := []struct {
 		Name     string
@@ -179,7 +179,7 @@ func TestOptionalUnionRequestBodyClientEncoder(t *testing.T) {
 			file := findFileWithSection(t, ClientFiles("gen", services), "request-encoder")
 			code := codegen.SectionCode(t, file.Section("request-encoder")[0])
 			assert.Contains(t, code, c.Encode)
-			guarded := "\t\tif p.U != nil {\n" +
+			guarded := "\t\tif !(p.U == nil || p.U.Kind() == \"\") {\n" +
 				"\t\t\tbody := NewPickRequestBody(p)\n" +
 				"\t\t\tif " + c.Encode + "; err != nil {\n" +
 				"\t\t\t\treturn loomhttp.ErrEncodingError(\"Picker\", \"Pick\", err)\n" +
@@ -191,6 +191,11 @@ func TestOptionalUnionRequestBodyClientEncoder(t *testing.T) {
 				return
 			}
 			assert.NotContains(t, code, "if p.U != nil")
+			if c.Name == "required-attribute-body" {
+				assert.Contains(t, code, "if p.U.Kind() == \"\" {\n\t\t\treturn loom.MissingPayloadError()")
+			} else {
+				assert.Contains(t, code, "if p == nil || p.Kind() == \"\" {\n\t\t\treturn loom.MissingPayloadError()")
+			}
 		})
 	}
 }

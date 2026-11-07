@@ -4,7 +4,6 @@ import (
 	"mime"
 
 	"github.com/CaliLuke/loom/expr"
-	"github.com/CaliLuke/loom/internal/httpencoding"
 )
 
 // MediaVariant owns one HTTP representation of a semantic body union branch.
@@ -21,10 +20,10 @@ type MediaVariant struct {
 	Body *expr.AttributeExpr
 	// Value retains service provenance and the selected branch's representation plan.
 	Value *ValueTarget
-	// FormFieldCodecs records the resolved field grammar for this media alone.
-	FormFieldCodecs map[string]httpencoding.Codec
-	// PartTypes binds multipart fields to their effective wire Content-Type.
-	PartTypes map[string]string
+	// Form retains the complete form contract for this media occurrence.
+	Form *expr.HTTPFormEncoding
+	// Multipart retains the complete multipart contract for this media occurrence.
+	Multipart *expr.HTTPMultipartEncoding
 	// Metadata retains occurrence-first media annotations through aliases.
 	Metadata expr.MetaExpr
 }
@@ -43,21 +42,14 @@ func buildMediaVariants(body *expr.AttributeExpr, mappings []*expr.HTTPMediaType
 		if base == "application/x-www-form-urlencoded" || base == "multipart/form-data" {
 			branch.Attribute = mediaFormCarrier(branch.Attribute)
 		}
-		var parts map[string]string
-		if base == "multipart/form-data" {
-			parts, err = expr.HTTPMediaPartTypes(branch.Attribute)
-			if err != nil {
-				panic(err) // Expression validation establishes this contract.
-			}
-		}
 		variants = append(variants, &MediaVariant{
-			ContentType:     mapping.ContentType,
-			PartTypes:       parts,
-			Metadata:        expr.HTTPMediaMetadata(branch.Attribute),
-			Branch:          branch.Name,
-			Tag:             expr.UnionVariantTag(branch),
-			Body:            branch.Attribute,
-			FormFieldCodecs: formFieldCodecs(branch.Attribute, base == "application/x-www-form-urlencoded"),
+			ContentType: mapping.ContentType,
+			Multipart:   multipartBodyEncoding(branch.Attribute, base == "multipart/form-data"),
+			Metadata:    expr.HTTPMediaMetadata(branch.Attribute),
+			Branch:      branch.Name,
+			Tag:         expr.UnionVariantTag(branch),
+			Body:        branch.Attribute,
+			Form:        formBodyEncoding(branch.Attribute, base == "application/x-www-form-urlencoded"),
 		})
 	}
 	return variants

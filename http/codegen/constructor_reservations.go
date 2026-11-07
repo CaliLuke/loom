@@ -1,6 +1,9 @@
 package codegen
 
-import "github.com/CaliLuke/loom/codegen/uniongen"
+import (
+	"github.com/CaliLuke/loom/codegen/uniongen"
+	"github.com/CaliLuke/loom/codegen/unionnames"
+)
 
 type constructorNames map[string]bool
 
@@ -65,7 +68,7 @@ func (names constructorNames) addType(body *TypeData) {
 func (names constructorNames) addUnion(union *uniongen.Type) {
 	names.add(union.Name, union.KindName)
 	for _, field := range union.Fields {
-		names.add(field.KindConst, "New"+union.Name+field.FieldName)
+		names.add(field.KindConst, unionnames.BranchDeclarations(union.Name, field.MethodName).Constructor)
 		if field.EmitPrimitiveAlias {
 			names.add(field.FieldType)
 		}

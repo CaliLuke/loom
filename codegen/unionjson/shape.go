@@ -7,7 +7,9 @@ import (
 	loom "github.com/CaliLuke/loom/pkg"
 )
 
-func renderShape(b *strings.Builder, name string, root *loom.JSONShape) {
+// RenderShape emits a captured matching descriptor, preserving recursive edges.
+// JSON and text adapters share this descriptor representation.
+func RenderShape(b *strings.Builder, name string, root *loom.JSONShape) {
 	nodes := []*loom.JSONShape{}
 	indexes := make(map[*loom.JSONShape]int)
 	var visit func(*loom.JSONShape)
@@ -33,6 +35,9 @@ func renderShape(b *strings.Builder, name string, root *loom.JSONShape) {
 	fmt.Fprintf(b, "%sNodes := make([]loom.JSONShape, %d)\n", name, len(nodes))
 	for index, node := range nodes {
 		fmt.Fprintf(b, "%sNodes[%d] = loom.JSONShape{Kind: %q, Nullable: %t, Closed: %t, NonNullableElements: %t,\n", name, index, node.Kind, node.Nullable, node.Closed, node.NonNullableElements)
+		if node.UnevaluatedClosed {
+			b.WriteString("UnevaluatedClosed: true,\n")
+		}
 		if node.Child != nil {
 			fmt.Fprintf(b, "Child: &%sNodes[%d],\n", name, indexes[node.Child])
 		}

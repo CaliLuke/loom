@@ -41,9 +41,8 @@ func TestDistinctMediaContractsRoundTrip(t *testing.T) {
 	for _, got := range []map[string]any{request, response} {
 		require.Len(t, got, 6)
 		form := got["application/x-www-form-urlencoded"].(map[string]any)
-		// Form arrays default to repeated fields; equivalent explicit defaults
-		// are omitted by the shared parameter codec exporter.
-		require.NotContains(t, form, "encoding")
+		// An authored style must survive independently of source content defaults.
+		require.Equal(t, map[string]any{"style": "form", "explode": true}, form["encoding"].(map[string]any)["tags"])
 		multipart := got["multipart/form-data"].(map[string]any)
 		require.Equal(t, "text/plain", multipart["encoding"].(map[string]any)["tags"].(map[string]any)["contentType"])
 		for media, expected := range map[string]any{"application/json": float64(12), "application/vnd.loom+json": float64(34), "text/plain": "hello"} {
@@ -56,7 +55,7 @@ func TestDistinctMediaContractsRoundTrip(t *testing.T) {
 	requireIndependentRegeneration(t, directory)
 }
 
-func TestDistinctMediaContractsRejectUnsupportedEncoding(t *testing.T) {
+func TestDistinctMediaContractEncodingAdmission(t *testing.T) {
 	for _, tc := range []struct {
 		name, media string
 		schema      map[string]any
@@ -65,7 +64,7 @@ func TestDistinctMediaContractsRejectUnsupportedEncoding(t *testing.T) {
 		{"multipart explode", "multipart/form-data", map[string]any{"type": "object", "properties": map[string]any{"tags": map[string]any{"type": "array", "items": map[string]any{"type": "string"}}}}, map[string]any{"tags": map[string]any{"explode": false}}},
 		{"unknown part", "multipart/form-data", map[string]any{"type": "object", "properties": map[string]any{"name": map[string]any{"type": "string"}}}, map[string]any{"missing": map[string]any{"contentType": "text/plain"}}},
 		{"part range", "multipart/form-data", map[string]any{"type": "object", "properties": map[string]any{"data": map[string]any{"type": "string", "format": "binary"}}}, map[string]any{"data": map[string]any{"contentType": "image/*"}}},
-		{"wrong part codec", "multipart/form-data", map[string]any{"type": "object", "properties": map[string]any{"name": map[string]any{"type": "string"}}}, map[string]any{"name": map[string]any{"contentType": "application/json"}}},
+		{"JSON string part", "multipart/form-data", map[string]any{"type": "object", "properties": map[string]any{"name": map[string]any{"type": "string"}}}, map[string]any{"name": map[string]any{"contentType": "application/json"}}},
 		{"non-text", "text/plain", map[string]any{"type": "integer"}, nil},
 		{"non-binary", "application/octet-stream", map[string]any{"type": "integer"}, nil},
 		{"nested nullable", "application/x-www-form-urlencoded", map[string]any{"type": "object", "properties": map[string]any{"nested": map[string]any{"type": "object", "properties": map[string]any{"value": map[string]any{"type": []string{"string", "null"}}}}}}, nil},
@@ -90,7 +89,11 @@ func TestDistinctMediaContractsRejectUnsupportedEncoding(t *testing.T) {
 			require.NoError(t, err)
 			_, diagnostics, err := Analyze(encoded)
 			require.NoError(t, err)
-			require.NotEmpty(t, diagnostics)
+			if tc.name == "nested nullable" || tc.name == "nested union" || tc.name == "nested reference" || tc.name == "multipart explode" || tc.name == "JSON string part" {
+				require.Empty(t, diagnostics, "the shared owner admits JSON values and explicit style codecs")
+			} else {
+				require.NotEmpty(t, diagnostics)
+			}
 		})
 	}
 }

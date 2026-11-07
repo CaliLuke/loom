@@ -25,6 +25,8 @@ type (
 		// Untagged reports whether JSON marshaling emits the selected branch value
 		// directly instead of the canonical discriminator/value wrapper.
 		Untagged bool
+		// Closed rejects unevaluated JSON members at this union occurrence.
+		Closed bool
 		// JSONOnly omits form codecs for transports that only consume JSON.
 		// The zero value preserves both JSON and form emission.
 		JSONOnly bool
@@ -43,6 +45,10 @@ type (
 		KindConst string
 		// FieldName is the struct field name in the union.
 		FieldName string
+		// MethodName is the required caller-supplied allocated Go suffix for
+		// constructors, accessors and setters. Builders obtain it from
+		// unionnames.Resolve together with FieldName; it is not derived during emission.
+		MethodName string
 		// FieldType is the Go type used in the union struct field and public API.
 		FieldType string
 		// AllowsNull reports whether the branch contract admits an explicit JSON null.

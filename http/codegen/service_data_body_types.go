@@ -12,16 +12,12 @@ import (
 )
 
 type requestBodyTypeDetails struct {
-	varName              string
-	valueRef             string
-	description          string
-	definition           string
-	validateDefinition   string
-	validateReference    string
-	flatFormUnionField   string
-	flatFormUnionPointer bool
-	flatFormUnionTypeKey string
-	flatFormUnionRef     string
+	varName            string
+	valueRef           string
+	description        string
+	definition         string
+	validateDefinition string
+	validateReference  string
 }
 
 // buildRequestBodyType builds the TypeData for a request body. The data makes
@@ -53,7 +49,7 @@ func (sds *ServicesData) buildRequestBodyType(body, att *expr.AttributeExpr, end
 	applyUserTypeLayout(httpctx, sd, body, svr)
 	addMarshalTags(body)
 	value = representation.BuildValuePlan(value, body, httpctx, expr.ValuePlanRuntime)
-	details := buildRequestBodyTypeDetails(body, endpointName, formEncoded, svr, requestBodyRequired(body, att), sd, httpctx)
+	details := buildRequestBodyTypeDetails(body, endpointName, svr, requestBodyRequired(body, att), sd, httpctx)
 	ref := sd.Scope.GoTypeRef(body)
 	valueRef := details.valueRef
 	if valueRef == "" {
@@ -61,24 +57,20 @@ func (sds *ServicesData) buildRequestBodyType(body, att *expr.AttributeExpr, end
 	}
 	init := sds.buildRequestBodyInit(body, att, endpointName, pkg, details.validateDefinition, svr, svcctx, httpctx, sd)
 	return &TypeData{
-		attribute:            body,
-		context:              httpctx,
-		Name:                 body.Type.Name(),
-		VarName:              details.varName,
-		Description:          details.description,
-		Def:                  details.definition,
-		Ref:                  ref,
-		ValueRef:             valueRef,
-		Init:                 init,
-		ValidateDef:          details.validateDefinition,
-		validationFunction:   codegen.NamedValidationFunction(body, httpctx, "body"),
-		ValidateRef:          details.validateReference,
-		Example:              body.Example(sds.examplesFor(sd)),
-		Value:                value,
-		FlatFormUnionField:   details.flatFormUnionField,
-		FlatFormUnionPointer: details.flatFormUnionPointer,
-		FlatFormUnionTypeKey: details.flatFormUnionTypeKey,
-		FlatFormUnionRef:     details.flatFormUnionRef,
+		attribute:          body,
+		context:            httpctx,
+		Name:               body.Type.Name(),
+		VarName:            details.varName,
+		Description:        details.description,
+		Def:                details.definition,
+		Ref:                ref,
+		ValueRef:           valueRef,
+		Init:               init,
+		ValidateDef:        details.validateDefinition,
+		validationFunction: codegen.NamedValidationFunction(body, httpctx, "body"),
+		ValidateRef:        details.validateReference,
+		Example:            body.Example(sds.examplesFor(sd)),
+		Value:              value,
 	}
 }
 
@@ -88,17 +80,16 @@ func (sds *ServicesData) buildRequestBodyType(body, att *expr.AttributeExpr, end
 func buildRequestBodyTypeDetails(
 	body *expr.AttributeExpr,
 	endpointName string,
-	formEncoded bool,
 	decode bool,
 	required bool,
 	sd *ServiceData,
 	httpctx *codegen.AttributeContext,
 ) requestBodyTypeDetails {
 	if codegen.IsExplicitPresenceType(body) {
-		return buildExplicitPresenceRequestBodyTypeDetails(body, endpointName, formEncoded, decode, required, sd, httpctx)
+		return buildExplicitPresenceRequestBodyTypeDetails(body, endpointName, decode, required, sd, httpctx)
 	}
 	if userType, ok := body.Type.(expr.UserType); ok {
-		return buildUserRequestBodyTypeDetails(body, userType, endpointName, formEncoded, decode, sd, httpctx)
+		return buildUserRequestBodyTypeDetails(body, userType, endpointName, decode, sd, httpctx)
 	}
 	ctx := codegen.NewAttributeContext(!expr.IsPrimitive(body.Type), false, !decode, "", sd.Scope)
 	ctx.CollectionElementPresence = httpctx.JSONPresence
@@ -123,7 +114,6 @@ func buildUserRequestBodyTypeDetails(
 	body *expr.AttributeExpr,
 	userType expr.UserType,
 	endpointName string,
-	formEncoded bool,
 	decode bool,
 	sd *ServiceData,
 	httpctx *codegen.AttributeContext,
@@ -137,8 +127,6 @@ func buildUserRequestBodyTypeDetails(
 		return details
 	}
 	details.definition = goValueTypeDef(sd.Scope, userType.Attribute(), httpctx.Pointer, httpctx.UseDefault, httpctx.JSONPresence)
-	details.flatFormUnionField, details.flatFormUnionPointer, details.flatFormUnionTypeKey, details.flatFormUnionRef =
-		flatFormUnionMetadata(userType.Attribute(), formEncoded, sd.Scope)
 	if decode || containsUnionType(body) {
 		validationContext := httpctx
 		if expr.IsPrimitive(userType) {
@@ -166,14 +154,13 @@ func buildUserRequestBodyTypeDetails(
 func buildExplicitPresenceRequestBodyTypeDetails(
 	body *expr.AttributeExpr,
 	endpointName string,
-	formEncoded bool,
 	decode bool,
 	required bool,
 	sd *ServiceData,
 	httpctx *codegen.AttributeContext,
 ) requestBodyTypeDetails {
 	if userType, ok := body.Type.(expr.UserType); ok && expr.IsNullable(body) {
-		details := buildUserRequestBodyTypeDetails(body, userType, endpointName, formEncoded, decode, sd, httpctx)
+		details := buildUserRequestBodyTypeDetails(body, userType, endpointName, decode, sd, httpctx)
 		details.valueRef = sd.Scope.GoTypeRef(body)
 		if decode {
 			details.validateDefinition = codegen.ValidationCode(body, userType, codegen.NamedValidationFunction(body, httpctx, "body").Context(httpctx), required, expr.IsAlias(body.Type), false, "body")
@@ -229,25 +216,6 @@ func requestBodyValidateRef(varName string, direct bool) string {
 		return fmt.Sprintf("err = Validate%s(body)", varName)
 	}
 	return fmt.Sprintf("err = Validate%s(&body)", varName)
-}
-
-func flatFormUnionMetadata(
-	attribute *expr.AttributeExpr,
-	formEncoded bool,
-	scope *codegen.NameScope,
-) (fieldName string, pointer bool, typeKey, ref string) {
-	if !formEncoded {
-		return "", false, "", ""
-	}
-	object := expr.AsObject(attribute.Type)
-	if object == nil || len(*object) != 1 || !expr.IsUnion((*object)[0].Attribute.Type) {
-		return "", false, "", ""
-	}
-	field := (*object)[0]
-	return codegen.Goify(field.Name, true),
-		!attribute.IsRequired(field.Name),
-		expr.AsUnion(field.Attribute.Type).GetTypeKey(),
-		scope.GoTypeRef(field.Attribute)
 }
 
 // buildResponseBodyType builds the TypeData for a response body. The data

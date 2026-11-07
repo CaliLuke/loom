@@ -95,8 +95,7 @@ func (b *errorBuilder) buildResultInit(errorResponse *transportir.ResponseStatus
 	if errorResponse.StatusErrorName != "" {
 		args = append(args, b.statusErrorNameArg(errorResponse, errctx, vars))
 	}
-	code, origin, skipFieldInit := b.buildResultInitCode(errorResponse, errctx, args)
-	fieldName, _, fieldPointer := transportFieldBinding(origin, httpError.Attribute, httpError.Attribute, errctx)
+	code, field, skipFieldInit := b.buildResultInitCode(errorResponse, errctx, args)
 	name := fmt.Sprintf("New%s%s", codegen.Goify(b.method.Name, true), codegen.Goify(httpError.Name, true))
 	return &InitData{
 		Name:                     name,
@@ -105,9 +104,9 @@ func (b *errorBuilder) buildResultInit(errorResponse *transportir.ResponseStatus
 		ReturnTypeName:           b.svc.Scope.GoFullTypeName(httpError.Attribute, pkg),
 		ReturnTypeRef:            b.svc.Scope.GoFullTypeRef(httpError.Attribute, pkg),
 		ReturnIsStruct:           expr.IsObject(httpError.Type),
-		ReturnIsUnionValue:       bodyFieldIsUnionValue(httpError.Attribute, origin),
-		ReturnTypeAttribute:      fieldName,
-		ReturnIsPrimitivePointer: fieldPointer,
+		ReturnIsUnionValue:       bodyFieldIsUnionValue(httpError.Attribute, field.Name),
+		ReturnTypeAttribute:      field.GoName,
+		ReturnIsPrimitivePointer: buildResponseResultPointer(errorResponse, httpError.Attribute, field.Name, errctx),
 		ReturnTypePkg:            pkg,
 		ClientCode:               code.Code,
 		ClientErrorAware:         code.ErrorAware,
@@ -115,24 +114,25 @@ func (b *errorBuilder) buildResultInit(errorResponse *transportir.ResponseStatus
 	}
 }
 
-func (b *errorBuilder) buildResultInitCode(errorResponse *transportir.ResponseStatus, errctx *codegen.AttributeContext, args []*InitArgData) (codegen.TransformPlan, string, bool) {
-	origin := ""
+// buildResultInitCode returns the conversion and its native target together.
+// A selected wire body may reconstruct the complete native error, so its wire
+// selection alone does not determine the constructor's result field.
+func (b *errorBuilder) buildResultInitCode(
+	errorResponse *transportir.ResponseStatus,
+	errctx *codegen.AttributeContext,
+	args []*InitArgData,
+) (codegen.TransformPlan, selectedServiceField, bool) {
 	httpError := errorResponse.Error
 	body := responseStatusBody(errorResponse)
 	if expr.IsDefaultErrorResult(httpError.Attribute.Type) {
-		return codegen.TransformPlan{Code: b.buildProblemClientResult(errorResponse, args)}, "", true
+		return codegen.TransformPlan{Code: b.buildProblemClientResult(errorResponse, args)}, selectedServiceField{Attribute: httpError.Attribute}, true
 	}
-	errAtt := httpError.Attribute
-	if o, ok := body.Meta["origin:attribute"]; ok {
-		origin = o[0]
-		_, errAtt = httpError.Attribute.FindAttribute(origin)
-		errAtt = serviceFieldTransformAttribute(httpError.Attribute, origin, errAtt)
-	}
-	code, err := b.sds.buildClientResultTransformCode(body, errAtt, httpError.Attribute, args, b.httpclictx, errctx, b.sd)
+	field := selectBodyField(httpError.Attribute, body)
+	code, err := b.sds.buildClientResultTransformCode(body, field.Attribute, httpError.Attribute, args, b.httpclictx, errctx, b.sd)
 	if err != nil {
 		panic(codegen.NewError(b.sds.Ctx, body, fmt.Errorf("build HTTP error response transform for %s: %w", httpError.Name, err)))
 	}
-	return code, origin, false
+	return code, field, false
 }
 
 func (b *errorBuilder) buildResponseData(errorResponse *transportir.ResponseStatus, errctx *codegen.AttributeContext, init *InitData) *ResponseData {

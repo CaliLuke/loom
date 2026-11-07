@@ -9,7 +9,8 @@ func BuildMethodQueryStringValidatePayload(serviceQueryStringValidateMethodQuery
 			err = loom.MergeErrors(err, loom.InvalidEnumValueError("q", q, []any{"val"}))
 		}
 		if err != nil {
-			return nil, err
+			var zero *servicequerystringvalidate.MethodQueryStringValidatePayload
+			return zero, err
 		}
 	}
 	v := &servicequerystringvalidate.MethodQueryStringValidatePayload{}

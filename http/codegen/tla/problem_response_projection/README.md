@@ -10,13 +10,24 @@ normalized public problem fields, and the selected body fields. Three public
 fields abstract required string and optional guidance members. Every subset is
 checked, including empty, scalar selection, pruned object and complete body.
 
-- `legacy.cfg` fails Renderable after 10 states: a selected public problem member
+- `legacy.cfg` fails Renderable after 13 states: a selected public problem member
   is read directly from the differently shaped ServiceError.
-- `source-only.cfg` fails after 18 states: normalizing the server source is not
+- `source-only.cfg` fails after 24 states: normalizing the server source is not
   sufficient when the client still reads complete-body fields from a projection.
-- `checked.cfg` checks all 24 states: normalize the source and derive reads/writes
+- Before the constructor-target extension, `checked.cfg` checked all 24 states:
+  normalize the source and derive reads/writes
   from the same selected body membership. Nonbody members come from their mapped
   arguments, as already selected by the effective HTTP wire-binding owner.
+
+The constructor-target extension distinguishes a selected member from an object
+with the same one-member projection. `ProblemErrorFromBody` has already produced
+the complete native error; using the wire member as the generic constructor
+target would wrap that whole error a second time. `wire-target.cfg` reproduces
+this error and violates `NativeResultNotRewrapped` after 25 states. The checked
+mode preserves a whole-result target and checks both invariants across 33
+states. The original legacy and source-only modes still fail `Renderable`.
+The native-result invariant abstracts only the built-in adapter contract; custom
+error field conversions remain a separate compiled control.
 
 Run with TLC 2.19 / Java 25, keeping checker output outside the repository:
 
@@ -25,6 +36,9 @@ java -XX:+UseParallelGC -cp "$HOME/.cache/loom-tools/tla2tools-1.7.4.jar" \
   tlc2.TLC -workers 1 -deadlock -metadir /tmp/loom-problem-model \
   -config checked.cfg ProblemProjection.tla
 ```
+
+Replace `checked.cfg` with `wire-target.cfg`, `legacy.cfg`, or `source-only.cfg`
+and use a separate external metadir to reproduce each rejected design.
 
 The model does not prove Go compilation, local-name allocation, optional wrapper
 conversion, error text safety, formatter behavior or OpenAPI media selection.
@@ -44,7 +58,15 @@ Concrete correspondence:
   mapped-field inputs from the prepared bindings, uses generic transforms and
   field initialization, then invokes the existing ProblemErrorFromBody adapter.
   The complete-body handwritten constructors and decoder shortcut are removed.
-- `TestSelectedProblemBodyConstruction` compiles sixteen generated modules and
+- `errorBuilder.buildResultInitCode` returns its native target with the transform.
+  The selected-field Go name and pointer/union adaptation are derived from that
+  target. Public wire selection remains separate for server projection.
+  `TestSelectedProblemBodyInitTarget` checks this boundary directly for all ten
+  public problem members; `TestSelectedProblemBodyConstruction` checks generated
+  compilation and mounted behavior. `TestUnionResponseBodyConstructors`,
+  `TestUnionResponseBodyGeneratedHTTP` and the custom
+  error projection controls retain their field-target and carrier contracts.
+- `TestSelectedProblemBodyConstruction` compiles 21 generated modules and
   exercises mounted handlers/imported clients for all builtin shapes, optional
   guidance, safe-message overrides, automatic headers, explicit header/cookie
   mappings and formatter overrides. The custom selected-error control and existing

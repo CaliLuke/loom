@@ -263,8 +263,6 @@ type RequestBody struct {
 	ContentTypes []string
 	// Schema describes the request body.
 	Schema *Schema
-	// FormEncoding retains URL-encoded property serialization keyed by property name.
-	FormEncoding map[string]httpencoding.Serialization
 	// Examples contains examples declared on the request media type.
 	Examples []Example
 	// Extensions contains request-body-level vendor extensions.
@@ -353,8 +351,12 @@ type Schema struct {
 	// MediaTypes maps OneOf branches to distinct HTTP content representations.
 	// When present, OneOf is a service union, not an authored JSON oneOf.
 	MediaTypes []string
-	// MediaEncoding retains this branch's per-property HTTP encoding declarations.
+	// MediaEncoding retains per-property HTTP encoding slots at this occurrence.
+	// Outer occurrences override declaration slots through aliases and unions.
+	// Captured source defaults remain separate until the occurrence codec resolves.
 	MediaEncoding map[string]httpencoding.Serialization
+	// UnionClosed rejects object members not evaluated by the selected union branch.
+	UnionClosed bool
 	// OneOf contains the branches of a supported union.
 	OneOf []*Schema
 	// Format is the authored schema format.
@@ -409,6 +411,9 @@ type Schema struct {
 	Examples []Example
 	// Extensions contains schema-level vendor extensions.
 	Extensions             map[string]any
+	sourceType             string
+	declaredNull           bool
+	compositionError       *Diagnostic
 	referenceError         *Diagnostic
 	referenceSiblings      bool
 	inheritedFormat        bool

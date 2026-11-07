@@ -5,6 +5,16 @@ import (
 )
 
 type (
+	// KeptReference identifies an attribute copied while its named type was kept.
+	// Source and Copy preserve occurrence correspondence without prescribing
+	// whether a consumer later snapshots or binds that declaration.
+	KeptReference struct {
+		// Source is the original attribute occurrence.
+		Source *AttributeExpr
+		// Copy is its detached attribute occurrence, retaining the kept type.
+		Copy *AttributeExpr
+	}
+
 	// copyTypeKey keeps promoted definitions and transport wrappers out of the
 	// authored name namespace, including before names are allocated.
 	copyTypeKey struct {
@@ -15,12 +25,14 @@ type (
 
 	// dupper implements recursive and cycle safe copy of data types.
 	dupper struct {
-		uts map[copyTypeKey]UserType
+		// Copy each source node once. Nominal IDs can be shared by distinct
+		// occurrence projections whose field names, layout or policy differ.
+		uts map[UserType]UserType
 		ats map[*AttributeExpr]struct{}
 		// keep lists the identities of the user types not to copy.
 		keep map[copyTypeKey]struct{}
 		// kept lists copied attributes that reference a kept user type.
-		kept []*AttributeExpr
+		kept []KeptReference
 	}
 )
 
@@ -31,10 +43,10 @@ func Dup(d DataType) DataType {
 
 // DupKeeping creates a copy of the given data type like Dup, except that it
 // keeps the references to the user types in keep instead of copying them. It
-// also returns the attributes of the copy that reference a kept user type.
+// also returns source/copy pairs for attributes that reference a kept user type.
 // Use it to copy a type that references user types whose DSL is still
 // running, so that the copy does not snapshot their incomplete definitions.
-func DupKeeping(d DataType, keep []UserType) (DataType, []*AttributeExpr) {
+func DupKeeping(d DataType, keep []UserType) (DataType, []KeptReference) {
 	dupper := newDupper()
 	dupper.keep = make(map[copyTypeKey]struct{}, len(keep))
 	for _, ut := range keep {
@@ -58,7 +70,7 @@ func DupAtt(att *AttributeExpr) *AttributeExpr {
 // newDupper returns a new initialized dupper.
 func newDupper() *dupper {
 	return &dupper{
-		uts: make(map[copyTypeKey]UserType),
+		uts: make(map[UserType]UserType),
 		ats: make(map[*AttributeExpr]struct{}),
 	}
 }
@@ -93,7 +105,7 @@ func (d *dupper) DupAttribute(att *AttributeExpr) *AttributeExpr {
 	}
 	d.ats[&dup] = struct{}{}
 	if d.isKept(dup.Type) {
-		d.kept = append(d.kept, &dup)
+		d.kept = append(d.kept, KeptReference{Source: att, Copy: &dup})
 	}
 	return &dup
 }
@@ -141,21 +153,21 @@ func (d *dupper) DupType(t DataType) DataType {
 			Values:           make([]*NamedAttributeExpr, len(actual.Values)),
 			TypeKey:          actual.TypeKey,
 			ValueKey:         actual.ValueKey,
+			closed:           actual.closed,
 		}
 		for i, nat := range actual.Values {
 			dp.Values[i] = &NamedAttributeExpr{Name: nat.Name, Attribute: d.DupAttribute(nat.Attribute)}
 		}
 		return &dp
 	case UserType:
-		key := typeCopyKey(actual)
-		if u, ok := d.uts[key]; ok {
+		if u, ok := d.uts[actual]; ok {
 			return u
 		}
 		if d.isKept(actual) {
 			return actual
 		}
 		dp := actual.Dup(nil)
-		d.uts[key] = dp
+		d.uts[actual] = dp
 		dupAtt := d.DupAttribute(actual.Attribute())
 		dp.SetAttribute(dupAtt)
 

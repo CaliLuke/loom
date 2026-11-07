@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json/jsontext"
 	"encoding/json/v2"
 	"fmt"
@@ -12,62 +11,78 @@ import (
 	"github.com/CaliLuke/loom/internal/openapiimport"
 )
 
-func TestComparisonInputSchemaPositions(t *testing.T) {
-	source := []byte(`{
-		"openapi":"3.2.0","info":{"title":"Positions","version":"1"},
-		"components":{"schemas":{"Text":{"type":"string"},"Nested":{"type":"object","properties":{"child":{"$ref":"#/components/schemas/Text","description":"nested"}}}},
-		"parameters":{"Param":{"name":"q","in":"query","schema":{"$ref":"#/components/schemas/Text","description":"parameter"}}},
-		"headers":{"Header":{"schema":{"$ref":"#/components/schemas/Text","description":"header"}}},
-		"requestBodies":{"Body":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/Text","description":"body"}}}}},
-		"responses":{"Response":{"description":"ok","content":{"application/json":{"schema":{"$ref":"#/components/schemas/Text","description":"response"}}}}}},
-		"paths":{"/value":{"get":{"responses":{"200":{"description":"ok","content":{"application/json":{"schema":{"$ref":"#/components/schemas/Text","description":"operation"}}}}}}}}
-	}`)
-	before := bytes.Clone(source)
-	got, err := rewriteComparisonObject(source, "document")
-	require.NoError(t, err)
-	require.Equal(t, before, source)
-	require.Equal(t, 6, bytes.Count(got, []byte(`"allOf"`)))
-	_, diagnostics, err := openapiimport.Analyze(got)
-	require.NoError(t, err)
-	require.Len(t, diagnostics, 4)
-	for _, diagnostic := range diagnostics {
-		require.Contains(t, []string{"component-header", "unused-component-parameter", "component-request-body", "component-response"}, diagnostic.Code)
-	}
-	repeated, err := rewriteComparisonObject(got, "document")
-	require.NoError(t, err)
-	require.Equal(t, got, repeated)
-}
-
-func TestComparisonInputPreservesLiteralDataAndNumbers(t *testing.T) {
-	for _, token := range []string{"18446744073709551615", "-9007199254740993", "1e-400", "1e400"} {
-		t.Run(token, func(t *testing.T) {
-			literal := fmt.Sprintf(`{"$ref":"literal","allOf":["literal"],"number":%s}`, token)
-			source := []byte(fmt.Sprintf(`{"type":"number","minimum":%s,"default":%s,"example":%s,"x-data":%s}`, token, literal, literal, literal))
-			got, err := rewriteComparisonObject(source, "schema")
-			require.NoError(t, err)
-			var values map[string]jsontext.Value
-			require.NoError(t, json.Unmarshal(got, &values))
-			require.Equal(t, token, string(values["minimum"]))
-			for _, key := range []string{"default", "example", "x-data"} {
-				require.Equal(t, literal, string(values[key]))
+func TestComparisonInputPreservesSchemasAndLiterals(t *testing.T) {
+	for _, version := range []string{"3.1.1", "3.2.0"} {
+		t.Run(version, func(t *testing.T) {
+			for _, token := range []string{"18446744073709551615", "-9007199254740993", "1e-400", "1e400"} {
+				components := fmt.Sprintf(`{"schemas":{"Text":{"type":"string"},"Occurrence":{"$ref":"#/components/schemas/Text","enum":["text"],"description":"occurrence","x-data":{"$ref":"literal","allOf":["literal"],"number":%s},"default":%s,"example":%s}}}`, token, token, token)
+				source := comparisonGeneratedInput(version, components)
+				prepared, err := prepareGeneratedOpenAPIContract(source, "Comparison")
+				require.NoError(t, err)
+				var got map[string]jsontext.Value
+				require.NoError(t, json.Unmarshal(prepared, &got))
+				require.Equal(t, components, string(got["components"]))
+				require.Contains(t, string(got["components"]), `"number":`+token)
+				require.Contains(t, string(got["components"]), `"default":`+token)
+				require.Contains(t, string(got["components"]), `"example":`+token)
+				require.NotContains(t, got, "servers")
+				require.NotContains(t, got, "jsonSchemaDialect")
 			}
 		})
 	}
 }
 
-func TestComparisonInputRejectsUnsupportedReferenceForms(t *testing.T) {
-	for _, sibling := range []string{`"pattern":"x"`, `"maxLength":2`, `"unevaluatedProperties":false`} {
-		t.Run(sibling, func(t *testing.T) {
-			source := []byte(fmt.Sprintf(`{"openapi":"3.2.0","info":{"title":"Rejected","version":"1"},"paths":{},"components":{"schemas":{"Text":{"type":"string"},"Occurrence":{"$ref":"#/components/schemas/Text",%s}}}}`, sibling))
-			normalized, err := rewriteComparisonObject(source, "document")
-			require.NoError(t, err)
-			_, diagnostics, err := openapiimport.Analyze(normalized)
-			require.NoError(t, err)
-			require.NotEmpty(t, diagnostics, "normalization must not broaden strict schema admission")
-		})
+func TestComparisonInputReferenceAdmission(t *testing.T) {
+	for _, version := range []string{"3.1.1", "3.2.0"} {
+		for _, tc := range []struct {
+			sibling  string
+			admitted bool
+		}{
+			{`"description":"occurrence"`, true},
+			{`"enum":["text"]`, true},
+			{`"pattern":"x"`, true},
+			{`"maxLength":2`, true},
+			{`"items":{"type":"string"}`, false},
+			{`"allOf":[{"type":"string"}]`, false},
+		} {
+			t.Run(version+"/"+tc.sibling, func(t *testing.T) {
+				source := comparisonGeneratedInput(version, fmt.Sprintf(`{"schemas":{"Text":{"type":"string"},"Occurrence":{"$ref":"#/components/schemas/Text",%s}}}`, tc.sibling))
+				prepared, err := prepareGeneratedOpenAPIContract(source, "Comparison")
+				require.NoError(t, err)
+				_, diagnostics, err := openapiimport.Analyze(prepared)
+				require.NoError(t, err)
+				if tc.admitted {
+					require.Empty(t, diagnostics)
+				} else {
+					require.NotEmpty(t, diagnostics)
+				}
+			})
+		}
 	}
-	_, err := rewriteComparisonObject([]byte(`{"$ref":"#/components/schemas/Text","allOf":[{"type":"string"}]}`), "schema")
-	require.ErrorContains(t, err, "together with allOf")
+}
+
+func TestComparisonInputRejectsUnexpectedGeneratedAnnotations(t *testing.T) {
+	source := comparisonGeneratedInput("3.2.0", `{}`)
+	for _, tc := range []struct {
+		field string
+		value jsontext.Value
+	}{
+		{"servers", jsontext.Value(`[{"url":"https://unexpected.example"}]`)},
+		{"jsonSchemaDialect", jsontext.Value(`"https://unexpected.example/dialect"`)},
+	} {
+		changed, err := replaceComparisonJSONField(source, []string{tc.field}, tc.value)
+		require.NoError(t, err)
+		_, err = prepareGeneratedOpenAPIContract(changed, "Comparison")
+		require.Error(t, err)
+	}
+}
+
+func comparisonGeneratedInput(version, components string) []byte {
+	name := ""
+	if version == "3.2.0" {
+		name = `,"name":"Comparison"`
+	}
+	return []byte(fmt.Sprintf(`{"openapi":%q,"info":{"title":"Comparison","version":"1"},"paths":{},"jsonSchemaDialect":"https://spec.openapis.org/oas/3.1/dialect/base","servers":[{"url":"http://localhost:80","description":"Default server for Comparison"%s}],"components":%s}`, version, name, components))
 }
 
 func replaceComparisonJSONField(raw jsontext.Value, path []string, replacement jsontext.Value) (jsontext.Value, error) {

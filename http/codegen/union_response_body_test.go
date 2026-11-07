@@ -33,6 +33,7 @@ func TestUnionResponseBodyConstructors(t *testing.T) {
 			for _, group := range endpoint.Errors {
 				for _, response := range group.Errors {
 					require.Equal(t, wantValue, response.Response.ResultInit.ReturnIsUnionValue, "error constructor")
+					require.False(t, response.Response.ResultInit.ReturnIsPrimitivePointer, "union transform already returns a pointer")
 					code := codegen.SectionCode(t, constructorSection("test", response.Response.ResultInit, true, false, service.Scope))
 					if wantValue {
 						require.Contains(t, code, "Choice: *v,")

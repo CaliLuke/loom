@@ -6,10 +6,10 @@ type (
 	Shape uint8
 	// Location distinguishes named values from root URL layouts.
 	Location uint8
-	// Serialization describes authored OpenAPI serialization fields. Pointers
-	// preserve explicit presence, which changes form encoding semantics.
+	// Serialization retains authored serialization settings.
+	// Pointers preserve explicit presence, which changes form encoding semantics.
 	Serialization struct {
-		// MediaType is the parameter content or form field contentType.
+		// MediaType is the authored parameter content or field contentType.
 		MediaType string
 		// Style is the authored RFC6570 serialization style.
 		Style string
@@ -35,6 +35,8 @@ const (
 	ScalarMap
 	// Union contains alternatives resolved under one binding style.
 	Union
+	// AnyValue is an unconstrained JSON value, distinct from unsupported Go shapes.
+	AnyValue
 )
 const (
 	// NamedQuery is an ordinary named query parameter.

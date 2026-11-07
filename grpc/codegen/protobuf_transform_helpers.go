@@ -9,6 +9,7 @@ import (
 )
 
 func transformAttributeHelpers(source, target *expr.AttributeExpr, ta *transformAttrs, seen map[string]*codegen.TransformFunctionData) ([]*codegen.TransformFunctionData, error) {
+	ta = transformTypeContexts(source, target, ta)
 	source, target, err := normalizedTransformAttrs(source, target, ta)
 	if err != nil {
 		return nil, err
@@ -72,6 +73,7 @@ func transformObjectAttributeHelpers(source, target *expr.AttributeExpr, ta *tra
 // collectHelpers recursively traverses the given attributes and return the
 // transform helper functions required to generate the transform code.
 func collectHelpers(source, target *expr.AttributeExpr, req bool, ta *transformAttrs, seen map[string]*codegen.TransformFunctionData) ([]*codegen.TransformFunctionData, error) {
+	ta = transformTypeContexts(source, target, ta)
 	switch {
 	case expr.IsArray(source.Type):
 		return transformElementHelpers(expr.AsArray(source.Type).ElemType, expr.AsArray(target.Type).ElemType, ta, seen)
@@ -206,6 +208,7 @@ func buildObjectHelper(source, target, body *expr.AttributeExpr, req bool, ta *t
 }
 
 func objectHelperTransformAttrs(source, target *expr.AttributeExpr, ta *transformAttrs) *transformAttrs {
+	ta = transformTypeContexts(source, target, ta)
 	dup := dupTransformAttrs(ta)
 	dup.errorAware = conversionCanFail(source, target, ta.SourceCtx, ta.TargetCtx)
 	if ta.proto && isUnionMessage(target) {
@@ -347,9 +350,24 @@ func isUnionMessage(at *expr.AttributeExpr) bool {
 	return false
 }
 
-// dupTransformAttrs returns a shallow copy of the given transformAttrs that
-// keeps every field, including errorAware.
+// dupTransformAttrs copies the settings and detaches a present embedded record,
+// preserving its attribute-context references and all other shallow fields.
 func dupTransformAttrs(ta *transformAttrs) *transformAttrs {
 	dup := *ta
+	if ta.TransformAttrs != nil {
+		contexts := *ta.TransformAttrs
+		dup.TransformAttrs = &contexts
+	}
 	return &dup
+}
+
+func transformTypeContexts(source, target *expr.AttributeExpr, ta *transformAttrs) *transformAttrs {
+	sourceContext := ta.SourceCtx.ForAttribute(source)
+	targetContext := ta.TargetCtx.ForAttribute(target)
+	if sourceContext == ta.SourceCtx && targetContext == ta.TargetCtx {
+		return ta
+	}
+	nested := dupTransformAttrs(ta)
+	nested.SourceCtx, nested.TargetCtx = sourceContext, targetContext
+	return nested
 }

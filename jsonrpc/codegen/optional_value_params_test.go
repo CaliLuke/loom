@@ -15,9 +15,10 @@ import (
 // params when the optional primitive, array, map or bytes payload attribute
 // mapped to the params with Body is nil, and that the server then decodes
 // absent params as a nil attribute instead of substituting {}. A primitive
-// with a default value and a required attribute are always encoded, and the
-// server applies an optional primitive default to absent params. Required
-// attributes keep the existing absent-params decoding behavior.
+// with a default value is always encoded. Required nilable attributes reject
+// absence before encoding. The server applies an optional primitive default
+// to absent params; required attributes keep their existing absent-params
+// decoding behavior.
 func TestJSONRPCOptionalValueParams(t *testing.T) {
 	cases := []struct {
 		Name      string
@@ -77,8 +78,11 @@ func TestJSONRPCOptionalValueParams(t *testing.T) {
 				encoder := jsonrpcSectionsSource(requireEncodeDecodeFile(t, ClientFiles("", services), "client"), "jsonrpc-request-encoder")
 				decoder := jsonrpcSectionsSource(requireEncodeDecodeFile(t, ServerFiles("", services), "server"), "jsonrpc-request-decoder")
 				if !optional {
-					assert.NotContains(t, encoder, "if p.V != nil {")
+					assert.NotContains(t, encoder, "if !(p.V == nil) {")
 					assert.Contains(t, encoder, "\t\t\tParams:  b,\n")
+					if required && (c.Name == "array" || c.Name == "map" || c.Name == "bytes") {
+						assert.Contains(t, encoder, "\t\tif p.V == nil {\n\t\t\treturn loom.MissingPayloadError()\n\t\t}\n\t\tb := p.V")
+					}
 					if c.Name == "default" && !required {
 						assert.NotContains(t, decoder, substitute)
 						assert.Contains(t, decoder, "body = string(\"d\")")
@@ -88,7 +92,7 @@ func TestJSONRPCOptionalValueParams(t *testing.T) {
 					assert.NotContains(t, decoder, "body = nil")
 					return
 				}
-				assert.Contains(t, encoder, "\t\tif p.V != nil {\n\t\t\tbody.Params = p.V\n\t\t}\n")
+				assert.Contains(t, encoder, "\t\tif !(p.V == nil) {\n\t\t\tbody.Params = p.V\n\t\t}\n")
 				assert.NotContains(t, decoder, substitute)
 				for _, want := range c.Decode {
 					assert.Contains(t, decoder, want)

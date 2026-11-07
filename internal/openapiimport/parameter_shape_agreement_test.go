@@ -34,10 +34,12 @@ func TestImporterBranchShape(t *testing.T) {
 		{"inherited typed object", &Schema{Type: "object", Bases: []*Schema{typed}}, httpencoding.BranchShape{Shape: httpencoding.UnsupportedShape}},
 		{"string", plain, httpencoding.BranchShape{Shape: httpencoding.Scalar}},
 		{"bytes", &Schema{Type: "string", Format: "byte"}, httpencoding.BranchShape{Shape: httpencoding.Scalar}},
+		{"binary", &Schema{Type: "string", Format: "binary"}, httpencoding.BranchShape{Shape: httpencoding.Scalar, Binary: true}},
+		{"binary array", &Schema{Type: "array", Items: &Schema{Type: "string", Format: "binary"}}, httpencoding.BranchShape{Shape: httpencoding.Sequence, Items: &httpencoding.BranchShape{Shape: httpencoding.Scalar, Binary: true}}},
 		{"integer", integer, httpencoding.BranchShape{Shape: httpencoding.Scalar, Domain: unreserved}},
 		{"alias", &Schema{Ref: "#/components/schemas/Alias"}, httpencoding.BranchShape{Shape: httpencoding.Scalar}},
-		{"scalar array", &Schema{Type: "array", Items: integer}, httpencoding.BranchShape{Shape: httpencoding.Sequence, Domain: unreserved}},
-		{"object array", &Schema{Type: "array", Items: &Schema{Type: "object"}}, httpencoding.BranchShape{Shape: httpencoding.UnsupportedShape}},
+		{"scalar array", &Schema{Type: "array", Items: integer}, httpencoding.BranchShape{Shape: httpencoding.Sequence, Domain: unreserved, Items: &httpencoding.BranchShape{Shape: httpencoding.Scalar, Domain: unreserved}}},
+		{"object array", &Schema{Type: "array", Items: &Schema{Type: "object"}}, httpencoding.BranchShape{Shape: httpencoding.UnsupportedShape, Items: &httpencoding.BranchShape{Shape: httpencoding.Nested}}},
 		{"fixed object", &Schema{Type: "object", Properties: []NamedProperty{{Name: "wire", Schema: integer}}, Required: []string{"wire"}, AdditionalProperties: &AdditionalProperties{Allowed: &no}}, httpencoding.BranchShape{Shape: httpencoding.Object, Properties: []httpencoding.PropertyFact{{WireName: "wire", Required: true, Kind: httpencoding.Integer, Domain: unreserved}}}},
 		{"scalar map", &Schema{Type: "object", AdditionalProperties: &AdditionalProperties{Schema: integer}}, httpencoding.BranchShape{Shape: httpencoding.ScalarMap, Domain: unreserved}},
 		{"nested map", &Schema{Type: "object", AdditionalProperties: &AdditionalProperties{Schema: &Schema{Type: "array", Items: plain}}}, httpencoding.BranchShape{Shape: httpencoding.Nested}},
@@ -46,8 +48,8 @@ func TestImporterBranchShape(t *testing.T) {
 		{"plain enum", &Schema{Type: "string", Enum: []any{"a-b", "x_y"}}, httpencoding.BranchShape{Shape: httpencoding.Scalar, Domain: unreserved}},
 		{"reserved enum", &Schema{Type: "string", Enum: []any{"a/b"}}, httpencoding.BranchShape{Shape: httpencoding.Scalar}},
 		{"untagged union", &Schema{OneOf: []*Schema{plain, integer}}, httpencoding.BranchShape{Shape: httpencoding.Union, Branches: []httpencoding.BranchShape{{Shape: httpencoding.Scalar}, {Shape: httpencoding.Scalar, Domain: unreserved}}}},
-		{"nullable", &Schema{Type: "string", Nullable: true}, httpencoding.BranchShape{Shape: httpencoding.UnsupportedShape}},
-		{"any", &Schema{Unconstrained: true}, httpencoding.BranchShape{Shape: httpencoding.UnsupportedShape}},
+		{"nullable", &Schema{Type: "string", Nullable: true}, httpencoding.BranchShape{Shape: httpencoding.Scalar, Nullable: true}},
+		{"any", &Schema{Unconstrained: true}, httpencoding.BranchShape{Shape: httpencoding.AnyValue}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			require.Equal(t, tc.want, planner.urlShape(tc.schema))

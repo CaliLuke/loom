@@ -9,6 +9,8 @@ import (
 )
 
 func buildViewedResultInit(att, projected, envelope *expr.AttributeExpr, views []*ViewData, viewspkg string, scope, viewScope *codegen.NameScope, resvar, vresref string, isarr bool, validateName string) *InitData {
+	conversions := allocateViewConversions(att, projected, scope, viewScope)
+	wrappers := allocateViewedWrappers(att, envelope, scope, resvar)
 	initTData := viewedResultInitTemplateData{
 		ToViewed:           true,
 		ArgVar:             "res",
@@ -20,12 +22,12 @@ func buildViewedResultInit(att, projected, envelope *expr.AttributeExpr, views [
 		IsNullable:         expr.IsNullable(att),
 		OccurrenceNullable: att.Nullable && !expr.IsNullable(&expr.AttributeExpr{Type: att.Type}),
 		ProjectedRef:       viewScope.GoFullTypeRef(projected, viewspkg),
-		TargetType:         scope.GoFullTypeName(envelope, viewspkg),
-		InitName:           projectionHelperBaseName(scope, att),
+		TargetType:         viewScope.GoFullTypeName(envelope, viewspkg),
+		InitNames:          conversions.projections,
 		ValidateName:       validateName,
 		ViewExpr:           "view",
 	}
-	name := "NewViewed" + resvar
+	name := wrappers.toViewed
 	description := fmt.Sprintf("%s projects result type %s to viewed result type %s and validates the selected view. Invalid views and result constraints return a fault that wraps the validation error.", name, resvar, resvar)
 	if initTData.IsNullable {
 		description += " It returns a fault error when res is absent."
@@ -45,8 +47,10 @@ func buildViewedResultInit(att, projected, envelope *expr.AttributeExpr, views [
 	}
 }
 
-func buildViewedResultResultInit(att, projected *expr.AttributeExpr, views []*ViewData, scope, viewScope *codegen.NameScope, resvar, vresref string, typeInits []*InitData) (*InitData, string) {
+func buildViewedResultResultInit(att, projected, envelope *expr.AttributeExpr, views []*ViewData, scope, viewScope *codegen.NameScope, resvar, vresref string, typeInits []*InitData) (*InitData, string) {
 	resref := fullTypeRefForAttribute(scope, att, "")
+	conversions := allocateViewConversions(att, projected, scope, viewScope)
+	wrappers := allocateViewedWrappers(att, envelope, scope, resvar)
 	resultInitTData := viewedResultInitTemplateData{
 		ToResult:           true,
 		TypeInits:          typeInits,
@@ -56,10 +60,10 @@ func buildViewedResultResultInit(att, projected *expr.AttributeExpr, views []*Vi
 		ReturnVar:          "res",
 		Views:              views,
 		ReturnTypeRef:      resref,
-		InitName:           projectedResultInitHelperBaseName(scope, viewScope, att, projected),
+		InitNames:          conversions.reconstructions,
 		ViewExpr:           "vres.View",
 	}
-	name := "New" + resvar
+	name := wrappers.toResult
 	return &InitData{
 		Name:          name,
 		Description:   fmt.Sprintf("%s initializes result type %s from viewed result type %s.", name, resvar, resvar),
@@ -88,10 +92,7 @@ func renderViewedResultInit(data viewedResultInitTemplateData) string {
 	lines = append(lines, "switch "+data.ViewExpr+" {")
 	for _, view := range data.Views {
 		lines = append(lines, "\tcase "+quotedViewCase(view.Name)+":")
-		initName := data.InitName
-		if view.Name != expr.DefaultView {
-			initName += codegen.Goify(view.Name, true)
-		}
+		initName := data.InitNames[view.Name]
 		if data.ToViewed {
 			lines = append(lines, indentViewValidation(indentViewValidation(viewedResultProjectionCall(data, initName))))
 			prefix := ""
@@ -170,13 +171,11 @@ func viewedResultProjectionCall(data viewedResultInitTemplateData, name string) 
 // initialize a result type from a projected type.
 func buildTypeInits(projected, att *expr.AttributeExpr, viewspkg string, scope, viewScope *codegen.NameScope) []*InitData {
 	rt := att.Type.(*expr.ResultTypeExpr)
+	names := allocateViewConversions(att, projected, scope, viewScope)
 	inits := make([]*InitData, 0, len(rt.Views))
 	for _, view := range rt.Views {
-		name := projectedResultInitHelperBaseName(scope, viewScope, att, projected)
-		if view.Name != expr.DefaultView {
-			name += codegen.Goify(view.Name, true)
-		}
-		conversion := buildProjectionConversion(att, projected, view.Name, name, "vres", "res", projectedTypeContext(viewspkg, true, viewScope), typeContext(scope), false)
+		name := names.reconstructions[view.Name]
+		conversion := buildProjectionConversion(att, projected, view.Name, name, "vres", "res", projectedTypeContext(viewspkg, true, viewScope), typeContext(scope), false, scope)
 		pkg := ""
 		if loc := codegen.UserTypeLocation(att.Type); loc != nil {
 			pkg = scope.PackageName(loc)
@@ -197,20 +196,18 @@ func buildTypeInits(projected, att *expr.AttributeExpr, viewspkg string, scope, 
 // buildProjections builds selected-view conversions into the shared carriers.
 func buildProjections(projected, att *expr.AttributeExpr, viewspkg string, scope, viewScope *codegen.NameScope) []*InitData {
 	rt := att.Type.(*expr.ResultTypeExpr)
+	names := allocateViewConversions(att, projected, scope, viewScope)
 	projections := make([]*InitData, 0, len(rt.Views))
 	for _, view := range rt.Views {
-		name := projectionHelperBaseName(scope, att)
-		if view.Name != expr.DefaultView {
-			name += codegen.Goify(view.Name, true)
-		}
-		conversion := buildProjectionConversion(att, projected, view.Name, name, "res", "vres", typeContext(scope), projectedTypeContext(viewspkg, true, viewScope), true)
+		name := names.projections[view.Name]
+		conversion := buildProjectionConversion(att, projected, view.Name, name, "res", "vres", typeContext(scope), projectedTypeContext(viewspkg, true, viewScope), true, scope)
 		pkg := ""
 		if loc := codegen.UserTypeLocation(att.Type); loc != nil {
 			pkg = scope.PackageName(loc)
 		}
 		projections = append(projections, &InitData{
 			Name:          name,
-			Description:   fmt.Sprintf("%s projects result type %s to projected type %s using the %q view.", name, scope.GoTypeName(att), scope.GoTypeName(projected), view.Name),
+			Description:   fmt.Sprintf("%s projects result type %s to projected type %s using the %q view.", name, scope.GoTypeName(att), viewScope.GoTypeName(projected), view.Name),
 			Args:          []*InitArgData{{Name: "res", Ref: scope.GoFullTypeRef(att, pkg)}},
 			ReturnTypeRef: viewScope.GoFullTypeRef(projected, viewspkg),
 			Code:          conversion.Code,
@@ -219,12 +216,4 @@ func buildProjections(projected, att *expr.AttributeExpr, viewspkg string, scope
 		})
 	}
 	return projections
-}
-
-func projectedResultInitHelperBaseName(scope, viewScope *codegen.NameScope, att, projected *expr.AttributeExpr) string {
-	return "New" + scope.GoValueTypeName(att) + "From" + viewScope.GoValueTypeName(projected)
-}
-
-func projectionHelperBaseName(scope *codegen.NameScope, att *expr.AttributeExpr) string {
-	return "Project" + scope.GoValueTypeName(att)
 }

@@ -40,6 +40,18 @@ func unionRequestBodyIntegrationDSL() {
 			})
 		})
 	})
+	Service("reqpick", func() {
+		Method("pick", func() {
+			Payload(func() {
+				Attribute("u", OneOf(Leaf, Other))
+				Required("u")
+			})
+			HTTP(func() {
+				POST("/req")
+				Body("u")
+			})
+		})
+	})
 	Service("streampick", func() {
 		Method("pick", func() {
 			StreamingPayload(OneOf(Leaf, Other))
@@ -80,6 +92,9 @@ import (
 	optclient "example.com/unionrequestbody/gen/http/optpick/client"
 	optserver "example.com/unionrequestbody/gen/http/optpick/server"
 	optpick "example.com/unionrequestbody/gen/optpick"
+    reqclient "example.com/unionrequestbody/gen/http/reqpick/client"
+    reqpick "example.com/unionrequestbody/gen/reqpick"
+    loom "github.com/CaliLuke/loom/pkg"
 	streampick "example.com/unionrequestbody/gen/streampick"
 	loomhttp "github.com/CaliLuke/loom/http"
 )
@@ -149,6 +164,62 @@ func (s *streamService) recv(ctx context.Context, stream streampick.PickServerSt
 }
 
 func ptr[T any](v T) *T { return &v }
+
+func TestSelectedUnionPresence(t *testing.T) {
+	binding := "retained"
+	for _, value := range []*optpick.LeafOrOther{nil, {}} {
+		request, err := http.NewRequest("POST", "http://example.test/opt", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		payload := &optpick.PickPayload{Q: &binding, U: value}
+		if err := optclient.EncodePickRequest(loomhttp.RequestEncoder)(request, payload); err != nil {
+			t.Fatal(err)
+		}
+		if request.Body != nil || request.Header.Get("Content-Type") != "" {
+			t.Fatal("absent member emitted a body")
+		}
+		if request.URL.Query().Get("q") != binding {
+			t.Fatal("absent body lost query binding")
+		}
+	}
+	for _, tc := range []struct {
+		name    string
+		payload any
+		encode  func(*http.Request, any) error
+	}{
+		{"nil optional envelope", (*optpick.PickPayload)(nil), optclient.EncodePickRequest(loomhttp.RequestEncoder)},
+		{"nil required envelope", (*reqpick.PickPayload)(nil), reqclient.EncodePickRequest(loomhttp.RequestEncoder)},
+		{"unselected required member", &reqpick.PickPayload{}, reqclient.EncodePickRequest(loomhttp.RequestEncoder)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			request, err := http.NewRequest("POST", "http://example.test", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = tc.encode(request, tc.payload)
+			var serviceError *loom.ServiceError
+			if !errors.As(err, &serviceError) || serviceError.Name != "missing_payload" {
+				t.Fatalf("expected missing_payload, got %v", err)
+			}
+			if request.Body != nil || request.Header.Get("Content-Type") != "" {
+				t.Fatal("rejected member emitted a body")
+			}
+		})
+	}
+	var selected reqpick.LeafOrOther
+	selected.SetLeaf(&reqpick.Leaf{Name: "present"})
+	request, err := http.NewRequest("POST", "http://example.test/req", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := reqclient.EncodePickRequest(loomhttp.RequestEncoder)(request, &reqpick.PickPayload{U: selected}); err != nil {
+		t.Fatal(err)
+	}
+	if request.Body == nil {
+		t.Fatal("selected required member omitted body")
+	}
+}
 
 func TestJSONBodyRoundTrip(t *testing.T) {
 	svc := &jsonService{}

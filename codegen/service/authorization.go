@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/CaliLuke/loom/codegen/unionnames"
+
 	"github.com/dave/jennifer/jen"
 
 	"github.com/CaliLuke/loom/codegen"
@@ -181,7 +183,7 @@ func writeAuthorizationCases(b *strings.Builder, m *EndpointMethodData, a *expr.
 		if union != nil {
 			for _, v := range union.Values {
 				if v.Name == c.Value && expr.IsObject(v.Attribute.Type) {
-					writeAuthorizationNilCheck(b, variantTarget+"."+codegen.Goify(v.Name, true), a.Selector)
+					writeAuthorizationNilCheck(b, variantTarget+"."+unionnames.Resolve(union)[v.Name].Field, a.Selector)
 				}
 			}
 		}
@@ -198,7 +200,7 @@ func writeAuthorizationRequirement(b *strings.Builder, m *EndpointMethodData, us
 		for _, binding := range use.Bindings {
 			target, _, pointer := authorizationAccess(b, m, payload, binding.Payload, selector, branch)
 			input := r.expr.Input.Find(binding.Input)
-			inputPointer := r.expr.Input.IsPrimitivePointer(binding.Input, true) || expr.IsObject(input.Type) || (expr.IsUnion(input.Type) && !r.expr.Input.IsRequired(binding.Input))
+			inputPointer := expr.ServiceFieldLayout(r.expr.Input, binding.Input, input, false, true).Pointer
 			if pointer && !inputPointer {
 				writeAuthorizationNilCheck(b, target, binding.Payload)
 				target = "*" + target
@@ -232,12 +234,15 @@ func authorizationAccess(b *strings.Builder, m *EndpointMethodData, payload, pat
 			writeAuthorizationNilCheck(b, target, path)
 		}
 		if step.Union {
-			target += "." + codegen.Goify(step.Name, true)
+			target += "." + unionnames.Resolve(expr.AsUnion(step.Parent.Type))[step.Name].Field
 		} else {
 			target += "." + codegen.GoifyAtt(step.Attribute, step.Name, true)
 		}
 		att = step.Attribute
-		pointer = expr.IsObject(att.Type) || (!step.Union && (step.Parent.IsPrimitivePointer(step.Name, true) || (expr.IsUnion(att.Type) && !step.Parent.IsRequired(step.Name))))
+		pointer = expr.IsObject(att.Type)
+		if !step.Union {
+			pointer = expr.ServiceFieldLayout(step.Parent, step.Name, att, false, true).Pointer
+		}
 	}
 	if expr.IsUnion(att.Type) && pointer {
 		writeAuthorizationNilCheck(b, target, path)

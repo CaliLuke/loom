@@ -16,7 +16,7 @@ func TestJSONOnlyUnionEmission(t *testing.T) {
 			data := &Type{
 				Name: "Choice", KindName: "ChoiceKind", TypeKey: "kind", ValueKey: "value",
 				JSONOnly: jsonOnly,
-				Fields:   []*Field{{Name: "text", KindConst: "ChoiceText", FieldName: "Text", FieldType: "string", TypeTag: "text"}},
+				Fields:   []*Field{{Name: "text", KindConst: "ChoiceText", FieldName: "Text", MethodName: "Text", FieldType: "string", TypeTag: "text"}},
 			}
 			var output bytes.Buffer
 			section := &codegen.JenniferSection{Build: func(stmt *jen.Statement) {

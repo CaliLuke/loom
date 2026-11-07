@@ -85,7 +85,7 @@ func TestResolveLocationDefaults(t *testing.T) {
 		{"form object JSON", FormField, Object, Serialization{}, Codec{Style: JSON, Shape: Object}, ""},
 		{"form content overridden", FormField, Object, Serialization{MediaType: "application/json", Explode: &no}, Codec{Style: Form, Shape: Object}, ""},
 		{"form explicit false", FormField, Object, Serialization{AllowReserved: &no}, Codec{Style: Form, Explode: true, Shape: Object}, ""},
-		{"form JSON scalar", FormField, Scalar, Serialization{MediaType: "application/json"}, Codec{}, "media type"},
+		{"form JSON scalar", FormField, Scalar, Serialization{MediaType: "application/json"}, Codec{Style: JSON, Shape: Scalar}, ""},
 		{"form typeless default", FormField, Union, Serialization{}, Codec{}, "application/octet-stream"},
 		{"path content", Path, Scalar, Serialization{MediaType: "text/plain"}, Codec{}, "query-only"},
 		{"header content", Header, Scalar, Serialization{MediaType: "application/json"}, Codec{}, "query-only"},
@@ -113,8 +113,9 @@ func TestResolveLocationDefaults(t *testing.T) {
 }
 
 func TestResolveEffectiveStyleOnce(t *testing.T) {
-	branches, keys, err := ResolveUnion(NamedQuery, "n", []BranchShape{{Shape: Scalar}, {Shape: ScalarMap}}, Serialization{})
+	resolved, keys, err := Resolve(NamedQuery, "n", BranchShape{Shape: Union, Branches: []BranchShape{{Shape: Scalar}, {Shape: ScalarMap}}}, Serialization{})
 	require.NoError(t, err)
+	branches := resolved.Branches
 	require.Equal(t, Form, branches[0].Codec.Style)
 	require.Equal(t, Form, branches[1].Codec.Style)
 	require.Equal(t, KeySet{Literals: []string{"n"}, Residual: true}, keys)
@@ -122,19 +123,21 @@ func TestResolveEffectiveStyleOnce(t *testing.T) {
 
 func TestResolveUnion(t *testing.T) {
 	t.Run("invalid branch", func(t *testing.T) {
-		_, _, err := ResolveUnion(NamedQuery, "n", []BranchShape{{Shape: Scalar}, {Shape: Object}}, Serialization{Style: "deepObject"})
+		_, _, err := Resolve(NamedQuery, "n", BranchShape{Shape: Union, Branches: []BranchShape{{Shape: Scalar}, {Shape: Object}}}, Serialization{Style: "deepObject"})
 		require.ErrorContains(t, err, "branch 0")
 	})
 	t.Run("one residual claim", func(t *testing.T) {
-		branches, keys, err := ResolveUnion(NamedQuery, "n", []BranchShape{{Shape: ScalarMap}, {Shape: ScalarMap}}, Serialization{Style: "form"})
+		resolved, keys, err := Resolve(NamedQuery, "n", BranchShape{Shape: Union, Branches: []BranchShape{{Shape: ScalarMap}, {Shape: ScalarMap}}}, Serialization{Style: "form"})
 		require.NoError(t, err)
+		branches := resolved.Branches
 		require.Len(t, branches, 2)
 		require.Equal(t, KeySet{Residual: true}, keys)
 		require.NoError(t, CheckNamespaces(NamedQuery, []Binding{{Name: "n", Keys: keys}}))
 	})
 	t.Run("nested", func(t *testing.T) {
-		branches, keys, err := ResolveUnion(NamedQuery, "n", []BranchShape{{Shape: Union, Branches: []BranchShape{{Shape: Scalar}, {Shape: ScalarMap}}}}, Serialization{})
+		resolved, keys, err := Resolve(NamedQuery, "n", BranchShape{Shape: Union, Branches: []BranchShape{{Shape: Union, Branches: []BranchShape{{Shape: Scalar}, {Shape: ScalarMap}}}}}, Serialization{})
 		require.NoError(t, err)
+		branches := resolved.Branches
 		require.Len(t, branches[0].Inner, 2)
 		require.Equal(t, Form, branches[0].Inner[1].Codec.Style)
 		require.True(t, keys.Residual)

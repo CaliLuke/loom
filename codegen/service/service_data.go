@@ -27,7 +27,8 @@ type (
 		// their package names.
 		renamed map[string]*ServicesData
 		// values is shared by all package-name analyses of this generation.
-		values *serviceValueStore
+		values           *serviceValueStore
+		destinationTypes *destinationTypeNames
 	}
 
 	// Data contains the data used to render the code related to a single

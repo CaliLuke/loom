@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/CaliLuke/loom/internal/encodingmeta"
 	"github.com/CaliLuke/loom/internal/httpencoding"
 )
 
@@ -119,7 +120,7 @@ func ParseFormWithLimit(req *http.Request, maxBytes int64) error {
 // key is empty. Child values always have a name, independently of its bytes.
 func encodeFormValue(values url.Values, prefix string, v reflect.Value, named bool) (bool, error) {
 	if named && formValueUsesJSON(v) {
-		return EncodeJSONField(values, prefix, v.Interface())
+		return EncodeJSONField(values, prefix, v.Interface(), FieldValue)
 	}
 	normalized, handled, err := normalizeFormEncodeValue(values, prefix, v)
 	if err != nil {
@@ -149,7 +150,7 @@ func decodeFormValue(values url.Values, prefix string, target reflect.Value, nam
 		return false, fmt.Errorf("form decode target must be a non-nil pointer")
 	}
 	if named && formValueUsesJSON(target) {
-		return DecodeJSONField(values, prefix, target.Interface())
+		return DecodeJSONField(values, prefix, target.Interface(), false, FieldValue)
 	}
 	if !hasFormPrefix(values, prefix) {
 		return false, nil
@@ -398,15 +399,7 @@ func decodeFormMap(values url.Values, prefix string, target reflect.Value) (bool
 }
 
 func formFieldName(field reflect.StructField) (string, bool) {
-	tag := field.Tag.Get("form")
-	if tag == "" || tag == "-" {
-		return "", false
-	}
-	name, _, _ := strings.Cut(tag, ",")
-	if name == "" || name == "-" {
-		return "", false
-	}
-	return name, true
+	return encodingmeta.FormTagName(field.Tag.Get("form"))
 }
 
 func hasFormPrefix(values url.Values, prefix string) bool {

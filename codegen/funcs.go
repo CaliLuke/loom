@@ -23,6 +23,9 @@ type (
 		Type expr.DataType
 		// Attribute preserves the argument occurrence metadata when provided.
 		Attribute *expr.AttributeExpr
+		// SourceContext identifies an already selected physical argument layout.
+		// Nil uses the constructor's source package and argument pointer policy.
+		SourceContext *AttributeContext
 		// FieldName is the name of the field in the struct initialized by the
 		// argument.
 		FieldName string
@@ -175,58 +178,69 @@ func InitStructFields(args []*InitArgData, targetVar, sourcePkg, targetPkg strin
 		helpers    []*TransformFunctionData
 	)
 	for _, arg := range args {
-		source, target := arg.Attribute, arg.FieldAttribute
-		if source == nil {
-			source = &expr.AttributeExpr{Type: arg.Type}
+		plan, err := initStructField(arg, args, targetVar, sourcePkg, targetPkg, scope)
+		if err != nil {
+			return TransformPlan{}, err
 		}
-		if target == nil {
-			target = &expr.AttributeExpr{Type: arg.FieldType}
-		}
-		sourceContext := NewAttributeContext(arg.Pointer, false, true, sourcePkg, scope)
-		targetContext := NewAttributeContext(arg.FieldPointer, false, true, targetPkg, scope)
-		attributes := &TransformAttrs{SourceCtx: sourceContext, TargetCtx: targetContext}
-		if source.Type != nil && target.Type != nil && stringRepresentationCrossing(source, target, attributes) {
-			plan, err := initStringRepresentationField(arg, args, targetVar, source, target, attributes)
-			if err != nil {
-				return TransformPlan{}, err
-			}
-			code += plan.Code
-			errorAware = errorAware || plan.ErrorAware
-			helpers = AppendHelpers(helpers, plan.Helpers)
-			continue
-		}
-		switch {
-		case arg.FieldName == "" && arg.FieldType == nil:
-		// do nothing
-		case canCopyInitField(arg, source, target, attributes):
-			// arg type and struct field type are the same. No need to call transform
-			// to initialize the field
-			deref := ""
-			if !arg.Pointer && arg.FieldPointer && expr.IsPrimitive(arg.FieldType) {
-				deref = "&"
-			}
-			code += fmt.Sprintf("%s.%s = %s%s\n", targetVar, arg.FieldName, deref, arg.Name) // nolint: namescope -- target.field assignment, not a type ref
-		case expr.IsPrimitive(arg.FieldType):
-			code += initAliasedPrimitiveField(arg, targetVar, targetPkg, scope)
-		default:
-			srcctx := NewAttributeContext(arg.Pointer, false, true, sourcePkg, scope)
-			tgtctx := NewAttributeContext(arg.FieldPointer, false, true, targetPkg, scope)
-			plan, err := GoTransform(
-				source, target,
-				arg.Name, fmt.Sprintf("%s.%s", targetVar, arg.FieldName), srcctx, tgtctx, "", false) // nolint: namescope -- target.field lvalue, not a type ref
-			if err != nil {
-				return TransformPlan{}, err
-			}
-			code += plan.Code + "\n"
-			errorAware = errorAware || plan.ErrorAware
-			helpers = AppendHelpers(helpers, plan.Helpers)
-		}
+		code += plan.Code
+		errorAware = errorAware || plan.ErrorAware
+		helpers = AppendHelpers(helpers, plan.Helpers)
 	}
 	return TransformPlan{Code: code, Helpers: helpers, ErrorAware: errorAware}, nil
 }
 
+// initStructField selects conversion from the argument and field's actual
+// representations, retaining each argument's independently captured context.
+func initStructField(arg *InitArgData, args []*InitArgData, targetVar, sourcePkg, targetPkg string, scope *NameScope) (TransformPlan, error) {
+	source, target := arg.Attribute, arg.FieldAttribute
+	if source == nil {
+		source = &expr.AttributeExpr{Type: arg.Type}
+	}
+	if target == nil {
+		target = &expr.AttributeExpr{Type: arg.FieldType}
+	}
+	sourceContext := NewAttributeContext(arg.Pointer, false, true, sourcePkg, scope)
+	if arg.SourceContext != nil {
+		sourceContext = arg.SourceContext
+	}
+	targetContext := NewAttributeContext(arg.FieldPointer, false, true, targetPkg, scope)
+	attributes := &TransformAttrs{SourceCtx: sourceContext, TargetCtx: targetContext}
+	if source.Type != nil && target.Type != nil && stringRepresentationCrossing(source, target, attributes) {
+		return initStringRepresentationField(arg, args, targetVar, source, target, attributes)
+	}
+	var plan TransformPlan
+	var err error
+	switch {
+	case arg.FieldName == "" && arg.FieldType == nil:
+		return TransformPlan{}, nil
+	case canCopyInitField(arg, source, target, attributes):
+		if arg.Pointer && !arg.FieldPointer && expr.IsUnion(arg.FieldType) {
+			return TransformPlan{Code: fmt.Sprintf("if %s != nil {\n%s.%s = *%s\n}\n", arg.Name, targetVar, arg.FieldName, arg.Name)}, nil
+		}
+		deref := ""
+		if !arg.Pointer && arg.FieldPointer && (expr.IsPrimitive(arg.FieldType) || expr.IsUnion(arg.FieldType)) {
+			deref = "&"
+		}
+		return TransformPlan{Code: fmt.Sprintf("%s.%s = %s%s\n", targetVar, arg.FieldName, deref, arg.Name)}, nil // nolint: namescope -- target.field assignment, not a type ref
+	case expr.IsPrimitive(arg.FieldType):
+		return TransformPlan{Code: initAliasedPrimitiveField(arg, targetVar, targetPkg, scope)}, nil
+	case expr.IsUnion(source.Type) && expr.IsUnion(target.Type) && !expr.IsNullable(source) && !expr.IsNullable(target):
+		plan, err = initUnionField(arg, targetVar, source, target, attributes)
+	default:
+		plan, err = GoTransform(source, target, arg.Name, fmt.Sprintf("%s.%s", targetVar, arg.FieldName), sourceContext, targetContext, "", false) // nolint: namescope -- target.field lvalue, not a type ref
+	}
+	if err != nil {
+		return TransformPlan{}, err
+	}
+	plan.Code += "\n"
+	return plan, nil
+}
+
 // canCopyInitField keeps logical equality from hiding custom storage differences.
 func canCopyInitField(arg *InitArgData, source, target *expr.AttributeExpr, ta *TransformAttrs) bool {
+	if arg.SourceContext != nil && expr.IsUnion(source.Type) && expr.Equal(source.Type, target.Type) {
+		return ta.SourceCtx.Scope.Ref(source, ta.SourceCtx.Pkg(source)) == ta.TargetCtx.Scope.Ref(target, ta.TargetCtx.Pkg(target))
+	}
 	if !expr.Equal(unalias(arg.Type), arg.FieldType) {
 		return false
 	}

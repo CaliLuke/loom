@@ -15,6 +15,11 @@ type httpAttributeScope struct {
 	*codegen.AttributeScope
 }
 
+// WithScope preserves HTTP inline object representation while changing names.
+func (s *httpAttributeScope) WithScope(scope *codegen.NameScope) codegen.Attributor {
+	return &httpAttributeScope{AttributeScope: codegen.NewAttributeScope(scope)}
+}
+
 // httpContext returns a context for attributes of types used to marshal and
 // unmarshal HTTP requests and responses.
 //

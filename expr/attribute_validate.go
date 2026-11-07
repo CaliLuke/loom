@@ -47,6 +47,7 @@ func (v *attributeValidator) validate(a *AttributeExpr, ctx string, parent eval.
 		verr.Merge(v.Validate(ctx, parent))
 		verr.Merge(a.validateNumericBounds(ctx, parent))
 	}
+	verr.Merge(a.validateUnionClosure(ctx, parent))
 	verr.Merge(a.validateExamples(ctx, parent))
 	verr.Merge(a.validatePresence(ctx, parent))
 	verr.Merge(a.validateStructTagKeys(ctx, parent))

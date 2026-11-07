@@ -7,22 +7,26 @@ import (
 	"github.com/CaliLuke/loom/internal/httpencoding"
 )
 
-func formFieldCodecs(body *expr.AttributeExpr, form bool) map[string]httpencoding.Codec {
+func formBodyEncoding(body *expr.AttributeExpr, form bool) *expr.HTTPFormEncoding {
 	if !form || body == nil {
 		return nil
 	}
-	body = expr.UnwrapInlineHTTPBody(body)
-	object := expr.AsObject(body.Type)
-	if object == nil || len(*object) == 1 && expr.IsUnion((*object)[0].Attribute.Type) {
+	fields, err := expr.HTTPFormBodyEncoding(body)
+	if err != nil {
+		panic(fmt.Errorf("validated form body: %w", err))
+	}
+	return fields
+}
+
+func multipartBodyEncoding(body *expr.AttributeExpr, multipart bool) *expr.HTTPMultipartEncoding {
+	if !multipart || body == nil {
 		return nil
 	}
-	codecs := make(map[string]httpencoding.Codec, len(*object))
-	for _, field := range *object {
-		name := expr.ElementName(field.Name)
-		codec, _ := parameterCodec(httpencoding.FormField, name, field.Attribute, expr.HTTPParameterSerialization(body, "openapi:encoding:"+name+":"))
-		codecs[name] = codec
+	contract, err := expr.HTTPMultipartBodyEncoding(body)
+	if err != nil {
+		panic(fmt.Errorf("validated multipart body: %w", err))
 	}
-	return codecs
+	return contract
 }
 
 func parameterCodec(location httpencoding.Location, name string, attribute *expr.AttributeExpr, source httpencoding.Serialization) (httpencoding.Codec, httpencoding.KeySet) {

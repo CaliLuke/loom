@@ -65,7 +65,7 @@ func TestCollectionDeclarationIdentity(t *testing.T) {
 				}
 				for _, shape := range shapes {
 					t.Run(shape.name, func(t *testing.T) {
-						require.Equal(t, shape.want, collectionTypeRef(shape.attribute, context, false))
+						require.Equal(t, shape.want, context.CollectionElementRef(shape.attribute, false))
 					})
 				}
 			})
@@ -81,7 +81,7 @@ func TestCollectionAllocatedIdentityOrder(t *testing.T) {
 			declared := scope.GoTypeName(attribute)
 			context := NewAttributeContext(false, false, true, "service", scope)
 			t.Run(names[0]+"/"+name, func(t *testing.T) {
-				require.Equal(t, "service."+declared, collectionTypeRef(attribute, context, true))
+				require.Equal(t, "service."+declared, context.CollectionElementRef(attribute, true))
 			})
 		}
 	}
@@ -93,7 +93,7 @@ func TestCollectionNullableValueIdentity(t *testing.T) {
 	attribute := &expr.AttributeExpr{Type: &expr.UserTypeExpr{TypeName: "Word", AttributeExpr: &expr.AttributeExpr{Type: expr.String}}, Nullable: true}
 	require.Equal(t, "Word2", scope.GoValueTypeName(attribute))
 	context := NewAttributeContext(false, false, true, "service", scope)
-	require.Equal(t, "loom.Nullable[service.Word2]", collectionTypeRef(attribute, context, false))
+	require.Equal(t, "loom.Nullable[service.Word2]", context.CollectionElementRef(attribute, false))
 }
 
 func TestCollectionExternalAliasIdentity(t *testing.T) {
@@ -102,5 +102,5 @@ func TestCollectionExternalAliasIdentity(t *testing.T) {
 	attribute := &expr.AttributeExpr{Type: &expr.UserTypeExpr{TypeName: "Entry", AttributeExpr: &expr.AttributeExpr{Type: expr.String, Meta: expr.MetaExpr{"struct:pkg:path": {"types/log"}}}}}
 	require.Equal(t, "Entry", scope.GoTypeName(attribute))
 	context := NewAttributeContext(false, false, true, "service", scope)
-	require.Equal(t, "logs.Entry", collectionTypeRef(attribute, context, true))
+	require.Equal(t, "logs.Entry", context.CollectionElementRef(attribute, true))
 }

@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/codegen/service"
-	"github.com/CaliLuke/loom/expr"
 )
 
 func TestJSONExampleHandlesEmptyMaps(t *testing.T) {
@@ -163,7 +162,7 @@ func TestFieldLoadJSONDiagnosticExampleAvailability(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			flag := &FlagData{FullName: "payloadFlag", Type: "JSON", Example: test.example, Required: true}
-			stmt, _ := FieldLoadCode(flag, "payload", "WidgetPayload", "", nil, &expr.Object{}, "*WidgetPayload")
+			stmt, _ := FieldLoadCode(flag, "payload", "WidgetPayload", "", nil, "*WidgetPayload")
 			rendered := renderStatement(t, stmt)
 			require.Equal(t, test.wantExample, strings.Contains(rendered, "example of valid JSON"))
 		})
@@ -354,7 +353,6 @@ func TestFieldLoadCode(t *testing.T) {
 		argTypeName     string
 		validate        string
 		defaultValue    any
-		payload         expr.DataType
 		payloadRef      string
 		wantDeclErr     bool
 		wantContains    []string
@@ -368,7 +366,6 @@ func TestFieldLoadCode(t *testing.T) {
 			},
 			argName:      "name",
 			argTypeName:  "string",
-			payload:      &expr.Object{},
 			payloadRef:   "*Payload",
 			wantDeclErr:  false,
 			wantContains: []string{"if nameFlag != \"\" {", "name = &nameFlag"},
@@ -383,13 +380,12 @@ func TestFieldLoadCode(t *testing.T) {
 			argName:      "count",
 			argTypeName:  "int",
 			validate:     "if err = validateCount(count); err != nil {\n}\n",
-			payload:      expr.Int,
 			payloadRef:   "int",
 			wantDeclErr:  true,
 			wantContains: []string{"strconv.ParseInt(countFlag, 10, strconv.IntSize)", "var zero int", "return zero, err"},
 		},
 		{
-			name: "json conversion error keeps nil return",
+			name: "json conversion error uses declared zero return",
 			flag: &FlagData{
 				FullName: "payloadFlag",
 				Type:     "JSON",
@@ -398,16 +394,15 @@ func TestFieldLoadCode(t *testing.T) {
 			},
 			argName:      "payload",
 			argTypeName:  "WidgetPayload",
-			payload:      &expr.Object{},
 			payloadRef:   "*WidgetPayload",
 			wantDeclErr:  true,
-			wantContains: []string{"json.Unmarshal([]byte(payloadFlag), &payload)", "return nil, fmt.Errorf(\"invalid JSON for payload"},
+			wantContains: []string{"json.Unmarshal([]byte(payloadFlag), &payload)", "return zero, fmt.Errorf(\"invalid JSON for payload"},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			stmt, declErr := FieldLoadCode(tc.flag, tc.argName, tc.argTypeName, tc.validate, tc.defaultValue, tc.payload, tc.payloadRef)
+			stmt, declErr := FieldLoadCode(tc.flag, tc.argName, tc.argTypeName, tc.validate, tc.defaultValue, tc.payloadRef)
 			require.Equal(t, tc.wantDeclErr, declErr)
 			rendered := renderStatement(t, stmt)
 			for _, want := range tc.wantContains {

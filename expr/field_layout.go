@@ -2,6 +2,16 @@ package expr
 
 import "github.com/CaliLuke/loom/internal/encodingmeta"
 
+// HasNativeJSONPresence reports whether the generated value itself preserves
+// absence and explicit null. Untagged unions preserve these states in their
+// selected branch; an outer Nullable instead owns presence through its wrapper.
+func HasNativeJSONPresence(attribute *AttributeExpr) bool {
+	if attribute == nil || IsNullable(attribute) {
+		return false
+	}
+	return IsAny(attribute.Type) || IsUnion(attribute.Type) && AllowsNull(attribute)
+}
+
 // ServiceFieldLayout resolves the canonical service declaration's storage.
 // Composition uses the same owner after inherited defaults and requiredness have
 // been finalized. Type names remain the code generator's responsibility.
@@ -49,18 +59,16 @@ func (a *AttributeExpr) JSONFieldStorage(pointer, presence bool) encodingmeta.JS
 }
 
 func serviceFieldLayout(attribute *AttributeExpr, required, pointer bool, primitivePointer func() bool) encodingmeta.FieldLayout {
-	presence := encodingmeta.ExplicitPresence(attribute.Meta, IsNullable(attribute), attribute.Type == Any)
-	layout := encodingmeta.FieldLayout{
-		WrapNullable: AllowsNull(attribute) && !IsNullable(attribute) && !IsAny(attribute.Type),
-	}
+	presence := encodingmeta.ExplicitPresence(attribute.Meta, IsNullable(attribute), attribute.Type == Any) || HasNativeJSONPresence(attribute)
+	layout := encodingmeta.FieldLayout{}
 	layout.Pointer = !presence && (IsObject(attribute.Type) ||
 		(IsUnion(attribute.Type) && !required) ||
 		primitivePointer() ||
 		(pointer && IsPrimitive(attribute.Type) && !IsAny(attribute.Type) && attribute.Type.Kind() != BytesKind))
 	layout.JSON = encodingmeta.JSONFieldPolicy{
-		Storage:  attribute.JSONFieldStorage(layout.Pointer, presence || layout.WrapNullable),
+		Storage:  attribute.JSONFieldStorage(layout.Pointer, presence),
 		Optional: !required,
-		Presence: presence || AllowsNull(attribute),
+		Presence: presence,
 	}
 	return layout
 }

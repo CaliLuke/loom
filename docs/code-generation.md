@@ -275,16 +275,21 @@ idiomatic `AssetID` field name.
 
 The importer maps `multipart/form-data` request bodies to
 `MultipartRequest()`. It maps `application/x-www-form-urlencoded` request
-bodies to `FormRequest()`. Both request body schemas must define an object.
+bodies to `FormRequest()`. Generated form codecs support object and supported
+map roots; generated multipart codecs support object roots. Untagged `oneOf`
+alternatives use the same root contracts and require exactly one matching
+schema and decoder. Field encodings determine whether a value uses text, JSON,
+or raw bytes. Nullable values are supported inside JSON-valued fields; form
+and multipart roots cannot represent null.
 The importer maps `type: string` schemas with `format: byte` or
 `format: binary` to `Bytes`. Regeneration preserves the selected format.
 
-If one request body lists multiple media types, each entry must use the same
-schema and examples. Loom imports supported entries as one documented raw
-stream. The generated service must inspect the content type and decode the
-stream. A form or multipart entry requires a shared object schema. Different
-schemas, examples, per-part encodings, and unsupported media types remain
-strict import errors.
+When a request or response lists multiple media types, Loom imports each entry
+as a distinct typed branch with its own schema, examples, and field encodings.
+Generated transports select the branch from the content type and invoke the
+configured codec factory. Equal schemas still retain distinct media branches.
+See [HTTP media contracts](http-media-contracts.md) for supported codecs,
+media ranges, and rejected combinations.
 
 OpenAPI 3.0 `nullable: true` and OpenAPI 3.1/3.2 two-member type unions such as
 `type: [string, "null"]` import as `Nullable()` and generate
@@ -302,17 +307,22 @@ to adopt this correction; regeneration is not required. These wrappers implement
 `UnmarshalJSONFrom`; use `json.Unmarshal` or `json.UnmarshalDecode` instead of
 calling a wrapper's former `UnmarshalJSON` method directly.
 
-A two-member `oneOf` with one bare `null` branch and one local component
-reference imports as the same nullable named type when the referenced schema
-explicitly excludes null. Regenerated OpenAPI uses the equivalent `anyOf`
-representation. A `oneOf` of named object or array components in a JSON request
-or success response imports as an untagged typed union. Recursive contents may
-be primitives, named objects, and arrays of these shapes. Inline object branches
-become deterministic named components; inline array branches remain unsupported.
-Generated Go retains sum-type constructors and accessors. Encoding and decoding
-require the same unique schema and Go branch. Inline nested objects, maps,
-nested unions, scalar unions, discriminated source unions, declared error unions,
-and untagged unions in string-encoded transport locations remain strict import errors.
+Supported `oneOf` imports preserve primitives, `Any`, scalar aliases, arrays,
+string-keyed maps, named objects, nested untagged unions and nullable branches.
+Inline objects receive deterministic names where the generated DSL requires
+concrete declarations. Null normalization retains the original exact-one domain;
+multiple null-admitting alternatives remain ambiguous. Generated Go retains
+sum-type constructors and accessors while JSON contains the selected value.
+Both encoding and decoding require the same unique schema and Go decoder match.
+Overlapping alternatives are legal to declare, but ambiguous values fail.
+
+Text locations and form/multipart fields require a supported codec for every
+alternative. Form roots admit supported objects/maps; multipart union roots
+require objects. JSON-valued fields can carry nullable values; text cannot.
+See [import coverage](openapi-import-coverage.md) for location admission,
+`unevaluatedProperties: false` closure, normalization and remaining diagnostics.
+Discriminator import remains separate work in
+[#1005](https://github.com/CaliLuke/loom/issues/1005).
 
 A scalar JSON Schema `const` without a sibling `enum` imports as an equivalent
 one-member enum. Regenerated OpenAPI emits `enum`. Structured constants and
@@ -686,9 +696,10 @@ the `101` response, upgrade headers, JSON messages, and terminal behavior.
 Declared errors that occur before an SSE frame or WebSocket upgrade remain
 ordinary HTTP response cases.
 
-Loom supports non-streaming multipart contracts for flat object bodies with
-primitive or bytes fields. Other multipart shapes produce a generation
-diagnostic. Multipart SSE and WebSocket endpoints also produce a diagnostic.
+The response-contract scaffold supports non-streaming multipart cases for flat
+object bodies with primitive or bytes fields. Other shapes produce a scaffold
+diagnostic even when the ordinary multipart transport supports them. Multipart
+SSE and WebSocket endpoints also produce a scaffold diagnostic.
 
 The gRPC scaffold publishes one stable case for each success or declared error.
 Cases include the status code, protobuf success message or typed status detail,
@@ -1127,6 +1138,14 @@ symbol fail generation with the file and symbol names. Regenerate affected
 shared-package designs after upgrading; do not rename types merely to avoid a
 filename collision.
 
+Loom allocates relocated Go types and their generated union helpers together
+in the destination package. A colliding generated type name can receive a
+numeric suffix; all service and transport references use that same name.
+Regenerate affected code and use its allocated Go names in handwritten code.
+Wire names and explicit custom Go codec/type spellings do not change. Import
+aliases only change how files refer to a package; conversions and nested defaults
+use the same physical type declarations.
+
 The path must not be the package of a service that uses the type: with
 `Meta("struct:pkg:path", "common")` on a type of a service named `common`, the
 service package would import itself, so `loom gen` fails and asks for another
@@ -1418,3 +1437,11 @@ mechanism inside generators, not a second plugin lifecycle.
 - [HTTP Guide](http-guide.md) — HTTP transport features and customization
 - [gRPC Guide](grpc-guide.md) — gRPC transport features and Protocol Buffers
 - [Quickstart](quickstart.md) — Getting started with code generation
+
+Shared generated types are emitted once per physical Go package, even when
+several services reach the type through different containing types or files.
+Equal Go names in different packages remain separate declarations. The first
+existing file candidate in generation order owns a shared declaration; regenerate
+all services together rather than depending on which containing file holds it.
+Custom package paths are relative to `gen`: `struct:pkg:path` set to `gen/foo`
+therefore writes under `gen/gen/foo`.

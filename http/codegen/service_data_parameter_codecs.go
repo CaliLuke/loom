@@ -14,6 +14,7 @@ import (
 )
 
 func (b *payloadBuilder) configureParameterElement(element *Element, parameter *transportir.Parameter, peers []*transportir.Parameter) {
+	element.location = parameter.In
 	element.Codec = parameter.Codec
 	element.Styled = parameterUsesRuntime(parameter.In, parameter.Codec)
 	configureStyledCarrier(element, b.svcctx)
@@ -35,6 +36,9 @@ func (b *payloadBuilder) configureParameterElement(element *Element, parameter *
 }
 
 func parameterUsesRuntime(location string, codec httpencoding.Codec) bool {
+	if codec.Shape == httpencoding.Union {
+		return codec.Style != httpencoding.JSON && codec.Style != httpencoding.Root
+	}
 	associative := codec.Shape == httpencoding.Object || codec.Shape == httpencoding.ScalarMap
 	switch location {
 	case "path":
@@ -74,30 +78,32 @@ func (b *payloadBuilder) configureFormFields(request *RequestData) {
 	if !source.FormEncoded || source.Body == nil {
 		return
 	}
+	request.form = source.Form
 	body := expr.UnwrapInlineHTTPBody(source.Body)
-	request.StyledFormFields, request.OrdinaryFormFields = formFieldData(body, source.FormFieldCodecs)
+	request.StyledFormFields, request.OrdinaryFormFields = formFieldData(body, source.Form.Fields)
 }
 
-func formFieldData(body *expr.AttributeExpr, codecs map[string]httpencoding.Codec) (styled, ordinary []*FormFieldData) {
+func formFieldData(body *expr.AttributeExpr, codecs map[string]httpencoding.FieldCodec) (styled, ordinary []*FormFieldData) {
 	object := expr.AsObject(body.Type)
 	if object == nil || len(codecs) == 0 {
 		return nil, nil
 	}
 	claims := make([]httpencoding.KeySet, len(*object))
 	for index, field := range *object {
-		name := expr.ElementName(field.Name)
-		_, keys, err := httpencoding.Resolve(httpencoding.FormField, name, expr.HTTPValueShape(field.Attribute), expr.HTTPParameterSerialization(body, "openapi:encoding:"+name+":"))
-		if err != nil {
-			panic(fmt.Errorf("validated form field %q: %w", name, err))
+		captured := codecs[field.Name]
+		if !captured.Omitted {
+			claims[index] = captured.Keys
 		}
-		claims[index] = keys
 	}
 	for index, field := range *object {
-		name := expr.ElementName(field.Name)
-		codec := codecs[name]
+		captured := codecs[field.Name]
+		if captured.Omitted {
+			continue
+		}
+		codec := captured.Codec
 		data := &FormFieldData{
 			AttributeName: expr.AttributeName(field.Name),
-			HTTPName:      name,
+			HTTPName:      captured.Name,
 			FieldName:     codegen.GoifyAtt(field.Attribute, expr.AttributeName(field.Name), true),
 			Attribute:     field.Attribute,
 			Codec:         codec,
@@ -116,7 +122,7 @@ func formFieldData(body *expr.AttributeExpr, codecs map[string]httpencoding.Code
 // configureStyledCarrier uses the service declaration for newly admitted flat
 // objects. Existing scalar and collection carriers retain their prior layout.
 func configureStyledCarrier(element *Element, ctx *codegen.AttributeContext) {
-	if !element.Styled || !expr.IsObject(element.Type) {
+	if !element.Styled || !expr.IsObject(element.Type) && expr.AsUnion(element.Type) == nil {
 		return
 	}
 	att := *element.attribute
@@ -126,6 +132,10 @@ func configureStyledCarrier(element *Element, ctx *codegen.AttributeContext) {
 	element.Type = att.Type
 	element.TypeName = ctx.Scope.Name(&att, ctx.Pkg(&att), ctx.Pointer, ctx.UseDefault)
 	element.TypeRef = ctx.Scope.Ref(&att, ctx.Pkg(&att))
+	if expr.AsUnion(att.Type) != nil {
+		element.nativeContext = ctx
+		element.Pointer = true
+	}
 	if _, inline := att.Type.(*expr.Object); inline {
 		// An anonymous object at a service field is a pointer even though a
 		// standalone anonymous struct reference is a value.

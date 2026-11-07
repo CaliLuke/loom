@@ -297,6 +297,10 @@ func TestRepresentativeSpecsPassVacuumLintAndConsumerSmoke(t *testing.T) {
 		target string
 		dsl    func()
 	}{
+		{name: "untagged-roots", dsl: testdata.UntaggedRootsDSL},
+		{name: "untagged-locations", dsl: testdata.UntaggedLocationsDSL},
+		{name: "untagged-roots-31", target: "3.1", dsl: testdata.UntaggedRootsDSL},
+		{name: "untagged-locations-31", target: "3.1", dsl: testdata.UntaggedLocations31DSL},
 		{name: "parameter-styles", dsl: testdata.ParameterStylesDSL},
 		{name: "parameter-property-names", dsl: testdata.ParameterPropertyNamesDSL},
 		{name: "parameter-metadata", dsl: testdata.ParameterMetadataDSL},

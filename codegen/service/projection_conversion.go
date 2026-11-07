@@ -25,7 +25,7 @@ type (
 
 const projectionConversionIdentity = "loom:projection:conversion"
 
-func buildProjectionConversion(att, projected *expr.AttributeExpr, view, name, sourceVar, targetVar string, sourceCtx, targetCtx *codegen.AttributeContext, toView bool) codegen.TransformPlan {
+func buildProjectionConversion(att, projected *expr.AttributeExpr, view, name, sourceVar, targetVar string, sourceCtx, targetCtx *codegen.AttributeContext, toView bool, scope *codegen.NameScope) codegen.TransformPlan {
 	selected, err := expr.Project(att.Type.(*expr.ResultTypeExpr), view)
 	if err != nil {
 		panic(err)
@@ -39,8 +39,6 @@ func buildProjectionConversion(att, projected *expr.AttributeExpr, view, name, s
 	if !toView {
 		source, target = carrier, service
 	}
-	names := codegen.NewNameScope()
-	allocated := make(map[string]string)
 	options := codegen.TransformOptions{HelperName: func(source, target *expr.AttributeExpr) string {
 		if _, ok := source.Type.(expr.UserType); !ok {
 			return ""
@@ -50,13 +48,9 @@ func buildProjectionConversion(att, projected *expr.AttributeExpr, view, name, s
 		}
 		sourceID := projectionConversionTypeIdentity(source.Type)
 		targetID := projectionConversionTypeIdentity(target.Type)
-		key := fmt.Sprintf("%d:%s%d:%s", len(sourceID), sourceID, len(targetID), targetID)
-		if previous, ok := allocated[key]; ok {
-			return previous
-		}
 		base := "transform" + name + codegen.Goify(sourceCtx.Scope.Name(source, sourceCtx.NamePkg(source), sourceCtx.Pointer, sourceCtx.UseDefault), true) + "To" + codegen.Goify(targetCtx.Scope.Name(target, targetCtx.NamePkg(target), targetCtx.Pointer, targetCtx.UseDefault), true)
-		allocated[key] = names.Unique(base)
-		return allocated[key]
+		key := viewedHelperKey{role: "transform", source: sourceID, target: targetID, selection: name}
+		return scope.HashedUnique(key, base)
 	}}
 	conversion, err := codegen.GoTransform(source, target, sourceVar, targetVar, sourceCtx, targetCtx, "transform", true, options)
 	if err != nil {

@@ -6,40 +6,87 @@ func DecodeMethodMultipartObjectGeneratedInvalidRequest(mux loomhttp.Muxer, _ fu
 		var payload *servicemultipartobjectgeneratedinvalid.MethodMultipartObjectGeneratedInvalidPayload
 		var err error
 		var (
-			body MethodMultipartObjectGeneratedInvalidRequestBody
+			body MethodMultipartObjectGeneratedInvalidMethodMultipartObjectGeneratedInvalidRequestBodyForm
 		)
 		multipartForm, multipartErr := loomhttp.ReadMultipartForm(r)
 		if multipartErr != nil {
-			var gerr *loom.ServiceError
-			if errors.As(multipartErr, &gerr) {
-				return payload, gerr
-			}
-			return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(multipartErr))
-		}
-		if len(multipartForm.Values) == 0 && len(multipartForm.Files) == 0 {
-			return payload, loom.MissingPayloadError()
-		} else {
-			switch files := multipartForm.Files["file"]; len(files) {
-			case 0:
-				// A missing required file is reported by the body validation
-				// below, which independently detects the resulting nil field.
-			case 1:
-				multipartForm.Values.Set("file", string(files[0].Data))
-				if _, ok := multipartForm.Values["filename"]; !ok && files[0].Filename != "" {
-					multipartForm.Values.Set("filename", files[0].Filename)
-				}
-			default:
-				return payload, loom.DecodePayloadError("multiple multipart files provided for field file")
-			}
-			if _, multipartErr = loomhttp.DecodeFormValue(multipartForm.Values, "", &body); multipartErr != nil {
-				var gerr *loom.ServiceError
-				if errors.As(multipartErr, &gerr) {
-					return payload, gerr
+			if errors.Is(multipartErr, loomhttp.ErrMultipartBodyAbsent) {
+				return payload, loom.MissingPayloadError()
+			} else {
+				var serviceError *loom.ServiceError
+				if errors.As(multipartErr, &serviceError) {
+					return payload, serviceError
 				}
 				return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(multipartErr))
 			}
+		} else {
+			if partError := func() error {
+				{
+					partPresent, partError := loomhttp.DecodeMultipartBinary(multipartForm, "file", &body.File, loomhttp.FieldValue)
+					if partError != nil {
+						return partError
+					}
+					if !partPresent {
+						return loom.MissingFieldError("file", "body")
+					}
+				}
+				{
+					derivedJSON, derived, derivedError := loomhttp.MultipartMetadataJSON(multipartForm, "filename", "file", "filename")
+					if derivedError != nil {
+						return derivedError
+					}
+					if derived {
+						if derivedError := json.Unmarshal(derivedJSON, &body.Filename, loom.JSONOptions()); derivedError != nil {
+							return derivedError
+						}
+					} else {
+						{
+							parameterValue, partError := loomhttp.DecodeMultipartParam(multipartForm, "filename", loomhttp.ParamCodec{Style: loomhttp.ParamForm, Explode: false}, loomhttp.ParamScalar, loomhttp.ParamNamespace{Literals: []string{"count", "file"}, Prefixes: []string(nil), OwnedLiterals: []string(nil)})
+							partPresent := parameterValue.Present
+							if partError == nil && partPresent {
+								{
+									parameterValue := string(parameterValue.Text)
+									body.Filename = &parameterValue
+								}
+							}
+							if partError != nil {
+								return partError
+							}
+							_ = partPresent
+						}
+					}
+				}
+				{
+					parameterValue, partError := loomhttp.DecodeMultipartParam(multipartForm, "count", loomhttp.ParamCodec{Style: loomhttp.ParamForm, Explode: false}, loomhttp.ParamScalar, loomhttp.ParamNamespace{Literals: []string{"file", "filename"}, Prefixes: []string(nil), OwnedLiterals: []string(nil)})
+					partPresent := parameterValue.Present
+					if partError == nil && partPresent {
+						{
+							parameterParsed, parameterError := strconv.ParseInt(parameterValue.Text, 10, strconv.IntSize)
+							if parameterError != nil {
+								return fmt.Errorf("%s", "parameter count: invalid int value")
+							}
+							parameterValue := int(parameterParsed)
+							body.Count = &parameterValue
+						}
+					}
+					if partError != nil {
+						return partError
+					}
+					if !partPresent {
+						return loom.MissingFieldError("count", "body")
+					}
+				}
+				return nil
+			}(); partError != nil {
+				var serviceError *loom.ServiceError
+				if errors.As(partError, &serviceError) {
+					return payload, serviceError
+				}
+				return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(partError))
+			}
 		}
-		err = ValidateMethodMultipartObjectGeneratedInvalidRequestBody(&body)
+
+		err = ValidateMethodMultipartObjectGeneratedInvalidMethodMultipartObjectGeneratedInvalidRequestBodyForm(&body)
 		if err != nil {
 			if multipartErr != nil {
 				err = loom.MergeErrors(multipartErr, err)

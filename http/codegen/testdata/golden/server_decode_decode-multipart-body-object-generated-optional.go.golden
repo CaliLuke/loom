@@ -5,42 +5,104 @@ func DecodeMethodMultipartObjectGeneratedOptionalRequest(mux loomhttp.Muxer, _ f
 	return func(r *http.Request) (*servicemultipartobjectgeneratedoptional.MethodMultipartObjectGeneratedOptionalPayload, error) {
 		var payload *servicemultipartobjectgeneratedoptional.MethodMultipartObjectGeneratedOptionalPayload
 		var (
-			body MethodMultipartObjectGeneratedOptionalRequestBody
+			body MethodMultipartObjectGeneratedOptionalMethodMultipartObjectGeneratedOptionalRequestBodyForm
 		)
 		multipartForm, multipartErr := loomhttp.ReadMultipartForm(r)
 		if multipartErr != nil {
-			var gerr *loom.ServiceError
-			if errors.As(multipartErr, &gerr) {
-				return payload, gerr
-			}
-			return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(multipartErr))
-		}
-		if len(multipartForm.Values) == 0 && len(multipartForm.Files) == 0 {
-			return payload, loom.MissingPayloadError()
-		} else {
-			switch files := multipartForm.Files["file"]; len(files) {
-			case 0:
-				// A missing required file is reported by the body validation
-				// below, which independently detects the resulting nil field.
-			case 1:
-				multipartForm.Values.Set("file", string(files[0].Data))
-				if _, ok := multipartForm.Values["filename"]; !ok && files[0].Filename != "" {
-					multipartForm.Values.Set("filename", files[0].Filename)
-				}
-				if _, ok := multipartForm.Values["content_type"]; !ok && files[0].ContentType != "" {
-					multipartForm.Values.Set("content_type", files[0].ContentType)
-				}
-			default:
-				return payload, loom.DecodePayloadError("multiple multipart files provided for field file")
-			}
-			if _, multipartErr = loomhttp.DecodeFormValue(multipartForm.Values, "", &body); multipartErr != nil {
-				var gerr *loom.ServiceError
-				if errors.As(multipartErr, &gerr) {
-					return payload, gerr
+			if errors.Is(multipartErr, loomhttp.ErrMultipartBodyAbsent) {
+				return payload, loom.MissingPayloadError()
+			} else {
+				var serviceError *loom.ServiceError
+				if errors.As(multipartErr, &serviceError) {
+					return payload, serviceError
 				}
 				return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(multipartErr))
 			}
+		} else {
+			if partError := func() error {
+				{
+					partPresent, partError := loomhttp.DecodeMultipartBinary(multipartForm, "file", &body.File, loomhttp.FieldValue)
+					if partError != nil {
+						return partError
+					}
+					_ = partPresent
+				}
+				{
+					derivedJSON, derived, derivedError := loomhttp.MultipartMetadataJSON(multipartForm, "filename", "file", "filename")
+					if derivedError != nil {
+						return derivedError
+					}
+					if derived {
+						if derivedError := json.Unmarshal(derivedJSON, &body.Filename, loom.JSONOptions()); derivedError != nil {
+							return derivedError
+						}
+					} else {
+						{
+							parameterValue, partError := loomhttp.DecodeMultipartParam(multipartForm, "filename", loomhttp.ParamCodec{Style: loomhttp.ParamForm, Explode: false}, loomhttp.ParamScalar, loomhttp.ParamNamespace{Literals: []string{"content_type", "file", "label"}, Prefixes: []string(nil), OwnedLiterals: []string(nil)})
+							partPresent := parameterValue.Present
+							if partError == nil && partPresent {
+								{
+									parameterValue := string(parameterValue.Text)
+									body.Filename = &parameterValue
+								}
+							}
+							if partError != nil {
+								return partError
+							}
+							_ = partPresent
+						}
+					}
+				}
+				{
+					derivedJSON, derived, derivedError := loomhttp.MultipartMetadataJSON(multipartForm, "content_type", "file", "Content-Type")
+					if derivedError != nil {
+						return derivedError
+					}
+					if derived {
+						if derivedError := json.Unmarshal(derivedJSON, &body.ContentType, loom.JSONOptions()); derivedError != nil {
+							return derivedError
+						}
+					} else {
+						{
+							parameterValue, partError := loomhttp.DecodeMultipartParam(multipartForm, "content_type", loomhttp.ParamCodec{Style: loomhttp.ParamForm, Explode: false}, loomhttp.ParamScalar, loomhttp.ParamNamespace{Literals: []string{"file", "filename", "label"}, Prefixes: []string(nil), OwnedLiterals: []string(nil)})
+							partPresent := parameterValue.Present
+							if partError == nil && partPresent {
+								{
+									parameterValue := string(parameterValue.Text)
+									body.ContentType = &parameterValue
+								}
+							}
+							if partError != nil {
+								return partError
+							}
+							_ = partPresent
+						}
+					}
+				}
+				{
+					parameterValue, partError := loomhttp.DecodeMultipartParam(multipartForm, "label", loomhttp.ParamCodec{Style: loomhttp.ParamForm, Explode: false}, loomhttp.ParamScalar, loomhttp.ParamNamespace{Literals: []string{"content_type", "file", "filename"}, Prefixes: []string(nil), OwnedLiterals: []string(nil)})
+					partPresent := parameterValue.Present
+					if partError == nil && partPresent {
+						{
+							parameterValue := string(parameterValue.Text)
+							body.Label = &parameterValue
+						}
+					}
+					if partError != nil {
+						return partError
+					}
+					_ = partPresent
+				}
+				return nil
+			}(); partError != nil {
+				var serviceError *loom.ServiceError
+				if errors.As(partError, &serviceError) {
+					return payload, serviceError
+				}
+				return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(partError))
+			}
 		}
+
 		if multipartErr != nil {
 			return payload, multipartErr
 		}

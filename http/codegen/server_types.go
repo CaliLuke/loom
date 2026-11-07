@@ -210,12 +210,13 @@ func initFieldAssignments(args []*InitArgData, targetVar, targetPkg string, pkgs
 	initArgs := make([]*codegen.InitArgData, len(args))
 	for i, arg := range args {
 		initArgs[i] = &codegen.InitArgData{
-			Name:         arg.VarName,
-			Pointer:      arg.Pointer,
-			Type:         arg.Type,
-			FieldName:    arg.FieldName,
-			FieldPointer: arg.FieldPointer,
-			FieldType:    arg.FieldType,
+			SourceContext: arg.nativeContext,
+			Name:          arg.VarName,
+			Pointer:       arg.Pointer,
+			Type:          arg.Type,
+			FieldName:     arg.FieldName,
+			FieldPointer:  arg.FieldPointer,
+			FieldType:     arg.FieldType,
 		}
 	}
 	// Transport-bound fields can be named scalar or collection types, but

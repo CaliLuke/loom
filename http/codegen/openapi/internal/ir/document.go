@@ -149,15 +149,19 @@ func buildOperation(endpointIR *transportir.Endpoint, bodies *EndpointBodies, ra
 	if err != nil {
 		return nil, err
 	}
+	request, err := buildRequestBody(endpointIR, bodies, closeObjects)
+	if err != nil {
+		return nil, err
+	}
 	return &Operation{
-		RequestBody: wrapRequestBody(buildRequestBody(endpointIR, bodies, closeObjects)),
+		RequestBody: wrapRequestBody(request),
 		Responses:   wrapResponses(responses),
 	}, nil
 }
 
-func buildRequestBody(endpointIR *transportir.Endpoint, bodies *EndpointBodies, closeObjects bool) *RequestBody {
+func buildRequestBody(endpointIR *transportir.Endpoint, bodies *EndpointBodies, closeObjects bool) (*RequestBody, error) {
 	if endpointIR == nil || endpointIR.Request == nil {
-		return nil
+		return nil, nil
 	}
 	body := expr.UnwrapInlineHTTPBody(endpointIR.Request.Body)
 	contentTypes := []string{"application/json"}
@@ -171,7 +175,7 @@ func buildRequestBody(endpointIR *transportir.Endpoint, bodies *EndpointBodies, 
 		required = endpointIR.Request.DocumentRequired
 	}
 	if body == nil || body.Type == expr.Empty {
-		return nil
+		return nil, nil
 	}
 	bodyAttr := attributeForSchemaUsage(body, schemaUsageRequest)
 	if endpointIR.Request.Multipart {
@@ -181,7 +185,11 @@ func buildRequestBody(endpointIR *transportir.Endpoint, bodies *EndpointBodies, 
 	}
 	content := make(map[string]*MediaType, len(contentTypes))
 	if len(endpointIR.Request.MediaVariants) > 0 {
-		content = buildMediaVariantContent(endpointIR.Request.MediaVariants, bodies.requestMedia, closeObjects, schemaUsageRequest)
+		var err error
+		content, err = buildMediaVariantContent(endpointIR.Request.MediaVariants, bodies.requestMedia, closeObjects, schemaUsageRequest)
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		for _, contentType := range contentTypes {
 			schema := bodies.RequestBody
@@ -194,7 +202,9 @@ func buildRequestBody(endpointIR *transportir.Endpoint, bodies *EndpointBodies, 
 			}
 			content[contentType] = buildMediaType(bodyAttr, schema, closeObjects,
 				endpointIR.Request.DocumentBody != nil, target)
-			applyFormFieldEncoding(endpointIR.Request, content[contentType])
+			if err := applyMediaFieldEncoding(endpointIR.Request, content[contentType]); err != nil {
+				return nil, fmt.Errorf("media type %q: %w", contentType, err)
+			}
 		}
 	}
 	return &RequestBody{
@@ -207,7 +217,7 @@ func buildRequestBody(endpointIR *transportir.Endpoint, bodies *EndpointBodies, 
 			openapi.ExtensionsFromExpr(bodyAttr.Meta),
 			openapi.ScopedExtensionsFromExpr(bodyAttr.Meta, "requestBody"),
 		),
-	}
+	}, nil
 }
 
 func requestBodyDescription(bodyAttr *expr.AttributeExpr) string {
@@ -242,13 +252,19 @@ func buildResponses(endpointIR *transportir.Endpoint, bodies *EndpointBodies, ra
 			}
 		}
 		websocketHandshake := endpointIR.Stream.IsStreaming && !endpointIR.Stream.IsSSE && statusCode == expr.StatusSwitchingProtocols
-		response := buildResponse(resp, statusCode, statusBodies, rand, closeObjects, endpointServiceName(endpointIR), websocketHandshake, bodies.locations, bodies.responseMedia[resp])
+		response, err := buildResponse(resp, statusCode, statusBodies, rand, closeObjects, endpointServiceName(endpointIR), websocketHandshake, bodies.locations, bodies.responseMedia[resp])
+		if err != nil {
+			return nil, err
+		}
 		status := strconv.Itoa(statusCode)
 		alternatives[status] = append(alternatives[status], responseAlternative{fmt.Sprintf("success-%d", index), response})
 		responses[status] = response
 	}
 	for _, errResp := range endpointIR.Response.ErrorResponses {
-		resp := buildResponse(errResp, errResp.StatusCode, statusBodies, rand, closeObjects, endpointServiceName(endpointIR), false, bodies.locations, bodies.responseMedia[errResp])
+		resp, err := buildResponse(errResp, errResp.StatusCode, statusBodies, rand, closeObjects, endpointServiceName(endpointIR), false, bodies.locations, bodies.responseMedia[errResp])
+		if err != nil {
+			return nil, err
+		}
 		desc := resp.Description
 		if value, ok := errResp.Meta.Last("openapi:description:errorName"); !ok || value != "false" {
 			desc = errResp.Error.Name
@@ -289,7 +305,7 @@ func buildResponse(
 	websocketHandshake bool,
 	prepared map[*expr.AttributeExpr]*Schema,
 	mediaSchemas map[string]*Schema,
-) *Response {
+) (*Response, error) {
 	headers := headersFromIR(resp.Headers, rand, closeObjects, prepared)
 	if len(resp.MediaVariants) > 0 {
 		for name := range headers {
@@ -309,6 +325,10 @@ func buildResponse(
 	if desc == "" && len(resp.Meta["openapi:reference:response"]) == 0 {
 		desc = fmt.Sprintf("%s response.", http.StatusText(statusCode))
 	}
+	content, err := buildResponseContent(resp, statusCode, bodies, closeObjects, websocketHandshake, mediaSchemas)
+	if err != nil {
+		return nil, err
+	}
 	return &Response{
 		ReferenceMetadata: resp.Meta["openapi:reference:response"],
 		Description:       desc,
@@ -316,13 +336,13 @@ func buildResponse(
 		OmitDescription:   metaBool(resp.Meta, "openapi:description:omit"),
 		ComponentName:     metaValue(resp.Meta, "openapi:component:response"),
 		Headers:           headers,
-		Content:           buildResponseContent(resp, statusCode, bodies, closeObjects, websocketHandshake, mediaSchemas),
+		Content:           content,
 		Links:             buildResponseLinks(resp.Links, currentService),
 		Extensions: openapi.MergeExtensions(
 			openapi.ExtensionsFromExpr(resp.Meta),
 			openapi.ScopedExtensionsFromExpr(resp.Meta, "response"),
 		),
-	}
+	}, nil
 }
 
 func buildResponseContent(
@@ -332,7 +352,7 @@ func buildResponseContent(
 	closeObjects bool,
 	websocketHandshake bool,
 	mediaSchemas map[string]*Schema,
-) map[string]*MediaType {
+) (map[string]*MediaType, error) {
 	if len(resp.MediaVariants) > 0 {
 		return buildMediaVariantContent(resp.MediaVariants, mediaSchemas, closeObjects, schemaUsageResponse)
 	}
@@ -381,7 +401,7 @@ func buildResponseContent(
 			}
 		}
 	}
-	return content
+	return content, nil
 }
 
 func appendErrorRemedyDescription(desc string, errResp *transportir.Error) string {
@@ -423,23 +443,6 @@ func buildMediaType(
 		serializeBinaryMediaExamples(mediaType, attr)
 	}
 	return mediaType
-}
-
-// mediaTypeMetadata captures only annotations lowered on the media object.
-// Body naming and schema annotations belong to the selected schema, not to
-// compatibility checks between media objects that can contain several schemas.
-func mediaTypeMetadata(meta expr.MetaExpr) map[string][]string {
-	var selected map[string][]string
-	for key, values := range meta {
-		if key == "openapi:itemSchema" || strings.HasPrefix(key, "openapi:encoding:") ||
-			strings.HasPrefix(key, "openapi:prefixEncoding:") || strings.HasPrefix(key, "openapi:itemEncoding:") {
-			if selected == nil {
-				selected = make(map[string][]string)
-			}
-			selected[key] = slices.Clone(values)
-		}
-	}
-	return selected
 }
 
 func headersFromIR(

@@ -39,3 +39,27 @@ func TestParameterValueAssignment(t *testing.T) {
 		})
 	}
 }
+
+func TestParameterAssignmentSharedJSONLayout(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		typ  expr.DataType
+		want string
+	}{
+		{"list", &expr.Array{ElemType: &expr.AttributeExpr{Type: expr.String}}, "value[parameterIndex] = loom.OptionalValue(parameterNative)"},
+		{"map", &expr.Map{KeyType: &expr.AttributeExpr{Type: expr.String}, ElemType: &expr.AttributeExpr{Type: expr.String}}, "value[parameterKey] = loom.OptionalValue(parameterItem)"},
+		{"object", &expr.Object{{Name: "text", Attribute: &expr.AttributeExpr{Type: expr.String}}}, "value.Text = loom.OptionalValue(parameterNative)"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			named := &expr.UserTypeExpr{TypeName: "Shared", AttributeExpr: &expr.AttributeExpr{Type: tc.typ}}
+			att := &expr.AttributeExpr{Type: named}
+			ctx := httpContext(codegen.NewNameScope(), true, true)
+			ctx.JSONPresence, ctx.CollectionElementPresence = false, false
+			ctx.JSONPresenceTypes = map[string]bool{named.Hash(): true}
+			ctx.PresencePointerTypes = map[string]bool{named.Hash(): true}
+			got := renderParameterAssignment(att, att, ctx, "raw", "value", "field", false)
+			require.Contains(t, got, tc.want)
+			require.False(t, ctx.JSONPresence, "the occurrence context remains unchanged")
+		})
+	}
+}

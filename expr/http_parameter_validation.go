@@ -11,8 +11,8 @@ func validateParameterBinding(attribute *AttributeExpr, name string, loc httpenc
 	if err := validateParameterMetadata(HTTPMediaMetadata(attribute), "openapi:"); err != nil {
 		return httpencoding.KeySet{}, err
 	}
-	if IsUnion(attribute.Type) {
-		return httpencoding.KeySet{}, fmt.Errorf("unions have no parameter codec")
+	if union := AsUnion(attribute.Type); union != nil && !union.Untagged {
+		return httpencoding.KeySet{}, fmt.Errorf("tagged unions have no parameter codec")
 	}
 	_, keys, err := httpencoding.Resolve(loc, name, HTTPValueShape(attribute), HTTPParameterSerialization(attribute, "openapi:"))
 	return keys, err
@@ -27,6 +27,7 @@ func validateParameterMetadata(meta MetaExpr, prefix string) error {
 	if values, found := meta[prefix+"style"]; found && (len(values) != 1 || values[0] == "") {
 		return fmt.Errorf("style must be one nonempty name")
 	}
+
 	return nil
 }
 
@@ -49,9 +50,24 @@ func (e *HTTPEndpointExpr) validateParameterSerialization(verr *eval.ValidationE
 	e.validateParameterNamespace(cookies, httpencoding.Cookie, verr)
 	body, _ := e.requestBodySource()
 	validateBodyParameterMetadata(body, "body", e, verr, make(map[*AttributeExpr]bool))
-	if e.FormRequest && body != nil && IsObject(body.Type) {
+	// Explicit media ownership retains empty object bodies. Validate the
+	// derived occurrence through the same capture owner as populated roots.
+	if e.FormRequest && (body != nil || e.MethodExpr.Payload != nil && e.MethodExpr.Payload.Type != Empty) {
 		if err := validateMediaFields(body, "application/x-www-form-urlencoded"); err != nil {
 			verr.Add(e, "%s", err)
+		}
+	}
+	if e.MultipartRequest && (body != nil || e.MethodExpr.Payload != nil && e.MethodExpr.Payload.Type != Empty) {
+		contract, err := HTTPMultipartBodyEncoding(body)
+		if err != nil {
+			verr.Add(e, "%s", err)
+		} else if contract.Custom {
+			if e.Body != nil {
+				verr.Add(e, "HTTP endpoint defines MultipartRequest and body. At most one of these must be defined.")
+			}
+			if e.OptionalRequestBody {
+				verr.Add(e, "OptionalRequestBody requires a generated multipart body contract.")
+			}
 		}
 	}
 }

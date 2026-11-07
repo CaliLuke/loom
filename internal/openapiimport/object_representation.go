@@ -120,13 +120,13 @@ func objectNeedsName(schema *Schema, role objectConstructorRole) bool {
 	if schema == nil || schema.Ref != "" || schema.Type != "object" {
 		return false
 	}
-	if role == objectArrayItem || role == objectUnionBranch {
+	if role == objectArrayItem {
 		return true
 	}
 	if representation := classifyObject(schema); representation != objectStructured && representation != objectTypedRecord {
 		return false
 	}
-	return role == objectMapValue || role == objectField && len(schema.Properties) == 0 && len(schema.Bases) == 0
+	return role == objectUnionBranch || role == objectMapValue || role == objectField && len(schema.Properties) == 0 && len(schema.Bases) == 0
 }
 
 // requestObjectRole reflects the JSON payload field; raw documentation and

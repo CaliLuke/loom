@@ -6,9 +6,43 @@ func EncodeMethodMultipartUserTypeRequest(encoder func(*http.Request) loomhttp.E
 		if !ok {
 			return loomhttp.ErrInvalidType("ServiceMultipartUserType", "MethodMultipartUserType", "*servicemultipartusertype.MethodMultipartUserTypePayload", v)
 		}
-		if err := encoder(req).Encode(p); err != nil {
-			return loomhttp.ErrEncodingError("ServiceMultipartUserType", "MethodMultipartUserType", err)
+		if p == nil {
+			return loom.MissingPayloadError()
 		}
+		body := NewMethodMultipartUserTypeMethodMultipartUserTypeRequestBodyForm(p)
+		{
+			encodedMultipart, partError := func() (*loomhttp.MultipartForm, error) {
+				multipartForm := &loomhttp.MultipartForm{}
+				{
+					parameterValue := loomhttp.ParamValue{Kind: loomhttp.ParamScalar, Present: true}
+					parameterValue.Text = body.B
+					partPresent := parameterValue.Present
+					if partError := multipartForm.AddParam("b", "text/plain", loomhttp.ParamCodec{Style: loomhttp.ParamForm, Explode: false}, parameterValue, loomhttp.ParamNamespace{Literals: []string{"c"}, Prefixes: []string(nil), OwnedLiterals: []string(nil)}); partError != nil {
+						return nil, partError
+					}
+					if !partPresent {
+						return nil, loom.MissingFieldError("b", "body")
+					}
+				}
+				{
+					partPresent, partError := multipartForm.AddJSON("c", "application/json", body.C, loomhttp.FieldValue)
+					if partError != nil {
+						return nil, partError
+					}
+					if !partPresent {
+						return nil, loom.MissingFieldError("c", "body")
+					}
+				}
+				return multipartForm, nil
+			}()
+			if partError != nil {
+				return partError
+			}
+			if partError := loomhttp.SetMultipartRequest(req, encodedMultipart); partError != nil {
+				return partError
+			}
+		}
+
 		return nil
 	}
 }

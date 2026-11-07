@@ -149,12 +149,14 @@ type (
 		Cookies        []*Parameter
 		MapQueryParams *string
 		Multipart      bool
-		FormEncoded    bool
-		// FormFieldCodecs retains the resolved grammar for each named form property.
-		FormFieldCodecs map[string]httpencoding.Codec
-		OptionalBody    bool
-		MustHaveBody    bool
-		SkipBodyEncode  bool
+		// MultipartEncoding retains the complete occurrence-owned multipart contract.
+		MultipartEncoding *expr.HTTPMultipartEncoding
+		FormEncoded       bool
+		// Form retains the complete occurrence-owned form body encoding.
+		Form           *expr.HTTPFormEncoding
+		OptionalBody   bool
+		MustHaveBody   bool
+		SkipBodyEncode bool
 	}
 
 	Response struct {

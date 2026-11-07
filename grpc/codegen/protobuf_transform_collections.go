@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/CaliLuke/loom/codegen/unionnames"
+
 	"github.com/dave/jennifer/jen"
 
 	"github.com/CaliLuke/loom/codegen"
@@ -322,13 +324,14 @@ func transformUnionToProto(source, target *expr.AttributeExpr, sourceVar, target
 		return "", err
 	}
 	tdata := transformUnionData(source, target, ta)
+	members := unionnames.Resolve(tdata.Source)
 	cases := make([]map[string]any, 0, len(tdata.SourceValues))
 	for i, sv := range tdata.SourceValues {
 		tv := tdata.TargetValues[i]
 		fieldName, typeName := oneofNames(ta, i, tv, ta.TargetCtx)
 		cases = append(cases, map[string]any{
 			"typeTag":           expr.UnionVariantTag(sv),
-			"sourceFieldName":   codegen.Goify(sv.Name, true),
+			"sourceFieldName":   members[sv.Name].Method,
 			"sourceAttr":        sv.Attribute,
 			"targetAttr":        tv.Attribute,
 			"targetWrapperType": ta.message + "_" + typeName,
@@ -361,11 +364,12 @@ func transformUnionFromProto(source, target *expr.AttributeExpr, sourceVar, targ
 		return "", err
 	}
 	tdata := transformUnionData(source, target, ta)
+	members := unionnames.Resolve(tdata.Target)
 	cases := make([]map[string]any, 0, len(tdata.SourceValues))
 	for i, sv := range tdata.SourceValues {
 		tv := tdata.TargetValues[i]
 		sourceFieldName, _ := oneofNames(ta, i, sv, ta.SourceCtx)
-		targetFieldName := codegen.Goify(tv.Name, true)
+		targetFieldName := members[tv.Name].Method
 		cases = append(cases, map[string]any{
 			"sourceValueTypeRef": tdata.SourceValueTypeRefs[i],
 			"sourceFieldName":    sourceFieldName,

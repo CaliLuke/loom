@@ -1,9 +1,12 @@
 name = "openapiSchemaNormalization"
 version = "0.1.0"
-defaultTargets = ["SchemaNormalization"]
+defaultTargets = ["SchemaNormalization", "OneOfNormalization"]
 
 [leanOptions]
 warningAsError = true
 
 [[lean_lib]]
 name = "SchemaNormalization"
+
+[[lean_lib]]
+name = "OneOfNormalization"

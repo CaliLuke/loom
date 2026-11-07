@@ -89,7 +89,10 @@ func basicCredentialPayload(name string, credential expr.DataType) {
 			Attribute("file", Bytes)
 		}
 		if name == "custom" {
-			Attribute("files", ArrayOf(Bytes))
+			// An explicit Go type makes this field application-owned.
+			Attribute("files", ArrayOf(Bytes), func() {
+				Meta("struct:field:type", "[][]byte")
+			})
 		}
 	})
 }

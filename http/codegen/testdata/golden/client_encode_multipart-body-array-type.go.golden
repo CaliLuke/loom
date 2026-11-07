@@ -6,6 +6,9 @@ func EncodeMethodMultipartArrayTypeRequest(encoder func(*http.Request) loomhttp.
 		if !ok {
 			return loomhttp.ErrInvalidType("ServiceMultipartArrayType", "MethodMultipartArrayType", "[]*servicemultipartarraytype.PayloadType", v)
 		}
+		if p == nil {
+			return loom.MissingPayloadError()
+		}
 		if err := encoder(req).Encode(p); err != nil {
 			return loomhttp.ErrEncodingError("ServiceMultipartArrayType", "MethodMultipartArrayType", err)
 		}

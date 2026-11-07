@@ -203,17 +203,15 @@ func oauthFormRequestUnionDSL() {
 	})
 	var RefreshTokenGrant = Type("RefreshTokenGrant", func() {
 	})
-	var Grant = Type("Grant", func() {
-		OneOf("Grant", func() {
-			Meta("oneof:type:field", "grant_type")
-			Attribute("AuthorizationCode", AuthorizationCodeGrant, func() {
-				Meta("oneof:type:tag", "authorization_code")
-			})
-			Attribute("RefreshToken", RefreshTokenGrant, func() {
-				Meta("oneof:type:tag", "refresh_token")
-			})
+	var Grant = Type("Grant", OneOf(func() {
+		Meta("oneof:type:field", "grant_type")
+		Attribute("AuthorizationCode", AuthorizationCodeGrant, func() {
+			Meta("oneof:type:tag", "authorization_code")
 		})
-	})
+		Attribute("RefreshToken", RefreshTokenGrant, func() {
+			Meta("oneof:type:tag", "refresh_token")
+		})
+	}))
 	var TokenResponse = Type("TokenResponse", func() {
 		Attribute("access_token", String)
 		Attribute("token_type", String)
@@ -292,10 +290,10 @@ func TestXOAuth2AuthCodeRequestUsesFlatFormFields(t *testing.T) {
 		if err != nil {
 			t.Fatalf("decode request: %v", err)
 		}
-		if payload.Grant.Kind() != token.Grant2KindAuthorizationCode {
-			t.Fatalf("decoded kind = %q, want %q", payload.Grant.Kind(), token.Grant2KindAuthorizationCode)
+		if payload.Kind() != token.GrantKindAuthorizationCode {
+			t.Fatalf("decoded kind = %q, want %q", payload.Kind(), token.GrantKindAuthorizationCode)
 		}
-		grant, ok := payload.Grant.AsAuthorizationCode()
+		grant, ok := payload.AsAuthorizationCode()
 		if !ok || grant == nil {
 			t.Fatalf("decoded payload missing authorization_code branch: %#v", payload)
 		}
@@ -367,10 +365,10 @@ func TestGeneratedClientUsesFlatFormFieldsForRefreshToken(t *testing.T) {
 		if err != nil {
 			t.Fatalf("decode request: %v", err)
 		}
-		if payload.Grant.Kind() != token.Grant2KindRefreshToken {
-			t.Fatalf("decoded kind = %q, want %q", payload.Grant.Kind(), token.Grant2KindRefreshToken)
+		if payload.Kind() != token.GrantKindRefreshToken {
+			t.Fatalf("decoded kind = %q, want %q", payload.Kind(), token.GrantKindRefreshToken)
 		}
-		grant, ok := payload.Grant.AsRefreshToken()
+		grant, ok := payload.AsRefreshToken()
 		if !ok || grant == nil {
 			t.Fatalf("decoded payload missing refresh_token branch: %#v", payload)
 		}
@@ -397,12 +395,8 @@ func TestGeneratedClientUsesFlatFormFieldsForRefreshToken(t *testing.T) {
 	client := tokenclient.NewClient(u.Scheme, u.Host, srv.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
 	endpoint := client.Exchange()
 
-	result, err := endpoint(context.Background(), &token.Grant{
-		Grant: func() *token.Grant2 {
-			grant := token.NewGrant2RefreshToken(&token.RefreshTokenGrant{})
-			return &grant
-		}(),
-	})
+	grant := token.NewGrantRefreshToken(&token.RefreshTokenGrant{})
+	result, err := endpoint(context.Background(), &grant)
 	if err != nil {
 		t.Fatalf("generated client exchange: %v", err)
 	}
@@ -447,10 +441,10 @@ func TestZeroFieldRefreshGrantDecodesFromDiscriminatorAndCookie(t *testing.T) {
 		if err != nil {
 			t.Fatalf("decode request: %v", err)
 		}
-		if payload.Grant.Kind() != token.Grant2KindRefreshToken {
-			t.Fatalf("decoded kind = %q, want %q", payload.Grant.Kind(), token.Grant2KindRefreshToken)
+		if payload.Kind() != token.GrantKindRefreshToken {
+			t.Fatalf("decoded kind = %q, want %q", payload.Kind(), token.GrantKindRefreshToken)
 		}
-		grant, ok := payload.Grant.AsRefreshToken()
+		grant, ok := payload.AsRefreshToken()
 		if !ok || grant == nil {
 			t.Fatalf("decoded payload missing refresh_token branch: %#v", payload)
 		}

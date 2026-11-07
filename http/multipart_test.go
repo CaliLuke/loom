@@ -28,12 +28,12 @@ func TestReadMultipartForm(t *testing.T) {
 		req.Header.Set("Content-Type", writer.FormDataContentType())
 		form, err := ReadMultipartForm(req)
 		require.NoError(t, err)
-		require.Equal(t, []string{"brief"}, form.Values["title"])
-		require.Equal(t, []string{"one", "two"}, form.Values["tags"])
-		require.Len(t, form.Files["file"], 1)
-		require.Equal(t, "brief.md", form.Files["file"][0].Filename)
-		require.Equal(t, "application/octet-stream", form.Files["file"][0].ContentType)
-		require.Equal(t, []byte("# hello"), form.Files["file"][0].Data)
+		require.Equal(t, []string{"brief"}, multipartValues(form, "title"))
+		require.Equal(t, []string{"one", "two"}, multipartValues(form, "tags"))
+		require.Len(t, form.Parts, 4)
+		require.Equal(t, "brief.md", form.Parts[3].Filename)
+		require.Equal(t, "application/octet-stream", form.Parts[3].ContentType)
+		require.Equal(t, []byte("# hello"), form.Parts[3].Data)
 	})
 
 	t.Run("multiple files for same field", func(t *testing.T) {
@@ -56,9 +56,9 @@ func TestReadMultipartForm(t *testing.T) {
 		req.Header.Set("Content-Type", writer.FormDataContentType())
 		form, err := ReadMultipartForm(req)
 		require.NoError(t, err)
-		require.Len(t, form.Files["file"], 2)
-		require.Equal(t, "first.txt", form.Files["file"][0].Filename)
-		require.Equal(t, "second.txt", form.Files["file"][1].Filename)
+		require.Len(t, form.Parts, 2)
+		require.Equal(t, "first.txt", form.Parts[0].Filename)
+		require.Equal(t, "second.txt", form.Parts[1].Filename)
 	})
 
 	t.Run("nil request", func(t *testing.T) {
@@ -66,4 +66,17 @@ func TestReadMultipartForm(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "cannot be nil")
 	})
+}
+
+func TestMultipartRetainsEmptyPhysicalNames(t *testing.T) {
+	request := httptest.NewRequest(http.MethodPost, "/", nil)
+	original := &MultipartForm{Parts: []MultipartPart{
+		{Name: "", Data: []byte("unknown")},
+		{Name: "value", Filename: "file.txt", Data: []byte("file")},
+		{Name: "value", Data: []byte("text")},
+	}}
+	require.NoError(t, SetMultipartRequest(request, original))
+	decoded, err := ReadMultipartForm(request)
+	require.NoError(t, err)
+	require.Equal(t, original, decoded)
 }

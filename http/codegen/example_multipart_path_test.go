@@ -28,9 +28,7 @@ func TestDummyMultipartFilePath(t *testing.T) {
 				for _, name := range c.Services {
 					Service(name, func() {
 						Method("upload", func() {
-							Payload(func() {
-								Attribute("name", String)
-							})
+							Payload(String)
 							HTTP(func() {
 								POST("/" + name)
 								MultipartRequest()

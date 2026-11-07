@@ -8,26 +8,26 @@ import (
 
 func buildPayloadFieldArgs(request *RequestData, payload *expr.AttributeExpr) []*InitArgData {
 	args := make([]*InitArgData, 0, len(request.PathParams)+len(request.QueryParams)+len(request.Headers)+len(request.Cookies))
-	appendField := func(attr *AttributeData, description string, defaultValue any) {
-		field := *attr
+	appendField := func(element *Element, description string, defaultValue any) {
+		field := *element.AttributeData
 		field.Description = description
 		field.DefaultValue = defaultValue
-		args = append(args, &InitArgData{Ref: attr.VarName, AttributeData: &field})
+		args = append(args, &InitArgData{Ref: element.VarName, AttributeData: &field, parameter: element})
 	}
 	for _, param := range request.PathParams {
-		appendField(param.AttributeData, param.Description, nil)
+		appendField(param.Element, param.Description, nil)
 	}
 	for _, param := range request.QueryParams {
-		appendField(param.AttributeData, "", param.DefaultValue)
+		appendField(param.Element, "", param.DefaultValue)
 	}
 	for _, header := range request.Headers {
-		appendField(header.AttributeData, "", header.DefaultValue)
+		appendField(header.Element, "", header.DefaultValue)
 	}
 	for _, cookie := range request.Cookies {
 		if cookie.FieldName == "" && expr.IsObject(payload.Type) {
 			continue
 		}
-		appendField(cookie.AttributeData, "", cookie.DefaultValue)
+		appendField(cookie.Element, "", cookie.DefaultValue)
 	}
 	if request.JSONRPCID != nil {
 		args = append(args, request.JSONRPCID.Argument)
@@ -125,17 +125,18 @@ func buildHeaderInitArgs(headers []*HeaderData) []*InitArgData {
 		args = append(args, &InitArgData{
 			Ref: header.VarName,
 			AttributeData: &AttributeData{
-				Name:         header.Name,
-				VarName:      header.VarName,
-				FieldName:    header.FieldName,
-				FieldPointer: header.FieldPointer,
-				FieldType:    header.FieldType,
-				Required:     header.Required,
-				Pointer:      header.Pointer,
-				TypeRef:      header.TypeRef,
-				Type:         header.Type,
-				Validate:     header.Validate,
-				Example:      header.Example,
+				Name:          header.Name,
+				VarName:       header.VarName,
+				FieldName:     header.FieldName,
+				FieldPointer:  header.FieldPointer,
+				FieldType:     header.FieldType,
+				Required:      header.Required,
+				Pointer:       header.Pointer,
+				TypeRef:       header.TypeRef,
+				Type:          header.Type,
+				Validate:      header.Validate,
+				Example:       header.Example,
+				nativeContext: header.nativeContext,
 			},
 		})
 	}

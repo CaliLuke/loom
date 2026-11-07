@@ -7,10 +7,33 @@ func EncodeMethodFormBodyObjectOptionalRequest(encoder func(*http.Request) loomh
 		if !ok {
 			return loomhttp.ErrInvalidType("ServiceFormBodyObjectOptional", "MethodFormBodyObjectOptional", "*serviceformbodyobjectoptional.MethodFormBodyObjectOptionalPayload", v)
 		}
-		body := NewMethodFormBodyObjectOptionalRequestBody(p)
-		if err := loomhttp.SetFormRequest(req, &body); err != nil {
-			return loomhttp.ErrEncodingError("ServiceFormBodyObjectOptional", "MethodFormBodyObjectOptional", err)
+		if p == nil {
+			return loom.MissingPayloadError()
 		}
+		body := NewMethodFormBodyObjectOptionalMethodFormBodyObjectOptionalRequestBodyForm(p)
+		{
+			parameterEncoded, parameterError := func() (string, error) {
+				parameterForm := make(map[string][]string)
+				var parameterBuilder loomhttp.RawPairsBuilder
+				if _, parameterError := loomhttp.EncodeFormValue(parameterForm, "client_id", body.ClientID); parameterError != nil {
+					return "", parameterError
+				}
+				if _, parameterError := loomhttp.EncodeFormValue(parameterForm, "scope", body.Scope); parameterError != nil {
+					return "", parameterError
+				}
+				if _, parameterError := loomhttp.EncodeFormValue(parameterForm, "active", body.Active); parameterError != nil {
+					return "", parameterError
+				}
+				return parameterBuilder.Encode(parameterForm), nil
+			}()
+			if parameterError != nil {
+				return parameterError
+			}
+			if parameterError := loomhttp.SetRawFormRequest(req, parameterEncoded); parameterError != nil {
+				return parameterError
+			}
+		}
+
 		return nil
 	}
 }

@@ -55,31 +55,21 @@ func TestUntaggedRecursiveNestedComposition(t *testing.T) {
 	require.NotNil(t, root.Service("tree"))
 }
 
-func TestUntaggedNestedRejectsUnsupportedBranches(t *testing.T) {
-	for _, tagged := range []bool{false, true} {
-		err := expr.RunInvalidDSL(t, func() {
-			person := Type("Person", func() {
-				Attribute("name", String)
-				Required("name")
-			})
-			choice := Type("Choice", OneOf(person, String), func() {
-				if !tagged {
-					Untagged()
-				}
-			})
-			page := Type("Page", func() {
-				Attribute("rows", ArrayOf(choice))
-			})
-			Service("unsupported", func() {
-				Method("read", func() {
-					Result(OneOf(person, page), Untagged)
-				})
+func TestUntaggedNestedRejectsTaggedBranches(t *testing.T) {
+	err := expr.RunInvalidDSL(t, func() {
+		person := Type("Person", func() {
+			Attribute("name", String)
+			Required("name")
+		})
+		choice := Type("Choice", OneOf(person, String))
+		page := Type("Page", func() {
+			Attribute("rows", ArrayOf(choice))
+		})
+		Service("unsupported", func() {
+			Method("read", func() {
+				Result(OneOf(person, page), Untagged)
 			})
 		})
-		if tagged {
-			require.ErrorContains(t, err, "array elements must be primitive")
-		} else {
-			require.ErrorContains(t, err, "must be a concrete named object or array type")
-		}
-	}
+	})
+	require.ErrorContains(t, err, "array elements must be primitive")
 }

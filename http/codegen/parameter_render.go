@@ -39,6 +39,9 @@ func parameterNamespaceLiteral(element *Element) string {
 }
 
 func renderStyledEncode(element *Element, source, location string) string {
+	if expr.AsUnion(element.Type) != nil {
+		return renderTextUnionEncode(element, source, location)
+	}
 	var code strings.Builder
 	code.WriteString("{\n")
 	value := source
@@ -68,6 +71,9 @@ func renderStyledEncode(element *Element, source, location string) string {
 // renderStyledDecode emits the body of a request-error closure shared by HTTP
 // and JSON-RPC. Their outer templates select the protocol error response.
 func renderStyledDecode(element *Element, location string) string {
+	if expr.AsUnion(element.Type) != nil {
+		return renderTextUnionDecode(element, location)
+	}
 	var code strings.Builder
 	codec, kind := parameterCodecLiteral(element.Codec), parameterKindLiteral(element.Codec)
 	switch location {

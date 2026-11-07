@@ -16,7 +16,7 @@ import (
 // the params with Body is nil, and that the server request decoder then
 // decodes absent params as a nil object: it does not substitute {} and it
 // decodes into a pointer that stays nil for an empty body. A required object
-// attribute is still always encoded and absent params still decode as {}.
+// attribute rejects nil before encoding; absent params still decode as {}.
 func TestJSONRPCOptionalObjectParams(t *testing.T) {
 	cases := []struct {
 		Name     string
@@ -30,7 +30,7 @@ func TestJSONRPCOptionalObjectParams(t *testing.T) {
 				"\t\t\tJSONRPC: \"2.0\",\n" +
 				"\t\t\tMethod:  \"Find\",\n" +
 				"\t\t}\n" +
-				"\t\tif p.O != nil {\n" +
+				"\t\tif !(p.O == nil) {\n" +
 				"\t\t\tbody.Params = NewFindRequestBody(p)\n" +
 				"\t\t}\n",
 			Decode: []string{
@@ -46,7 +46,8 @@ func TestJSONRPCOptionalObjectParams(t *testing.T) {
 		{
 			Name:     "required",
 			Required: true,
-			Contains: "\t\tb := NewFindRequestBody(p)\n" +
+			Contains: "\t\tif p.O == nil {\n\t\t\treturn loom.MissingPayloadError()\n\t\t}\n" +
+				"\t\tb := NewFindRequestBody(p)\n" +
 				"\t\tbody := &jsonrpc.Request{\n" +
 				"\t\t\tJSONRPC: \"2.0\",\n" +
 				"\t\t\tMethod:  \"Find\",\n" +
@@ -74,7 +75,7 @@ func TestJSONRPCOptionalObjectParams(t *testing.T) {
 			code := sectionSourceByName(t, file, "jsonrpc-request-encoder")
 			assert.Contains(t, code, c.Contains)
 			if c.Required {
-				assert.NotContains(t, code, "if p.O != nil {")
+				assert.NotContains(t, code, "if !(p.O == nil) {")
 			}
 
 			decoder := sectionSourceByName(t, requireEncodeDecodeFile(t, ServerFiles("", services), "server"), "jsonrpc-request-decoder")

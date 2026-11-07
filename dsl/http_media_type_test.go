@@ -87,7 +87,7 @@ func TestHTTPMediaTypeAdmission(t *testing.T) {
 		{"form scalar", func() {
 			MediaType("application/x-www-form-urlencoded", "json")
 			MediaType("text/plain", "text")
-		}, "require non-nullable objects"},
+		}, "form body requires an object or map"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			err := expr.RunInvalidDSL(t, func() {

@@ -68,6 +68,8 @@ type (
 		TypeKey string
 		// ValueKey is the value field name for JSON marshaling (defaults to "value")
 		ValueKey string
+		// closed is the finalized occurrence policy, independent of branches.
+		closed bool
 	}
 
 	// UserType is the interface implemented by all user type

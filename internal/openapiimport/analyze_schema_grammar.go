@@ -72,7 +72,7 @@ func (a *analyzer) schemaUnsupportedKeywords(
 		source.MinContains != nil || source.MaxContains != nil ||
 		source.If != nil || source.Then != nil || source.Else != nil ||
 		orderedmap.Len(source.DependentSchemas) > 0 || orderedmap.Len(source.DependentRequired) > 0 ||
-		orderedmap.Len(source.PatternProperties) > 0 || source.PropertyNames != nil || source.UnevaluatedProperties != nil {
+		orderedmap.Len(source.PatternProperties) > 0 || source.PropertyNames != nil || source.UnevaluatedProperties != nil && !schema.UnionClosed {
 		a.unsupported("advanced-schema", path, "advanced JSON Schema applicators are not in the strict import subset")
 	}
 	if source.MultipleOf != nil || source.UniqueItems != nil || source.MaxProperties != nil || source.MinProperties != nil ||

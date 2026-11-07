@@ -1,6 +1,8 @@
 package dsl
 
 import (
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/CaliLuke/loom/eval"
@@ -9,12 +11,18 @@ import (
 
 // OneOf defines or constructs a union type.
 //
-// OneOf supports two forms:
+// OneOf supports three forms:
 //
 //  1. Inside an object DSL, OneOf defines a named union attribute from a name,
 //     an optional description and a function that lists the union branches.
 //  2. Wherever a data type can be used, OneOf constructs a union type directly
 //     from two or more existing types.
+//  3. A sole function constructs a union by declaring named Attribute branches.
+//     The function may call Untagged, set union naming/envelope or closure
+//     metadata, and set each branch's constraints. Nullable, annotations and
+//     constraints on the whole union belong in the enclosing Type, Attribute,
+//     Payload or Result DSL; the constructor rejects them rather than dropping
+//     settings that the returned data type cannot retain.
 //
 // Example:
 //
@@ -57,9 +65,12 @@ func OneOf(arg any, args ...any) expr.DataType {
 
 // Untagged configures the current OneOf attribute to encode its selected JSON
 // branch directly, without the canonical discriminator/value wrapper. Every
-// branch must be a concrete named object or array containing primitives, named
-// objects, or arrays of these shapes. Encoding and decoding require the same
-// unique branch in both the JSON schema and the generated Go representation.
+// branch may be primitive, Any, a scalar alias, a named object, an array, a
+// string-keyed map, or another untagged union. Nullable branches preserve null
+// in their generated carriers. Nested fields and elements must use primitives,
+// named objects, untagged unions, or arrays and string-keyed maps of these.
+// Encoding and decoding require the same unique branch in the schema and Go
+// representation. Overlapping branches are legal; ambiguous values are rejected.
 // In OpenAPIBody and OpenAPIRequestBody, Untagged describes only the schema:
 // scalar and nested union branches are allowed, and runtime types are unchanged.
 func Untagged() {
@@ -224,6 +235,25 @@ func areOneOfTypeConstructorArgs(args ...any) bool {
 }
 
 func oneOfType(arg any, args ...any) expr.DataType {
+	if fn, ok := arg.(func()); ok && len(args) == 0 {
+		union := &expr.Union{TypeName: "OneOf"}
+		attribute := &expr.AttributeExpr{Type: union}
+		if !eval.Execute(fn, attribute) || !validateOneOfConstructor(attribute) {
+			return invalidOneOfType()
+		}
+		names := make([]string, len(union.Values))
+		for index, branch := range union.Values {
+			names[index] = branch.Name
+		}
+		union.TypeName = expr.DerivedUnionTypeName(names)
+		applyUnionMetaFromAttribute(attribute)
+		captured, err := attribute.CaptureUnionClosure()
+		if err != nil {
+			eval.ReportError("%s", err)
+			return invalidOneOfType()
+		}
+		return captured
+	}
 	variants := append([]any{arg}, args...)
 	if len(variants) < 2 {
 		eval.TooFewArgError()
@@ -266,6 +296,42 @@ func oneOfType(arg any, args ...any) expr.DataType {
 		TypeName: expr.DerivedUnionTypeName(names),
 		Values:   values,
 	}
+}
+
+// validateOneOfConstructor admits only settings carried by the returned Union.
+// Branch attributes keep their own complete DSL; this check concerns the
+// temporary root attribute that construction discards.
+func validateOneOfConstructor(attribute *expr.AttributeExpr) bool {
+	valid := true
+	for _, setting := range []struct {
+		name    string
+		present bool
+	}{
+		{"Nullable", attribute.Nullable},
+		{"Description", attribute.Description != ""},
+		{"Title", attribute.Title != ""},
+		{"Docs", attribute.Docs != nil},
+		{"validations", attribute.Validation != nil},
+		{"Default", attribute.DefaultValue != nil},
+		{"Example", len(attribute.UserExamples) > 0},
+		{"Extend", len(attribute.Bases) > 0},
+		{"Reference", len(attribute.References) > 0},
+		{"AdditionalAttributes", attribute.AdditionalAttributes != nil},
+	} {
+		if setting.present {
+			eval.ReportError("OneOf constructor cannot set %s on the whole union; use the enclosing Type, Attribute, Payload or Result DSL", setting.name)
+			valid = false
+		}
+	}
+	for _, key := range slices.Sorted(maps.Keys(attribute.Meta)) {
+		switch key {
+		case "oneof:typename", "oneof:type:field", "oneof:value:field", "openapi:unevaluatedProperties":
+		default:
+			eval.ReportError("OneOf constructor cannot retain metadata %q; use the enclosing Type, Attribute, Payload or Result DSL where that metadata is valid", key)
+			valid = false
+		}
+	}
+	return valid
 }
 
 func resolveOneOfVariantType(variant any) expr.DataType {

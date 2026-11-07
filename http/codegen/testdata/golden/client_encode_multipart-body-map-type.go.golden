@@ -6,6 +6,9 @@ func EncodeMethodMultipartMapTypeRequest(encoder func(*http.Request) loomhttp.En
 		if !ok {
 			return loomhttp.ErrInvalidType("ServiceMultipartMapType", "MethodMultipartMapType", "map[string]int", v)
 		}
+		if p == nil {
+			return loom.MissingPayloadError()
+		}
 		if err := encoder(req).Encode(p); err != nil {
 			return loomhttp.ErrEncodingError("ServiceMultipartMapType", "MethodMultipartMapType", err)
 		}

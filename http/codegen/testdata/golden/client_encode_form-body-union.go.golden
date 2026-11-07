@@ -6,10 +6,27 @@ func EncodeMethodFormBodyUnionRequest(encoder func(*http.Request) loomhttp.Encod
 		if !ok {
 			return loomhttp.ErrInvalidType("ServiceFormBodyUnion", "MethodFormBodyUnion", "*serviceformbodyunion.FormGrant", v)
 		}
-		body := NewMethodFormBodyUnionRequestBody(p)
-		if err := loomhttp.SetFormRequest(req, &body); err != nil {
-			return loomhttp.ErrEncodingError("ServiceFormBodyUnion", "MethodFormBodyUnion", err)
+		if p == nil {
+			return loom.MissingPayloadError()
 		}
+		body := NewMethodFormBodyUnionMethodFormBodyUnionRequestBodyForm(p)
+		{
+			parameterEncoded, parameterError := func() (string, error) {
+				parameterForm := make(map[string][]string)
+				var parameterBuilder loomhttp.RawPairsBuilder
+				if _, parameterError := loomhttp.EncodeJSONField(parameterForm, "Values", body.Values, loomhttp.FieldValue); parameterError != nil {
+					return "", parameterError
+				}
+				return parameterBuilder.Encode(parameterForm), nil
+			}()
+			if parameterError != nil {
+				return parameterError
+			}
+			if parameterError := loomhttp.SetRawFormRequest(req, parameterEncoded); parameterError != nil {
+				return parameterError
+			}
+		}
+
 		return nil
 	}
 }

@@ -38,7 +38,7 @@ func collectViewUnionTypes(att *expr.AttributeExpr, scope *codegen.NameScope, lo
 			// A projected named union is declared as the union type itself
 			// under the name of the projected type, see viewTypeSections.
 			if _, ok := unions[dt.Hash()]; !ok {
-				unions[dt.Hash()] = buildViewUnionTypeData(union, scope, loc, scope.GoValueTypeName(&expr.AttributeExpr{Type: dt}))
+				unions[dt.Hash()] = buildViewUnionTypeData(dt, scope, loc)
 			}
 			for _, nat := range union.Values {
 				collectViewUnionTypes(nat.Attribute, scope, loc, unions, seen)
@@ -156,7 +156,7 @@ func buildProjectedType(projected, att *expr.AttributeExpr, viewspkg string, sco
 	if _, isrt := pt.(*expr.ResultTypeExpr); isrt {
 		typeInits = buildTypeInits(projected, att, viewspkg, scope, viewScope)
 		projections = buildProjections(projected, att, viewspkg, scope, viewScope)
-		views = buildViews(att.Type.(*expr.ResultTypeExpr), viewScope)
+		views = buildViews(att.Type.(*expr.ResultTypeExpr), scope, viewScope)
 	}
 	validations := buildValidations(projected, viewScope)
 	return &ProjectedTypeData{
@@ -177,8 +177,11 @@ func buildProjectedType(projected, att *expr.AttributeExpr, viewspkg string, sco
 }
 
 // buildViews builds the view data for all the views in the given result type.
-func buildViews(rt *expr.ResultTypeExpr, viewScope *codegen.NameScope) []*ViewData {
+func buildViews(rt *expr.ResultTypeExpr, serviceScope, viewScope *codegen.NameScope) []*ViewData {
 	views := make([]*ViewData, len(rt.Views))
+	suffixes := viewHelperSuffixes(rt)
+	sourceName := serviceScope.GoValueTypeName(&expr.AttributeExpr{Type: rt})
+	mapName := viewScope.HashedUnique(viewedHelperKey{role: "view-map", source: rt.Hash()}, sourceName+"Map")
 	for i, view := range rt.Views {
 		vatt := expr.AsObject(view.Type)
 		attrs := make([]string, len(*vatt))
@@ -186,10 +189,12 @@ func buildViews(rt *expr.ResultTypeExpr, viewScope *codegen.NameScope) []*ViewDa
 			attrs[j] = expr.AttributeName(nat.Name)
 		}
 		views[i] = &ViewData{
-			Name:        view.Name,
-			Description: view.Description,
-			Attributes:  attrs,
-			TypeVarName: viewScope.GoValueTypeName(&expr.AttributeExpr{Type: rt}),
+			Name:         view.Name,
+			helperSuffix: suffixes[view.Name],
+			Description:  view.Description,
+			Attributes:   attrs,
+			TypeVarName:  sourceName,
+			MapName:      mapName,
 		}
 	}
 	return views
@@ -212,36 +217,32 @@ func buildViewedResultType(att, projected *expr.AttributeExpr, viewspkg string, 
 	rt := att.Type.(*expr.ResultTypeExpr)
 	isarr := expr.IsArray(att.Type)
 	viewName := viewedResultDefaultViewName(att, rt)
-	views := buildViews(rt, viewScope)
-	resvar := scope.GoValueTypeName(att)
-	// The viewed record owns metadata independently of its Projected payload.
-	projT := rt.Dup(wrapProjected(projected).Attribute())
-	envelope := &expr.AttributeExpr{Type: projT, Meta: att.Meta}
+	views := buildViews(rt, scope, viewScope)
+	serviceName := scope.GoValueTypeName(att)
+	envelope := allocateViewedEnvelope(att, projected, viewScope)
+	name := viewScope.GoValueTypeName(envelope)
 	if att.Nullable && !expr.IsNullable(&expr.AttributeExpr{Type: att.Type}) {
-		// Occurrence wrappers share the canonical projection declaration, but
-		// their envelope field and constructor signatures are different.
-		projT.Rename(rt.Name() + "Nullable")
-		resvar = scope.GoValueTypeName(envelope)
+		serviceName += "Nullable"
 	}
 	vresref := viewScope.GoFullTypeRef(envelope, viewspkg)
-	validationRef := scope.GoTypeRef(envelope)
+	validationRef := viewScope.GoTypeRef(envelope)
 	if isarr {
 		vresref = viewScope.GoFullTypeName(envelope, viewspkg)
-		validationRef = scope.GoTypeName(envelope)
+		validationRef = viewScope.GoTypeName(envelope)
 	}
-	validate := buildViewedResultValidation(projected, views, scope, validationRef, resvar)
-	init := buildViewedResultInit(att, projected, envelope, views, viewspkg, scope, viewScope, resvar, vresref, isarr, viewspkg+"."+validate.Name)
-	resinit, resref := buildViewedResultResultInit(att, projected, views, scope, viewScope, resvar, vresref, typeInits)
+	validate := buildViewedResultValidation(projected, views, viewScope, validationRef, name)
+	init := buildViewedResultInit(att, projected, envelope, views, viewspkg, scope, viewScope, serviceName, vresref, isarr, viewspkg+"."+validate.Name)
+	resinit, resref := buildViewedResultResultInit(att, projected, envelope, views, scope, viewScope, serviceName, vresref, typeInits)
 	return &ViewedResultTypeData{
 		UserTypeData: &UserTypeData{
-			Name:        resvar,
-			Description: fmt.Sprintf("%s is the viewed result type that is projected based on a view.", resvar),
-			VarName:     resvar,
-			Def:         viewScope.GoValueTypeDef(projT.Attribute(), false, true),
+			Name:        name,
+			Description: fmt.Sprintf("%s is the viewed result type that is projected based on a view.", name),
+			VarName:     name,
+			Def:         viewScope.GoValueTypeDef(envelope.Type.(expr.UserType).Attribute(), false, true),
 			Ref:         resref,
-			Type:        projT,
+			Type:        envelope.Type.(expr.UserType),
 		},
-		FullName:     scope.GoFullTypeName(envelope, viewspkg),
+		FullName:     viewScope.GoFullTypeName(envelope, viewspkg),
 		FullRef:      vresref,
 		ResultInit:   resinit,
 		Init:         init,
@@ -274,33 +275,6 @@ func fullTypeRefForAttribute(scope *codegen.NameScope, att *expr.AttributeExpr, 
 		pkg = scope.PackageName(loc)
 	}
 	return scope.GoFullTypeRef(att, pkg)
-}
-
-// wrapProjected builds a viewed result type by wrapping the given projected
-// in a result type with "projected" and "view" attributes.
-func wrapProjected(projected *expr.AttributeExpr) expr.UserType {
-	rt := projected.Type.(*expr.ResultTypeExpr)
-	payload := *projected
-	payload.Description = "Type to project"
-	pratt := &expr.NamedAttributeExpr{
-		Name:      "projected",
-		Attribute: &payload,
-	}
-	prview := &expr.NamedAttributeExpr{
-		Name:      "view",
-		Attribute: &expr.AttributeExpr{Type: expr.String, Description: "View to render"},
-	}
-	return &expr.ResultTypeExpr{
-		UserTypeExpr: &expr.UserTypeExpr{
-			AttributeExpr: &expr.AttributeExpr{
-				Type:       &expr.Object{pratt, prview},
-				Validation: &expr.ValidationExpr{Required: []string{"projected", "view"}},
-			},
-			TypeName: rt.TypeName,
-		},
-		Identifier: rt.Identifier,
-		Views:      rt.Views,
-	}
 }
 
 // walkViewAttrs iterates through the attributes in att that are found in the

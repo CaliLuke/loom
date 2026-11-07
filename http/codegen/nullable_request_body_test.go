@@ -122,9 +122,9 @@ func TestNullableRequestBody(t *testing.T) {
 					assert.Contains(t, decoder+serverTypes, want)
 				}
 
-				guard := "\t\tif p.B != nil {\n"
+				guard := "\t\tif !(p.B == nil) {\n"
 				if c.Nullable {
-					guard = "\t\tif p.B.Present() {\n"
+					guard = "\t\tif !(!p.B.Present()) {\n"
 				}
 				if required {
 					assert.NotContains(t, encoder, guard)

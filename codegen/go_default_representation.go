@@ -67,6 +67,7 @@ func defaultFieldLiteral(child, selected *expr.AttributeExpr, facts expr.ObjectF
 }
 
 func (r *defaultRenderer) render(att *expr.AttributeExpr, occurrence expr.ValueOccurrence, value expr.ResolvedValue, context *AttributeContext, path string) (string, error) {
+	context = context.ForAttribute(att)
 	if meta, _ := GetMetaType(att); meta != "" || isRawJSONValue(att) && !expr.IsNullable(att) {
 		source, ok := value.SourceValue()
 		if !ok {
@@ -85,7 +86,7 @@ func (r *defaultRenderer) render(att *expr.AttributeExpr, occurrence expr.ValueO
 		}
 		return formatAttributeGoLiteral(att, source), nil
 	}
-	if expr.AllowsNull(att) {
+	if expr.IsNullable(att) {
 		return r.nullable(att, occurrence, value, context, path)
 	}
 	switch actual := unalias(att.Type).(type) {
@@ -122,7 +123,8 @@ func (r *defaultRenderer) nullable(att *expr.AttributeExpr, occurrence expr.Valu
 }
 
 func (r *defaultRenderer) array(att *expr.AttributeExpr, actual *expr.Array, occurrence expr.ValueOccurrence, value expr.ResolvedValue, context *AttributeContext, path string) (string, error) {
-	ref := collectionTypeRef(att, context, false)
+	context = transformPhysicalContext(att, context)
+	ref := context.CollectionElementRef(att, false)
 	if value.Presence() == expr.ValueNil {
 		return ref + "(nil)", nil
 	}
@@ -133,13 +135,17 @@ func (r *defaultRenderer) array(att *expr.AttributeExpr, actual *expr.Array, occ
 		if err != nil {
 			return "", err
 		}
+		if context.CollectionElementPresence && !expr.ArrayElementsAllowNull(actual) {
+			literal = "loom.OptionalValue[" + context.CollectionElementRef(actual.ElemType, false) + "](" + literal + ")"
+		}
 		items[index] = literal
 	}
 	return ref + "{" + strings.Join(items, ", ") + "}", nil
 }
 
 func (r *defaultRenderer) mapping(att *expr.AttributeExpr, actual *expr.Map, occurrence expr.ValueOccurrence, value expr.ResolvedValue, context *AttributeContext, path string) (string, error) {
-	ref := collectionTypeRef(att, context, false)
+	context = transformPhysicalContext(att, context)
+	ref := context.CollectionElementRef(att, false)
 	if value.Presence() == expr.ValueNil {
 		return ref + "(nil)", nil
 	}
@@ -162,6 +168,9 @@ func (r *defaultRenderer) mapping(att *expr.AttributeExpr, actual *expr.Map, occ
 		child, err := r.render(actual.ElemType, occurrence.Element(), entry.Value, context, path+"["+key+"]")
 		if err != nil {
 			return "", err
+		}
+		if context.CollectionElementPresence && !expr.MapValuesAllowNull(actual) {
+			child = "loom.OptionalValue[" + context.CollectionElementRef(actual.ElemType, false) + "](" + child + ")"
 		}
 		items = append(items, key+": "+child)
 	}
@@ -199,7 +208,7 @@ func (r *defaultRenderer) object(att *expr.AttributeExpr, occurrence expr.ValueO
 	if len(extras) > 0 {
 		sort.Strings(extras)
 		carrier := att.AdditionalMembersCarrier()
-		fields = append(fields, expr.AdditionalAttributesFieldName+": "+collectionTypeRef(carrier, context, false)+"{"+strings.Join(extras, ", ")+"}")
+		fields = append(fields, expr.AdditionalAttributesFieldName+": "+context.CollectionElementRef(carrier, false)+"{"+strings.Join(extras, ", ")+"}")
 	}
 	ref := context.Scope.Name(att, context.Pkg(att), context.Pointer, context.UseDefault)
 	return "&" + ref + "{" + strings.Join(fields, ", ") + "}", nil

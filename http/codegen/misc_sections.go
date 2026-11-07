@@ -479,6 +479,17 @@ func renderPayloadExtraction(b *strings.Builder, payloadRef string, hasFields bo
 }
 
 func renderPayloadAssignment(b *strings.Builder, hasFields bool, arg *InitArgData) {
+	if arg.nativeContext != nil && expr.AsUnion(arg.Type) != nil {
+		value := "p"
+		if hasFields {
+			value += "." + arg.FieldName
+			if !arg.FieldPointer {
+				value = "&" + value
+			}
+		}
+		fmt.Fprintf(b, "%s = %s\n", arg.VarName, value)
+		return
+	}
 	if arg.Pointer {
 		if hasFields {
 			fmt.Fprintf(b, "\t\tif p.%s != nil {\n", arg.FieldName)

@@ -62,7 +62,7 @@ func AttributeTagsWithName(parent *expr.AttributeExpr, fieldName string, att *ex
 	if att == nil {
 		return ""
 	}
-	policy := encodingmeta.JSONFieldPolicy{Storage: att.JSONFieldStorage(false, IsExplicitPresenceType(att) || expr.AllowsNull(att))}
+	policy := encodingmeta.JSONFieldPolicy{Storage: att.JSONFieldStorage(false, IsExplicitPresenceType(att) || expr.HasNativeJSONPresence(att))}
 	if parent != nil && fieldName != "" {
 		policy = expr.ServiceFieldLayout(parent, fieldName, att, false, true).JSON
 	}

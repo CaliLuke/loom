@@ -29,10 +29,5 @@ func (r *renderer) requestBodyMetadata(body RequestBody) ([]renderedMetadata, er
 	if err != nil {
 		return nil, err
 	}
-	metadata = append(metadata, references...)
-	encoding, err := r.formEncodingMetadata(body)
-	if err != nil {
-		return nil, err
-	}
-	return append(metadata, encoding...), nil
+	return append(metadata, references...), nil
 }

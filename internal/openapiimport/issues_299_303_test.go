@@ -198,7 +198,12 @@ components:
 	nullableContract := contract["components"].(map[string]any)["schemas"].(map[string]any)["NullableWidget"].(map[string]any)
 	variants := nullableContract["anyOf"].([]any)
 	require.Len(t, variants, 2)
-	require.Equal(t, "#/components/schemas/Widget", variants[0].(map[string]any)["$ref"])
+	nonNull := variants[0].(map[string]any)
+	require.NotContains(t, nonNull, "type", "source type absence stays local to the alias")
+	assertions := nonNull["oneOf"].([]any)
+	require.Len(t, assertions, 1)
+	require.Equal(t, "#/components/schemas/Widget", assertions[0].(map[string]any)["$ref"])
+	require.Equal(t, "object", contract["components"].(map[string]any)["schemas"].(map[string]any)["Widget"].(map[string]any)["type"])
 	require.Equal(t, "null", variants[1].(map[string]any)["type"])
 }
 
@@ -220,7 +225,7 @@ components:
 
 	_, diagnostics, err := Analyze(source)
 	require.NoError(t, err)
-	requireDiagnosticCode(t, diagnostics, "schema-composition")
+	requireDiagnosticCode(t, diagnostics, "schema-type")
 }
 
 func TestNullableReferenceOneOfAcceptsNullMediaExample(t *testing.T) {
@@ -403,13 +408,13 @@ components:
 
 	_, diagnostics, err := Analyze(source)
 	require.NoError(t, err)
-	require.Len(t, diagnostics, 2)
+	require.Len(t, diagnostics, 1)
 	for _, diagnostic := range diagnostics {
 		require.Equal(t, "media-schema", diagnostic.Code)
-		require.Contains(t, diagnostic.Path, "/requestBody/content/")
+		require.Contains(t, diagnostic.Path, "/requestBody/content/multipart~1form-data")
 	}
 
-	// Multi-media form maps no longer fall back to one shared raw body.
+	// Multi-media multipart maps cannot select the whole-body custom codec.
 	// Keep the other four single-media contracts in the generated round trip.
 	multiStart := strings.Index(string(source), "  /multi/{id}:")
 	multiEnd := strings.Index(string(source), "  /multipart-required:")

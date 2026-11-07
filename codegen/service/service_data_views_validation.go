@@ -93,10 +93,7 @@ func renderViewedResultValidation(data viewedResultValidateTemplateData) string 
 	for _, view := range data.Views {
 		caseLine := "case " + quotedViewCase(view.Name) + ":"
 		lines = append(lines, "\t"+caseLine)
-		validateName := "Validate" + data.Projected
-		if view.Name != expr.DefaultView {
-			validateName += codegen.Goify(view.Name, true)
-		}
+		validateName := "Validate" + data.Projected + view.helperSuffix
 		if data.Root.nullable && !data.Root.intrinsic {
 			carrier := data.Root
 			carrier.function.Name = validateName
@@ -133,6 +130,7 @@ func buildValidations(projected *expr.AttributeExpr, scope *codegen.NameScope) [
 	var validations []*ValidateData
 	if rt, isrt := ut.(*expr.ResultTypeExpr); isrt {
 		arr := expr.AsArray(projected.Type)
+		suffixes := viewHelperSuffixes(rt)
 		for _, view := range rt.Views {
 			data := viewedResultValidateTemplateData{
 				Projected:    tname,
@@ -141,12 +139,7 @@ func buildValidations(projected *expr.AttributeExpr, scope *codegen.NameScope) [
 				IsCollection: arr != nil,
 				RootNullable: expr.IsNullable(projected),
 			}
-			var vn string
-			name := function.Name
-			if view.Name != expr.DefaultView {
-				vn = codegen.Goify(view.Name, true)
-				name += vn
-			}
+			name := function.Name + suffixes[view.Name]
 
 			if arr != nil {
 				data.Source = "item"

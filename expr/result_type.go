@@ -213,6 +213,9 @@ func (rt *ResultTypeExpr) Dup(att *AttributeExpr) UserType {
 
 // ID returns the identifier of the result type.
 func (rt *ResultTypeExpr) ID() string {
+	if rt.unionClosureID != "" {
+		return rt.unionClosureID
+	}
 	return rt.Identifier
 }
 

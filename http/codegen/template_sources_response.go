@@ -247,22 +247,23 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
     {{- end }}
     mediaIndex := -1
     var mediaValue any
- var mediaParts map[string]string
     switch mediaBody := any(body).(type) {
     {{- range .ServerBody }}
     case {{ .Ref }}:
         switch string(mediaBody.Kind()) {
         {{- range $i, $variant := .Media.Variants }}
         case {{ printf "%q" .Tag }}:
-            mediaIndex, mediaValue, mediaParts = {{ $i }}, mediaBody.{{ .Field }}, {{ .Parts }}
-{{- if .StyledFormFields }}
-ctx = {{ renderMediaFormEncode . "ctx" (printf "mediaBody.%s" .Field) }}
+            mediaIndex, mediaValue = {{ $i }}, mediaBody.{{ .Field }}
+{{- if .Multipart }}
+ctx = {{ renderMediaMultipartEncode . "ctx" (printf "mediaBody.%s" .Field) }}
+{{- else if mediaFormCodec . }}
+ctx = {{ renderMediaFormEncode . "ctx" (printf "mediaBody.%s" .Field) false }}
 {{- end }}
         {{- end }}
         }
     {{- end }}
     }
-    mediaEncoder, mediaErr := loomhttp.MediaResponseEncoder(ctx, w, mediaIndex, {{ .EncodePlan.FirstBody.Media.Contracts }}, mediaValue, mediaParts, encoder)
+    mediaEncoder, mediaErr := loomhttp.MediaResponseEncoder(ctx, w, mediaIndex, {{ .EncodePlan.FirstBody.Media.Contracts }}, mediaValue, nil, encoder)
     if mediaErr != nil {
         return mediaErr
     }

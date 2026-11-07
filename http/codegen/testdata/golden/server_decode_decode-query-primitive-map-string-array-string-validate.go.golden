@@ -17,7 +17,7 @@ func DecodeMethodQueryPrimitiveMapStringArrayStringValidateRequest(mux loomhttp.
 		}
 		{
 			var decoded map[string]loom.Optional[[]loom.Optional[string]]
-			present, decodeErr := loomhttp.DecodeJSONField(qp, "q", &decoded)
+			present, decodeErr := loomhttp.DecodeJSONField(qp, "q", &decoded, false, loomhttp.FieldValue)
 			if decodeErr != nil {
 				return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(decodeErr))
 			}
@@ -25,11 +25,13 @@ func DecodeMethodQueryPrimitiveMapStringArrayStringValidateRequest(mux loomhttp.
 				if decoded != nil {
 					q = make(map[string][]string, len(decoded))
 					for key, val := range decoded {
+						tk := key
 						actual, ok := val.Value()
 						if !ok {
+							var qMissingValue []string
+							q[tk] = qMissingValue
 							continue
 						}
-						tk := key
 						var tv []string
 						if actual != nil {
 							tv = make([]string, len(actual))

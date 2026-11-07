@@ -2,7 +2,6 @@ package codegen
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/service"
@@ -25,11 +24,7 @@ func (sds *ServicesData) buildEndpointRoutes(endpointIR *transportir.Endpoint, m
 func (sds *ServicesData) buildPathInitData(endpointIR *transportir.Endpoint, method *service.MethodData, svc *service.Data, sd *ServiceData, path string, pathCount int) *InitData {
 	params := expr.ExtractHTTPWildcards(path)
 	initArgs := make([]*InitArgData, len(params))
-	suffix := ""
-	if pathCount > 0 {
-		suffix = strconv.Itoa(pathCount + 1)
-	}
-	name := fmt.Sprintf("%s%sPath%s", method.VarName, svc.StructName, suffix)
+	name := httpPathSymbol(sd.Scope, method.VarName, svc.StructName, pathCount)
 	vars := newPathVarScope(sd)
 	fallible := false
 	for j, elem := range params {
@@ -68,17 +63,6 @@ func (sds *ServicesData) buildRequirementSchemes(endpointIR *transportir.Endpoin
 	headerSchemes := grouped["header"]
 	querySchemes := grouped["query"]
 	return reqs, headerSchemes, bodySchemes, querySchemes, basicScheme
-}
-
-func endpointRequestEncoderName(method *service.MethodData, payload *PayloadData, basicScheme *service.SchemeData) string {
-	if payload.Request.JSONRPCID == nil && payload.Request.ClientBody == nil &&
-		len(payload.Request.Headers) == 0 &&
-		len(payload.Request.QueryParams) == 0 &&
-		len(payload.Request.Cookies) == 0 &&
-		basicScheme == nil {
-		return ""
-	}
-	return fmt.Sprintf("Encode%sRequest", method.VarName)
 }
 
 func (sds *ServicesData) buildClientRequestInit(endpointIR *transportir.Endpoint, method *service.MethodData, svc *service.Data, routes []*RouteData, payload *PayloadData) *InitData {
@@ -168,9 +152,12 @@ func (sds *ServicesData) buildPathInitArg(endpointIR *transportir.Endpoint, meth
 	styled := parameterUsesRuntime("path", param.Codec)
 	field := rawServiceField(endpointIR.Request.Payload, arg, patt)
 	element := &Element{attribute: att, context: serviceContext("", sd.Scope), AttributeData: initArg.AttributeData, HTTPName: elem, Codec: param.Codec, Styled: styled}
-	if styled && expr.IsObject(att.Type) {
+	if styled && (expr.IsObject(att.Type) || expr.AsUnion(att.Type) != nil) {
 		element.FieldType = field.Type
 		configureStyledCarrier(element, serviceContext(svc.LocationPackageName(method.PayloadLoc), svc.Scope))
+		if expr.AsUnion(field.Type) != nil && expr.IsObject(endpointIR.Request.Payload.Type) {
+			element.FieldPointer = expr.ServiceFieldLayout(endpointIR.Request.Payload, arg, field, false, true).Pointer
+		}
 	}
 	initArg.parameter = element
 	return initArg
@@ -183,7 +170,7 @@ func (sds *ServicesData) buildClientPathArgs(endpointIR *transportir.Endpoint, s
 			continue
 		}
 		_, arg.IsAliased = arg.FieldType.(expr.UserType)
-		if arg.parameter != nil && arg.parameter.Styled && expr.IsObject(arg.Type) {
+		if arg.parameter != nil && arg.parameter.Styled && (expr.IsObject(arg.Type) || expr.AsUnion(arg.Type) != nil) {
 			arg.IsAliased = false
 		}
 		if arg.IsAliased {

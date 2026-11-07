@@ -14,7 +14,7 @@ func DecodeMethodQueryMapBoolBoolValidateRequest(mux loomhttp.Muxer, _ func(*htt
 		}
 		{
 			var decoded map[bool]loom.Optional[bool]
-			present, decodeErr := loomhttp.DecodeJSONField(qp, "q", &decoded)
+			present, decodeErr := loomhttp.DecodeJSONField(qp, "q", &decoded, false, loomhttp.FieldValue)
 			if decodeErr != nil {
 				return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(decodeErr))
 			}
@@ -22,11 +22,13 @@ func DecodeMethodQueryMapBoolBoolValidateRequest(mux loomhttp.Muxer, _ func(*htt
 				if decoded != nil {
 					q = make(map[bool]bool, len(decoded))
 					for key, val := range decoded {
+						tk := key
 						actual, ok := val.Value()
 						if !ok {
+							var qMissingValue bool
+							q[tk] = qMissingValue
 							continue
 						}
-						tk := key
 						tv := actual
 						q[tk] = tv
 					}

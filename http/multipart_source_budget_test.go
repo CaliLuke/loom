@@ -63,8 +63,8 @@ func TestMultipartSourceByteBudget(t *testing.T) {
 					}
 				} else {
 					require.NoError(t, err)
-					require.Equal(t, []string{"four"}, form.Values["value"])
-					require.Equal(t, []string{""}, form.Values["empty"])
+					require.Equal(t, []string{"four"}, multipartValues(form, "value"))
+					require.Equal(t, []string{""}, multipartValues(form, "empty"))
 				}
 				require.Zero(t, source.closes, "server retains request-body Close ownership")
 				require.NoError(t, req.Body.Close())

@@ -127,7 +127,7 @@ if {{ .DecodePlan.QueryErrorVar }} != nil {
 	{{- else if .JSONField }}
 	{
 		var decoded {{ .JSONDecodeType }}
-		present, decodeErr := loomhttp.DecodeJSONField({{$qpVar}}, {{ printf "%q" .HTTPName }}, &decoded)
+		present, decodeErr := loomhttp.DecodeJSONField({{$qpVar}}, {{ printf "%q" .HTTPName }}, &decoded, false, loomhttp.FieldValue)
 		if decodeErr != nil {
 			{{ requestErrorReturn "loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(decodeErr))" }}
 		}

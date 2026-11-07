@@ -383,9 +383,9 @@ func TestImportedEmptyObjectUnionAdmission(t *testing.T) {
 			schema := `{"oneOf":[` + open + `,{"type":"object","additionalProperties":false}]}`
 			document, diagnostics, err := Analyze(schemaAdmissionSource("3.1.1", schema, "component"))
 			require.NoError(t, err)
-			requireDiagnosticCode(t, diagnostics, "schema-oneof-branch")
+			require.Empty(t, diagnostics)
 			_, err = Render(document, Options{PackageName: "design"})
-			require.Error(t, err)
+			require.NoError(t, err)
 		})
 	}
 }

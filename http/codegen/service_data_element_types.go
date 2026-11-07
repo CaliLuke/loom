@@ -55,6 +55,9 @@ type (
 	Element struct {
 		attribute *expr.AttributeExpr
 		context   *codegen.AttributeContext
+		location  string
+		// wireNameExpr supplies a dynamic form-map key; empty uses HTTPName.
+		wireNameExpr string
 		// Codec is the resolved wire grammar.
 		Codec httpencoding.Codec
 		// Namespace retains sibling claims and the fixed binding's owned keys.
@@ -172,16 +175,6 @@ type (
 		Example any
 		// View is the view used to render the (result) type if any.
 		View string
-		// FlatFormUnionField is the field name of a synthetic single-field request
-		// body wrapper that should delegate form encoding and decoding to the
-		// wrapped union directly.
-		FlatFormUnionField string
-		// FlatFormUnionPointer reports whether the wrapped union field is optional.
-		FlatFormUnionPointer bool
-		// FlatFormUnionTypeKey is the form discriminator key for the wrapped union.
-		FlatFormUnionTypeKey string
-		// FlatFormUnionRef is the generated Go reference for the wrapped union.
-		FlatFormUnionRef string
 	}
 
 	// MultipartData contains the data needed to render multipart

@@ -156,19 +156,27 @@ func {{ .ResponseDecoder }}(decoder func(*http.Response) loomhttp.Decoder, resto
                     {{- range $i, $variant := .ClientBody.Media.Variants }}
                     case {{ $i }}:
                         var mediaValue {{ .TypeRef }}
-{{- if .StyledFormFields }}
+{{- if .Multipart }}
+mediaResponse := *resp
+mediaRequest := resp.Request
+if mediaRequest == nil {
+ mediaRequest = new(http.Request)
+}
+mediaResponse.Request = mediaRequest.WithContext({{ renderMediaMultipartDecode . "mediaRequest.Context()" "mediaValue" }})
+err = loomhttp.DecodeMediaResponse(&mediaResponse, &mediaValue, {{ .AllowsNull }}, nil, decoder)
+{{- else if mediaFormCodec . }}
 mediaResponse := *resp
 mediaRequest := resp.Request
 if mediaRequest == nil {
  mediaRequest = new(http.Request)
 }
 mediaResponse.Request = mediaRequest.WithContext({{ renderMediaFormDecode . "mediaRequest.Context()" "mediaValue" }})
-err = loomhttp.DecodeMediaResponse(&mediaResponse, &mediaValue, {{ .AllowsNull }}, {{ .Parts }}, decoder)
+err = loomhttp.DecodeMediaResponse(&mediaResponse, &mediaValue, {{ .AllowsNull }}, nil, decoder)
 {{- else }}
-                        err = loomhttp.DecodeMediaResponse(resp, &mediaValue, {{ .AllowsNull }}, {{ .Parts }}, decoder)
+                        err = loomhttp.DecodeMediaResponse(resp, &mediaValue, {{ .AllowsNull }}, nil, decoder)
 {{- end }}
                         if err == nil {
-                            body.Set{{ .Field }}(mediaValue)
+                            body.Set{{ .Method }}(mediaValue)
                         }
                     {{- end }}
                     }

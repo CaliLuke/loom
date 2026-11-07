@@ -66,7 +66,7 @@ func TestUnionBranchCopyKeepsOnlyRequestedDefinition(t *testing.T) {
 				{Name: "authored", Attribute: &AttributeExpr{Type: authored}},
 			}, []UserType{keep})
 			require.Len(t, kept, 1)
-			require.Same(t, keep, kept[0].Type)
+			require.Same(t, keep, kept[0].Copy.Type)
 			require.Equal(t, String, AsObject(copy).Attribute("branch").Type.(UserType).Attribute().Type)
 			require.Equal(t, Int, AsObject(copy).Attribute("authored").Type.(UserType).Attribute().Type)
 		})

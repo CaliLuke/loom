@@ -25,8 +25,8 @@ func TestHTTPTransportRejectsNullableOutsideJSONBodies(t *testing.T) {
 	require.ErrorContains(t, verr, "query and path parameters do not support nullable attributes")
 }
 
-func TestHTTPTransportRejectsNullableFormBody(t *testing.T) {
-	body := &AttributeExpr{Type: &Object{{
+func TestHTTPTransportRejectsNullableFormRoot(t *testing.T) {
+	body := &AttributeExpr{Nullable: true, Type: &Object{{
 		Name:      "clear",
 		Attribute: &AttributeExpr{Type: String, Nullable: true},
 	}}}
@@ -40,8 +40,8 @@ func TestHTTPTransportRejectsNullableFormBody(t *testing.T) {
 	}
 
 	verr := newValidationErrors()
-	endpoint.validateNullableTransportLocations(verr)
-	require.ErrorContains(t, verr, "form and multipart bodies do not support nullable attributes")
+	endpoint.validateParameterSerialization(verr)
+	require.ErrorContains(t, verr, "form body alternatives must be non-nullable")
 }
 
 func TestNullableRootOtherTransportBoundaries(t *testing.T) {

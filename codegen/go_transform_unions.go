@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/CaliLuke/loom/codegen/unionnames"
+
 	"github.com/dave/jennifer/jen"
 
 	"github.com/CaliLuke/loom/expr"
@@ -94,6 +96,7 @@ func transformUnionTempVarName(targetVar string) string {
 }
 
 func buildTransformUnionCases(srcUnion, tgtUnion *expr.Union, unionPkg, tempVarName string, ta *TransformAttrs) ([]transformUnionRenderCase, error) {
+	sourceMembers, targetMembers := unionnames.Resolve(srcUnion), unionnames.Resolve(tgtUnion)
 	cases := make([]transformUnionRenderCase, 0, len(srcUnion.Values))
 	for i, srcValue := range srcUnion.Values {
 		targetValue, ok := matchingTransformUnionValue(srcValue, tgtUnion, i)
@@ -104,6 +107,8 @@ func buildTransformUnionCases(srcUnion, tgtUnion *expr.Union, unionPkg, tempVarN
 		if err != nil {
 			return nil, err
 		}
+		c.SourceFieldName = sourceMembers[srcValue.Name].Method
+		c.TargetFieldName = targetMembers[targetValue.Name].Method
 		cases = append(cases, c)
 	}
 	return cases, nil
@@ -124,13 +129,11 @@ func transformUnionCaseData(srcValue, targetValue *expr.NamedAttributeExpr, unio
 	// Nullable carriers must reach attribute dispatch before selecting a concrete
 	// object helper; that owner unwraps values and preserves absent/null states.
 	c := transformUnionRenderCase{
-		CaseName:        srcValue.Name,
-		CaseTag:         expr.UnionVariantTag(srcValue),
-		SourceFieldName: Goify(srcValue.Name, true),
-		TargetFieldName: Goify(targetValue.Name, true),
-		SourceAttr:      srcValue.Attribute,
-		TargetAttr:      targetValue.Attribute,
-		TargetCastType:  ta.TargetCtx.Scope.Ref(targetValue.Attribute, transformUnionCastPkg(targetValue.Attribute, unionPkg, ta)),
+		CaseName:       srcValue.Name,
+		CaseTag:        expr.UnionVariantTag(srcValue),
+		SourceAttr:     srcValue.Attribute,
+		TargetAttr:     targetValue.Attribute,
+		TargetCastType: ta.TargetCtx.Scope.Ref(targetValue.Attribute, transformUnionCastPkg(targetValue.Attribute, unionPkg, ta)),
 		UseHelper: transformUsesHelper(srcValue.Attribute, targetValue.Attribute) &&
 			!expr.IsNullable(srcValue.Attribute) && !expr.IsNullable(targetValue.Attribute),
 		HelperName: transformHelperName(srcValue.Attribute, targetValue.Attribute, ta),
@@ -138,9 +141,20 @@ func transformUnionCaseData(srcValue, targetValue *expr.NamedAttributeExpr, unio
 	if c.UseHelper {
 		return c, nil
 	}
-	code, err := transformAttributeStmt(c.SourceAttr, c.TargetAttr, "actual", tempVarName, true, ta)
+	// AsBranch exposes the branch's declared carrier. A missing non-nullable
+	// nested union is an invalid selected value, not an absent outer union.
+	// Keep that selection for validation without dereferencing the missing value.
+	guardNested := false
+	if expr.IsUnion(c.SourceAttr.Type) && !expr.IsNullable(c.SourceAttr) {
+		_, guardNested = ta.SourceCtx.UnionBranchContext(c.SourceAttr)
+	}
+	code, err := transformAttributeStmt(c.SourceAttr, c.TargetAttr, "actual", tempVarName, !guardNested, ta)
 	if err != nil {
 		return transformUnionRenderCase{}, err
+	}
+	if guardNested {
+		code = jen.Var().Id(tempVarName).Add(TypeRef(c.TargetCastType)).Line().
+			If(jen.Id("actual").Op("!=").Nil()).Block(code)
 	}
 	c.TransformCode = code
 	return c, nil

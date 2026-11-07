@@ -1,4 +1,0 @@
-// ServiceMultipartUserTypeMethodMultipartUserTypeEncoderFunc is the type to
-// encode multipart request for the "ServiceMultipartUserType" service
-// "MethodMultipartUserType" endpoint.
-type ServiceMultipartUserTypeMethodMultipartUserTypeEncoderFunc func(*multipart.Writer, *servicemultipartusertype.MethodMultipartUserTypePayload) error

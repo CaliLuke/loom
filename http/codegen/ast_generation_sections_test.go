@@ -19,9 +19,9 @@ func TestHTTPUnionSectionStructuredDeclarations(t *testing.T) {
 		ValueKey: "value",
 		Fields: []*uniongen.Field{
 			{
-				Name:               "text",
-				KindConst:          "SelectionKindText",
-				FieldName:          "Text",
+				Name:      "text",
+				KindConst: "SelectionKindText",
+				FieldName: "Text", MethodName: "Text",
 				FieldType:          "SelectionText",
 				EmitPrimitiveAlias: true,
 				PrimitiveAliasType: "string",
@@ -30,7 +30,7 @@ func TestHTTPUnionSectionStructuredDeclarations(t *testing.T) {
 			{
 				Name:      "payload",
 				KindConst: "SelectionKindPayload",
-				FieldName: "Payload",
+				FieldName: "Payload", MethodName: "Payload",
 				FieldType: "*PayloadBody",
 				TypeTag:   "payload",
 			},
@@ -49,7 +49,7 @@ func TestHTTPUnionSectionAliasesAnyAsRawJSONValue(t *testing.T) {
 	code := codegen.SectionCode(t, unionTypeSection("server-union-type", &uniongen.Type{
 		Name: "Selection", KindName: "SelectionKind", TypeKey: "type", ValueKey: "value",
 		Fields: []*uniongen.Field{{
-			Name: "raw", KindConst: "SelectionKindRaw", FieldName: "Raw", FieldType: "SelectionRaw",
+			Name: "raw", KindConst: "SelectionKindRaw", FieldName: "Raw", MethodName: "Raw", FieldType: "SelectionRaw",
 			EmitPrimitiveAlias: true, PrimitiveAliasType: "loom.JSONValue", TypeTag: "raw",
 		}},
 	}))

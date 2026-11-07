@@ -119,6 +119,7 @@ func removeMeta(att *expr.AttributeExpr) {
 // target are not compatible for transformation (different types, fields of
 // different type).
 func transformAttribute(source, target *expr.AttributeExpr, sourceVar, targetVar string, newVar bool, ta *transformAttrs) (string, error) {
+	ta = transformTypeContexts(source, target, ta)
 	var (
 		initCode             string
 		err                  error
@@ -359,7 +360,8 @@ func buildObjectFieldTransform(sourceVar, targetVar string, srcMatt, tgtMatt *ex
 	if err != nil {
 		return "", err
 	}
-	code, err := objectFieldAssignment(srcValue, tgtValue, compatibleSource, compatibleTarget, !tgtMatt.IsRequired(n), ta)
+	targetPointer := expr.ServiceFieldLayout(tgtMatt.AttributeExpr, n, compatibleTarget, ta.TargetCtx.Pointer, ta.TargetCtx.UseDefault).Pointer
+	code, err := objectFieldAssignment(srcValue, tgtValue, compatibleSource, compatibleTarget, targetPointer, ta)
 	if err != nil {
 		return "", err
 	}
@@ -385,8 +387,9 @@ func compatibleTransformAttrs(srcc, tgtc *expr.AttributeExpr, ta *transformAttrs
 }
 
 // objectFieldAssignment returns the code that assigns the object field held by
-// srcVar to tgtVar. targetPtr reports whether a service union target is an
-// optional field and therefore a pointer that must be allocated. A union
+// srcVar to tgtVar. targetPtr reports whether a service union target is a
+// pointer field that must be allocated. Native null-admitting union values
+// retain their own presence even when optional. A union
 // field, constructor or named, is a oneof of the protocol buffer message, so
 // it is converted inline rather than by a helper function.
 func objectFieldAssignment(srcVar, tgtVar string, srcc, tgtc *expr.AttributeExpr, targetPtr bool, ta *transformAttrs) (string, error) {
@@ -427,7 +430,7 @@ func wrapObjectFieldNilCheck(code, srcVar string, srcMatt *expr.MappedAttributeE
 		return code
 	}
 	cond := "if " + srcVar + " != nil {\n"
-	if expr.IsUnion(srcc.Type) && ta.proto && srcMatt.IsRequired(n) {
+	if expr.IsUnion(srcc.Type) && ta.proto && !expr.ServiceFieldLayout(srcMatt.AttributeExpr, n, srcc, ta.SourceCtx.Pointer, ta.SourceCtx.UseDefault).Pointer {
 		cond = "if " + srcVar + `.Kind() != "" {` + "\n"
 	}
 	return cond + "\t" + code + "}\n"

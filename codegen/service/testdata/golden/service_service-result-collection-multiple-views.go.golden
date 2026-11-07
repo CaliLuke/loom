@@ -243,6 +243,9 @@ func transformNewMultipleViewsCollectionFromMultipleViewsCollectionViewTinyResul
 // *resultcollectionmultipleviewsmethodviews.MultipleViewsView from a value of
 // type *MultipleViews.
 func transformProjectMultipleViewsCollectionMultipleViewsToResultcollectionmultipleviewsmethodviewsMultipleViewsView(v *MultipleViews) *resultcollectionmultipleviewsmethodviews.MultipleViewsView {
+	if v == nil {
+		return nil
+	}
 	res := &resultcollectionmultipleviewsmethodviews.MultipleViewsView{
 		A: &v.A,
 		B: &v.B,
@@ -256,6 +259,9 @@ func transformProjectMultipleViewsCollectionMultipleViewsToResultcollectionmulti
 // *resultcollectionmultipleviewsmethodviews.MultipleViewsView from a value of
 // type *MultipleViews.
 func transformProjectMultipleViewsCollectionTinyMultipleViewsToResultcollectionmultipleviewsmethodviewsMultipleViewsView(v *MultipleViews) *resultcollectionmultipleviewsmethodviews.MultipleViewsView {
+	if v == nil {
+		return nil
+	}
 	res := &resultcollectionmultipleviewsmethodviews.MultipleViewsView{
 		A: &v.A,
 	}

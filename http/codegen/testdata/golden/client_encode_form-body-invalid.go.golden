@@ -6,10 +6,27 @@ func EncodeMethodFormBodyInvalidRequest(encoder func(*http.Request) loomhttp.Enc
 		if !ok {
 			return loomhttp.ErrInvalidType("ServiceFormBodyInvalid", "MethodFormBodyInvalid", "*serviceformbodyinvalid.MethodFormBodyInvalidPayload", v)
 		}
-		body := NewMethodFormBodyInvalidRequestBody(p)
-		if err := loomhttp.SetFormRequest(req, &body); err != nil {
-			return loomhttp.ErrEncodingError("ServiceFormBodyInvalid", "MethodFormBodyInvalid", err)
+		if p == nil {
+			return loom.MissingPayloadError()
 		}
+		body := NewMethodFormBodyInvalidMethodFormBodyInvalidRequestBodyForm(p)
+		{
+			parameterEncoded, parameterError := func() (string, error) {
+				parameterForm := make(map[string][]string)
+				var parameterBuilder loomhttp.RawPairsBuilder
+				if _, parameterError := loomhttp.EncodeFormValue(parameterForm, "count", body.Count); parameterError != nil {
+					return "", parameterError
+				}
+				return parameterBuilder.Encode(parameterForm), nil
+			}()
+			if parameterError != nil {
+				return parameterError
+			}
+			if parameterError := loomhttp.SetRawFormRequest(req, parameterEncoded); parameterError != nil {
+				return parameterError
+			}
+		}
+
 		return nil
 	}
 }

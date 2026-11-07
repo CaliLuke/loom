@@ -37,6 +37,7 @@ func lowerJSONShape(node *valuePlanNode, seen map[*valuePlanNode]*loom.JSONShape
 	// The runtime descriptor receives effective nullability, including named
 	// aliases, so it need not reconstruct declaration-level presence policy.
 	shape := &loom.JSONShape{Nullable: IsNullable(node.attribute), Closed: !node.schemaUnknown, NonNullableElements: node.nonNullableElements}
+	shape.UnevaluatedClosed = node.unionClosed
 	seen[node] = shape
 	rules, err := lowerJSONShapeRules(node)
 	if err != nil {
@@ -149,6 +150,8 @@ func lowerJSONObjectShape(node *valuePlanNode, shape *loom.JSONShape, seen map[*
 		if err != nil {
 			return nil, err
 		}
+	} else if node.attribute.ObjectOpenness() == ObjectOpen {
+		shape.Additional = &loom.JSONShape{Kind: "any"}
 	}
 	for _, field := range node.members {
 		if !field.visible {

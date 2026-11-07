@@ -111,7 +111,11 @@ func UnmarshalJSONBody(data *Type) string {
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "var raw struct {\n\tType  string        %s\n\tValue jsontext.Value%s\n}\n", codegen.StructTag(map[string]string{"json": data.TypeKey}), codegen.StructTag(map[string]string{"json": data.ValueKey}))
-	b.WriteString("if err := json.Unmarshal(data, &raw); err != nil {\n\treturn err\n}\n")
+	if data.Closed {
+		b.WriteString("if err := json.Unmarshal(data, &raw, json.RejectUnknownMembers(true)); err != nil {\n\treturn err\n}\n")
+	} else {
+		b.WriteString("if err := json.Unmarshal(data, &raw); err != nil {\n\treturn err\n}\n")
+	}
 	b.WriteString("switch raw.Type {\n")
 	for _, field := range data.Fields {
 		fmt.Fprintf(&b, "\tcase string(%s):\n\t\tvar v %s\n", field.KindConst, field.FieldType)

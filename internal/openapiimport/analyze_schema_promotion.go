@@ -40,6 +40,11 @@ func uniqueComponentName(base string, used map[string]struct{}) string {
 }
 
 func (a *analyzer) prepareObjectConstructors(document *Document) {
+	// Sibling redundancy depends on the complete normalized declaration graph.
+	for _, check := range a.unionSiblings {
+		a.normalizeOneOfSiblings(check.schema, check.source, check.path, check.branches)
+	}
+
 	used := make(map[string]struct{}, len(document.Components.Schemas))
 	for _, named := range document.Components.Schemas {
 		used[named.Name] = struct{}{}
@@ -125,6 +130,7 @@ func (a *analyzer) prepareSchemaObjects(
 			schema.OneOf[index] = &Schema{Ref: "#/components/schemas/" + componentName}
 			continue
 		}
+		a.prepareUnionFields(document, branch, name+"Variant", used)
 		branchName := name + "Variant"
 		if len(branch.Required) > 0 {
 			branchName = name + codegen.Goify(branch.Required[0], true)

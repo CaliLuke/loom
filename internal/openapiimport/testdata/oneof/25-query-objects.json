@@ -1,0 +1,128 @@
+{
+  "openapi": "3.2.0",
+  "info": {
+    "title": "Union specimen",
+    "version": "1"
+  },
+  "paths": {
+    "/value": {
+      "post": {
+        "operationId": "value",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "value",
+            "in": "query",
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              ]
+            },
+            "style": "form",
+            "explode": true
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "A": {
+        "type": "object",
+        "properties": {
+          "x": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "x"
+        ]
+      },
+      "B": {
+        "type": "object",
+        "properties": {
+          "y": {
+            "type": "string"
+          }
+        }
+      },
+      "C": {
+        "type": "object",
+        "properties": {
+          "z": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "z"
+        ]
+      },
+      "N": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "StringMap": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "integer"
+        }
+      },
+      "Cat": {
+        "type": "object",
+        "properties": {
+          "cat": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "cat"
+        ]
+      },
+      "Dog": {
+        "type": "object",
+        "properties": {
+          "dog": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "dog"
+        ]
+      }
+    }
+  }
+}

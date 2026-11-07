@@ -21,6 +21,15 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 			return loomhttp.ErrInvalidType("{{ .ServiceName }}", "{{ .Method.Name }}", "{{ .Payload.Ref }}", v)
 		}
 		{{- end }}
+		{{- if and .Payload.Request.ClientPayloadAbsent (not .Method.IsJSONRPC) }}
+		if {{ .Payload.Request.ClientPayloadAbsent }} {
+			{{- if .Payload.Request.ClientPayloadOptional }}
+			return nil
+			{{- else }}
+			return loom.MissingPayloadError()
+			{{- end }}
+		}
+		{{- end }}
 	{{- range .Payload.Request.Headers }}
 {{- if .Styled }}
 {{ renderStyledEncode .Element "p" "header" }}
@@ -102,7 +111,7 @@ var parameterBuilder loomhttp.RawPairsBuilder
 				values.Add("{{ .HTTPName }}", valueStr)
 			}
 		{{- else if .JSONField }}
-		if _, err := loomhttp.EncodeJSONField(values, {{ printf "%q" .HTTPName }}, p{{ if .FieldName }}.{{ .FieldName }}{{ end }}); err != nil {
+		if _, err := loomhttp.EncodeJSONField(values, {{ printf "%q" .HTTPName }}, p{{ if .FieldName }}.{{ .FieldName }}{{ end }}, loomhttp.FieldValue); err != nil {
 			return err
 		}
 		{{- else if .FieldName }}
@@ -136,6 +145,11 @@ var parameterBuilder loomhttp.RawPairsBuilder
 	{{- if .Payload.Request.QueryParams }}
 		req.URL.RawQuery = {{ if hasStyledQuery .Payload.Request.QueryParams }}parameterBuilder.Encode(values){{ else }}values.Encode(){{ end }}
 	{{- end }}
+	{{- if and .Payload.Request.ClientBodyAbsent (not .Payload.Request.OptionalBodyAttribute) }}
+		if {{ .Payload.Request.ClientBodyAbsent }} {
+			return loom.MissingPayloadError()
+		}
+	{{- end }}
 	{{- if .MultipartRequestEncoder }}
 		if err := encoder(req).Encode(p); err != nil {
 			return loomhttp.ErrEncodingError("{{ .ServiceName }}", "{{ .Method.Name }}", err)
@@ -147,17 +161,21 @@ var parameterBuilder loomhttp.RawPairsBuilder
 			Method:  "{{ .Method.Name }}",
 		}
 		{{- if .Payload.Request.ClientBody }}
-		if p.{{ .Payload.Request.PayloadAttr }}{{ if .Payload.Request.OptionalBodyNullable }}.Present(){{ else }} != nil{{ end }} {
+		{{- if .Payload.Request.ClientBodyAbsent }}
+		if !({{ .Payload.Request.ClientBodyAbsent }}) {
+		{{- end }}
 			{{ if and .Payload.Request.ClientBody.Init .Payload.Request.ClientBody.Init.ClientErrorAware }}convertedBody, conversionError := {{ .Payload.Request.ClientBodyValue }}
 			if conversionError != nil {
 				return loomhttp.ErrEncodingError("{{ .ServiceName }}", "{{ .Method.Name }}", conversionError)
 			}
 			body.Params = convertedBody{{ else }}body.Params = {{ .Payload.Request.ClientBodyValue }}{{ end }}
+		{{- if .Payload.Request.ClientBodyAbsent }}
 		}
 		{{- end }}
+		{{- end }}
 		{{- else }}
-		{{- if .Payload.Request.OptionalBodyAttribute }}
-		if p.{{ .Payload.Request.PayloadAttr }}{{ if .Payload.Request.OptionalBodyNullable }}.Present(){{ else }} != nil{{ end }} {
+		{{- if and .Payload.Request.OptionalBodyAttribute .Payload.Request.ClientBodyAbsent }}
+		if !({{ .Payload.Request.ClientBodyAbsent }}) {
 		{{- end }}
 		{{- if .Method.IsJSONRPC }}
 		b{{ if and .Payload.Request.ClientBody.Init .Payload.Request.ClientBody.Init.ClientErrorAware }}, conversionError{{ end }} := {{ .Payload.Request.ClientBodyValue }}
@@ -200,26 +218,35 @@ var parameterBuilder loomhttp.RawPairsBuilder
         {
             mediaIndex := -1
             var mediaValue any
- var mediaParts map[string]string
             switch string(body.Kind()) {
             {{- range $i, $variant := .Payload.Request.ClientBody.Media.Variants }}
             case {{ printf "%q" .Tag }}:
-                mediaIndex, mediaValue, mediaParts = {{ $i }}, body.{{ .Field }}, {{ .Parts }}
-{{- if .StyledFormFields }}
+                mediaIndex, mediaValue = {{ $i }}, body.{{ .Field }}
+{{- if .Multipart }}
 mediaContext := req.Context()
 defer func() {
  *req = *req.WithContext(mediaContext)
 }()
-*req = *req.WithContext({{ renderMediaFormEncode . "req.Context()" (printf "body.%s" .Field) }})
+*req = *req.WithContext({{ renderMediaMultipartEncode . "req.Context()" (printf "body.%s" .Field) }})
+{{- else if mediaFormCodec . }}
+mediaContext := req.Context()
+defer func() {
+ *req = *req.WithContext(mediaContext)
+}()
+*req = *req.WithContext({{ renderMediaFormEncode . "req.Context()" (printf "body.%s" .Field) (not $.Payload.Request.MustHaveBody) }})
 {{- end }}
             {{- end }}
             }
-            if err := loomhttp.EncodeMediaRequest(req, mediaIndex, {{ .Payload.Request.ClientBody.Media.Contracts }}, mediaValue, mediaParts, encoder); err != nil {
+            if err := loomhttp.EncodeMediaRequest(req, mediaIndex, {{ .Payload.Request.ClientBody.Media.Contracts }}, mediaValue, nil, encoder); err != nil {
                 return loomhttp.ErrEncodingError("{{ .ServiceName }}", "{{ .Method.Name }}", err)
             }
         }
+        {{- else if .Payload.Request.MultipartGenerated }}
+{{ renderMultipartRequestEncode .Payload.Request }}
         {{- else if .Payload.Request.FormEncoded }}
-{{- if .Payload.Request.StyledFormFields }}
+{{- if formRootRequest .Payload.Request }}
+{{ renderFormRootRequestEncode .Payload.Request }}
+{{- else if or .Payload.Request.StyledFormFields .Payload.Request.OrdinaryFormFields }}
 {{ renderStyledFormEncode .Payload.Request }}
 {{- else }}
 		if err := loomhttp.SetFormRequest(req, &body); err != nil {
@@ -234,7 +261,7 @@ defer func() {
 			return loomhttp.ErrEncodingError("{{ .ServiceName }}", "{{ .Method.Name }}", err)
 		}
 		{{- end }}
-		{{- if and .Payload.Request.OptionalBodyAttribute (not .Method.IsJSONRPC) }}
+		{{- if and .Payload.Request.OptionalBodyAttribute .Payload.Request.ClientBodyAbsent (not .Method.IsJSONRPC) }}
 		}
 		{{- end }}
 	{{- end }}

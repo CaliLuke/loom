@@ -160,6 +160,9 @@ func transformNewApplicationDashedTypeCollectionFromApplicationDashedTypeCollect
 // *resultwithdashedmimetypeviews.ApplicationDashedTypeView from a value of
 // type *ApplicationDashedType.
 func transformProjectApplicationDashedTypeCollectionApplicationDashedTypeToResultwithdashedmimetypeviewsApplicationDashedTypeView(v *ApplicationDashedType) *resultwithdashedmimetypeviews.ApplicationDashedTypeView {
+	if v == nil {
+		return nil
+	}
 	res := &resultwithdashedmimetypeviews.ApplicationDashedTypeView{
 		Name: v.Name,
 	}

@@ -12,6 +12,18 @@ physical field storage: references and conversion contexts must describe the
 same declared types. Set `JSONOnly: true` when form codecs are not needed;
 the zero value retains JSON and form methods.
 
+Before resolving local type references, install the package companion inventory
+with `NameScope.SetTypeFamilies`. For a union, use
+`unionnames.PackageDeclarations(union, candidateName).Names` and include any
+additional declarations emitted by your plugin. The scope claims the primary
+and its companions atomically. Read kind constants and constructors from that
+same inventory using the allocated primary; receiver methods use a separate
+namespace. The callback must be deterministic and must not resolve types or
+allocate names in the same scope. Companion roles must already be distinct
+within one family: allocate plugin-specific aliases around the common inventory
+before returning it. Changing the primary cannot resolve an intrinsic collision
+between two helpers derived identically from it.
+
 For untagged unions, build one `unionjson.Branch` per declared variant in order,
 including its allocated type, field, kind constant and validation code. Call
 `unionjson.Analyze` with the finalized union, the generator's member-name policy

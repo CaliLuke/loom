@@ -43,8 +43,6 @@ type (
 	FieldLayout struct {
 		// Pointer adds a pointer around the declared field type.
 		Pointer bool
-		// WrapNullable adds an occurrence-level Nullable wrapper.
-		WrapNullable bool
 		// WrapOptional adds a decoder-owned Optional wrapper.
 		WrapOptional bool
 		// JSON supplies the exact field carrier and omission role.

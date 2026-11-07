@@ -253,7 +253,7 @@ func TestTransportVarNamesAreUniquePerFunction(t *testing.T) {
 				`fooRaw2Raw := r.Header.Get("X-Foo-Raw")`,
 				`for i, rv := range idsRaw {`,
 				`idsRaw2 = qp2["idsRaw"]`,
-				`loomhttp.DecodeJSONField(qp2, "val", &decoded)`,
+				`loomhttp.DecodeJSONField(qp2, "val", &decoded, false, loomhttp.FieldValue)`,
 				"val2 = make(map[string]int, len(decoded))",
 				"val2[tk] = tv",
 				"tokenRaw = &tokenRawRaw",

@@ -190,21 +190,18 @@ func TestTypeNamesWrappedOneOfWithoutMutatingSource(t *testing.T) {
 	require.NotSame(t, expr.AsUnion(command.Attribute().Type), expr.AsUnion(instruction.Attribute().Type))
 }
 
-func TestUntaggedRejectsScalarBranches(t *testing.T) {
-	err := expr.RunInvalidDSL(t, func() {
+func TestUntaggedScalarTypeConstructor(t *testing.T) {
+	root := expr.RunDSL(t, func() {
 		Service("untagged", func() {
 			Method("show", func() {
-				Result(OneOf(String, Int), func() {
-					Untagged()
-				})
+				Result(OneOf(String, Int), Untagged)
 			})
 		})
 	})
-
-	require.Error(t, err)
-	for _, branch := range []string{"String", "Int"} {
-		require.Contains(t, err.Error(), `untagged OneOf branch "`+branch+`" must be a concrete named object or array type`)
-	}
+	union := expr.AsUnion(root.Service("untagged").Method("show").Result.Type)
+	require.True(t, union.Untagged)
+	require.Equal(t, "String", union.Values[0].Name)
+	require.Equal(t, "Int", union.Values[1].Name)
 }
 
 func TestUntaggedRejectsNestedBranchFields(t *testing.T) {
@@ -290,15 +287,6 @@ func TestUntaggedRejectsAmbiguousJSONFieldMetadata(t *testing.T) {
 				})
 			},
 			want: `field "value" cannot use an empty JSON tag name`,
-		},
-		"explicit open object": {
-			branch: func() expr.UserType {
-				return Type("ExplicitOpenJSONField", func() {
-					Meta("openapi:additionalProperties", "true")
-					Attribute("value", String)
-				})
-			},
-			want: "must use the default open object or openapi:additionalProperties false",
 		},
 	}
 	for name, test := range tests {

@@ -28,6 +28,11 @@ func renderStyledPathInitCode(args []*InitArgData, path string) string {
 		}
 		value := arg.parameterValueVar
 		segment := arg.parameterSegmentVar
+		if expr.AsUnion(arg.Type) != nil {
+			code.WriteString(renderTextUnionPath(arg, segment))
+			values[i] = segment
+			continue
+		}
 		// Constructor arguments are native values, including optional primitives
 		// whose presence was resolved by the request builder before this call.
 		code.WriteString(renderParameterValue(arg.parameter.attribute, arg.parameter.attribute, arg.parameter.context, arg.VarName, value, false))

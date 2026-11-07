@@ -6,6 +6,9 @@ func EncodeMethodBodyMapUserRequest(encoder func(*http.Request) loomhttp.Encoder
 		if !ok {
 			return loomhttp.ErrInvalidType("ServiceBodyMapUser", "MethodBodyMapUser", "*servicebodymapuser.MethodBodyMapUserPayload", v)
 		}
+		if p == nil {
+			return loom.MissingPayloadError()
+		}
 		body := NewMethodBodyMapUserRequestBody(p)
 		if err := encoder(req).Encode(&body); err != nil {
 			return loomhttp.ErrEncodingError("ServiceBodyMapUser", "MethodBodyMapUser", err)

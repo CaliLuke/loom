@@ -113,7 +113,7 @@ func httpRequestBody(a *HTTPEndpointExpr) *AttributeExpr {
 		return scalarHTTPBody(a, payload, name, suffix)
 	}
 	body := objectHTTPBody(a, payload)
-	if emptyHTTPBodyObject(body.AttributeExpr) {
+	if emptyHTTPBodyObject(body.AttributeExpr) && !a.FormRequest && !a.MultipartRequest && len(a.MediaTypes) == 0 {
 		return &AttributeExpr{Type: Empty}
 	}
 	att := body.Attribute()
@@ -583,16 +583,17 @@ func inheritBodyReferences(body *MappedAttributeExpr) {
 // walk traverses the given data type and invokes the given function for each
 // user type it finds including dt itself.
 func walk(dt DataType, do func(UserType)) {
-	walkrec(dt, do, make(map[string]struct{}))
+	walkrec(dt, do, make(map[UserType]struct{}))
 }
 
 // walkUserTypes traverses the type of att and its typed AdditionalAttributes
-// and invokes the given function once for each user type it finds.
+// and invokes the given function once for each source user-type node. Distinct
+// nodes may share a nominal ID while requiring independent transport mutations.
 func walkUserTypes(att *AttributeExpr, do func(UserType)) {
-	walkAttributeRec(att, do, make(map[string]struct{}))
+	walkAttributeRec(att, do, make(map[UserType]struct{}))
 }
 
-func walkAttributeRec(att *AttributeExpr, do func(UserType), seen map[string]struct{}) {
+func walkAttributeRec(att *AttributeExpr, do func(UserType), seen map[UserType]struct{}) {
 	if att == nil {
 		return
 	}
@@ -602,14 +603,14 @@ func walkAttributeRec(att *AttributeExpr, do func(UserType), seen map[string]str
 	}
 }
 
-func walkrec(dt DataType, do func(UserType), seen map[string]struct{}) {
+func walkrec(dt DataType, do func(UserType), seen map[UserType]struct{}) {
 	switch dt := dt.(type) {
 	case UserType:
-		if _, ok := seen[dt.ID()]; ok {
+		if _, ok := seen[dt]; ok {
 			return
 		}
+		seen[dt] = struct{}{}
 		do(dt)
-		seen[dt.ID()] = struct{}{}
 		walkAttributeRec(dt.Attribute(), do, seen)
 	case *Object:
 		for _, nat := range *dt {

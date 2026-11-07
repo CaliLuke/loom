@@ -115,3 +115,28 @@ harness; the original defect is their schema/value projection disagreement.
 Five independent candidate processes produce byte-identical output. Direct
 regressions first fail on unvalidated extra values, wrong byte schema lengths,
 and lost empty keys, then pass with the corrected owners.
+
+## Decode traversal work
+
+`DecodeWork.tla` models one chain of typed additional objects. The old decoder
+validated a child, discarded that result, then decoded the same child again to
+retain it. Eight nested objects therefore visited 511 values instead of nine.
+The corrected decoder gathers extra keys, checks their admission, then decodes
+and optionally retains each child in one traversal. Discarding an extra from the
+returned value does not waive its typed validation.
+
+Run explicitly with TLC 1.7.4 and separate temporary state directories:
+
+```sh
+java -cp "$TLA2TOOLS_JAR" tlc2.TLC -workers 1 -config decode-discard.cfg -metadir "$TMPDIR/decode-discard" DecodeWork.tla
+java -cp "$TLA2TOOLS_JAR" tlc2.TLC -workers 1 -config decode-retain.cfg -metadir "$TMPDIR/decode-retain" DecodeWork.tla
+```
+
+The discard policy violates `SingleDecode` at depth one. Retaining the result
+passes nine states through depth eight. The model counts decoder invocations;
+it does not bound JSON parsing cost, branching input size, or allocation counts.
+`TestAdditionalDecodeWork` guards against exponential allocation growth without
+asserting wall-clock time or an exact compiler allocation count.
+`TestAdditionalDecodeRetainsChildren` checks the retained typed values and rejects
+an invalid nested leaf. These implementation tests remain ordinary test gates;
+the model is an opt-in design aid.

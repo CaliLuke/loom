@@ -85,14 +85,26 @@ A custom error formatter replaces the declared error body and uses the configure
 encoder directly, as it does for single-media errors.
 
 Text requires a non-nullable string or byte branch. Octet streams require a
-non-nullable byte branch. Form and multipart variants
-require non-nullable objects without untagged unions. Form fields use the existing
-scalar, repeated-array, and JSON-object field rules. Multipart records each
-part's concrete content type. Per-part media ranges and lists are rejected because
+non-nullable byte branch. Form variants use non-nullable object or string-map
+roots; multipart variants require non-nullable objects. Recursive untagged
+alternatives must satisfy the same root and captured-field codec rules.
+Named array fields apply content encoding to each item: scalar items default to
+text, while object and nested-array items default to JSON. A typeless union of
+array alternatives with explicit JSON content encodes the whole union value.
+Imported designs retain that distinction through normalization and regeneration.
+Any explicit `style`, `explode`, or `allowReserved` setting, including `false`,
+selects parameter-style serialization and suppresses `contentType`. Multipart
+records each part's concrete content type. Per-part media ranges and lists are rejected because
 there is no per-part concrete-type selector. Use the existing `openapi:encoding:<field>:contentType`,
 `style`, `explode`, and `allowReserved` metadata on that branch to describe an
 equivalent encoding; incompatible declarations fail validation. Custom part
 headers and incompatible field serialization remain outside the import subset.
+
+OpenAPI export preserves field names, explicit MIME labels, and defaults that
+belong to individual root alternatives. OpenAPI has one Encoding Object per
+physical field name. If alternatives require incompatible authored encodings for
+the same name, export reports that field rather than silently choosing a branch.
+
 
 Do not combine `MediaType` with static `ContentType`, documentation-only body
 mappings, raw-body flags, endpoint-wide `FormRequest` or `MultipartRequest`, or
@@ -107,6 +119,15 @@ encoding stay on their own branch. Ranges add a mapped content-type field so
 application code can select a concrete representation. Re-import and regenerate
 to replace the former shared-schema raw request body with typed variants.
 
-Multi-media form and multipart root maps are rejected; these variants require
-structured object schemas. This replaces the former shared-schema raw fallback
-for multi-media maps. Single-media root-map imports keep their existing behavior.
+Form media branches accept object and typed map roots, including nested untagged
+alternatives. Each map entry uses its value schema's default form-field codec;
+adding another media representation or a `oneOf` wrapper does not change this
+admission rule. Dynamic keys retain their exact decoded names, including the
+empty name; arrays use their captured item codec. Entries that have no wire
+spelling fail encoding instead of disappearing. Values without a default field
+codec remain invalid.
+
+Multipart media branches and untagged multipart roots require structured objects.
+An ordinary single-media multipart map retains its existing custom whole-body
+codec. A singleton `oneOf` that normalizes to that same map has the same contract;
+a genuine untagged alternative cannot use the custom codec.

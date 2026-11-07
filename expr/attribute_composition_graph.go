@@ -103,7 +103,7 @@ func (c *designComposer) copyAttribute(attribute *AttributeExpr, owner UserType)
 	d.keep = c.keep
 	copy := d.DupAttribute(attribute)
 	for _, kept := range d.kept {
-		c.pending = append(c.pending, compositionCopy{attribute: kept, owner: owner})
+		c.pending = append(c.pending, compositionCopy{attribute: kept.Copy, owner: owner})
 	}
 	return copy
 }
@@ -113,7 +113,7 @@ func (c *designComposer) copyType(typ DataType) DataType {
 	d.keep = c.keep
 	copy := d.DupType(typ)
 	for _, kept := range d.kept {
-		c.pending = append(c.pending, compositionCopy{attribute: kept, owner: c.owner})
+		c.pending = append(c.pending, compositionCopy{attribute: kept.Copy, owner: c.owner})
 	}
 	return copy
 }
@@ -127,7 +127,7 @@ func (c *designComposer) detachNamedCopies() {
 	for i, copy := range c.pending {
 		d := newDupper()
 		if copy.owner != nil {
-			d.uts[typeCopyKey(copy.owner)] = copy.owner
+			d.uts[copy.owner] = copy.owner
 		}
 		types[i] = d.DupType(copy.attribute.Type)
 	}

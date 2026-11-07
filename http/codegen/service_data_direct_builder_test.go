@@ -174,15 +174,13 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 		require.NotEmpty(t, result.Responses)
 	})
 
-	t.Run("buildRequestBodyType flattens form union helper field", func(t *testing.T) {
+	t.Run("buildRequestBodyType preserves authored form object", func(t *testing.T) {
 		services, endpointExpr, svcData := firstHTTPBuildContext(t, testdata.PayloadFormBodyUnionDSL)
 
 		bodyType := services.buildRequestBodyType(endpointExpr.Body, endpointExpr.MethodExpr.Payload, endpointExpr.Name(), svcData.Service.PkgName, endpointExpr.FormRequest, endpointExpr.MultipartRequest, false, svcData, nil)
 		require.NotNil(t, bodyType)
-		require.Equal(t, "Values", bodyType.FlatFormUnionField)
-		require.True(t, bodyType.FlatFormUnionPointer)
-		require.Equal(t, "type", bodyType.FlatFormUnionTypeKey)
-		require.Equal(t, "*Values", bodyType.FlatFormUnionRef)
+		require.True(t, expr.IsObject(bodyType.attribute.Type))
+		require.Contains(t, bodyType.Def, "Values")
 		require.NotNil(t, bodyType.Init)
 		require.NotEmpty(t, bodyType.Init.ClientCode)
 	})

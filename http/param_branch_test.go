@@ -74,7 +74,6 @@ func TestTextBranchInvalidUTF8IsMismatch(t *testing.T) {
 		shape ParamBranchShape
 	}{
 		{"string", "n=%FF", ParamCodec{Style: ParamForm}, ParamBranchShape{Kind: ParamScalar, Element: ParamString}},
-		{"bytes", "n=%FF", ParamCodec{Style: ParamForm}, ParamBranchShape{Kind: ParamScalar, Element: ParamBytes}},
 		{"list", "n=%FF", ParamCodec{Style: ParamForm, Explode: true}, ParamBranchShape{Kind: ParamList, Element: ParamString}},
 		{"map value", "key=%FF", ParamCodec{Style: ParamForm, Explode: true}, ParamBranchShape{Kind: ParamPairs, MapValue: ParamString}},
 		{"map key", "%FF=x", ParamCodec{Style: ParamForm, Explode: true}, ParamBranchShape{Kind: ParamPairs, MapValue: ParamString}},

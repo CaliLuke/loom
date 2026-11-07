@@ -7,6 +7,9 @@ func EncodeMethodBodyPrimitiveArrayBoolValidateRequest(encoder func(*http.Reques
 		if !ok {
 			return loomhttp.ErrInvalidType("ServiceBodyPrimitiveArrayBoolValidate", "MethodBodyPrimitiveArrayBoolValidate", "[]bool", v)
 		}
+		if p == nil {
+			return loom.MissingPayloadError()
+		}
 		body := p
 		if err := encoder(req).Encode(&body); err != nil {
 			return loomhttp.ErrEncodingError("ServiceBodyPrimitiveArrayBoolValidate", "MethodBodyPrimitiveArrayBoolValidate", err)

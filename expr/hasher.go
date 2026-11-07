@@ -115,6 +115,9 @@ func hashMap(m *Map, ignoreTags bool, seen map[*Object]*string) *string {
 
 func hashUnion(u *Union, ignoreTags bool, seen map[*Object]*string) *string {
 	h := unionTypePrefix + u.TypeName
+	if u.closed {
+		h = "_uc_" + u.TypeName
+	}
 	if u.Untagged {
 		h += ":untagged"
 	}
@@ -335,6 +338,9 @@ func (h *fieldHasher) node(dt DataType) int {
 		writeHashToken(&label, unionTypePrefix)
 		writeHashToken(&label, actual.TypeName)
 		writeHashToken(&label, strconv.FormatBool(actual.Untagged))
+		if actual.closed {
+			writeHashToken(&label, "unevaluated-closed")
+		}
 		for _, nat := range sortedUnionValues(actual) {
 			writeHashToken(&label, unionAttributePrefix)
 			writeHashToken(&label, nat.Name)

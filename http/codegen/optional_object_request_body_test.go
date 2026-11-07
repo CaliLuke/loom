@@ -65,10 +65,12 @@ func TestOptionalObjectRequestBody(t *testing.T) {
 			Name:     "form",
 			DSL:      optionalObjectRequestBodyDSL(false, true, false, false),
 			Optional: true,
-			Encode:   "err := loomhttp.SetFormRequest(req, &body)",
+			Encode:   "loomhttp.SetRawFormRequest(req, parameterEncoded)",
 			Decode: []string{
-				"\t\tif len(r.PostForm) == 0 {\n\t\t\tbody = nil\n\t\t} else {\n",
-				`loomhttp.DecodeFormValue(r.PostForm, "", body)`,
+				"\t\tif parameterFormPairs.HasInput() {\n",
+				"\t\t} else {\n\t\t\tbody = nil\n\t\t}\n",
+				`loomhttp.DecodeFormValue(parameterForm, "name", &body.Name)`,
+				`loomhttp.DecodeFormValue(parameterForm, "limit", &body.Limit)`,
 			},
 		},
 		{
@@ -94,9 +96,14 @@ func TestOptionalObjectRequestBody(t *testing.T) {
 
 			encoder := codegen.SectionCode(t, findFileWithSection(t, ClientFiles("gen", services), "request-encoder").Section("request-encoder")[0])
 			assert.Contains(t, encoder, c.Encode)
-			guarded := "\t\tif p.O != nil {\n" +
+			guarded := "\t\tif !(p.O == nil) {\n" +
 				"\t\t\tbody := NewFindRequestBody(p)\n" +
 				"\t\t\tif " + c.Encode + "; err != nil {\n"
+			if c.Name == "form" {
+				guarded = "\t\tif !(p.O == nil) {\n" +
+					"\t\t\tbody := NewFindFindRequestBodyForm(p)\n" +
+					"\t\t\t{\n\t\t\t\tparameterEncoded, parameterError := func() (string, error) {\n"
+			}
 
 			serverFiles := ServerFiles("gen", services)
 			decoder := codegen.SectionCode(t, findFileWithSection(t, serverFiles, "request-decoder").Section("request-decoder")[0])

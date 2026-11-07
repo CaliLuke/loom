@@ -15,6 +15,8 @@ type paramFormBody struct {
 
 // ParseRawFormWithLimit reads the form body once under maxBytes and initializes
 // PostForm from the same bytes, preserving raw delimiters for styled fields.
+// The returned carrier also retains whether any body bytes were read, including
+// nonempty input that decodes to no fields.
 func ParseRawFormWithLimit(req *http.Request, maxBytes int64) (RawPairs, error) {
 	if req == nil || maxBytes <= 0 {
 		return RawPairs{}, fmt.Errorf("raw form requires a request and a positive body limit")

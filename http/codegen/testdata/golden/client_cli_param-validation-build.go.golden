@@ -10,13 +10,15 @@ func BuildMethodParamValidatePayload(serviceParamValidateMethodParamValidateA st
 			val := int(v)
 			a = &val
 			if err != nil {
-				return nil, fmt.Errorf("invalid value for a, must be INT")
+				var zero *serviceparamvalidate.MethodParamValidatePayload
+				return zero, fmt.Errorf("invalid value for a, must be INT")
 			}
 			if *a < 1 {
 				err = loom.MergeErrors(err, loom.InvalidRangeError("a", *a, "1", true))
 			}
 			if err != nil {
-				return nil, err
+				var zero *serviceparamvalidate.MethodParamValidatePayload
+				return zero, err
 			}
 		}
 	}

@@ -21,11 +21,16 @@ type (
 		// httpBody distinguishes synthesized transport wrappers from authored
 		// types, whose names may equal any string chosen for a wrapper UID.
 		httpBody bool
+		// unionClosureID distinguishes a closed occurrence's private declaration.
+		unionClosureID string
 	}
 )
 
 // ID returns the unique identifier for the user type.
 func (u *UserTypeExpr) ID() string {
+	if u.unionClosureID != "" {
+		return u.unionClosureID
+	}
 	if u.UID != "" {
 		return u.UID
 	}
@@ -82,6 +87,7 @@ func (u *UserTypeExpr) Dup(att *AttributeExpr) UserType {
 		unionBranchID:   u.unionBranchID,
 		unionBranchName: u.unionBranchName,
 		httpBody:        u.httpBody,
+		unionClosureID:  u.unionClosureID,
 	}
 }
 

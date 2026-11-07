@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/CaliLuke/loom/codegen/unionnames"
+
 	"github.com/CaliLuke/loom/expr"
 )
 
@@ -125,13 +127,9 @@ func parentRequiredValidationFields(att *expr.AttributeExpr, attCtx *AttributeCo
 }
 
 func renderArrayValidationCode(buf *bytes.Buffer, first *bool, arr *expr.Array, put expr.UserType, attCtx *AttributeContext, view bool, target, context string) {
-	ctx := attCtx
-	if ctx.Pointer && expr.IsPrimitive(arr.ElemType.Type) {
-		ctx = attCtx.Dup()
-		ctx.Pointer = false
-	}
 	rejectNull := !expr.ArrayElementsAllowNull(arr)
 	jsonPresence := attCtx.CollectionElementPresence && rejectNull
+	ctx := collectionElementValidationContext(attCtx, arr.ElemType)
 	elementTarget := "e"
 	if jsonPresence {
 		elementTarget = "actual"
@@ -158,12 +156,9 @@ func codegenPresenceType(attribute *expr.AttributeExpr) bool {
 func renderMapValidationCode(buf *bytes.Buffer, first *bool, m *expr.Map, put expr.UserType, attCtx *AttributeContext, view bool, target, context string) {
 	keyCtx := attCtx.Dup()
 	keyCtx.Pointer = false
-	valueCtx := attCtx
-	if valueCtx.Pointer && expr.IsPrimitive(m.ElemType.Type) {
-		valueCtx = attCtx.Dup()
-		valueCtx.Pointer = false
-	}
+	keyCtx.validationValue = false
 	jsonPresence := attCtx.CollectionElementPresence && !expr.MapValuesAllowNull(m)
+	valueCtx := collectionElementValidationContext(attCtx, m.ElemType)
 	valueTarget := "v"
 	if jsonPresence {
 		valueTarget = "actual"
@@ -173,6 +168,15 @@ func renderMapValidationCode(buf *bytes.Buffer, first *bool, m *expr.Map, put ex
 	if keyVal != "" || valueVal != "" || jsonPresence {
 		appendValidationBlock(buf, first, renderMapValidation(target, keyVal, valueVal, jsonPresence, validationContextExpr(attCtx, context+"[key]")))
 	}
+}
+
+// collectionElementValidationContext uses the same element reference as
+// collection declarations and transforms. JSON wrapping does not change that
+// reference: objects are pointers, unions and collections are values.
+func collectionElementValidationContext(parent *AttributeContext, element *expr.AttributeExpr) *AttributeContext {
+	child := presenceValueContext(parent, element)
+	child.validationValue = !strings.HasPrefix(parent.CollectionElementRef(element, false), "*")
+	return child
 }
 
 func renderUnionValidationCode(buf *bytes.Buffer, first *bool, u *expr.Union, put expr.UserType, attCtx *AttributeContext, view bool, target, context string) {
@@ -190,46 +194,23 @@ func renderUnionValidationCode(buf *bytes.Buffer, first *bool, u *expr.Union, pu
 }
 
 func renderUnionSumValidationCases(u *expr.Union, put expr.UserType, attCtx *AttributeContext, view bool, context string) []unionValidationCase {
+	members := unionnames.Resolve(u)
 	cases := make([]unionValidationCase, 0, len(u.Values))
 	for _, v := range u.Values {
-		unionCtx, requiresValue := unionValidationContext(attCtx, v.Attribute)
+		unionCtx, requiresValue := attCtx.UnionBranchContext(v.Attribute)
 		val := validateAttribute(unionCtx, v.Attribute, put, "actual", context+".value", true, view)
 		if val == "" && !requiresValue {
 			continue
 		}
 		cases = append(cases, unionValidationCase{
 			TypeTag:       expr.UnionVariantTag(v),
-			FieldName:     Goify(v.Name, true),
+			FieldName:     members[v.Name].Method,
 			RequiresValue: requiresValue,
 			Context:       validationContextExpr(attCtx, context+".value"),
 			Validation:    val,
 		})
 	}
 	return cases
-}
-
-// unionValidationContext resolves branch value storage independently of the
-// field layout inside named values. Eligibility and rendering share both facts.
-func unionValidationContext(attCtx *AttributeContext, attribute *expr.AttributeExpr) (*AttributeContext, bool) {
-	// Resolve branch storage through the declaration's type reference. A
-	// nil pointer is missing, while nil collections are concrete values
-	// whose predicates must run. Nullable carriers own their presence.
-	requiresValue := strings.HasPrefix(attCtx.Scope.Ref(attribute, attCtx.DefaultPkg), "*")
-	unionCtx := attCtx.Dup()
-	unionCtx.validationValue = !requiresValue
-	_, named := attribute.Type.(expr.UserType)
-	if !named {
-		unionCtx.JSONPresence = false
-		unionCtx.UseDefault = true
-	}
-	if expr.IsObject(attribute.Type) && !named {
-		// HTTP sum types store inline object branches with native pointer
-		// presence, even when the union field uses JSON presence.
-		unionCtx.Pointer = false
-	} else {
-		unionCtx.Pointer = unionCtx.Pointer && expr.IsObject(attribute.Type)
-	}
-	return unionCtx, requiresValue
 }
 
 func renderUnionInterfaceValidationCases(u *expr.Union, put expr.UserType, attCtx *AttributeContext, view bool, context string) ([]string, []string) {
@@ -293,7 +274,7 @@ func validateAttribute(ctx *AttributeContext, att *expr.AttributeExpr, put expr.
 	}
 	if expr.IsUnion(att.Type) {
 		code := recurseValidationCode(att, put, ctx, req, false, view, target, context).String()
-		return optionalUnionValidation(ctx, target, code, req)
+		return optionalUnionValidation(att, ctx, target, code, req)
 	}
 	ut, isUT := att.Type.(expr.UserType)
 	if !isUT {
@@ -415,21 +396,21 @@ func effectiveValidationDefault(attribute *expr.AttributeExpr) bool {
 	return present
 }
 
-// optionalUnionValidation returns the validation code of the union held by
-// target, run only when target is not nil if the union is an optional object
-// field. A sum type scope declares such a field as a pointer to the union
-// (NameScope.objectFieldTypeDef), and the union methods that the code calls
-// have value receivers. A required union field holds the union value, and a
-// protocol buffer oneof is an interface that the type switch of its
-// validation accepts when nil.
-func optionalUnionValidation(ctx *AttributeContext, target, code string, req bool) string {
+// optionalUnionValidation skips absent optional union fields. Native null
+// carriers distinguish absence by an unset kind; other optional unions use a
+// pointer. Protobuf oneof interfaces handle nil in their own validation switch.
+func optionalUnionValidation(att *expr.AttributeExpr, ctx *AttributeContext, target, code string, req bool) string {
 	if req || code == "" {
 		return code
 	}
 	if _, ok := ctx.Scope.(sumTypeUnionScope); !ok {
 		return code
 	}
-	return "if " + target + " != nil {\n" + indentCode(code) + "}"
+	condition := target + " != nil"
+	if expr.HasNativeJSONPresence(att) {
+		condition = target + `.Kind() != ""`
+	}
+	return "if " + condition + " {\n" + indentCode(code) + "}"
 }
 
 func isNullableAttribute(att *expr.AttributeExpr) bool {

@@ -482,7 +482,7 @@ paths: {}
 components:
   schemas:
     Choice:
-      oneOf:
+      anyOf:
         - type: string
         - type: integer
 `,

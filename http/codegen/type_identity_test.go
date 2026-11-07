@@ -60,17 +60,6 @@ func TestContainsUnionKeepsDistinctBodyVariants(t *testing.T) {
 	}
 }
 
-func TestMultipartBodyVariantCycleDetection(t *testing.T) {
-	for _, cycle := range []bool{false, true} {
-		inner := identityResultType("InnerBody", &expr.Object{{Name: "value", Attribute: &expr.AttributeExpr{Type: expr.String}}})
-		outer := identityResultType("OuterBody", &expr.Object{{Name: "child", Attribute: &expr.AttributeExpr{Type: inner}}})
-		if cycle {
-			expr.AsObject(inner.Type).Set("parent", &expr.AttributeExpr{Type: outer})
-		}
-		require.Equal(t, !cycle, supportsGeneratedMultipartNested(&expr.AttributeExpr{Type: outer}, make(map[string]struct{})))
-	}
-}
-
 func TestUnionBranchValidatorsUseGeneratedTypeIdentity(t *testing.T) {
 	first := identityResultType("FirstBody", expr.String)
 	second := identityResultType("SecondBody", expr.String)

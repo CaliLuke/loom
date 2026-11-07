@@ -28,6 +28,7 @@ type (
 		IsStruct       bool
 		ElemHelper     bool
 		SourcePresence bool
+		TargetPresence bool
 		TypeAliasName  string
 	}
 
@@ -47,6 +48,7 @@ type (
 		IsElemStruct   bool
 		ElemHelper     bool
 		SourcePresence bool
+		TargetPresence bool
 		TypeAliasName  string
 	}
 
@@ -400,7 +402,7 @@ func transformObjectFieldCode(srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, 
 	var code *jen.Statement
 	var err error
 	if expr.IsUnion(srcc.Type) {
-		targetIsPointer := !tgtMatt.IsRequired(name)
+		targetIsPointer := nativeObjectFieldPointer(tgtMatt, name, tgtc, ta.TargetCtx)
 		code, err = transformUnion(srcc, tgtc, srcFieldVar, tgtFieldVar, false, &targetIsPointer, ta)
 	} else {
 		code, err = transformObjectFieldAssignment(srcc, tgtc, srcFieldVar, tgtFieldVar, ta)
@@ -443,7 +445,7 @@ func wrapTransformObjectFieldCode(code *jen.Statement, srcc, tgtc *expr.Attribut
 	}
 	condition := Expr(srcVar + " != nil")
 	if expr.IsUnion(srcc.Type) {
-		if srcMatt.IsRequired(name) {
+		if !nativeObjectFieldPointer(srcMatt, name, srcc, ta.SourceCtx) {
 			condition = Expr(srcVar + `.Kind() != ""`)
 		} else {
 			condition = Expr(srcVar + ` != nil && ` + srcVar + `.Kind() != ""`)
@@ -454,9 +456,9 @@ func wrapTransformObjectFieldCode(code *jen.Statement, srcc, tgtc *expr.Attribut
 		group.Add(code)
 	})
 	if expr.IsArray(srcc.Type) && srcMatt.IsRequired(name) && !ta.TargetCtx.Pointer {
-		elemRef := collectionTypeRef(expr.AsArray(tgtc.Type).ElemType, ta.TargetCtx, false)
+		arrayRef := ta.TargetCtx.CollectionElementRef(tgtc, false)
 		stmt.Else().BlockFunc(func(group *jen.Group) {
-			group.Add(Expr(tgtVar)).Op("=").Add(Expr("[]" + elemRef + "{}"))
+			group.Add(Expr(tgtVar)).Op("=").Add(Expr(arrayRef + "{}"))
 		})
 	}
 	return stmt

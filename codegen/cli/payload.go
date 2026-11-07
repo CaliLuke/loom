@@ -95,7 +95,9 @@ func NewFlagData(svcn, en, name, typeName, description string, required bool, ex
 // FieldLoadCode returns the code used in the build payload function that
 // initializes one of the payload object fields. It returns the initialization
 // code and a boolean indicating whether the code requires an "err" variable.
-func FieldLoadCode(f *FlagData, argName, argTypeName, validate string, defaultValue any, payload expr.DataType, payloadRef string) (*jen.Statement, bool) {
+// payloadRef is the declared builder result type; failed conversion or validation
+// returns its zero value, independently of the payload's schema shape.
+func FieldLoadCode(f *FlagData, argName, argTypeName, validate string, defaultValue any, payloadRef string) (*jen.Statement, bool) {
 	var (
 		code     *jen.Statement
 		declErr  bool
@@ -106,7 +108,7 @@ func FieldLoadCode(f *FlagData, argName, argTypeName, validate string, defaultVa
 	} else {
 		code, declErr, checkErr = conversionCode(f.FullName, argName, argTypeName, f.Unmarshal, !f.Required && defaultValue == nil)
 		if checkErr {
-			code.Line().If(jen.Err().Op("!=").Nil()).Block(buildFieldLoadConversionError(f, argName, argTypeName, payload, payloadRef))
+			code.Line().If(jen.Err().Op("!=").Nil()).Block(buildFieldLoadConversionError(f, argName, argTypeName, payloadRef))
 		}
 	}
 	if validate != "" {
@@ -114,12 +116,9 @@ func FieldLoadCode(f *FlagData, argName, argTypeName, validate string, defaultVa
 		declErr = declErr || !checkErr
 		validate = stripNilGuardValidation(validate, argName)
 		code.Line().Add(codegen.Expr(validate)).Line()
-		nilVal, declareZero := fieldLoadReturnZero(payload, payloadRef)
-		if declareZero != "" {
-			code.Add(codegen.Expr(declareZero)).Line()
-		}
 		code.If(jen.Err().Op("!=").Nil()).Block(
-			jen.Return(codegen.Expr(nilVal), jen.Err()),
+			jen.Var().Id("zero").Add(codegen.TypeRef(payloadRef)),
+			jen.Return(jen.Id("zero"), jen.Err()),
 		)
 	}
 	if !f.Required && defaultValue == nil {
@@ -187,13 +186,9 @@ func fieldLoadStringPrefix(f *FlagData, defaultValue any) string {
 	return "&"
 }
 
-func buildFieldLoadConversionError(f *FlagData, argName, argTypeName string, payload expr.DataType, payloadRef string) *jen.Statement {
-	nilVal, declareZero := fieldLoadReturnZero(payload, payloadRef)
-	stmt := new(jen.Statement)
-	if declareZero != "" {
-		stmt.Add(codegen.Expr(declareZero)).Line()
-	}
-	stmt.Add(buildFieldLoadErrorReturn(f, argName, argTypeName, nilVal))
+func buildFieldLoadConversionError(f *FlagData, argName, argTypeName, payloadRef string) *jen.Statement {
+	stmt := jen.Var().Id("zero").Add(codegen.TypeRef(payloadRef)).Line()
+	stmt.Add(buildFieldLoadErrorReturn(f, argName, argTypeName, "zero"))
 	return stmt
 }
 
@@ -240,13 +235,6 @@ func stripNilGuardValidation(validate, argName string) string {
 		lines = append(lines, ls[i])
 	}
 	return strings.Join(lines, "\n")
-}
-
-func fieldLoadReturnZero(payload expr.DataType, payloadRef string) (nilVal, declareZero string) {
-	if !expr.IsPrimitive(payload) {
-		return "nil", ""
-	}
-	return "zero", "var zero " + payloadRef
 }
 
 func generateExample(sub *SubcommandData, svc string) {

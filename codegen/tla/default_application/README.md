@@ -71,3 +71,40 @@ correspondence live under
 The delivered constructor tests are reused, and this ticket adds composed CLI
 constructor→wire controls. Do not duplicate that model here or infer that a
 native encoder scalar retains an absence bit.
+
+## Destination storage during materialization
+
+`DefaultStorage.tla` closes a gap in the original model: deciding that a default
+applies does not prove that its expression fits the destination representation.
+It keeps native, Optional and Nullable destinations separate, including named
+wrappers and collection element storage. `materialize` is the already-admitted
+`DefaultForField` result; required/deferred/pointer contexts disable it.
+
+Run `DefaultStorage.tla` with `storage-declared.cfg` using the same explicit TLC
+command above. This checks 336 states. Negative controls are:
+
+- `storage-old.cfg`: original native-to-Optional omission fails `FillAbsence`
+  after 205 states.
+- `storage-old-assignment.cfg`: checks the original Optional-to-Optional bare
+  default assignment independently, failing `DeclaredStorage` after 269 states.
+- `storage-wrap-only.cfg`: repairing assignment alone still omits native-source
+  defaults (205 states).
+- `storage-inferred.cfg`: generic inference loses named wrapper storage (207).
+- `storage-raw-elements.cfg`: raw default members do not fit collection slots
+  with Optional storage (174).
+
+`presenceDefaultAssignment` consumes the existing admission record and uses the
+declared wrapper's SetValue method; native targets receive native expressions.
+Object default expressions are pointers, whereas field wrappers own object values.
+The default renderer resolves each named array/map's own layout and wraps members
+in its actual collection element type. Native nil-capable sources, including
+Bytes aliases, retain an absent branch before default materialization; supplied
+empty collections/bytes remain supplied.
+
+`TestPresenceDefaultMaterialization` compiles 72 cases across scalar, named scalar,
+Bytes, array, map and object values, source/destination representations, and enabled,
+disabled and pointer-preserving default policy. It checks absence, supplied zero or
+empty values, and explicit null. `TestCollectionDefaultPresenceStorage` compiles
+array/map/nested/object slots and a JSON collection alias inside a native context.
+The model abstracts concrete expressions and physical type classification; these
+compiled tests establish the implementation correspondence, including named types.

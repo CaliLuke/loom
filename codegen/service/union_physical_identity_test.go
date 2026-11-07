@@ -12,7 +12,7 @@ import (
 func TestUnionNativeAnyPhysicalRepresentation(t *testing.T) {
 	for _, builder := range []struct {
 		name  string
-		build func(*expr.Union, *codegen.NameScope, *codegen.Location, ...string) *UnionTypeData
+		build func(expr.DataType, *codegen.NameScope, *codegen.Location) *UnionTypeData
 	}{
 		{"service", buildUnionTypeData},
 		{"view", buildViewUnionTypeData},

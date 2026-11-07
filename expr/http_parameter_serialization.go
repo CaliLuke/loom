@@ -7,7 +7,7 @@ import (
 	"github.com/CaliLuke/loom/internal/httpencoding"
 )
 
-// HTTPValueShape describes a non-null HTTP value independently of its Go carrier.
+// HTTPValueShape describes structural shape and null admission independently of the Go carrier.
 func HTTPValueShape(attribute *AttributeExpr) httpencoding.BranchShape {
 	return httpValueShape(attribute, make(map[*AttributeExpr]bool))
 }
@@ -30,31 +30,40 @@ func HTTPParameterSerialization(attribute *AttributeExpr, prefix string) httpenc
 	return source
 }
 
-func httpValueShape(attribute *AttributeExpr, active map[*AttributeExpr]bool) httpencoding.BranchShape {
+func httpValueShape(attribute *AttributeExpr, active map[*AttributeExpr]bool) (result httpencoding.BranchShape) {
 	unsupported := httpencoding.BranchShape{Shape: httpencoding.UnsupportedShape}
-	if attribute == nil || attribute.Type == nil || active[attribute] || AllowsNull(attribute) {
+	if attribute == nil || attribute.Type == nil || active[attribute] {
 		return unsupported
 	}
+	defer func() {
+		result.Binary = httpParameterBaseType(attribute.Type) == Bytes
+		result.Nullable = AllowsNull(attribute)
+		result.SourceType, _ = HTTPMediaMetadata(attribute).Last("http:encoding:sourceType")
+	}()
 	active[attribute] = true
 	defer delete(active, attribute)
 	typ := httpParameterBaseType(attribute.Type)
 	if typ == nil {
 		return unsupported
 	}
+	if typ == Any {
+		return httpencoding.BranchShape{Shape: httpencoding.AnyValue}
+	}
 	if _, ok := httpScalarKind(typ); ok {
 		return httpencoding.BranchShape{Shape: httpencoding.Scalar, Domain: httpValueDomain(attribute)}
 	}
 	if array, ok := typ.(*Array); ok {
 		element := httpValueShape(array.ElemType, active)
-		if element.Shape == httpencoding.Scalar {
-			return httpencoding.BranchShape{Shape: httpencoding.Sequence, Domain: element.Domain}
+		if element.Shape == httpencoding.Scalar && !element.Nullable {
+			return httpencoding.BranchShape{Shape: httpencoding.Sequence, Domain: element.Domain, Items: &element}
 		}
+		unsupported.Items = &element
 		return unsupported
 	}
 	if mapping, ok := typ.(*Map); ok {
 		key := httpValueShape(mapping.KeyType, active)
 		value := httpValueShape(mapping.ElemType, active)
-		if key.Shape == httpencoding.Scalar && value.Shape == httpencoding.Scalar {
+		if key.Shape == httpencoding.Scalar && !key.Nullable && value.Shape == httpencoding.Scalar && !value.Nullable {
 			return httpencoding.BranchShape{Shape: httpencoding.ScalarMap, Keys: httpencoding.KeyDomain{Unreserved: key.Domain.Unreserved}, Domain: value.Domain}
 		}
 		return httpencoding.BranchShape{Shape: httpencoding.Nested}
@@ -82,7 +91,7 @@ func httpObjectShape(attribute *AttributeExpr, object *Object, active map[*Attri
 	shape := httpencoding.BranchShape{Shape: httpencoding.Object}
 	for _, property := range *object {
 		value := httpValueShape(property.Attribute, active)
-		if value.Shape != httpencoding.Scalar {
+		if value.Shape != httpencoding.Scalar || value.Nullable {
 			return httpencoding.BranchShape{Shape: httpencoding.Nested}
 		}
 		kind, ok := httpScalarKind(httpParameterBaseType(property.Attribute.Type))

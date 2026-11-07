@@ -8,6 +8,7 @@ import (
 	"github.com/dave/jennifer/jen"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/codegen/unionnames"
 )
 
 // Emit appends the union declaration, constructors, accessors and codecs to stmt.
@@ -83,9 +84,10 @@ func addUnionKindMethod(stmt *jen.Statement, data *Type) {
 
 func addUnionVariantMethods(stmt *jen.Statement, data *Type) {
 	for _, field := range data.Fields {
-		codegen.Doc(stmt, fmt.Sprintf("New%s%s constructs a %s with the %s branch set.", data.Name, field.FieldName, data.Name, field.Name))
+		constructor := unionnames.BranchDeclarations(data.Name, field.MethodName).Constructor
+		codegen.Doc(stmt, fmt.Sprintf("%s constructs a %s with the %s branch set.", constructor, data.Name, field.Name))
 		stmt.Func().
-			Id("New" + data.Name + field.FieldName).
+			Id(constructor).
 			Params(jen.Id("v").Id(field.FieldType)).
 			Id(data.Name).
 			BlockFunc(func(group *jen.Group) {
@@ -103,10 +105,10 @@ func addUnionVariantMethods(stmt *jen.Statement, data *Type) {
 			})
 		stmt.Line()
 
-		codegen.Doc(stmt, fmt.Sprintf("As%s returns the value of the %s branch if set.", field.FieldName, field.Name))
+		codegen.Doc(stmt, fmt.Sprintf("As%s returns the value of the %s branch if set.", field.MethodName, field.Name))
 		stmt.Func().
 			Params(jen.Id("u").Id(data.Name)).
-			Id("As"+field.FieldName).
+			Id("As"+field.MethodName).
 			Params().
 			Params(jen.Id("_").Id(field.FieldType), jen.Id("ok").Bool()).
 			Block(
@@ -117,10 +119,10 @@ func addUnionVariantMethods(stmt *jen.Statement, data *Type) {
 			)
 		stmt.Line()
 
-		codegen.Doc(stmt, fmt.Sprintf("Set%s sets the %s branch of the union.", field.FieldName, field.Name))
+		codegen.Doc(stmt, fmt.Sprintf("Set%s sets the %s branch of the union.", field.MethodName, field.Name))
 		stmt.Func().
 			Params(jen.Id("u").Op("*").Id(data.Name)).
-			Id("Set"+field.FieldName).
+			Id("Set"+field.MethodName).
 			Params(jen.Id("v").Id(field.FieldType)).
 			Block(
 				jen.Id("u").Dot("kind").Op("=").Id(field.KindConst),

@@ -23,7 +23,9 @@ func untaggedUnionExampleMatches(union *expr.Union, value any) bool {
 }
 
 func untaggedBranchExampleMatches(branch *expr.AttributeExpr, value any) bool {
-	plan, err := unionjson.Plan(branch, expr.ElementName, true, false)
+	plan, err := unionjson.Plan(branch, func(name string, attribute *expr.AttributeExpr) string {
+		return expr.JSONFieldName(expr.ElementName(name), attribute)
+	}, true, false)
 	if err != nil {
 		return false
 	}

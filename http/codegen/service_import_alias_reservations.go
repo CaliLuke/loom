@@ -57,5 +57,5 @@ var transportGeneratedLocalNames = []string{
 	"encoder", "endpoint", "err", "errhandler", "event", "f", "formatter",
 	"fpath", "id", "jresp", "lifecycle", "mux", "mw", "p", "params", "parsed",
 	"pass", "passValue", "payload", "problem", "r", "req", "res", "resp", "response", "rpcParams", "rv", "s", "stream", "strm",
-	"u", "upgrader", "user", "userValue", "v", "view", "vres", "w", "ws", "wsconn",
+	"u", "upgrader", "user", "userValue", "v", "val", "view", "vres", "w", "ws", "wsconn",
 }

@@ -92,11 +92,7 @@ func TestUntaggedCustomRepresentationStillRejected(t *testing.T) {
 				})
 			})
 			require.Error(t, err)
-			if nested {
-				require.Contains(t, err.Error(), "cannot use an opaque codec or schema encoding override")
-			} else {
-				require.Contains(t, err.Error(), `untagged OneOf branch "text" must be a concrete named object or array type`)
-			}
+			require.Contains(t, err.Error(), "cannot use an opaque codec or schema encoding override")
 		})
 	}
 }

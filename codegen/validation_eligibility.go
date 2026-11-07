@@ -50,7 +50,7 @@ func hasAttributeValidations(attribute *expr.AttributeExpr, ctx *AttributeContex
 			branch := ctx
 			if sum {
 				var requiresValue bool
-				branch, requiresValue = unionValidationContext(ctx, field.Attribute)
+				branch, requiresValue = ctx.UnionBranchContext(field.Attribute)
 				if requiresValue {
 					return true
 				}

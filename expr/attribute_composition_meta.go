@@ -130,7 +130,7 @@ func validateCompositionJSONTags(attribute *AttributeExpr, bases []*AttributeExp
 func compositionIdentityMeta(key string) bool {
 	return strings.HasPrefix(key, "struct:") || strings.HasPrefix(key, "security:") ||
 		strings.HasPrefix(key, "oneof:") || key == "rpc:tag" || key == "proto:tag:json" ||
-		key == objectOpennessMeta || key == "openapi:contentEncoding" || key == "openapi:contentMediaType" || key == "openapi:format"
+		key == objectOpennessMeta || key == unionClosureMeta || key == "openapi:contentEncoding" || key == "openapi:contentMediaType" || key == "openapi:format"
 }
 
 func compositionDocumentationMeta(key string) bool {
@@ -152,7 +152,7 @@ func equalCompositionMeta(key string, left, right []string) bool {
 		return encodingmeta.GoType(a) == encodingmeta.GoType(b)
 	case "struct:field:proto":
 		return encodingmeta.ProtoType(a) == encodingmeta.ProtoType(b)
-	case "rpc:tag", "struct:pkg:path", objectOpennessMeta, "openapi:contentEncoding", "openapi:contentMediaType", "openapi:format":
+	case "rpc:tag", "struct:pkg:path", objectOpennessMeta, unionClosureMeta, "openapi:contentEncoding", "openapi:contentMediaType", "openapi:format":
 		av, ap := a.Last(key)
 		bv, bp := b.Last(key)
 		return ap == bp && av == bv

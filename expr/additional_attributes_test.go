@@ -661,19 +661,6 @@ func TestAdditionalAttributesRejectedPlacements(t *testing.T) {
 				})
 			})
 		}, "HTTP form and multipart bodies do not support objects with AdditionalAttributes"},
-		{"untagged branch", func() {
-			record := typed()
-			other := Type("Other", func() {
-				Attribute("name", String)
-			})
-			Service("records", func() {
-				Method("show", func() {
-					Result(OneOf(record, other), func() {
-						Untagged()
-					})
-				})
-			})
-		}, "cannot use AdditionalAttributes"},
 		{"case-insensitive member", func() {
 			usedType(Type("Record", func() {
 				Attribute("id", String, func() {

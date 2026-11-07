@@ -20,7 +20,7 @@ func FieldWireNames(attribute *expr.AttributeExpr, name string) (string, string,
 		return "", "", err
 	}
 	jsonName := emittedJSONFieldName(attribute, name, tags)
-	formName, _, _ := strings.Cut(tags.Get("form"), ",")
+	formName, _ := encodingmeta.FormFieldName(attribute.Meta, expr.ElementName(name))
 	return jsonName, formName, nil
 }
 
@@ -56,13 +56,7 @@ func mergedAttributeTags(att *expr.AttributeExpr, jsonTag string, includeJSON bo
 	if att == nil || att.Meta == nil {
 		return ""
 	}
-	tags := make(map[string]string)
-	for key, values := range att.Meta {
-		if !strings.HasPrefix(key, "struct:tag:") || key == "struct:tag:json:name" {
-			continue
-		}
-		tags[strings.TrimPrefix(key, "struct:tag:")] = strings.Join(values, ",")
-	}
+	tags := encodingmeta.StructTags(att.Meta)
 	if len(tags) == 0 {
 		return ""
 	}

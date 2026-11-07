@@ -187,7 +187,7 @@ func TestGoTransformUnionWithUnionBranchKeepsOuterTempVar(t *testing.T) {
 	// its cases assign the outer obj and not a variable that shadows it.
 	require.Contains(t, formatted, "var obj *Choice\n")
 	require.Contains(t, formatted, "tmp := actual\n")
-	require.Contains(t, formatted, "u.SetText((string)(tmp))\n\t\t\tobj = &u\n")
+	require.Contains(t, formatted, "u.SetText((string)(tmp))\n\t\t\t\tobj = &u\n")
 	require.Contains(t, formatted, "u.SetChoice((*Choice)(obj))\n")
 }
 

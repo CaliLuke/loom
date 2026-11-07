@@ -11,6 +11,32 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestRawPairsFromValue(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		raw  string
+		kind ParamKind
+		want ParamValue
+	}{
+		{"scalar separators", "hello&peer=1;rest", ParamScalar, ParamValue{Kind: ParamScalar, Present: true, Text: "hello&peer=1;rest"}},
+		{"escaped list delimiter", "a%2Cb,c", ParamList, ParamValue{Kind: ParamList, Present: true, Items: []string{"a,b", "c"}}},
+		{"empty scalar", "", ParamScalar, ParamValue{Kind: ParamScalar, Present: true, Text: ""}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			pairs, err := RawPairsFromValue("value", tc.raw)
+			require.NoError(t, err)
+			got, err := DecodePairsParam(pairs, "value", ParamCodec{Style: ParamForm}, tc.kind, ParamNamespace{})
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
+			other, err := DecodePairsParam(pairs, "peer", ParamCodec{Style: ParamForm}, ParamScalar, ParamNamespace{})
+			require.NoError(t, err)
+			require.False(t, other.Present)
+		})
+	}
+	_, err := RawPairsFromValue("value", "%zz")
+	require.ErrorContains(t, err, "invalid percent encoding")
+}
+
 func TestRawPairsAgreesWithParseQuery(t *testing.T) {
 	for _, raw := range []string{"", "a=1&a=2&b=&bare", "n=a%2Cb,c", "a+b=x+y", "x=%2B&%5Bk%5D=%E2%82%AC", "a=%zz&b=ok", "%zz=x", "a=b;c=d"} {
 		t.Run(raw, func(t *testing.T) {

@@ -58,7 +58,7 @@ func renderParameterPreflight(endpoint *transportir.Endpoint, payload *PayloadDa
 }
 
 func parameterEmptyHasNoKey(codec httpencoding.Codec) bool {
-	if codec.Shape == httpencoding.Scalar || codec.Style == httpencoding.Root || codec.Style == httpencoding.JSON {
+	if codec.Shape == httpencoding.Scalar || codec.Shape == httpencoding.Union || codec.Style == httpencoding.Root || codec.Style == httpencoding.JSON {
 		return false
 	}
 	return codec.Style == httpencoding.DeepObject || codec.Explode && (codec.Style == httpencoding.Form || codec.Style == httpencoding.CookieStyle)

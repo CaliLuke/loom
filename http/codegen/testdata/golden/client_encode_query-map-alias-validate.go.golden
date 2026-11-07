@@ -7,7 +7,7 @@ func EncodeMethodARequest(encoder func(*http.Request) loomhttp.Encoder) func(*ht
 			return loomhttp.ErrInvalidType("ServiceQueryMapAliasValidate", "MethodA", "*servicequerymapaliasvalidate.MethodAPayload", v)
 		}
 		values := req.URL.Query()
-		if _, err := loomhttp.EncodeJSONField(values, "map", p.Map); err != nil {
+		if _, err := loomhttp.EncodeJSONField(values, "map", p.Map, loomhttp.FieldValue); err != nil {
 			return err
 		}
 		req.URL.RawQuery = values.Encode()

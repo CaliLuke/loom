@@ -136,17 +136,26 @@ func TestProtoBufTransformError(t *testing.T) {
 // original, so that nested conversions of Any values still pass and set the
 // transformErr variable.
 func TestDupTransformAttrsCopiesEveryField(t *testing.T) {
+	scope := codegen.NewNameScope()
+	source := serviceTypeContext("service", scope)
+	target := protoBufTypeContext("pb", scope, false)
 	cases := []struct {
 		Name string
 		TA   *transformAttrs
 	}{
 		{"zero", &transformAttrs{}},
+		{"present-zero-record", &transformAttrs{TransformAttrs: &codegen.TransformAttrs{}}},
+		{"context-references", &transformAttrs{
+			TransformAttrs: &codegen.TransformAttrs{SourceCtx: source, TargetCtx: target},
+		}},
 		{"every-field-set", &transformAttrs{
 			TransformAttrs: &codegen.TransformAttrs{Prefix: "protobuf"},
 			proto:          true,
 			targetInit:     "make([]string, 0)",
 			wrapped:        true,
 			message:        "pb.Message",
+			oneofFields:    []string{"Text", "Count"},
+			oneofTypes:     []string{"TextBranch", "CountBranch"},
 			errorAware:     true,
 		}},
 	}
@@ -155,6 +164,20 @@ func TestDupTransformAttrsCopiesEveryField(t *testing.T) {
 			dup := dupTransformAttrs(c.TA)
 			require.NotSame(t, c.TA, dup)
 			require.Equal(t, c.TA, dup)
+			if c.TA.TransformAttrs != nil {
+				require.NotSame(t, c.TA.TransformAttrs, dup.TransformAttrs)
+				if c.TA.SourceCtx != nil {
+					require.Same(t, c.TA.SourceCtx, dup.SourceCtx)
+				}
+				if c.TA.TargetCtx != nil {
+					require.Same(t, c.TA.TargetCtx, dup.TargetCtx)
+				}
+				original := *c.TA.TransformAttrs
+				dup.SourceCtx = &codegen.AttributeContext{}
+				dup.TargetCtx = &codegen.AttributeContext{}
+				dup.Prefix = "nested"
+				require.Equal(t, original, *c.TA.TransformAttrs)
+			}
 		})
 	}
 }

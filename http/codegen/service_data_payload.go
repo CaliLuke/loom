@@ -72,6 +72,7 @@ func (b *payloadBuilder) build() *PayloadData {
 	init := b.buildInit(request)
 	request.PayloadInit = init
 	payloadDesc := service.BuildPayloadDescriptor(b.svc, b.ep, b.payload)
+	request.ClientPayloadAbsent, request.ClientPayloadOptional = requestPayloadPresence(b.endpointIR.Request, b.payload, payloadDesc.Ref, b.basic != nil)
 	returnValue := buildPayloadDecoderReturnValue(b.endpointIR.Request, request, init, mapQueryParam)
 	data := &PayloadData{
 		Name:               payloadDesc.Name,
@@ -128,7 +129,7 @@ func (b *payloadBuilder) buildRequestData() (*RequestData, *ParamData) {
 	attachMediaBodyData(serverBodyData, b.endpointIR.Request.MediaVariants)
 	attachMediaBodyData(clientBodyData, b.endpointIR.Request.MediaVariants)
 	paramsData, queryData, headersData, cookiesData, mapQueryParam := b.buildRequestElements()
-	multipartGen, multipartFiles := generatedMultipartRequestData(b.endpointIR.Request)
+	multipartContract := b.endpointIR.Request.MultipartEncoding
 	registerRequestBodyTypeNames(serverBodyData, b.sd)
 	request := &RequestData{
 		ContentType:           b.endpointIR.Request.ContentType,
@@ -138,6 +139,7 @@ func (b *payloadBuilder) buildRequestData() (*RequestData, *ParamData) {
 		Cookies:               cookiesData,
 		ServerBody:            serverBodyData,
 		ClientBody:            clientBodyData,
+		ClientBodyAbsent:      requestMemberAbsence(b.payload, b.selectedBody),
 		PayloadAttr:           b.selectedBody.GoName,
 		PayloadType:           b.endpointIR.Request.Payload.Type,
 		MustHaveBody:          b.endpointIR.Request.MustHaveBody,
@@ -150,8 +152,8 @@ func (b *payloadBuilder) buildRequestData() (*RequestData, *ParamData) {
 		BodyAllowsNull:        expr.AllowsNull(b.endpointIR.Request.Body) || codegen.IsExplicitPresenceType(b.endpointIR.Request.Body),
 		MustValidate:          payloadRequestNeedsValidation(paramsData, queryData, headersData, cookiesData),
 		Multipart:             b.endpointIR.Request.Multipart,
-		MultipartGenerated:    multipartGen,
-		MultipartFileFields:   multipartFiles,
+		MultipartGenerated:    multipartContract != nil && !multipartContract.Custom,
+		multipart:             b.endpointIR.Request.MultipartEncoding,
 		FormEncoded:           b.endpointIR.Request.FormEncoded,
 	}
 	b.configureFormFields(request)

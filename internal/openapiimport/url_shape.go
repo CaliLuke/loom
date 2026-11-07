@@ -7,17 +7,43 @@ import (
 	"strings"
 
 	"github.com/CaliLuke/loom/internal/httpencoding"
+	"github.com/CaliLuke/loom/internal/openapiref"
 )
 
 func (p *documentPlanner) urlShape(schema *Schema) httpencoding.BranchShape {
 	return p.urlBranchValue(schema, make(map[*Schema]bool))
 }
 
-func (p *documentPlanner) urlBranchValue(schema *Schema, active map[*Schema]bool) httpencoding.BranchShape {
-	schema = p.urlSchema(schema)
+func (p *documentPlanner) urlBranchValue(schema *Schema, active map[*Schema]bool) (result httpencoding.BranchShape) {
+	nullable := schema != nil && schema.Nullable
+	sourceType := schemaEncodingType(schema, p.schemas)
+	defer func() {
+		result.Nullable = result.Nullable || nullable
+		result.SourceType = sourceType
+	}()
 	unsupported := httpencoding.BranchShape{Shape: httpencoding.UnsupportedShape}
-	if schema == nil || schema.Nullable || schema.Unconstrained || active[schema] {
+	aliases := make(map[*Schema]bool)
+	for schema != nil && schema.Ref != "" {
+		if aliases[schema] {
+			return unsupported
+		}
+		aliases[schema] = true
+		nullable = nullable || schema.Nullable
+		name, err := openapiref.Name(schema.Ref, "#/components/schemas/")
+		if err != nil {
+			return unsupported
+		}
+		schema = p.schemas[name].Schema
+		if sourceType == "" {
+			sourceType = schemaEncodingType(schema, p.schemas)
+		}
+	}
+	if schema == nil || active[schema] {
 		return unsupported
+	}
+	nullable = nullable || schema.Nullable
+	if schema.Unconstrained {
+		return httpencoding.BranchShape{Shape: httpencoding.AnyValue}
 	}
 	active[schema] = true
 	defer delete(active, schema)
@@ -30,12 +56,13 @@ func (p *documentPlanner) urlBranchValue(schema *Schema, active map[*Schema]bool
 	}
 	switch schema.Type {
 	case "string", "boolean", "integer", "number":
-		return httpencoding.BranchShape{Shape: httpencoding.Scalar, Domain: importedValueDomain(schema)}
+		return httpencoding.BranchShape{Shape: httpencoding.Scalar, Domain: importedValueDomain(schema), Binary: schema.Type == "string" && stringRepresentation(schema.Format).raw}
 	case "array":
 		element := p.urlBranchValue(schema.Items, active)
-		if element.Shape == httpencoding.Scalar {
-			return httpencoding.BranchShape{Shape: httpencoding.Sequence, Domain: element.Domain}
+		if element.Shape == httpencoding.Scalar && !element.Nullable {
+			return httpencoding.BranchShape{Shape: httpencoding.Sequence, Domain: element.Domain, Items: &element}
 		}
+		unsupported.Items = &element
 		return unsupported
 	case "object":
 		return p.urlObjectShape(schema, active)
@@ -54,7 +81,7 @@ func (p *documentPlanner) urlObjectShape(schema *Schema, active map[*Schema]bool
 	}
 	if representation == objectTypedMap {
 		value := p.urlBranchValue(schema.AdditionalProperties.Schema, active)
-		if value.Shape == httpencoding.Scalar {
+		if value.Shape == httpencoding.Scalar && !value.Nullable {
 			return httpencoding.BranchShape{Shape: httpencoding.ScalarMap, Domain: value.Domain}
 		}
 		return httpencoding.BranchShape{Shape: httpencoding.Nested}
@@ -69,8 +96,8 @@ func (p *documentPlanner) urlObjectShape(schema *Schema, active map[*Schema]bool
 	p.urlRequired(schema, required, make(map[*Schema]bool))
 	for _, name := range slices.Sorted(maps.Keys(properties)) {
 		property := p.urlSchema(properties[name])
-		value := p.urlBranchValue(property, active)
-		if value.Shape != httpencoding.Scalar {
+		value := p.urlBranchValue(properties[name], active)
+		if value.Shape != httpencoding.Scalar || value.Nullable {
 			return httpencoding.BranchShape{Shape: httpencoding.Nested}
 		}
 		shape.Properties = append(shape.Properties, httpencoding.PropertyFact{

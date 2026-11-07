@@ -51,6 +51,9 @@ func (a *Analyzer) analyzeUserTypeOverlay(attr *expr.AttributeExpr, t expr.UserT
 		a.constructions[schema] = schemaConstruction{slots: []schemaSlot{{location: schemaAllOf}}}
 	}
 	a.applySchemaAttributeDetails(schema, attr, "", context)
+	if hasEncodingSourceOverlay(attr, t) {
+		schema = a.applyEncodingSourceType(schema, attr)
+	}
 	return schema, true
 }
 
@@ -128,26 +131,14 @@ func (a *Analyzer) componentFingerprint(attr *expr.AttributeExpr, t expr.UserTyp
 	return a.FingerprintAttribute(componentAttr)
 }
 
-func (a *Analyzer) reuseEquivalentCanonicalSchema(s *Schema, attr *expr.AttributeExpr, t expr.UserType, typeName, fingerprint, metaName string) bool {
-	existingFingerprint, ok := a.schemaFingerprints[typeName]
-	if !ok || existingFingerprint == fingerprint {
-		return false
-	}
-	componentContext := exampleContext("component", typeName)
-	candidate := a.analyzeUnderlyingSchema(componentAttribute(attr, t), componentContext, true)
-	if !reflect.DeepEqual(a.schemas[typeName], candidate) {
-		return false
-	}
-	s.Ref = toRef(typeName)
-	a.registerSchemaRef(fingerprint, s.Ref, metaName)
-	return true
-}
-
 func hasUserTypeConstraintOverlay(attr *expr.AttributeExpr, userType expr.UserType) bool {
 	if attr == nil {
 		return false
 	}
 	base := userType.Attribute()
+	if hasEncodingSourceOverlay(attr, userType) {
+		return true
+	}
 	if attr.Title != "" && attr.Title != base.Title ||
 		attr.Description != "" && attr.Description != base.Description ||
 		hasUserTypeValidationOverlay(attr, base) ||
@@ -159,7 +150,7 @@ func hasUserTypeConstraintOverlay(attr *expr.AttributeExpr, userType expr.UserTy
 		// An occurrence's openness selects a component variant through
 		// componentAttribute; it is never an annotation beside the reference.
 		if key == "openapi:typename" || key == "openapi:typename:canonical" || key == expr.ViewMetaKey ||
-			key == projectedResultMetaKey || key == "type:generate:force" || strings.HasPrefix(key, "struct:") ||
+			key == projectedResultMetaKey || key == "http:encoding:sourceType" || key == "type:generate:force" || strings.HasPrefix(key, "struct:") ||
 			expr.IsObjectOpennessMeta(key) {
 			continue
 		}
@@ -184,12 +175,12 @@ func (a *Analyzer) componentName(attr *expr.AttributeExpr, t expr.UserType, fing
 			return typeName, true
 		}
 
-		if a.reuseEquivalentCanonicalSchema(schema, attr, t, typeName, fingerprint, metaName) {
-			return typeName, true
-		}
-		if a.plan.Valid() && schemaExists && a.schemaNames[typeName].logical == a.logicalDeclaration(t) && a.schemaNames[typeName].baseline == a.componentBaselineFingerprint(attr, t) {
+		switch {
+		case a.plan.Valid() && schemaExists && a.schemaNames[typeName].logical == a.logicalDeclaration(t) && a.schemaNames[typeName].baseline == a.componentBaselineFingerprint(attr, t):
 			typeName = a.Uniquify(typeName, fingerprint)
-		} else {
+		case a.acquireCanonicalComparison(schema, attr, t, typeName, fingerprint, metaName):
+			return typeName, true
+		default:
 			typeName = a.ClaimExplicitName(typeName, fingerprint)
 		}
 	} else {
@@ -210,7 +201,7 @@ func (a *Analyzer) analyzeUserType(attr *expr.AttributeExpr, t expr.UserType, co
 	}
 	metaName, canonical := schemaTypeNaming(attr, t)
 	if expr.IsAlias(t) && !canonical {
-		return a.analyzeUnderlyingSchema(t.Attribute(), context)
+		return a.analyzeUnderlyingSchema(componentAttribute(attr, t), context)
 	}
 
 	s := &Schema{}
