@@ -513,8 +513,8 @@ func exampleLiteralValue(value any, nested bool) (string, error) {
 		}
 		return "Null()", nil
 	}
-	if literal, ok := exampleScalarLiteral(value); ok {
-		return literal, nil
+	if literal, scalar, err := scalarGoLiteral(value); scalar {
+		return literal, err
 	}
 	switch actual := value.(type) {
 	case []any:
@@ -523,41 +523,6 @@ func exampleLiteralValue(value any, nested bool) (string, error) {
 		return exampleMapLiteral(actual)
 	default:
 		return "", fmt.Errorf("value of type %T is not a supported Loom example", value)
-	}
-}
-
-func exampleScalarLiteral(value any) (string, bool) {
-	switch actual := value.(type) {
-	case string:
-		return strconv.Quote(actual), true
-	case bool:
-		return strconv.FormatBool(actual), true
-	case int:
-		return strconv.Itoa(actual), true
-	case int8:
-		return strconv.FormatInt(int64(actual), 10), true
-	case int16:
-		return strconv.FormatInt(int64(actual), 10), true
-	case int32:
-		return strconv.FormatInt(int64(actual), 10), true
-	case int64:
-		return strconv.FormatInt(actual, 10), true
-	case uint:
-		return strconv.FormatUint(uint64(actual), 10), true
-	case uint8:
-		return strconv.FormatUint(uint64(actual), 10), true
-	case uint16:
-		return strconv.FormatUint(uint64(actual), 10), true
-	case uint32:
-		return strconv.FormatUint(uint64(actual), 10), true
-	case uint64:
-		return strconv.FormatUint(actual, 10), true
-	case float32:
-		return strconv.FormatFloat(float64(actual), 'g', -1, 32), true
-	case float64:
-		return strconv.FormatFloat(actual, 'g', -1, 64), true
-	default:
-		return "", false
 	}
 }
 
@@ -616,25 +581,6 @@ func (r *renderer) resolveHeader(header Header, path string) (Header, error) {
 		return Header{}, fmt.Errorf("render OpenAPI design: %s header reference %q %w", path, header.Ref, err)
 	}
 	return Header{}, fmt.Errorf("render OpenAPI design: %s header reference %q does not resolve", path, header.Ref)
-}
-
-func scalarLiteral(value any) (string, error) {
-	switch actual := value.(type) {
-	case string:
-		return strconv.Quote(actual), nil
-	case bool:
-		return strconv.FormatBool(actual), nil
-	case int:
-		return strconv.Itoa(actual), nil
-	case int64:
-		return strconv.FormatInt(actual, 10), nil
-	case float64:
-		return strconv.FormatFloat(actual, 'g', -1, 64), nil
-	case nil:
-		return "nil", nil
-	default:
-		return "", fmt.Errorf("value of type %T is not a scalar Go literal", value)
-	}
 }
 
 func collectionLength(schemaType string, stringValue, itemValue *int64, path, kind string) (*int64, error) {

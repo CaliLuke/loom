@@ -116,6 +116,9 @@ func (a *analyzer) valueDomainMember(schema *Schema, node *yaml.Node) (any, bool
 	if err := node.Decode(&value); err != nil {
 		return nil, false, fmt.Errorf("value cannot be decoded: %w", err)
 	}
+	if _, _, err := scalarGoLiteral(value); err != nil {
+		return nil, true, err
+	}
 	if value == nil {
 		return nil, schema.Nullable, nil
 	}

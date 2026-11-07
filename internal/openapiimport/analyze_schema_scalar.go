@@ -25,6 +25,10 @@ func (a *analyzer) schemaDefault(schema *Schema, source *base.Schema, path strin
 		a.unsupported("schema-keyword", path, fmt.Sprintf("default value is not compatible with the strict import subset for schema type %q", schema.Type))
 		return
 	}
+	if _, _, err := scalarGoLiteral(decoded); err != nil {
+		a.unsupported("schema-keyword", path, fmt.Sprintf("default value cannot be represented: %v", err))
+		return
+	}
 	schema.Default = &SchemaDefault{Value: decoded}
 }
 
