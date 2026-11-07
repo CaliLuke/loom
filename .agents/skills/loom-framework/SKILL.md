@@ -1844,10 +1844,13 @@ filter, and serialization rules belong here.
   JSON-RPC response decoders consume this same value reference; `VarName` is
   the declaration name and cannot substitute for a nullable body value. The
   shared JSON-RPC response writer applies this to success and error bodies.
-  A non-nullable object
-  (`OptionalObjectBody`) is decoded into a pointer that is set to nil for an
-  empty body, is validated only when present, and is passed to the payload
-  constructor, which leaves the attribute nil for a nil body. A primitive
+  An optional non-nullable native object body (`OptionalObjectBody`), whether
+  whole or selected, uses a pointer carrier that stays nil for an absent body
+  and is validated only when supplied. The server payload constructor keeps
+  a selected body attribute nil, or returns a nil whole payload when no other
+  bound inputs or credentials need an envelope. Envelope allocation is a
+  separate constructor decision; bound inputs and credentials are still
+  decoded, validated and assigned when the body is absent. A primitive
   pointer (`OptionalPrimitiveBody`) is decoded the same way into `new(T)`,
   and the constructors read it through `*body`. An array, map, or bytes body
   stays nil for an empty body and is validated only when it is not nil

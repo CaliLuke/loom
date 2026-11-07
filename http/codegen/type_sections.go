@@ -33,6 +33,14 @@ func unionTypeSection(name string, data *uniongen.Type) codegen.Section {
 // initializes the single attribute ReturnTypeAttribute, or v otherwise.
 func appendInitResult(group *jen.Group, init *InitData, code string, client bool) {
 	switch {
+	case !client && init.serverOptionalObjectBody:
+		group.Var().Id("v").Add(codegen.TypeRef(init.ReturnTypeRef))
+		if init.serverBodyEnvelope {
+			group.Id("v").Op("=").Op("&").Add(codegen.TypeRef(init.ReturnTypeName)).Values()
+		}
+		group.If(jen.Id("body").Op("!=").Nil()).BlockFunc(func(body *jen.Group) {
+			appendHTTPRawBlock(body, code)
+		})
 	case code != "" && !client && init.ReturnIsOptionalBody && init.ReturnTypeAttribute != "":
 		// A nil body is an absent request body: leave the attribute nil.
 		group.Id("res").Op(":=").Op("&").Id(init.ReturnTypeName).Values()

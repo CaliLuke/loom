@@ -1168,7 +1168,10 @@ clients and servers after upgrading to adopt typed Tag binding.
   `MultipartForm.Parts` (`Name`, `Filename`, `ContentType`, `Data`); the old
   `Values`/`Files` maps and `MultipartFile` type are removed.
 - Use `OptionalRequestBody()` for optional JSON object bodies and optional
-  typed form object/map bodies. An object or union selected with `Body("name")`
+  typed form object/map bodies. With a whole native object body and no other
+  bound inputs or credentials, an absent body reaches the service as a nil
+  payload; check for nil before dereferencing it. An object or union
+  selected with `Body("name")`
   from an optional payload attribute is optional either way: a nil attribute
   sends no body, and an empty body decodes to a nil attribute. So is an
   optional primitive, array, map, or `Bytes` attribute, except a primitive

@@ -5,6 +5,7 @@ import . "github.com/CaliLuke/loom/dsl"
 // UntaggedMultipartDSL exercises object alternatives and captured part codecs.
 var UntaggedMultipartDSL = func() {
 	additional := untaggedMultipartAdditionalMethods()
+	objectPresence := untaggedMultipartObjectPresenceMethods()
 	empty := Type("EmptyUpload", func() {
 		Meta("openapi:additionalProperties", "false")
 	})
@@ -34,6 +35,7 @@ var UntaggedMultipartDSL = func() {
 	media := Type("MediaUpload", OneOf(nested, String))
 	Service("multipartchoices", func() {
 		additional()
+		objectPresence()
 		Method("Nested", func() {
 			Payload(nested)
 			HTTP(func() {

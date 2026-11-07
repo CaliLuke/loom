@@ -6,11 +6,12 @@ func DecodeMethodBodyObjectOptionalRequestRequest(mux loomhttp.Muxer, decoder fu
 		var payload *servicebodyobjectoptionalrequest.LinkStart
 		var err error
 		var (
-			body MethodBodyObjectOptionalRequestRequestBody
+			body = &MethodBodyObjectOptionalRequestRequestBody{}
 		)
-		err = decoder(loomhttp.WithNonNullableBody(r)).Decode(&body)
+		err = decoder(loomhttp.WithNonNullableBody(r)).Decode(body)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
+				body = nil
 				err = nil
 			} else {
 				var gerr *loom.ServiceError
@@ -20,7 +21,7 @@ func DecodeMethodBodyObjectOptionalRequestRequest(mux loomhttp.Muxer, decoder fu
 				return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(err))
 			}
 		}
-		payload = NewMethodBodyObjectOptionalRequestLinkStart(&body)
+		payload = NewMethodBodyObjectOptionalRequestLinkStart(body)
 
 		return payload, nil
 	}

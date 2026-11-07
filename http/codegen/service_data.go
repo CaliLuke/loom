@@ -399,12 +399,10 @@ type (
 		// only when it is present, and servers decode an empty body as an
 		// absent value.
 		OptionalBodyNullable bool
-		// OptionalObjectBody is true when OptionalBodyAttribute is true and
-		// the attribute is an object without explicit presence. The server
-		// then decodes the body into a pointer that it sets to nil when the
-		// body is empty, validates the body only when it is present, and
-		// passes the pointer to the payload constructor, which leaves the
-		// attribute nil for a nil body.
+		// OptionalObjectBody is true when an optional native object request
+		// body needs a nil-capable server carrier. Absence skips body validation
+		// and conversion without skipping separately bound payload fields.
+		// OptionalBodyAttribute independently records selected-member identity.
 		OptionalObjectBody bool
 		// OptionalPrimitiveBody is true when OptionalBodyAttribute is true
 		// and the attribute is a primitive pointer. The server decodes the
@@ -540,6 +538,12 @@ type (
 	// InitData contains the data required to render a constructor.
 	InitData struct {
 		constructor *constructorPlan
+		// serverOptionalObjectBody makes whole-object body conversion conditional
+		// on presence. Selected bodies retain ReturnIsOptionalBody semantics.
+		serverOptionalObjectBody bool
+		// serverBodyEnvelope allocates the outer payload for non-body fields or
+		// credentials even when the whole object body is absent.
+		serverBodyEnvelope bool
 		// returnContext retains a response's selected declaration owner through
 		// constructor finalization, including projected names and import aliases.
 		returnContext *codegen.AttributeContext

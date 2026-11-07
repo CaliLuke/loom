@@ -579,6 +579,13 @@ multipart body is absent only when it has zero bytes; an empty MIME envelope is
 supplied. These rules apply to ordinary objects, maps and unions. Malformed
 input and validation errors still fail normally.
 
+For a whole native object body, absence leaves the service payload nil unless
+separately mapped fields or credentials require an outer payload. Those inputs
+are still decoded and validated, even when the body is absent. Body-field
+defaults apply only when the body is supplied; separately mapped fields keep
+their own defaults. Regenerate clients and servers to adopt this absence
+preservation across JSON, form and multipart requests.
+
 An object or constructor union selected with `Body("name")` from an optional
 payload attribute is optional with or without `OptionalRequestBody`. When the
 attribute is nil, the generated client sends no request body, without a

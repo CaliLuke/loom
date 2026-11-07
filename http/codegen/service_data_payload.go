@@ -231,13 +231,19 @@ func isOptionalNullableBody(request *transportir.Request) bool {
 	return isOptionalBodyAttribute(request) && expr.IsNullable(request.Body)
 }
 
-// isOptionalObjectBody reports whether the request body is an object without
-// explicit presence selected with Body from an optional payload attribute.
-// The server decodes such a body into a pointer that stays nil when the body
-// is empty. A union needs no pointer: its empty discriminator already decodes
-// to a nil attribute. A type with explicit presence records its own absence.
+// isOptionalObjectBody reports whether a native object body needs a pointer
+// carrier to retain absence. Selected-member identity remains independent:
+// OptionalRequestBody also admits an absent whole object payload.
 func isOptionalObjectBody(request *transportir.Request) bool {
-	return isOptionalBodyAttribute(request) && expr.IsObject(request.Body.Type) && !codegen.IsExplicitPresenceType(request.Body)
+	if request == nil || request.Body == nil || request.Body.Type == expr.Empty ||
+		!expr.IsObject(request.Body.Type) || codegen.IsExplicitPresenceType(request.Body) {
+		return false
+	}
+	if isOptionalBodyAttribute(request) {
+		return true
+	}
+	custom, _ := codegen.GetMetaType(request.Body)
+	return !request.MustHaveBody && custom == ""
 }
 
 // isOptionalPrimitiveBody reports whether the request body is a primitive
@@ -467,6 +473,8 @@ func (b *payloadBuilder) buildInitData(request *RequestData) *InitData {
 		ReturnIsPrimitivePointer: pointer,
 		ReturnIsUnionValue:       unionValue,
 		ReturnIsOptionalBody:     isOptionalNilBody(b.endpointIR.Request),
+		serverOptionalObjectBody: request.OptionalObjectBody && b.selectedBody.Name == "",
+		serverBodyEnvelope:       len(args) > 0 || b.basic != nil,
 	}
 }
 
@@ -557,7 +565,8 @@ func (b *payloadBuilder) buildTransformCode(requestData *RequestData) (codegen.T
 		serverContext := b.httpsvrctx.Dup()
 		serverContext.CollectionElementPresence = serverContext.JSONPresence
 		serverSource, clientSource := bodyTransformSources(request)
-		serverCode, err = unmarshal(request.Body, pAtt, serverSource, serverContext, b.svcctx)
+		serverCode, err = codegen.GoTransform(request.Body, pAtt, serverSource, "v", serverContext, b.svcctx, "unmarshal",
+			!requestData.OptionalObjectBody || b.selectedBody.Name != "")
 		if err != nil {
 			panic(codegen.NewError(b.sds.Ctx, b.bodyAttr, fmt.Errorf("build HTTP server payload transform for %s: %w", b.endpointIR.MethodName, err)))
 		}

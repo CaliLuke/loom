@@ -11,6 +11,9 @@ import (
  "net/http"
  "net/http/httptest"
  "testing"
+ "reflect"
+ "strings"
+ json "encoding/json/v2"
 
  client "example.com/multipartchoices/gen/http/multipartchoices/client"
  server "example.com/multipartchoices/gen/http/multipartchoices/server"
@@ -272,4 +275,4 @@ func TestClientRootPresenceBeforeConversion(t *testing.T) {
  require.NoError(t,client.EncodeJSONAnyRequest(loomhttp.RequestEncoder)(request,loom.JSONValue("null")))
  encoded,err=io.ReadAll(request.Body);require.NoError(t,err);require.Equal(t,"null",string(bytes.TrimSpace(encoded)))
 }
-`
+` + optionalObjectPresenceHarness

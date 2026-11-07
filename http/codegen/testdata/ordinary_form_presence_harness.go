@@ -32,7 +32,7 @@ func TestOrdinaryFormPresence(t *testing.T) {
 						require.NotNil(t, fields)
 					case *svc.OrdinaryFormFields:
 						fields = p
-						require.NotNil(t, p)
+						require.Equal(t, name != "PlainOptional" || wire != "", p != nil)
 					case *svc.PlainSelectedPayload:
 						require.NotNil(t, p)
 						require.Equal(t, "kept", *p.Owner)

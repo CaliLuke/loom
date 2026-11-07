@@ -2,11 +2,14 @@
 // ServiceBodyObjectOptionalRequest service MethodBodyObjectOptionalRequest
 // endpoint payload.
 func NewMethodBodyObjectOptionalRequestLinkStart(body *MethodBodyObjectOptionalRequestRequestBody) *servicebodyobjectoptionalrequest.LinkStart {
-	v := &servicebodyobjectoptionalrequest.LinkStart{}
-	if actual, ok := body.Continue.Value(); ok {
-		vContinueValue := actual
+	var v *servicebodyobjectoptionalrequest.LinkStart
+	if body != nil {
+		v = &servicebodyobjectoptionalrequest.LinkStart{}
+		if actual, ok := body.Continue.Value(); ok {
+			vContinueValue := actual
 
-		v.Continue = &vContinueValue
+			v.Continue = &vContinueValue
+		}
 	}
 
 	return v
