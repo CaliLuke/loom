@@ -135,7 +135,7 @@ func {{ .HandlerInit }}(
 			}
 			_, err = endpoint(ctx, v)
 			if err != nil {
-				lifecycle.HandlerFailed(err, stream.started(), encodeError, errhandler)
+				lifecycle.HandlerFailed(err, stream.writer.ClaimFailure(), encodeError, errhandler)
 			}
 		} else {
 			// Handle standard HTTP request
@@ -258,7 +258,7 @@ func {{ .HandlerInit }}(
 				lifecycle.HandlerFailed(err, stream != nil && stream.conn.Conn() != nil, encodeError, errhandler)
 				{{- end }}
 				{{- if isSSEEndpoint . }}
-				lifecycle.HandlerFailed(err, stream.started(), encodeError, errhandler)
+				lifecycle.HandlerFailed(err, stream.writer.ClaimFailure(), encodeError, errhandler)
 				{{- end }}
 				{{- if not (or (isWebSocketEndpoint .) (isSSEEndpoint .)) }}
 				lifecycle.HandlerFailed(err, false, encodeError, errhandler)

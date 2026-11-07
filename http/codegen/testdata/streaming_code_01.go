@@ -129,7 +129,7 @@ func NewCreateHandler(
 			}
 			_, err = endpoint(ctx, v)
 			if err != nil {
-				lifecycle.HandlerFailed(err, stream.started(), encodeError, errhandler)
+				lifecycle.HandlerFailed(err, stream.writer.ClaimFailure(), encodeError, errhandler)
 			}
 		} else {
 			// Handle standard HTTP request

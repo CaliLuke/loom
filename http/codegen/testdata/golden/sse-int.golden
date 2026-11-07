@@ -11,10 +11,6 @@ func (s *SSEIntMethodServerStream) Send(v int) error {
 	return s.SendWithContext(s.writer.Context(), v)
 }
 
-func (s *SSEIntMethodServerStream) started() bool {
-	return s.writer.Started()
-}
-
 // Open commits and flushes the successful SSE response before the first event.
 func (s *SSEIntMethodServerStream) Open(ctx context.Context) error {
 	return s.writer.Open(ctx)

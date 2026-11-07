@@ -3307,6 +3307,13 @@ their established reason. Preserve protocol errors, valid notification response
 suppression and connection reuse; never create a lifecycle per frame or turn a
 request rejection into a connection failure. Keep the notification-completion
 model's request-local versus terminal distinction aligned with socket tests.
+`SSEStreamWriter.ClaimFailure` owns the generated HTTP endpoint-failure
+transition: under the writer lock, snapshot `started` and close admission only.
+Do not inspect cancellation, replace causes, publish bytes or dispatch observers
+there. Both HTTP SSE failure branches claim before `HandlerLifecycle` routing;
+its capture check and ordinary encoder fallback remain unchanged. Keep `End`'s
+unconditional close recording/drain and panic precedence, including after a
+claim. Public `Started` remains an observation, not an admission operation.
 `SSEStreamWriter.Complete` owns final admission, encoding and
 write/close; generated wrappers must not recreate terminal flags/locking. Retain
 only view-selection locks, sampled before I/O. Handler `End` preserves original

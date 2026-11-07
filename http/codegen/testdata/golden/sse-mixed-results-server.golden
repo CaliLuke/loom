@@ -11,10 +11,6 @@ func (s *CreateServerStream) Send(v *mixedresultsservice.Event) error {
 	return s.SendWithContext(s.writer.Context(), v)
 }
 
-func (s *CreateServerStream) started() bool {
-	return s.writer.Started()
-}
-
 // Open commits and flushes the successful SSE response before the first event.
 func (s *CreateServerStream) Open(ctx context.Context) error {
 	return s.writer.Open(ctx)

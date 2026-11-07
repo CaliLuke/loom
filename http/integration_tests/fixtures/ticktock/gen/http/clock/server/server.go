@@ -125,7 +125,7 @@ func NewTickHandler(
 		}
 		_, err = endpoint(ctx, v)
 		if err != nil {
-			lifecycle.HandlerFailed(err, stream.started(), encodeError, errhandler)
+			lifecycle.HandlerFailed(err, stream.writer.ClaimFailure(), encodeError, errhandler)
 			return
 		}
 	})
@@ -189,7 +189,7 @@ func NewTockHandler(
 		}
 		_, err = endpoint(ctx, v)
 		if err != nil {
-			lifecycle.HandlerFailed(err, stream.started(), encodeError, errhandler)
+			lifecycle.HandlerFailed(err, stream.writer.ClaimFailure(), encodeError, errhandler)
 			return
 		}
 	})
@@ -259,7 +259,7 @@ func NewGuardedHandler(
 		}
 		_, err = endpoint(ctx, v)
 		if err != nil {
-			lifecycle.HandlerFailed(err, stream.started(), encodeError, errhandler)
+			lifecycle.HandlerFailed(err, stream.writer.ClaimFailure(), encodeError, errhandler)
 			return
 		}
 	})

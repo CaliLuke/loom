@@ -173,6 +173,19 @@ func (s *SSEStreamWriter) Started() bool {
 	return s.started
 }
 
+// ClaimFailure closes admission before a handler routes its endpoint error and
+// reports whether the successful SSE response had already started. It waits for
+// an admitted writer operation, preserves any prior transport failure, and does
+// not write, inspect cancellation, or dispatch observations. Defer End separately
+// to finish cleanup and preserve handler panic precedence.
+func (s *SSEStreamWriter) ClaimFailure() bool {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	started := s.started
+	s.closed = true
+	return started
+}
+
 // Close prevents later control and event writes.
 func (s *SSEStreamWriter) Close() error {
 	s.close()

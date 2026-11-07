@@ -28,10 +28,6 @@ func (s *TickServerStream) Send(v *clock.TickTockEvent) error {
 	return s.SendWithContext(s.writer.Context(), v)
 }
 
-func (s *TickServerStream) started() bool {
-	return s.writer.Started()
-}
-
 // Open commits and flushes the successful SSE response before the first event.
 func (s *TickServerStream) Open(ctx context.Context) error {
 	return s.writer.Open(ctx)
@@ -86,10 +82,6 @@ func (s *TockServerStream) Send(v *clock.TickTockEvent) error {
 	return s.SendWithContext(s.writer.Context(), v)
 }
 
-func (s *TockServerStream) started() bool {
-	return s.writer.Started()
-}
-
 // Open commits and flushes the successful SSE response before the first event.
 func (s *TockServerStream) Open(ctx context.Context) error {
 	return s.writer.Open(ctx)
@@ -142,10 +134,6 @@ type GuardedServerStream struct {
 // SSE connection.
 func (s *GuardedServerStream) Send(v *clock.TickTockEvent) error {
 	return s.SendWithContext(s.writer.Context(), v)
-}
-
-func (s *GuardedServerStream) started() bool {
-	return s.writer.Started()
 }
 
 // Open commits and flushes the successful SSE response before the first event.

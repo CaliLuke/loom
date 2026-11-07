@@ -39,6 +39,21 @@ func TestSSE_MixedResults(t *testing.T) {
 			CompareContent()
 	})
 
+	t.Run("handler failure", func(t *testing.T) {
+		files := ServerFiles("", services)
+		for _, f := range files {
+			for _, section := range f.Section("server-handler-init") {
+				code := codegen.SectionCode(t, section)
+				require.Contains(t, code, "lifecycle.HandlerFailed(err, stream.writer.ClaimFailure(), encodeError, errhandler)")
+				require.Contains(t, code, "lifecycle.HandlerFailed(err, false, encodeError, errhandler)")
+				require.Contains(t, code, "Stream:  &discardCreateServerStream{}")
+				require.NotContains(t, code, "stream.started()")
+				return
+			}
+		}
+		t.Error("missing mixed-result handler")
+	})
+
 	t.Run("client", func(t *testing.T) {
 		files := ClientFiles("", services)
 		var sseFile *codegen.File

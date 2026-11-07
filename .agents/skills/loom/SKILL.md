@@ -1454,6 +1454,10 @@ requirement retain AND semantics.
 - Generated HTTP and JSON-RPC SSE streams expose `loomhttp.SSEControl`.
   Use `Open(ctx)` for explicit readiness and `SendComment(ctx, text)` for
   heartbeat frames.
+- Regenerate HTTP SSE servers to close stream admission when an endpoint returns
+  an error, before ordinary error encoding. Later sends and comments cannot
+  append SSE bytes to that error response. An already started stream keeps its
+  success response and routes the endpoint error to the late error handler.
 - Configure bounded stream writes with `loomhttp.NewStreamWritePolicy`.
 - Read `Last-Event-ID` through `loomhttp.LastEventIDKey`.
   For HTTP SSE payload binding, pass the DSL attribute name to `SSERequestID`;

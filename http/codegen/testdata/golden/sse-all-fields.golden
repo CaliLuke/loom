@@ -12,10 +12,6 @@ func (s *SSEAllFieldsMethodServerStream) Send(v *sseallfieldsservice.SSEAllField
 	return s.SendWithContext(s.writer.Context(), v)
 }
 
-func (s *SSEAllFieldsMethodServerStream) started() bool {
-	return s.writer.Started()
-}
-
 // Open commits and flushes the successful SSE response before the first event.
 func (s *SSEAllFieldsMethodServerStream) Open(ctx context.Context) error {
 	return s.writer.Open(ctx)

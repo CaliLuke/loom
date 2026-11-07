@@ -1754,6 +1754,13 @@ handler can still send an error event. A send whose context is canceled after
 the event was serialized returns the context error, but the buffered event may
 still reach the client, so do not re-send it.
 
+When an HTTP SSE endpoint returns an error, the generated handler closes writer
+admission before routing that error. A later send, comment or `Open` cannot
+append SSE bytes to an ordinary error response. If an admitted operation already
+started the successful stream, the endpoint error goes to the configured late
+error handler instead. Cancellation and invalid-comment errors retain their
+usual precedence. Regenerate HTTP servers to adopt this failure-admission fix.
+
 Regenerate servers to adopt stream lifecycle observation. With a transport
 observer installed, SSE header commitment emits one opening event and handler
 completion closes a committed writer once. An unopened stream emits neither.

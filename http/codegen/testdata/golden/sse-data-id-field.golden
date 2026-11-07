@@ -12,10 +12,6 @@ func (s *SSEDataIDFieldMethodServerStream) Send(v *ssedataidfieldservice.SSEData
 	return s.SendWithContext(s.writer.Context(), v)
 }
 
-func (s *SSEDataIDFieldMethodServerStream) started() bool {
-	return s.writer.Started()
-}
-
 // Open commits and flushes the successful SSE response before the first event.
 func (s *SSEDataIDFieldMethodServerStream) Open(ctx context.Context) error {
 	return s.writer.Open(ctx)

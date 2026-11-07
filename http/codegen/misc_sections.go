@@ -254,13 +254,6 @@ func addServerSSESection(stmt *jen.Statement, ed *EndpointData) {
 	stmt.Line()
 	stmt.Line()
 	addServerSSESetViewMethod(stmt, ed)
-	stmt.Func().
-		Params(jen.Id("s").Op("*").Id(ed.SSE.StructName)).
-		Id("started").
-		Params().
-		Bool().
-		Block(jen.Return(jen.Id("s").Dot("writer").Dot("Started").Call()))
-	stmt.Line()
 	codegen.Doc(stmt, "Open commits and flushes the successful SSE response before the first event.")
 	stmt.Func().
 		Params(jen.Id("s").Op("*").Id(ed.SSE.StructName)).
