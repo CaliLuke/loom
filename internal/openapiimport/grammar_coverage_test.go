@@ -632,6 +632,7 @@ func openAPIGrammarCoverage() []grammarObjectCoverage {
 				group(grammarPreserved, "analyzer.schema normalization", "ExclusiveMaximum", "ExclusiveMinimum", "Properties", "Title", "Maximum", "Minimum", "MaxLength", "MinLength", "Pattern", "MaxItems", "MinItems", "Required", "Description", "Nullable", "ReadOnly", "WriteOnly", "Deprecated", "Extensions"),
 				group(grammarConditional, "schema normalization and render planning", "Type", "AllOf", "AnyOf", "OneOf", "UnevaluatedProperties", "Examples", "Items", "Format", "Enum", "Const", "AdditionalProperties", "Default", "Example"),
 				group(grammarRejected, "schemaUnsupportedKeywords", "SchemaTypeRef", "Discriminator", "PrefixItems", "Contains", "MinContains", "MaxContains", "If", "Else", "Then", "DependentSchemas", "DependentRequired", "PatternProperties", "Defs", "PropertyNames", "UnevaluatedItems", "Id", "Anchor", "DynamicAnchor", "DynamicRef", "Comment", "ContentSchema", "Vocabulary", "Not", "MultipleOf", "UniqueItems", "MaxProperties", "MinProperties", "ContentEncoding", "ContentMediaType", "XML", "ExternalDocs"),
+				group(grammarConditional, "analyzer.schema preserves boolean scalars; planner.schema admits modern true schemas; TestSchemaAdmissionBooleanRoundTrip", "BooleanSchema"),
 				group(grammarLibrary, "libopenapi schema proxy state", "ParentProxy"),
 			},
 		},

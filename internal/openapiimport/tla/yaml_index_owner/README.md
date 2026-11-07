@@ -136,7 +136,8 @@ On 2026-11-05, the upstream source audit found that the maintainer had
 cherry-picked PR #673 as `f4fb28d55d879425d0d07ca7d0efe07ee17455bf`.
 The stable patch IDs match (`8de9150b8ff6ab4222757dfac9940ef99042642b`),
 and tags v0.42.0, v0.42.1 and v0.42.3 contain it. The open PR status alone did
-not reflect that integration. The root module now selects released
-`github.com/pb33f/libopenapi v0.42.3`; the temporary fork imports are removed.
-The historical pins above record earlier acceptance, not current requirements.
+not reflect that integration. The adoption selected released
+`github.com/pb33f/libopenapi v0.42.3` and removed the temporary fork imports.
+The root `go.mod` owns the current exact dependency pin. The historical pins
+above record earlier acceptance, not current requirements.
 The bounded traversal model and its assumptions are unchanged.

@@ -33,13 +33,19 @@ external linting and process determinism explicit in the acceptance record.
 ## External lint gate
 
 `make openapi-contract` installs [Vacuum v0.39.3](https://github.com/daveshanley/vacuum/releases/tag/v0.39.3)
-into a temporary directory with the repository Go toolchain. Its released module
-requires `github.com/pb33f/libopenapi v0.42.3`, which includes
+into a temporary module with the repository Go toolchain. That module selects
+the framework's `github.com/pb33f/libopenapi` version from the root module, and
+the gate checks the installed binary's build information to confirm the version.
+The current pin is [libopenapi v0.42.4](https://github.com/pb33f/libopenapi/releases/tag/v0.42.4),
+whose tag is commit `f6e97f4e9e2ee7e2f0404064d50ffd67fcd0b182`.
+It preserves absolute external reference origins when an OpenAPI document supplies
+`$self` ([upstream #699](https://github.com/pb33f/libopenapi/issues/699)), and includes
 [libopenapi PR #656](https://github.com/pb33f/libopenapi/pull/656).
 This fixes enum value comparison for arrays, objects and numeric representations.
-The former libopenapi override is removed; no fork or replacement directive is
-used. The Vacuum pin lives in `v3/contract_vacuum_test.go`; this is a contributor
-tool, not a runtime dependency. Install directly with its `@version` suffix.
+Both dependencies use released versions, with no fork or replacement directive.
+The Vacuum pin lives in `v3/contract_vacuum_test.go`; this is a contributor
+tool, not a runtime dependency. Run the existing gate so its CLI uses the same
+parser version as the framework.
 `v3/testdata/vacuum.yaml` extends the recommended rules. API descriptions are
 optional in fixtures. The duplicate-enum rule is enabled; JSON Schema recommends
 unique enum elements but does not require them. Enum controls verify acceptance

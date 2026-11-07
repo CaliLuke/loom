@@ -38,8 +38,8 @@ Upstream v0.41.8 includes that repair but still fails local component references
 supplied through aliases or merges, tracked in
 [libopenapi #672](https://github.com/pb33f/libopenapi/issues/672) and fixed by
 [PR #673](https://github.com/pb33f/libopenapi/pull/673).
-The framework now uses released `github.com/pb33f/libopenapi v0.42.3`, pinned
-in the root `go.mod`. Upstream cherry-picked PR #673 as
+The released-library acceptance used `github.com/pb33f/libopenapi v0.42.3`;
+the root `go.mod` owns the current exact pin. Upstream cherry-picked PR #673 as
 `f4fb28d55d879425d0d07ca7d0efe07ee17455bf`, first included in v0.42.0.
 Its patch is identical to the submitted correction even though the PR remains
 open. The temporary fork module and self-import renaming are no longer needed.
@@ -58,6 +58,8 @@ bounds, local overrides and merge precedence while race detection checks the
 library's internally concurrent builders.
 
 The importer is internal; returning to the upstream module does not change the
-framework's public Go types. Vacuum v0.36.2 also selects released libopenapi
-v0.42.3, including the enum fix in upstream PR #656. Its Go types never cross
-this boundary, and no tool-module override is needed.
+framework's public Go types. That acceptance used Vacuum v0.36.2 with released
+libopenapi v0.42.3, including the enum fix in upstream PR #656; no tool-module
+override was needed then. The current contract gate builds Vacuum with the
+framework's selected parser and verifies the binary dependency version, as
+described in the [validation guide](../../../../.agents/skills/loom-framework/references/openapi-validation.md).

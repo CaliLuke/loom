@@ -1,9 +1,12 @@
 package openapiv3_test
 
 import (
+	"debug/buildinfo"
 	"encoding/json/v2"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -23,11 +26,28 @@ func installContractVacuum(t *testing.T) contractVacuum {
 	t.Helper()
 	dir := t.TempDir()
 	t.Setenv("GOBIN", dir)
-	_, err := testingx.RunCmd(dir, "go", "install", "github.com/daveshanley/vacuum@"+vacuumVersion)
+	libraryVersion, err := testingx.RunCmd(".", "go", "list", "-m", "-f", "{{.Version}}", "github.com/pb33f/libopenapi")
 	require.NoError(t, err)
+	libraryVersion = strings.TrimSpace(libraryVersion)
+	require.NotEmpty(t, libraryVersion)
+	module := fmt.Sprintf("module example.com/loom-contract-vacuum\n\ngo 1.27.3\n\nrequire (\n\tgithub.com/daveshanley/vacuum %s\n\tgithub.com/pb33f/libopenapi %s\n)\n", vacuumVersion, libraryVersion)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte(module), 0o600))
+	_, err = testingx.RunCmd(dir, "go", "install", "-mod=mod", "github.com/daveshanley/vacuum")
+	require.NoError(t, err)
+	binary := filepath.Join(dir, "vacuum")
+	build, err := buildinfo.ReadFile(binary)
+	require.NoError(t, err)
+	var builtLibraryVersion string
+	for _, dependency := range build.Deps {
+		if dependency.Path == "github.com/pb33f/libopenapi" {
+			builtLibraryVersion = dependency.Version
+			break
+		}
+	}
+	require.Equal(t, libraryVersion, builtLibraryVersion, "Vacuum must use the framework's selected parser version")
 	ruleset, err := filepath.Abs("testdata/vacuum.yaml")
 	require.NoError(t, err)
-	return contractVacuum{binary: filepath.Join(dir, "vacuum"), ruleset: ruleset}
+	return contractVacuum{binary: binary, ruleset: ruleset}
 }
 
 func checkVacuumInvalidContracts(t *testing.T, vacuum contractVacuum) {

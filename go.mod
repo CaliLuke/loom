@@ -18,7 +18,7 @@ require (
 	github.com/oklog/ulid/v2 v2.1.2
 	github.com/owenrumney/go-sarif/v3 v3.3.2
 	github.com/pb33f/go-yaml v0.1.1
-	github.com/pb33f/libopenapi v0.42.3
+	github.com/pb33f/libopenapi v0.42.4
 	github.com/sirupsen/logrus v1.10.2
 	github.com/stretchr/testify v1.12.1
 	github.com/tmaxmax/go-sse v0.12.0
