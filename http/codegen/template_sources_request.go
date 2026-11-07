@@ -185,7 +185,13 @@ var parameterBuilder loomhttp.RawPairsBuilder
 		}
 		{{- end }}
 		{{- else }}
+		{{- if clientBodyValueUsed .Payload.Request }}
 		body{{ if and .Payload.Request.ClientBody.Init .Payload.Request.ClientBody.Init.ClientErrorAware }}, conversionError{{ end }} := {{ .Payload.Request.ClientBodyValue }}
+		{{- else if and .Payload.Request.ClientBody.Init .Payload.Request.ClientBody.Init.ClientErrorAware }}
+		_, conversionError := {{ .Payload.Request.ClientBodyValue }}
+		{{- else if .Payload.Request.ClientBody.Init }}
+		{{ .Payload.Request.ClientBodyValue }}
+		{{- end }}
 		{{- if and .Payload.Request.ClientBody.Init .Payload.Request.ClientBody.Init.ClientErrorAware }}
 		if conversionError != nil {
 			return loomhttp.ErrEncodingError("{{ .ServiceName }}", "{{ .Method.Name }}", conversionError)

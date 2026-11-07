@@ -13,7 +13,11 @@ func renderMultipartRequestEncode(request *RequestData) string {
 
 func renderMultipartRequestDecode(request *RequestData) string {
 	var out strings.Builder
-	out.WriteString("multipartForm, multipartErr := loomhttp.ReadMultipartForm(r)\nif multipartErr != nil {\nif errors.Is(multipartErr, loomhttp.ErrMultipartBodyAbsent) {\n")
+	form := "multipartForm"
+	if !multipartBodyValueUsed(request.multipart) && request.multipart.ObjectOpenness != expr.ObjectClosed {
+		form = "_"
+	}
+	fmt.Fprintf(&out, "%s, multipartErr := loomhttp.ReadMultipartForm(r)\nif multipartErr != nil {\nif errors.Is(multipartErr, loomhttp.ErrMultipartBodyAbsent) {\n", form)
 	if request.MustHaveBody {
 		out.WriteString("return payload, loom.MissingPayloadError()\n")
 	} else {
@@ -53,4 +57,22 @@ func renderMultipartClosedKeys(contract *expr.HTTPMultipartEncoding) string {
 	}
 	out.WriteString("})\nif projectionError != nil {\nreturn projectionError\n}\naccepted, projectionError := projection.Schema(func(jsontext.Value) (bool, error) { return true, nil }, true)\nif projectionError != nil {\nreturn projectionError\n}\nif !accepted {\nreturn fmt.Errorf(\"undeclared multipart part\")\n}\n")
 	return out.String()
+}
+
+// multipartBodyValueUsed reports whether native part emission reads the body.
+// Empty objects still have a multipart wire envelope, but no value projection.
+func multipartBodyValueUsed(contract *expr.HTTPMultipartEncoding) bool {
+	if len(contract.Branches) != 0 {
+		return true
+	}
+	for _, field := range contract.Fields {
+		if !field.Omitted {
+			return true
+		}
+	}
+	return false
+}
+
+func clientBodyValueUsed(request *RequestData) bool {
+	return !request.MultipartGenerated || multipartBodyValueUsed(request.multipart)
 }

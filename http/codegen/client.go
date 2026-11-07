@@ -108,6 +108,7 @@ func clientRequestTemplateFuncs(svc *expr.HTTPServiceExpr, services *ServicesDat
 		"renderMediaMultipartEncode":   renderMediaMultipartEncode,
 		"renderMediaMultipartDecode":   renderMediaMultipartDecode,
 		"renderMultipartRequestEncode": renderMultipartRequestEncode,
+		"clientBodyValueUsed":          clientBodyValueUsed,
 		"renderMultipartRequestDecode": renderMultipartRequestDecode,
 		"renderFormRootRequestEncode":  renderFormRootRequestEncode,
 		"renderFormRootRequestDecode":  renderFormRootRequestDecode,
