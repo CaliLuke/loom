@@ -599,6 +599,10 @@ Using `Extend` inside a named `Payload`, `Result`, `StreamingPayload`, or
 `StreamingResult` customization creates a method-specific type. It inherits the
 base fields and their requiredness. Other uses of the original named type keep
 their original fields and requirements.
+The customization function runs exactly once for its method. Its examples,
+metadata, validations and `Extend` bases apply once to that method's copy of
+the type; the named type keeps its own examples and constraints. Regenerate to
+remove duplicate examples that earlier versions emitted for these methods.
 Automatic result views include the inherited fields. Explicit views keep their
 authored field selection.
 

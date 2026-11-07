@@ -26,10 +26,12 @@ Implementation correspondence:
 
 - `dsl.Required` stores only on its current attribute. `completeKeptReferences`
   completes structural copies without replaying occurrence requirements.
-- `methodUserTypeAttribute` deliberately creates a separately named method
-  declaration. That owner explicitly materializes its authored requirements;
-  views derive from this new declaration. This is distinct from an occurrence
-  retaining the original declaration and is outside the model's identity bound.
+- `materializeMethodType` deliberately creates a separately named method
+  declaration after the single method customization callback completes. That
+  owner explicitly materializes its authored requirements; views derive from
+  this new declaration. This is distinct from an occurrence retaining the
+  original declaration and is outside this model's identity bound; the
+  [method customization model](../method_customization/README.md) checks it.
 - `expr.NewMappedAttributeExpr` retains immutable `ObjectFields` for eliminated
   named edges. `NewObjectFields`, mapped queries and `ServiceFieldLayout` consume
   the retained declaration requiredness. Defaults and physical field attributes

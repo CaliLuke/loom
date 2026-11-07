@@ -168,13 +168,19 @@ func methodDSL(m *expr.MethodExpr, suffix string, p any, args ...any) *expr.Attr
 		att            *expr.AttributeExpr
 		fn             func()
 		directDataType bool
+		copied         expr.UserType
 	)
 	switch actual := p.(type) {
 	case func():
 		fn = actual
 		att = &expr.AttributeExpr{Type: &expr.Object{}}
 	case expr.UserType:
-		att = methodUserTypeAttribute(actual, m.Name, suffix, args)
+		if len(args) == 0 {
+			// Do not duplicate type if it is not customized
+			return &expr.AttributeExpr{Type: actual}
+		}
+		copied = expr.Dup(actual).(expr.UserType)
+		att = &expr.AttributeExpr{Type: copied}
 	case expr.DataType:
 		att = &expr.AttributeExpr{Type: actual}
 		directDataType = true
@@ -199,22 +205,8 @@ func methodDSL(m *expr.MethodExpr, suffix string, p any, args ...any) *expr.Attr
 		}
 		eval.Execute(fn, att)
 		applyUnionMetaFromAttribute(att)
-		if ut, ok := att.Type.(expr.UserType); ok && ut != expr.Empty && len(att.Bases) > 0 {
-			// The emitted declaration comes from the user type attribute.
-			// Keep inherited fields and requiredness on that same owner.
-			owner := ut.Attribute()
-			for nested, ok := owner.Type.(expr.UserType); ok; nested, ok = owner.Type.(expr.UserType) {
-				if nested == expr.Empty {
-					owner.Type = &expr.Object{}
-					break
-				}
-				// An object alias also changes the underlying declaration.
-				// Give every copied link its own identity before adding fields.
-				nested.Rename(nested.Name() + "_" + m.Name + "_" + suffix)
-				owner = nested.Attribute()
-			}
-			owner.Bases = slices.Concat(owner.Bases, att.Bases)
-			att.Bases = nil
+		if copied != nil {
+			materializeMethodType(att, copied, m.Name, suffix)
 		}
 		if obj, ok := att.Type.(*expr.Object); ok {
 			if len(*obj) == 0 && att.AdditionalAttributes == nil {
@@ -225,40 +217,41 @@ func methodDSL(m *expr.MethodExpr, suffix string, p any, args ...any) *expr.Attr
 	return att
 }
 
-// methodUserTypeAttribute owns method-specific copies and distinguishes any
-// customization that changes their Go declaration from plain uses of the type.
-func methodUserTypeAttribute(actual expr.UserType, methodName, suffix string, args []any) *expr.AttributeExpr {
-	if len(args) == 0 {
-		// Do not duplicate type if it is not customized
-		return &expr.AttributeExpr{Type: actual}
+// materializeMethodType gives a customized named method type its own
+// declaration from the completed customization. Required and Extend change the
+// Go declaration, so the method copy is renamed and owns those requirements and
+// inherited fields; other uses of the named type keep the original contract.
+// Only the copy still used by the occurrence is materialized, so a callback
+// that replaced the type leaves both copy and replacement untouched.
+func materializeMethodType(att *expr.AttributeExpr, copied expr.UserType, methodName, suffix string) {
+	required := att.Validation != nil && len(att.Validation.Required) > 0
+	if att.Type != copied || copied == expr.Empty || !required && len(att.Bases) == 0 {
+		return
 	}
-	dupped := expr.Dup(actual).(expr.UserType)
-	att := &expr.AttributeExpr{Type: dupped}
-	if f, ok := args[len(args)-1].(func()); ok {
-		numreqs := 0
-		if att.Validation != nil {
-			numreqs = len(att.Validation.Required)
+	// Views derive from this customized declaration, which owns the authored
+	// requirements; ordinary Required never mutates a referenced type.
+	owner := copied.Attribute()
+	if required {
+		if owner.Validation == nil {
+			owner.Validation = &expr.ValidationExpr{}
 		}
-		eval.Execute(f, att)
-		if actual != expr.Empty && (len(att.Bases) > 0 || att.Validation != nil && len(att.Validation.Required) != numreqs) {
-			// This owner intentionally creates a distinct declaration. Materialize
-			// its authored requirements here; ordinary Required never mutates a
-			// referenced type. Views derive from this customized declaration.
-			if att.Validation != nil && len(att.Validation.Required) > 0 {
-				owner := dupped.Attribute()
-				if owner.Validation == nil {
-					owner.Validation = &expr.ValidationExpr{}
-				}
-				owner.Validation.AddRequired(att.Validation.Required...)
-			}
-			// Method-specific fields and requiredness need their own Go type.
-			// Other uses of the named type keep the original contract.
-			if renamer, ok := dupped.(interface {
-				Rename(string)
-			}); ok {
-				renamer.Rename(actual.Name() + "_" + methodName + "_" + suffix)
-			}
-		}
+		owner.Validation.AddRequired(att.Validation.Required...)
 	}
-	return att
+	copied.Rename(copied.Name() + "_" + methodName + "_" + suffix)
+	if len(att.Bases) == 0 {
+		return
+	}
+	// Keep inherited fields and requiredness on the emitted declaration.
+	for nested, ok := owner.Type.(expr.UserType); ok; nested, ok = owner.Type.(expr.UserType) {
+		if nested == expr.Empty {
+			owner.Type = &expr.Object{}
+			break
+		}
+		// An object alias also changes the underlying declaration.
+		// Give every copied link its own identity before adding fields.
+		nested.Rename(nested.Name() + "_" + methodName + "_" + suffix)
+		owner = nested.Attribute()
+	}
+	owner.Bases = slices.Concat(owner.Bases, att.Bases)
+	att.Bases = nil
 }
