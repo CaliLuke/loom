@@ -11,7 +11,10 @@ func TestAdditionalDecodeWork(t *testing.T) {
 	measure := func(depth int) float64 {
 		plan, wire := nestedAdditionalDecodeInput(depth)
 		valid := false
-		allocations := testing.AllocsPerRun(1, func() {
+		// JSON decoders use sync.Pool, whose race-enabled Put randomly drops
+		// entries. Average enough calls that one pool miss cannot dominate
+		// the growth comparison after its single warm-up call.
+		allocations := testing.AllocsPerRun(100, func() {
 			_, valid = decodeJSON(plan, wire)
 		})
 		require.True(t, valid)
@@ -21,6 +24,7 @@ func TestAdditionalDecodeWork(t *testing.T) {
 	// one value into two recursive decodes at every level. Compare allocation
 	// growth, not machine-dependent wall time or an exact compiler allocation count.
 	shallow, deep := measure(4), measure(8)
+	t.Logf("allocations per decode: depth4=%.0f depth8=%.0f growth=%.3f", shallow, deep, deep/shallow)
 	require.Less(t, deep, 4*shallow, "additional-value decoding must not branch exponentially")
 }
 
