@@ -311,11 +311,14 @@ func (e *canonicalSchemaEncoder) writeValidation(att *expr.AttributeExpr, input 
 			enums = append(enums, projectOpenAPIValues(att, clause))
 		}
 	}
+	// Allocating or lowering predicate-free rules does not change a schema.
+	// Use the same identity for absent rules and an empty validation record.
+	if len(enums) == 0 && (validation == nil ||
+		validation.HasRequiredOnly() && len(validation.Required) == 0) {
+		e.writeString("no-validation")
+		return
+	}
 	if validation == nil {
-		if len(enums) == 0 {
-			e.writeString("no-validation")
-			return
-		}
 		validation = &expr.ValidationExpr{}
 	}
 	e.writeString("validation")
