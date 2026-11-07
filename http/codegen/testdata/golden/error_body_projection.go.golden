@@ -15,6 +15,10 @@ func EncodeHTMLError(encoder func(context.Context, http.ResponseWriter) loomhttp
 				return encodeError(ctx, w, v)
 			}
 			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "text/html; charset=utf-8")
+			if res == nil {
+				return fmt.Errorf("selected response value is absent")
+			}
+
 			enc := encoder(ctx, w)
 			var body any
 			if formatter != nil {
@@ -49,6 +53,10 @@ func EncodePlainError(encoder func(context.Context, http.ResponseWriter) loomhtt
 				return encodeError(ctx, w, v)
 			}
 			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "text/plain")
+			if res == nil {
+				return fmt.Errorf("selected response value is absent")
+			}
+
 			enc := encoder(ctx, w)
 			var body any
 			if formatter != nil {
@@ -83,6 +91,10 @@ func EncodeAnyError(encoder func(context.Context, http.ResponseWriter) loomhttp.
 				return encodeError(ctx, w, v)
 			}
 			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "application/json")
+			if res == nil {
+				return fmt.Errorf("selected response value is absent")
+			}
+
 			enc := encoder(ctx, w)
 			var body any
 			if formatter != nil {
@@ -117,6 +129,10 @@ func EncodeMapError(encoder func(context.Context, http.ResponseWriter) loomhttp.
 				return encodeError(ctx, w, v)
 			}
 			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "application/json")
+			if res == nil || (res.Body == nil) {
+				return fmt.Errorf("selected response value is absent")
+			}
+
 			enc := encoder(ctx, w)
 			var body any
 			if formatter != nil {
@@ -151,6 +167,10 @@ func EncodeObjectError(encoder func(context.Context, http.ResponseWriter) loomht
 				return encodeError(ctx, w, v)
 			}
 			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "application/json")
+			if res == nil || (res.Body == nil) {
+				return fmt.Errorf("selected response value is absent")
+			}
+
 			enc := encoder(ctx, w)
 			var body any
 			if formatter != nil {
@@ -219,6 +239,10 @@ func EncodeRenamedError(encoder func(context.Context, http.ResponseWriter) loomh
 				return encodeError(ctx, w, v)
 			}
 			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "text/plain")
+			if res == nil {
+				return fmt.Errorf("selected response value is absent")
+			}
+
 			enc := encoder(ctx, w)
 			var body any
 			if formatter != nil {
@@ -253,6 +277,10 @@ func EncodeOptionalError(encoder func(context.Context, http.ResponseWriter) loom
 				return encodeError(ctx, w, v)
 			}
 			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "text/plain")
+			if res == nil || (res.Body == nil) {
+				return fmt.Errorf("selected response value is absent")
+			}
+
 			enc := encoder(ctx, w)
 			var body any
 			if formatter != nil {

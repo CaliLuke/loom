@@ -26,6 +26,7 @@ const selectedResponseStorageHarness = `package storage_test
 import (
 	"context"
 	"encoding/json/v2"
+	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"strings"
@@ -185,8 +186,8 @@ func TestOptionalNamedSourceAbsence(t *testing.T) {
 			mux.ServeHTTP(response, httptest.NewRequest("GET", "/"+tc.name, nil))
 		})
 		require.Equal(t, 1, calls)
-		require.Equal(t, 200, response.Code)
-		require.JSONEq(t, "null", response.Body.String())
+		require.Equal(t, 500, response.Code)
+		require.Contains(t, response.Body.String(), "\"code\":\"fault\"")
 	}
 	require.Equal(t, 2, checked)
 }
@@ -225,26 +226,31 @@ func TestMountedJSONRPC(t *testing.T) {
 				name := strings.ToUpper(tc.name[:1]) + tc.name[1:]
 				reflect.ValueOf(endpoints).Elem().FieldByName(name).Set(reflect.ValueOf(endpoint))
 				mux := loomhttp.NewMuxer()
-				rpcserver.Mount(mux, rpcserver.New(endpoints, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil))
+				var projectionError error
+				rpcserver.Mount(mux, rpcserver.New(endpoints, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, func(_ context.Context, _ http.ResponseWriter, err error) {
+					projectionError = err
+				}))
 				response := httptest.NewRecorder()
 				request := httptest.NewRequest("POST", "/rpc", strings.NewReader("{\"jsonrpc\":\"2.0\",\"id\":\"probe\",\"method\":\""+tc.name+"\"}"))
 				request.Header.Set("Content-Type", "application/json")
 				mux.ServeHTTP(response, request)
+				if wire == "absent" {
+					require.ErrorContains(t, projectionError, "selected response value is absent")
+					require.Empty(t, response.Body.String())
+					require.Equal(t, 1, calls)
+					return
+				}
+				require.NoError(t, projectionError)
 				require.Equal(t, 200, response.Code, response.Body.String())
 				var envelope map[string]jsontext.Value
 				require.NoError(t, json.Unmarshal(response.Body.Bytes(), &envelope))
 				require.JSONEq(t, "\"probe\"", string(envelope["id"]))
 				expected := wire
-				if wire == "absent" {
-					expected = "null"
-				} else if tc.name == "whole" {
+				if tc.name == "whole" {
 					expected = "{\"value\":" + wire + "}"
 				}
 				require.JSONEq(t, expected, string(envelope["result"]))
 				require.Equal(t, 1, calls)
-				if wire == "absent" {
-					return
-				}
 				host := httptest.NewServer(mux)
 				defer host.Close()
 				generated := rpcclient.NewClient("http", strings.TrimPrefix(host.URL, "http://"), host.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)

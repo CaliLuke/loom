@@ -692,6 +692,21 @@ This schema projection applies when the representation uses built-in JSON.
 Raw and text bodies, form and multipart fields, custom codecs, and explicit
 schema overrides retain their own contracts.
 
+### Selected Response Presence
+
+`Body("field")` inside `Response` requires a concrete result and a supplied
+selected field. This applies even when that field is optional in the result
+type. Missing fields fail before response publication; supplied empty strings,
+empty collections and scalar zeros remain valid. Explicit null is valid only
+when the selected member admits null. Parent nullability does not broaden the
+selected member's contract.
+
+A response with only mapped headers/cookies also requires a concrete result.
+Clients reconstruct a concrete result even if all optional mappings are absent,
+with their normal defaults and requiredness checks. Whole-body nullable responses
+remain distinct: null cannot carry mapped metadata. Regenerate transports after
+upgrading; absent optional selected fields no longer produce JSON null.
+
 ### Tagged Success Responses
 
 Use `Tag("kind", "accepted")` inside a method success `Response` to select it

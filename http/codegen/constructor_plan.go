@@ -26,6 +26,9 @@ type (
 func newConstructorPlan(init *InitData, client, body bool, pkgs *codegen.NameScope) *constructorPlan {
 	args, code := initRenderData(init, client)
 	plan := &constructorPlan{result: init.ReturnTypeRef, errorAware: init.ServerErrorAware}
+	if client && init.errorConstructor != "" {
+		plan.result = init.errorOwnerRef
+	}
 	if client {
 		plan.errorAware = init.ClientErrorAware
 	}
@@ -42,7 +45,12 @@ func newConstructorPlan(init *InitData, client, body bool, pkgs *codegen.NameSco
 	} else {
 		init.ServerErrorAware = plan.errorAware
 	}
-	plan.body = fmt.Sprintf("%#v", jen.BlockFunc(func(group *jen.Group) {
+	plan.body = plan.renderBody(init, client, body, code, fields)
+	return plan
+}
+
+func (plan *constructorPlan) renderBody(init *InitData, client, body bool, code string, fields codegen.TransformPlan) string {
+	return fmt.Sprintf("%#v", jen.BlockFunc(func(group *jen.Group) {
 		if plan.errorAware {
 			group.Id("transformErr").Op(":=").New(jen.Error())
 		}
@@ -58,19 +66,30 @@ func newConstructorPlan(init *InitData, client, body bool, pkgs *codegen.NameSco
 			fieldInitCode = strings.TrimRight(fields.Code, "\n\t ")
 		}
 		appendInitResult(group, init, code, client)
-		if fieldInitCode != "" {
+		if client && init.nullableProjection != nil && !init.nullableProjection.selected && !init.nullableProjection.metadataOnly {
+			init.nullableProjection.appendReconstruction(group, fieldInitCode)
+		} else if fieldInitCode != "" {
 			appendHTTPRawBlock(group, fieldInitCode)
 		}
 		if code != "" || fieldInitCode != "" {
 			group.Line()
 		}
+		value := "v"
 		if init.ReturnTypeAttribute != "" {
-			plan.returnValue(group, "res")
+			value = "res"
+		}
+		if client && init.nullableProjection != nil && init.nullableProjection.selected {
+			value = "loom.NullableValue(*res)"
+		} else if client && init.nullableProjection != nil && init.nullableProjection.metadataOnly {
+			value = "loom.NullableValue(*v)"
+		}
+		if client && init.errorConstructor != "" {
+			plan.checkError(group)
+			group.Return(codegen.Expr(init.errorConstructor).Call(codegen.Expr(value)))
 		} else {
-			plan.returnValue(group, "v")
+			plan.returnValue(group, value)
 		}
 	}))
-	return plan
 }
 
 // Hash uses exactly the declaration rendered below. A signature alone cannot
@@ -110,12 +129,16 @@ func constructorSection(name string, init *InitData, client, body bool, pkgs *co
 
 func (p *constructorPlan) returnValue(group *jen.Group, value string) {
 	if !p.errorAware {
-		group.Return(jen.Id(value))
+		group.Return(codegen.Expr(value))
 		return
 	}
+	p.checkError(group)
+	group.Return(codegen.Expr(value), jen.Nil())
+}
+
+func (p *constructorPlan) checkError(group *jen.Group) {
 	group.If(jen.Op("*").Id("transformErr").Op("!=").Nil()).Block(
 		jen.Var().Id("zero").Add(codegen.TypeRef(p.result)),
 		jen.Return(jen.Id("zero"), jen.Op("*").Id("transformErr")),
 	)
-	group.Return(jen.Id(value), jen.Nil())
 }

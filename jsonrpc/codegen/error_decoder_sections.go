@@ -42,6 +42,9 @@ func jsonrpcErrorDecoderSection(e *httpcodegen.EndpointData) codegen.Section {
 
 func writeErrorCandidate(candidate *jen.Group, item *httpcodegen.ErrorData, e *httpcodegen.EndpointData) {
 	candidate.Id("Name").Op(":").Lit(item.Name)
+	if item.Response.ErrorPayload {
+		candidate.Id("Nullable").Op(":").True()
+	}
 	if item.Selector != nil {
 		candidate.Id("Selector").Op(":").Index().String().ValuesFunc(func(path *jen.Group) {
 			for _, member := range item.Selector {

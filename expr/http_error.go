@@ -1,6 +1,8 @@
 package expr
 
 import (
+	"strings"
+
 	"github.com/CaliLuke/loom/eval"
 )
 
@@ -74,6 +76,9 @@ func (e *HTTPErrorExpr) Validate() *eval.ValidationErrors {
 	e.validateHeaders(ee, verr)
 	e.validateStatusErrorName(ee.AttributeExpr, verr)
 	body, _ := responseBodySource(ee.AttributeExpr, e.Response)
+	if IsDefaultErrorResult(ee.Type) && IsNullable(ee.AttributeExpr) && IsNullable(body) && strings.EqualFold(strings.TrimSpace(strings.Split(e.Response.ContentType, ";")[0]), "application/problem+json") {
+		verr.Add(e.Response, "a nullable whole problem body requires application/json, not application/problem+json")
+	}
 	validateBodyParameterMetadata(body, "body", e.Response, verr, make(map[*AttributeExpr]bool))
 	// Built-in problem documents reconstruct ServiceError through the problem
 	// adapter, which supplies zero values for omitted properties. Their required
@@ -124,6 +129,10 @@ func (e *HTTPErrorExpr) Finalize(a *HTTPEndpointExpr) {
 	}
 	mt, ok := e.Response.Body.Type.(*ResultTypeExpr)
 	if !ok {
+		return
+	}
+	if IsDefaultErrorResult(e.Type) && IsNullable(e.AttributeExpr) && IsNullable(e.Response.Body) {
+		e.Response.ContentType = "application/json"
 		return
 	}
 	e.Response.ContentType = mt.Identifier

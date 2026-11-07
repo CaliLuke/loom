@@ -63,7 +63,7 @@ func TestRequestMemberAbsenceUsesServiceField(t *testing.T) {
 				payload.Validation = &expr.ValidationExpr{Required: []string{"choice"}}
 			}
 			field := selectedServiceField{Name: "choice", GoName: "Choice"}
-			require.Equal(t, tc.want, requestMemberAbsence(payload, field))
+			require.Equal(t, tc.want, sourceMemberAbsence(payload, field, serviceContext("", nil), "p"))
 		})
 	}
 }

@@ -44,6 +44,12 @@ type (
 		Name string
 		// Type is the resolved error type descriptor.
 		Type TypeDescriptor
+		// Payload is the unchanged authored error value. For nullable errors,
+		// Type is its nominal owner while Payload retains the nullable data.
+		Payload TypeDescriptor
+		// Constructor is the qualified checked nullable-owner constructor, or
+		// empty for ordinary errors whose native type is already an error.
+		Constructor string
 	}
 
 	// StreamDescriptor captures transport-agnostic stream facts derived from a
@@ -134,10 +140,14 @@ func BuildResultDescriptor(svc *Data, method *MethodData, result *expr.Attribute
 // of the same name when the transport inherits an API response mapping.
 func BuildErrorDescriptor(svc *Data, name string, errAttr *expr.AttributeExpr) ErrorDescriptor {
 	pkg := svc.attributePackageName(errAttr)
-	return ErrorDescriptor{
-		Name: name,
-		Type: buildTypeDescriptor(svc.Scope, errAttr, pkg),
+	payload := buildTypeDescriptor(svc.Scope, errAttr, pkg)
+	descriptor := ErrorDescriptor{Name: name, Type: payload, Payload: payload}
+	if expr.IsNullable(errAttr) {
+		owner := nullableErrorAttribute(svc.Scope, name, errAttr)
+		descriptor.Type = buildTypeDescriptor(svc.Scope, owner, svc.PkgName)
+		descriptor.Constructor = svc.PkgName + "." + nullableErrorConstructor(svc.Scope, owner)
 	}
+	return descriptor
 }
 
 // BuildStreamDescriptor returns transport-agnostic stream facts together with

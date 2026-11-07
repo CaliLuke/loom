@@ -10,9 +10,6 @@ func {{ .ResponseEncoder }}(encoder func(context.Context, http.ResponseWriter) l
 			if !ok {
 				return loomhttp.ErrInvalidType("{{ .ServiceName }}", "{{ .Method.Name }}", "{{ .Method.ViewedResult.FullRef }}", v)
 			}
-			{{- if not .Method.ViewedResult.ViewName }}
-				w.Header().Set("loom-view", res.View)
-			{{- end }}
 		{{- else }}
 			res, ok := v.({{ .Result.Ref }})
 			if !ok {
@@ -70,11 +67,17 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
 	{{- range $err := .Errors }}
 		case {{ printf "%q" .Name }}:
 			//nolint:errorlint // Response ownership is already resolved.
-			{{ if .Response.EncodePlan.NeedsErrorSource }}res{{ else }}_{{ end }}, ok := errorResponse.Owner.({{ $err.Ref }})
+			{{ if .Response.ErrorPayload }}errorOwner{{ else if .Response.EncodePlan.NeedsErrorSource }}res{{ else }}_{{ end }}, ok := errorResponse.Owner.({{ $err.Ref }})
 			if !ok {
 				return encodeError(ctx, w, v)
 			}
 			{{- with .Response}}
+				{{- if .ErrorPayload }}
+				{{ if or .EncodePlan.HasBody .Headers .Cookies }}res{{ else }}_{{ end }}, payloadError := errorOwner.Payload()
+				if payloadError != nil {
+					return payloadError
+				}
+				{{- end }}
 				{{- if .ContentType }}
 					ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "{{ .ContentType }}")
 				{{- end }}
@@ -96,8 +99,20 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
 		responseEncoderPartials...,
 	)
 	responseEncoderPartials = []templateSource{
-		{name: "response", source: `	{{- if .EncodePlan.NeedsProblemSource }}
-	problem := loomhttp.NewProblemResponse(ctx, {{ if .ErrorHeader }}v{{ else }}res{{ end }}, {{ .Code }}, {{ .ProblemTypeOverride }}, {{ .ProblemTitleOverride }})
+		{name: "response", source: `	{{- $errorVariable := "res" }}
+	{{- if .ErrorHeader }}{{ $errorVariable = "v" }}{{ end }}
+	{{- $prepareProblem := .ProblemSourcePreparation $errorVariable }}
+	{{- if $prepareProblem }}
+{{ $prepareProblem }}
+	{{- end }}
+	{{- $bodyCondition := "" }}
+	{{- if and .ErrorHeader .EncodePlan.HasBody }}{{ $bodyCondition = "formatter == nil" }}{{ end }}
+	{{- $prepareSource := .EncodePlan.SourcePreparation nil $bodyCondition }}
+	{{- if $prepareSource }}
+{{ $prepareSource }}
+	{{- end }}
+	{{- if and .ViewedResult (not .ViewedResult.ViewName) }}
+	w.Header().Set("loom-view", res.View)
 	{{- end }}
 	{{- if .EncodePlan.HasBody }}
     {{- if not .EncodePlan.FirstBody.Media }}
@@ -137,6 +152,10 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
 	{{- end }}
  {{- $source := "res" }}
  {{- if eq .SourceVar "problem" }}{{ $source = "problem" }}{{ else if .ViewedResult }}{{ $source = "res.Projected" }}{{ end }}
+ {{- if .EncodePlan.FieldSource }}{{ $source = .EncodePlan.FieldSource }}{{ end }}
+ {{- if .EncodePlan.MetadataGuard }}
+ if {{ .EncodePlan.MetadataGuard }} {
+ {{- end }}
 	{{- range .Headers }}
 {{- if .Styled }}
 {{ renderStyledEncode .Element $source "response-header" }}
@@ -144,7 +163,7 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
 		{{- $initDef := and (or .FieldPointer .Slice) (or .DefaultValue (and .Slice (ne .DefaultValue nil))) (not $.Tag) }}
 		{{- $checkNil := and (or .FieldPointer .Slice (eq .Type.Name "bytes") (eq .Type.Name "any") $initDef) (not $.Tag) }}
 		{{- if $checkNil }}
-	if {{ if eq $.SourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}{{ if .FieldName }}.{{ .FieldName }}{{ end }} != nil {
+	if {{ $source }}{{ if .FieldName }}.{{ .FieldName }}{{ end }} != nil {
 		{{- end }}
 
 		{{- if and (eq .Type.Name "string") (not (isAliased .FieldType)) }}
@@ -153,7 +172,7 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
 {{- if not $checkNil }}
 {
 {{- end }}
-	val := {{ if .FieldPointer }}*{{ end }}{{ if eq $.SourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}{{ if .FieldName }}.{{ .FieldName }}{{ end }}
+	val := {{ if .FieldPointer }}*{{ end }}{{ $source }}{{ if .FieldName }}.{{ .FieldName }}{{ end }}
 	{{ if isIntegerValue .AttributeData }}{{ renderIntegerValue .AttributeData .Locals.Encoded "val" "" }}{{ else }}{{ renderHeaderConversion .Type .FieldType .Locals.Encoded "val" .IsTextUnmarshaler }}{{ end }}
 	{{- if .Slice }}
 	if err := loomhttp.SetHeaderValues(w.Header(), "{{ .CanonicalName }}", {{ .Locals.Encoded }}); err != nil {
@@ -168,7 +187,7 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
 		{{- end }}
 
 		{{- if $initDef }}
-	{{ if $checkNil }} } else { {{ else }}if {{ if eq $.SourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}.{{ .FieldName }} == nil { {{ end }}
+	{{ if $checkNil }} } else { {{ else }}if {{ $source }}.{{ .FieldName }} == nil { {{ end }}
 		{{- if .Slice }}
 		val := {{ printf "%#v" .DefaultValue }}
 		{{ renderHeaderConversion .Type .Type .Locals.Encoded "val" false }}
@@ -191,18 +210,18 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
 		{{- $initDef := and (or .FieldPointer .Slice) .DefaultValue }}
 		{{- $checkNil := and (or .FieldPointer .Slice (eq .Type.Name "bytes") (eq .Type.Name "any") $initDef) }}
 		{{- if $checkNil }}
-	if {{ if eq $.SourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}.{{ .FieldName }} != nil {
+	if {{ $source }}.{{ .FieldName }} != nil {
 		{{- end }}
 
 		{{- if and (eq .Type.Name "string") (not (isAliased .FieldType)) }}
 	{{ .VarName }} := {{ transportScalarValue .Type .FieldType (transportFieldReference .AttributeData $source) .IsTextUnmarshaler }}
 		{{- else }}
-	{{ .Locals.EncodedRaw }} := {{ if .FieldPointer }}*{{ end }}{{ if eq $.SourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}{{ if .FieldName }}.{{ .FieldName }}{{ end }}
+	{{ .Locals.EncodedRaw }} := {{ if .FieldPointer }}*{{ end }}{{ $source }}{{ if .FieldName }}.{{ .FieldName }}{{ end }}
 	{{ if isIntegerValue .AttributeData }}{{ renderIntegerValue .AttributeData .VarName .Locals.EncodedRaw "" }}{{ else }}{{ renderHeaderConversion .Type .FieldType .VarName .Locals.EncodedRaw .IsTextUnmarshaler }}{{ end }}
 		{{- end }}
 
 		{{- if $initDef }}
-	{{ if $checkNil }} } else { {{ else }}if {{ if eq $.SourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}.{{ .FieldName }} == nil { {{ end }}
+	{{ if $checkNil }} } else { {{ else }}if {{ $source }}.{{ .FieldName }} == nil { {{ end }}
 		{{ .VarName }} := "{{ printValue .Type .DefaultValue }}"
 		{{- end }}
 		if err := loomhttp.SetResponseCookie(ctx, w, &http.Cookie{
@@ -235,8 +254,12 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
 
 	{{- end }}
 
+	{{- if .EncodePlan.MetadataGuard }}
+ }
+	{{- end }}
+
 	{{- if and .ErrorHeader (not .ErrorNameFromStatus) }}
-	w.Header().Set("loom-error", res.LoomErrorName())
+	w.Header().Set("loom-error", {{ if .ErrorPayload }}{{ printf "%q" .ErrorHeader }}{{ else }}res.LoomErrorName(){{ end }})
 	{{- end }}
     {{- if and .EncodePlan.HasBody .EncodePlan.FirstBody.Media }}
     {{- if .ErrorHeader }}

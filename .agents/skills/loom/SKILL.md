@@ -765,6 +765,22 @@ Other important OpenAPI usage rules:
 
 ## Errors and Remediation
 
+Nullable HTTP/JSON-RPC error payloads use generated nominal owners: call
+`New<Name>Error(loom.NullValue[T]())` (or `NullableValue(value)`) and handle its
+error. `Payload()` returns the checked nullable value and an error; generic
+`loom.Nullable[T]` does not implement error. Concrete `ErrorName` must match the
+owner's declared name. Missing and explicit JSON-RPC data null remain distinct;
+ambiguous null error candidates are rejected. Regenerate and use the generated
+constructor. gRPC nullable errors remain unsupported.
+
+For HTTP results and errors, `Body("field")` requires a concrete parent, while
+the selected member must be supplied and retains its own nullability. Optional
+selected members cannot be absent. Metadata-only mappings likewise require a
+concrete parent and reconstruct one on clients, with normal defaults and
+requiredness checks. Whole-body null cannot carry
+mapped headers/cookies or satisfy required metadata. Missing metadata defaults
+do not turn null into a concrete parent. See `docs/error-handling.md`.
+
 Unknown service errors return `internal server error`. Explicit `ServiceError`
 and generated error messages are public unless `SafeMessage` overrides them.
 Single-cause wrappers keep their diagnostic text private; independent joins use

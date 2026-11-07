@@ -305,39 +305,7 @@ func TestSelectedStreamProjectionInventory(t *testing.T) {
 	for _, transport := range []string{"sse", "websocket"} {
 		t.Run(transport, func(t *testing.T) {
 			root := RunJSONRPCDSL(t, func() {
-				API("selectedstream", func() {
-					JSONRPC(func() {
-					})
-				})
-				Service("events", func() {
-					JSONRPC(func() {
-						if transport == "websocket" {
-							GET("/rpc")
-						} else {
-							POST("/rpc")
-						}
-					})
-					Method("watch", func() {
-						if transport == "websocket" {
-							StreamingPayload(String)
-						} else {
-							StreamingResult(String)
-						}
-						Result(func() {
-							Attribute("value", String)
-							Attribute("internal", String)
-							Required("value")
-						})
-						JSONRPC(func() {
-							if transport == "sse" {
-								ServerSentEvents()
-							}
-							Response(StatusOK, func() {
-								Body("value")
-							})
-						})
-					})
-				})
+				selectedJSONRPCStreamProjectionDSL(transport, false)
 			})
 			data := CreateJSONRPCServices(root)
 			for _, name := range []string{"events"} {
@@ -360,6 +328,45 @@ func TestSelectedStreamProjectionInventory(t *testing.T) {
 			}
 		})
 	}
+}
+
+func selectedJSONRPCStreamProjectionDSL(transport string, nullable bool) {
+	API("selectedstream", func() {
+		JSONRPC(func() {
+		})
+	})
+	Service("events", func() {
+		JSONRPC(func() {
+			if transport == "websocket" {
+				GET("/rpc")
+			} else {
+				POST("/rpc")
+			}
+		})
+		Method("watch", func() {
+			if transport == "websocket" {
+				StreamingPayload(String)
+			} else {
+				StreamingResult(String)
+			}
+			Result(func() {
+				if nullable {
+					Nullable()
+				}
+				Attribute("value", String)
+				Attribute("internal", String)
+				Required("value")
+			})
+			JSONRPC(func() {
+				if transport == "sse" {
+					ServerSentEvents()
+				}
+				Response(StatusOK, func() {
+					Body("value")
+				})
+			})
+		})
+	})
 }
 
 const selectedWebSocketProjectionHarness = `package selectedstream_test

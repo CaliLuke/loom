@@ -81,6 +81,9 @@ func collectServiceTypeSections(svc *Data, svcPath string) *serviceTypeSections 
 	errorTypes := collectErrorTypeSections(svc, svcPath, addTypeDefSection, seen)
 	types.svcSections = append(types.svcSections, buildErrorSections(errorTypes, svc, svcPath, addTypeDefSection)...)
 	types.svcSections = append(types.svcSections, buildTypeInitSections(svc)...)
+	for _, owner := range svc.nullableErrors {
+		types.svcSections = append(types.svcSections, nullableErrorSection(svc, owner))
+	}
 	return types
 }
 
@@ -93,6 +96,9 @@ func serviceFileImports(genpkg string, svc *Data, utf8 bool) []*codegen.ImportSp
 		codegen.LoomImport(""),
 		codegen.LoomImport("security"),
 		codegen.NewImport(svc.ViewsPkg, genpkg+"/"+svc.PathName+"/views"),
+	}
+	if len(svc.nullableErrors) > 0 {
+		imports = append(imports, codegen.SimpleImport("fmt"))
 	}
 	if len(svc.unions) > 0 {
 		imports = append(imports,
@@ -472,7 +478,7 @@ func errorInitSection(data *ErrorInitData) codegen.Section {
 	return codegen.NewJenniferSection("error-init-func", func(stmt *jen.Statement) {
 		codegen.Doc(stmt, fmt.Sprintf("%s builds a %s from an error.", data.Name, data.TypeName))
 		stmt.Func().Id(data.Name).Params(jen.Id("err").Error()).Add(codegen.TypeRef(data.TypeRef)).BlockFunc(func(group *jen.Group) {
-			if data.RemedyCode != "" || data.SafeMessage != "" || data.RetryHint != "" {
+			if data.Nullable || data.RemedyCode != "" || data.SafeMessage != "" || data.RetryHint != "" {
 				group.Id("serr").Op(":=").Add(codegen.Expr("loom.NewServiceError")).Call(
 					jen.Id("err"),
 					jen.Lit(data.ErrName),
@@ -480,19 +486,25 @@ func errorInitSection(data *ErrorInitData) codegen.Section {
 					jen.Lit(data.Temporary),
 					jen.Lit(data.Fault),
 				)
-				group.Add(codegen.Expr("loom.WithErrorRemedy")).Call(
-					jen.Id("serr"),
-					jen.Op("&").Qual("github.com/CaliLuke/loom", "ErrorRemedy").CustomFunc(jen.Options{
-						Open:      "{",
-						Close:     "}",
-						Separator: ",",
-						Multi:     true,
-					}, func(values *jen.Group) {
-						values.Id("Code").Op(":").Lit(data.RemedyCode)
-						values.Id("SafeMessage").Op(":").Lit(data.SafeMessage)
-						values.Id("RetryHint").Op(":").Lit(data.RetryHint)
-					}),
-				)
+				if data.RemedyCode != "" || data.SafeMessage != "" || data.RetryHint != "" {
+					group.Add(codegen.Expr("loom.WithErrorRemedy")).Call(
+						jen.Id("serr"),
+						jen.Op("&").Qual("github.com/CaliLuke/loom", "ErrorRemedy").CustomFunc(jen.Options{
+							Open:      "{",
+							Close:     "}",
+							Separator: ",",
+							Multi:     true,
+						}, func(values *jen.Group) {
+							values.Id("Code").Op(":").Lit(data.RemedyCode)
+							values.Id("SafeMessage").Op(":").Lit(data.SafeMessage)
+							values.Id("RetryHint").Op(":").Lit(data.RetryHint)
+						}),
+					)
+				}
+				if data.Nullable {
+					group.Return(jen.Op("&").Add(codegen.TypeRef(data.TypeName)).Values(jen.Dict{jen.Id("payload"): codegen.Expr("loom.NullableValue").Call(jen.Id("serr"))}))
+					return
+				}
 				group.Return(jen.Id("serr"))
 				return
 			}

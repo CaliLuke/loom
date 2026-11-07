@@ -132,7 +132,7 @@ func sseEventBodyInit(resultVar, view string, ed *httpcodegen.EndpointData) stri
 		if code, ok := viewedStreamResultBodyInit(resultVar, view, response, ed); ok {
 			return code
 		}
-		return responseBodyInit(resultVar, response, ed.SSE.ResponseBodies)
+		return responseBodyInit(resultVar, response, ed.SSE.ResponseBodies, nil)
 	}
 	return fmt.Sprintf("body := %s", resultVar)
 }

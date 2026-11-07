@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/CaliLuke/loom/internal/representation"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/expr"
@@ -37,7 +39,7 @@ func TestObjectDefaultCarrierRuntime(t *testing.T) {
 			helpers := codePlan.Helpers
 			require.NoError(t, err)
 			require.Empty(t, helpers)
-			concrete := scope.GoTypeName(concretePresenceAttribute(leaf))
+			concrete := scope.GoTypeName(representation.ConcreteAttribute(leaf))
 			sourceRef, targetRef := "*"+concrete, "*"+concrete
 			if carrier == "Optional" {
 				sourceRef = "loom.Optional[" + concrete + "]"

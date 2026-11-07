@@ -51,6 +51,7 @@ func (d *ServicesData) analyze(service *expr.ServiceExpr) (data *Data) {
 	assignAuthenticationFields(methods, scope)
 	unions := collectServiceUnions(service, state.types, state.errTypes, scope)
 	data = newServiceData(d, service, scope, viewScope, pkgName, viewspkg, methods, schemes, state.types, state.projTypes, state.errTypes, state.errorInits, viewedRTs, unions, interceptorSymbols)
+	data.nullableErrors = d.collectNullableErrors(service, scope)
 	data.Authorization = buildAuthorizationData(service, data)
 	d.Services[service.Name] = data
 	svcCtx.Debug("analyzed service",

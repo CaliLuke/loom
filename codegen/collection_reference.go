@@ -1,6 +1,9 @@
 package codegen
 
-import "github.com/CaliLuke/loom/expr"
+import (
+	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/representation"
+)
 
 // CollectionElementRef returns the physical Go reference stored in a collection
 // slot. Objects use pointers; unions and explicit presence types use values.
@@ -15,7 +18,7 @@ func (context *AttributeContext) CollectionElementRef(attribute *expr.AttributeE
 	context = transformPhysicalContext(attribute, context)
 	metaType, _ := GetMetaType(attribute)
 	if _, named := attribute.Type.(expr.UserType); !named && metaType == "" {
-		concrete := concretePresenceAttribute(attribute)
+		concrete := representation.ConcreteAttribute(attribute)
 		var ref string
 		switch typ := concrete.Type.(type) {
 		case *expr.Array:

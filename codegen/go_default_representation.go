@@ -167,7 +167,7 @@ func (r *defaultRenderer) union(att *expr.AttributeExpr, actual *expr.Union, occ
 }
 
 func (r *defaultRenderer) nullable(att *expr.AttributeExpr, occurrence expr.ValueOccurrence, value expr.ResolvedValue, context *AttributeContext, path string) (string, error) {
-	concrete := concretePresenceAttribute(att)
+	concrete := representation.ConcreteAttribute(att)
 	ctx := presenceValueContext(context, concrete)
 	ref := presenceValueTypeRef(att, ctx)
 	if value.Presence() == expr.ValueNull {

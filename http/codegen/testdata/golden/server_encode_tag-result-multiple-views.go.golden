@@ -6,8 +6,8 @@ func EncodeMethodTagMultipleViewsResponse(encoder func(context.Context, http.Res
 		if !ok {
 			return loomhttp.ErrInvalidType("ServiceTagMultipleViews", "MethodTagMultipleViews", "*servicetagmultipleviewsviews.Resulttypemultipleviews", v)
 		}
-		w.Header().Set("loom-view", res.View)
 		if res.Projected.B != nil && *res.Projected.B == "value" {
+			w.Header().Set("loom-view", res.View)
 			enc := encoder(ctx, w)
 			var body any
 			switch res.View {
@@ -20,6 +20,7 @@ func EncodeMethodTagMultipleViewsResponse(encoder func(context.Context, http.Res
 			w.WriteHeader(http.StatusAccepted)
 			return enc.Encode(body)
 		}
+		w.Header().Set("loom-view", res.View)
 		enc := encoder(ctx, w)
 		var body any
 		switch res.View {

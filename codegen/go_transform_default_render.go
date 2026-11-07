@@ -1,6 +1,7 @@
 package codegen
 
 import (
+	"github.com/CaliLuke/loom/internal/representation"
 	"github.com/dave/jennifer/jen"
 
 	"github.com/CaliLuke/loom/expr"
@@ -13,10 +14,10 @@ func (p DefaultApplication) materialization(ta *TransformAttrs) (DefaultValueCod
 		return DefaultValueCode{}, p.err
 	}
 	if p.admittedSource {
-		return ta.SourceCtx.DefaultValue(concretePresenceAttribute(p.source), p.Value,
+		return ta.SourceCtx.DefaultValue(representation.ConcreteAttribute(p.source), p.Value,
 			DefaultValueOptions{MaterializeMembers: true})
 	}
-	return ta.TargetCtx.DefaultValue(concretePresenceAttribute(p.target), p.Value)
+	return ta.TargetCtx.DefaultValue(representation.ConcreteAttribute(p.target), p.Value)
 }
 
 func (p DefaultApplication) assignment(targetVar string, presence PresenceKind, ta *TransformAttrs) (*jen.Statement, error) {
@@ -27,7 +28,7 @@ func (p DefaultApplication) assignment(targetVar string, presence PresenceKind, 
 	if err != nil {
 		return nil, err
 	}
-	target := concretePresenceAttribute(p.target)
+	target := representation.ConcreteAttribute(p.target)
 	if !p.admittedSource {
 		literal := value.Expression
 		if presence != NativePresence {

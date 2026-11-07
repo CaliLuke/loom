@@ -175,7 +175,7 @@ func writeSSEHandlerInitBody(g *jen.Group, e *httpcodegen.EndpointData) {
 				eg.Id("code").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "InternalError")
 				eg.Id("errorResponse").Op(":=").Id("loom").Dot("ResolveErrorResponse").Call(jen.Id("err"))
 				eg.Comment("nolint:errorlint // Response ownership is already resolved.")
-				eg.If(jen.List(jen.Id("serviceError"), jen.Id("ok")).Op(":=").Id("errorResponse").Dot("Owner").Assert(codegen.TypeRef("*loom.ServiceError")), jen.Id("ok")).Block(
+				eg.If(jen.Id("serviceError").Op(":=").Id("errorResponse").Dot("ServiceError"), jen.Id("serviceError").Op("!=").Nil()).Block(
 					jen.Id("code").Op("=").Qual("github.com/CaliLuke/loom/jsonrpc", "CodeForServiceError").Call(jen.Id("serviceError")),
 				)
 				eg.Return(jen.Id("strm").Dot("sendError").Call(
@@ -321,7 +321,7 @@ func writeJSONRPCParamsDecode(g *jen.Group, e *httpcodegen.EndpointData) {
 			jen.Id("code").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "InternalError"),
 			jen.Id("errorResponse").Op(":=").Id("loom").Dot("ResolveErrorResponse").Call(jen.Id("err")),
 			jen.Comment("nolint:errorlint // Response ownership is already resolved."),
-			jen.If(jen.List(jen.Id("serviceError"), jen.Id("ok")).Op(":=").Id("errorResponse").Dot("Owner").Assert(codegen.TypeRef("*loom.ServiceError")), jen.Id("ok")).Block(
+			jen.If(jen.Id("serviceError").Op(":=").Id("errorResponse").Dot("ServiceError"), jen.Id("serviceError").Op("!=").Nil()).Block(
 				jen.Id("code").Op("=").Qual("github.com/CaliLuke/loom/jsonrpc", "CodeForServiceError").Call(jen.Id("serviceError")),
 			),
 			jen.Id("encodeJSONRPCError").Call(
@@ -366,7 +366,7 @@ func writeJSONRPCEndpointErrorHandling(g *jen.Group, e *httpcodegen.EndpointData
 			idg.If(jen.Id("errorResponse").Dot("Owner").Op("==").Nil()).Block(
 				jen.Id("code").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "InternalError"),
 				jen.Comment("nolint:errorlint // Response ownership is already resolved."),
-				jen.If(jen.List(jen.Id("serviceError"), jen.Id("ok")).Op(":=").Id("errorResponse").Dot("Owner").Assert(codegen.TypeRef("*loom.ServiceError")), jen.Id("ok")).Block(
+				jen.If(jen.Id("serviceError").Op(":=").Id("errorResponse").Dot("ServiceError"), jen.Id("serviceError").Op("!=").Nil()).Block(
 					jen.Id("code").Op("=").Qual("github.com/CaliLuke/loom/jsonrpc", "CodeForServiceError").Call(jen.Id("serviceError")),
 				),
 				writeJSONRPCEncodeErrorCall(jen.Id("code")),
@@ -432,7 +432,7 @@ func writeJSONRPCMappedError(g *jen.Group, item *httpcodegen.ErrorData) {
 		return
 	}
 
-	initialization, value, source := mappedErrorBody(response)
+	initialization, value, source := mappedErrorBody(response, jsonrpcPreparationFailure)
 	g.Comment("nolint:errorlint // Response ownership is already resolved.")
 	g.If(jen.List(jen.Id(source), jen.Id("ok")).Op(":=").Id("errorResponse").Dot("Owner").Assert(codegen.TypeRef(item.Ref)), jen.Id("ok")).BlockFunc(func(cg *jen.Group) {
 		cg.Add(codegen.Expr(initialization))
@@ -446,7 +446,7 @@ func writeJSONRPCMappedError(g *jen.Group, item *httpcodegen.ErrorData) {
 func writeJSONRPCDefaultEndpointError(g *jen.Group) {
 	g.Id("code").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "InternalError")
 	g.Comment("nolint:errorlint // Response ownership is already resolved.")
-	g.If(jen.List(jen.Id("serviceError"), jen.Id("ok")).Op(":=").Id("errorResponse").Dot("Owner").Assert(codegen.TypeRef("*loom.ServiceError")), jen.Id("ok")).Block(
+	g.If(jen.Id("serviceError").Op(":=").Id("errorResponse").Dot("ServiceError"), jen.Id("serviceError").Op("!=").Nil()).Block(
 		jen.Id("code").Op("=").Qual("github.com/CaliLuke/loom/jsonrpc", "CodeForServiceError").Call(jen.Id("serviceError")),
 	)
 	g.Add(writeJSONRPCEncodeErrorCall(jen.Id("code")))
@@ -486,12 +486,12 @@ func writeJSONRPCResultSuccess(g *jen.Group, e *httpcodegen.EndpointData) {
 	source := fmt.Sprintf("res.(%s)", e.Result.Ref)
 	if viewed := e.Method.ViewedResult; viewed != nil {
 		g.Id("viewedRes").Op(":=").Id("res").Assert(codegen.TypeRef(viewed.FullRef))
-		if viewed.ViewName == "" {
-			g.Id("w").Dot("Header").Call().Dot("Set").Call(jen.Lit("loom-view"), jen.Id("viewedRes").Dot("View"))
-		}
 		source = "viewedRes"
 	}
-	g.Add(codegen.Expr(responseBodyInit(source, success, success.ServerBody)))
+	g.Add(codegen.Expr(responseBodyInit(source, success, success.ServerBody, jsonrpcPreparationFailure)))
+	if viewed := e.Method.ViewedResult; viewed != nil && viewed.ViewName == "" {
+		g.Id("w").Dot("Header").Call().Dot("Set").Call(jen.Lit("loom-view"), jen.Id("viewedRes").Dot("View"))
+	}
 	g.Id("response").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "MakeSuccessResponse").Call(jen.Id("id"), jen.Id("body"))
 	g.If(
 		jen.Err().Op(":=").Id("encoder").Call(jen.Id("ctx"), jen.Id("w")).Dot("Encode").Call(jen.Id("response")),
@@ -516,4 +516,16 @@ func hasJSONRPCResponseBody(e *httpcodegen.EndpointData) bool {
 	}
 	response := e.Result.Responses[0]
 	return response != nil && response.EncodePlan != nil && response.EncodePlan.HasBody
+}
+
+// jsonrpcPreparationFailure completes a pre-publication failure through the
+// existing safe protocol encoder. Returning it to Dispatch would instead use
+// the transport-failure callback and leave the request without an envelope.
+func jsonrpcPreparationFailure(value string) string {
+	code := &jen.Statement{}
+	code.Id("err").Op(":=").Add(codegen.Expr(value)).Line()
+	code.Add(loomtransportRef("RequestObserverFromContext")).Call(jen.Id("ctx")).Dot("Fail").Call(loomtransportRef("ReasonHandlerError")).Line()
+	code.Add(writeJSONRPCEncodeErrorCall(jen.Qual("github.com/CaliLuke/loom/jsonrpc", "InternalError"))).Line()
+	code.Return(jen.Nil())
+	return fmt.Sprintf("%#v", code)
 }

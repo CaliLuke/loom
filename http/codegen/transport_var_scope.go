@@ -59,6 +59,7 @@ var pathLocalNames = []string{
 var responseLocalNames = []string{
 	"body", "cookies", "ctx", "decoder", "en", "enc", "encodeError", "encoder", "err", "err2", "formatter",
 	"i", "p", "problem", "pv", "res", "resp", "restoreBody", "rv", "v", "view", "vres", "w",
+	"responseValue", "responseHasValue", "responseMetadataPresent", "errorOwner", "payloadError",
 }
 
 // newRequestVarScope returns the variable scope of the server request

@@ -1,3 +1,28 @@
+// EncodeBodylessResponse returns an encoder for responses returned by the
+// selection bodyless endpoint.
+func EncodeBodylessResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
+	return func(ctx context.Context, w http.ResponseWriter, v any) error {
+		res, ok := v.(*selection.BodylessResult)
+		if !ok {
+			return loomhttp.ErrInvalidType("selection", "bodyless", "*selection.BodylessResult", v)
+		}
+		if func() bool {
+			if res == nil {
+				return false
+			}
+			if res.Kind != nil && *res.Kind == "accepted" {
+				return true
+			}
+			return false
+		}() {
+			w.WriteHeader(http.StatusAccepted)
+			return nil
+		}
+		w.WriteHeader(http.StatusOK)
+		return nil
+	}
+}
+
 // EncodeDefaultFirstResponse returns an encoder for responses returned by the
 // selection default_first endpoint.
 func EncodeDefaultFirstResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
@@ -6,7 +31,19 @@ func EncodeDefaultFirstResponse(encoder func(context.Context, http.ResponseWrite
 		if !ok {
 			return loomhttp.ErrInvalidType("selection", "default_first", "*selection.SelectionResult", v)
 		}
-		if res.First == "yes" {
+		if func() bool {
+			if res == nil {
+				return false
+			}
+			if res.First == "yes" {
+				return true
+			}
+			return false
+		}() {
+			if res == nil {
+				return fmt.Errorf("selected response value is absent")
+			}
+
 			enc := encoder(ctx, w)
 			body := res.Message
 			w.Header().Set("X-Trace", res.Trace)
@@ -15,7 +52,19 @@ func EncodeDefaultFirstResponse(encoder func(context.Context, http.ResponseWrite
 			w.WriteHeader(http.StatusCreated)
 			return enc.Encode(body)
 		}
-		if res.Second == "yes" {
+		if func() bool {
+			if res == nil {
+				return false
+			}
+			if res.Second == "yes" {
+				return true
+			}
+			return false
+		}() {
+			if res == nil {
+				return fmt.Errorf("selected response value is absent")
+			}
+
 			enc := encoder(ctx, w)
 			body := res.Message
 			w.Header().Set("X-Trace", res.Trace)
@@ -24,6 +73,10 @@ func EncodeDefaultFirstResponse(encoder func(context.Context, http.ResponseWrite
 			w.WriteHeader(http.StatusAccepted)
 			return enc.Encode(body)
 		}
+		if res == nil {
+			return fmt.Errorf("selected response value is absent")
+		}
+
 		enc := encoder(ctx, w)
 		body := res.Message
 		w.Header().Set("X-Trace", res.Trace)
@@ -42,7 +95,19 @@ func EncodeDefaultMiddleResponse(encoder func(context.Context, http.ResponseWrit
 		if !ok {
 			return loomhttp.ErrInvalidType("selection", "default_middle", "*selection.SelectionResult", v)
 		}
-		if res.First == "yes" {
+		if func() bool {
+			if res == nil {
+				return false
+			}
+			if res.First == "yes" {
+				return true
+			}
+			return false
+		}() {
+			if res == nil {
+				return fmt.Errorf("selected response value is absent")
+			}
+
 			enc := encoder(ctx, w)
 			body := res.Message
 			w.Header().Set("X-Trace", res.Trace)
@@ -51,7 +116,19 @@ func EncodeDefaultMiddleResponse(encoder func(context.Context, http.ResponseWrit
 			w.WriteHeader(http.StatusCreated)
 			return enc.Encode(body)
 		}
-		if res.Second == "yes" {
+		if func() bool {
+			if res == nil {
+				return false
+			}
+			if res.Second == "yes" {
+				return true
+			}
+			return false
+		}() {
+			if res == nil {
+				return fmt.Errorf("selected response value is absent")
+			}
+
 			enc := encoder(ctx, w)
 			body := res.Message
 			w.Header().Set("X-Trace", res.Trace)
@@ -60,6 +137,10 @@ func EncodeDefaultMiddleResponse(encoder func(context.Context, http.ResponseWrit
 			w.WriteHeader(http.StatusAccepted)
 			return enc.Encode(body)
 		}
+		if res == nil {
+			return fmt.Errorf("selected response value is absent")
+		}
+
 		enc := encoder(ctx, w)
 		body := res.Message
 		w.Header().Set("X-Trace", res.Trace)
@@ -78,7 +159,19 @@ func EncodeDefaultLastResponse(encoder func(context.Context, http.ResponseWriter
 		if !ok {
 			return loomhttp.ErrInvalidType("selection", "default_last", "*selection.SelectionResult", v)
 		}
-		if res.First == "yes" {
+		if func() bool {
+			if res == nil {
+				return false
+			}
+			if res.First == "yes" {
+				return true
+			}
+			return false
+		}() {
+			if res == nil {
+				return fmt.Errorf("selected response value is absent")
+			}
+
 			enc := encoder(ctx, w)
 			body := res.Message
 			w.Header().Set("X-Trace", res.Trace)
@@ -87,7 +180,19 @@ func EncodeDefaultLastResponse(encoder func(context.Context, http.ResponseWriter
 			w.WriteHeader(http.StatusCreated)
 			return enc.Encode(body)
 		}
-		if res.Second == "yes" {
+		if func() bool {
+			if res == nil {
+				return false
+			}
+			if res.Second == "yes" {
+				return true
+			}
+			return false
+		}() {
+			if res == nil {
+				return fmt.Errorf("selected response value is absent")
+			}
+
 			enc := encoder(ctx, w)
 			body := res.Message
 			w.Header().Set("X-Trace", res.Trace)
@@ -96,6 +201,10 @@ func EncodeDefaultLastResponse(encoder func(context.Context, http.ResponseWriter
 			w.WriteHeader(http.StatusAccepted)
 			return enc.Encode(body)
 		}
+		if res == nil {
+			return fmt.Errorf("selected response value is absent")
+		}
+
 		enc := encoder(ctx, w)
 		body := res.Message
 		w.Header().Set("X-Trace", res.Trace)

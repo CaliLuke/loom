@@ -11,22 +11,7 @@ import (
 
 func TestSelectedStreamProjectionReadiness(t *testing.T) {
 	root := RunHTTPDSL(t, func() {
-		Service("events", func() {
-			Method("watch", func() {
-				StreamingPayload(String)
-				Result(func() {
-					Attribute("value", String)
-					Attribute("internal", String)
-					Required("value")
-				})
-				HTTP(func() {
-					GET("/rpc")
-					Response(StatusOK, func() {
-						Body("value")
-					})
-				})
-			})
-		})
+		selectedWebSocketProjectionDSL(false)
 	})
 	dir := t.TempDir()
 	if base := os.Getenv("LOOM_PROJECTION_ARTIFACTS"); base != "" {
@@ -39,6 +24,28 @@ func TestSelectedStreamProjectionReadiness(t *testing.T) {
 	runGoCommand(t, dir, "vet", "./...")
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "response_test.go"), []byte(selectedWebSocketProjectionHarness), 0o600))
 	runGoCommand(t, dir, "test", "-race", "-count=1", "./...")
+}
+
+func selectedWebSocketProjectionDSL(nullable bool) {
+	Service("events", func() {
+		Method("watch", func() {
+			StreamingPayload(String)
+			Result(func() {
+				if nullable {
+					Nullable()
+				}
+				Attribute("value", String)
+				Attribute("internal", String)
+				Required("value")
+			})
+			HTTP(func() {
+				GET("/rpc")
+				Response(StatusOK, func() {
+					Body("value")
+				})
+			})
+		})
+	})
 }
 
 const selectedWebSocketProjectionHarness = `package selectedstream_test

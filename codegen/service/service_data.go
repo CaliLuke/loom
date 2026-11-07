@@ -79,7 +79,8 @@ type (
 		// userTypes lists the type definitions that the service depends on.
 		userTypes []*UserTypeData
 		// errorTypes lists the error type definitions that the service depends on.
-		errorTypes []*UserTypeData
+		nullableErrors []*nullableErrorData
+		errorTypes     []*UserTypeData
 		// errorInits list the information required to generate error init
 		// functions.
 		errorInits []*ErrorInitData
@@ -366,6 +367,8 @@ type (
 		TypeName string
 		// TypeRef is the reference to the error type.
 		TypeRef string
+		// Nullable records a nominal owner with a nullable default payload.
+		Nullable bool
 		// Temporary indicates whether the error is temporary.
 		Temporary bool
 		// Timeout indicates whether the error is due to timeouts.

@@ -3,6 +3,7 @@ package codegen
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
@@ -29,9 +30,15 @@ func responseTagData(tag *expr.HTTPResponseTag, result *expr.AttributeExpr, view
 		panic(fmt.Sprintf("response Tag %q is missing from its physical result representation", tag.Key))
 	}
 	name := context.Scope.Field(attribute, expr.AttributeName(key), true)
-	server, client := "res."+name, "res."+name
+	nativeSource := responseNativeSource(viewed)
+	clientSource := "res"
 	if viewed {
-		server, client = "res.Projected."+name, "p."+name
+		clientSource = "p"
+	}
+	server, client := nativeSource+"."+name, clientSource+"."+name
+	nullable := expr.IsNullable(result)
+	if nullable {
+		server, client = "responseValue."+name, "responseValue."+name
 	}
 	literal := strconv.Quote(tag.Value)
 	data := &ResponseTagData{Field: name}
@@ -50,6 +57,16 @@ func responseTagData(tag *expr.HTTPResponseTag, result *expr.AttributeExpr, view
 		} else {
 			data.Match = server + " == " + literal
 			data.Assignment = client + " = " + literal
+		}
+	}
+	if nullable {
+		data.Match = "func() bool {\nresponseValue, responseHasValue := " + nativeSource + ".Value()\nif !responseHasValue {\nreturn false\n}\nif " + data.Match + " {\nreturn true\n}\nreturn false\n}()"
+		data.Assignment = "responseValue, responseHasValue := " + clientSource + ".Value()\nif !responseHasValue {\nreturn nil, fmt.Errorf(\"response tag requires a concrete result\")\n}\n" + data.Assignment + "\n" + clientSource + ".SetValue(responseValue)"
+	}
+	if !nullable {
+		pointer := strings.HasPrefix(context.Scope.Ref(result, context.Pkg(result)), "*")
+		if absent := sourceValueAbsence(result, nativeSource, pointer); absent != "" {
+			data.Match = "func() bool {\nif " + absent + " {\nreturn false\n}\nif " + data.Match + " {\nreturn true\n}\nreturn false\n}()"
 		}
 	}
 	return data

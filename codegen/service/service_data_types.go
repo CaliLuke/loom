@@ -381,12 +381,18 @@ func buildErrorInitData(er *expr.ErrorExpr, scope *codegen.NameScope) *ErrorInit
 	if ut, ok := er.Type.(expr.UserType); ok {
 		pkg = scope.PackageName(codegen.UserTypeLocation(ut))
 	}
+	attribute := er.AttributeExpr
+	if expr.IsNullable(attribute) {
+		attribute = nullableErrorAttribute(scope, er.Name, attribute)
+		pkg = ""
+	}
 	return &ErrorInitData{
 		Name:        errorConstructorName(er, scope),
 		Description: er.Description,
 		ErrName:     er.Name,
-		TypeName:    scope.GoTypeName(er.AttributeExpr),
-		TypeRef:     scope.GoFullTypeRef(er.AttributeExpr, pkg),
+		Nullable:    expr.IsNullable(er.AttributeExpr),
+		TypeName:    scope.GoTypeName(attribute),
+		TypeRef:     scope.GoFullTypeRef(attribute, pkg),
 		Temporary:   temporary,
 		Timeout:     timeout,
 		Fault:       fault,

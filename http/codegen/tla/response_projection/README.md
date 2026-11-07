@@ -147,3 +147,208 @@ finite representation model, not a proof of JSON encoding or object validation.
 `TestExplicitEmptyResponseBody` checks actual DSL preparation, and the extended
 InlineBodySelection and JSON-RPC bodyless fixtures check rendered compilation,
 wire objects, client reconstruction, metadata, and retained implicit null results.
+
+## Nullable parent storage and metadata
+
+`NullableResponseProjection.tla` extends the earlier assumption that nullable
+representations were already resolved. The concrete witness accessed selected
+body/header fields on a Nullable wrapper and emitted uncompilable clients and
+servers for ordinary results and errors. The corrected projection extracts the
+concrete value before field access. An explicit selected body requires a concrete
+parent; its child's authored nullability remains independent. Whole-body null is
+accepted only without supplied mapped metadata and without required metadata.
+Defaults do not count as wire-supplied metadata or create a parent.
+
+Run the same pinned TLC tool explicitly:
+
+```sh
+java -cp /path/to/tla2tools-1.7.4.jar tlc2.TLC -workers 1 \
+  -metadir /tmp/loom-nullable-response-model \
+  -config nullable-owned.cfg NullableResponseProjection.tla
+```
+
+| Configuration | Expected exit / property | Generated / distinct states |
+| --- | --- | --- |
+| nullable-owned | 0, all listed invariants | 3456 / 3456 |
+| nullable-wrapper-fields | 12, FieldStorage | 1729 / 1729 |
+| nullable-zero-parent | 12, CheckedPublication | 1729 / 1729 |
+| nullable-drop-header | 12, CheckedPublication | 2265 / 2265 |
+| nullable-parent-only | 12, CheckedPublication | 1777 / 1777 |
+| nullable-whole-body-reuse | 12, ValidReconstruction | 3217 / 3217 |
+| nullable-missing-object | 12, FieldStorage | 2065 / 2065 |
+| nullable-view-wrapper | 12, NativeBinding | 1796 / 1796 |
+
+Each run needs its own temporary metadir. This remains an opt-in design tool.
+`CheckedPublication` rejects invalid combinations before publication;
+`SelectedParent` and `PresencePreserved` additionally constrain successful
+reconstruction. The model abstracts headers/cookies to one supplied bit and
+constraints to requiredness/child nullability. It assumes the existing native
+field layout, checked scalar conversion and actual codec null-admission owners;
+those are tested separately, not proved by this state machine.
+
+`internal/representation.ConcreteAttribute` retains root/child identity while
+extracting storage. `nullable_response_projection.go` captures checked binding,
+metadata presence and reconstruction; the response/body/constructor owners and
+shared EncodePlan consume it. `TestNullableResponseProjectionGenerated` compiles
+and runs both ordinary and nominal-error selected scalar, nullable child,
+constructor-backed object and whole-body metadata cases, including native int8,
+defaulted cookies, required headers, absence and pre-publication failure. Existing
+concrete presence copy/alias/recursive tests qualify the mechanical shared-owner
+move. No policy is inferred from temporary generated output.
+
+The nullable source binding is also a required input to WebSocket frame
+projection and the shared JSON-RPC `responseBodyInit` consumer. The former
+WebSocket omission is reproduced by `TestNullableSelectedStreamProjection`;
+`TestResponseBodyInitConsumesSourcePreparation` checks the neighboring consumer
+with an actual captured HTTP plan. JSON-RPC permits Body selection; this direct
+check is complemented by `TestNullableSelectedJSONRPCStream`, which compiles an
+actual admitted nullable selected-result WebSocket module. Invalid null/absent
+notifications return errors, then a valid empty notification is the first frame;
+ordinary concrete request/response controls preserve selected values.
+Both consumers run the same EncodePlan preparation before reading its
+BodyValues. No separate nullable policy or conversion is introduced.
+
+For WebSocket calls, `CheckedPublication` describes the application data frame.
+The connection may already have upgraded, for example in Recv before the
+application computes its result. Invalid selected parents return through Send's
+existing error channel and produce no application frame; this model does not
+promise rollback or prevention of that earlier handshake. The mounted regression
+covers concrete/empty selected values and null/absent rejection after upgrade.
+It preserves SendAndClose cancellation precedence: closing the stream cancels
+the request context, so that caller receives context.Canceled; a detached
+operation context retains the original checked-projection error. Both paths
+reject before any application frame.
+The WebSocket consumer correction did not change model transitions. The subsequent
+shared projection extension above adds ordinary/nullable parent storage, selected
+child absence, metadata-only reconstruction and actual native/view source binding;
+the table records the renewed combined checks.
+
+Selected-body publication requires both a concrete parent and a supplied child,
+independently of whether the parent is nullable. Optionality is not permission to
+publish null. The existing physical presence classifier observes pointers,
+Nullable presence and union selection without treating empty values as absent or
+invoking opaque codecs. A metadata-only mapping also requires a concrete parent;
+its client reconstructs one even when all optional metadata was omitted. Truly
+bodyless mappings without metadata retain their prior absence policy.
+
+`source_presence.go` is shared with request presence capture.
+`responseBodyAbsence` captures each body's actual native or view layout;
+`ResponseEncodePlan.SourcePreparation` checks it before body conversion and
+publication. `responseNativeSource` selects `res.Projected` for viewed results.
+Tag matching is a separate safe predicate: null/absent parents do not match and
+may reach a whole-body fallback that permits null. Selected-body validity is
+checked only after that selection. `TestResponseProjectionCompletionGenerated`
+checks these boundaries, metadata-only result/error constructors, local-name
+collisions and nullable tag fallback. `TestSelectedResponseStorageGeneratedMixed`
+retains named, viewed, custom-storage, default, empty and explicit-null controls;
+its optional named absence regression now requires checked rejection.
+
+The model does not implement selector arbitration, native Go storage rules or
+custom codec behavior. Direct/generated controls supply that correspondence;
+no blanket nil or collection-length policy is inferred from its presence symbols.
+
+The direct generated `TestViewedEncoderRejectsBeforeMetadata` asserts an empty
+writer header map and no status/body writes when source preparation fails.
+The response partial publishes dynamic `loom-view` only after its shared
+preparation, rather than relying on an outer handler to clear it. The model's
+atomic publication abstraction does not prove individual writer mutations; this
+direct check establishes that concrete ordering.
+
+## Nonnullable authored object projections
+
+The `object` mode represents a nonnullable emitted object body from a nullable
+native parent; its initialization explicitly requires nullableParent. The
+missing-object mutant retains that restriction alongside the expanded ordinary
+parent modes. It requires a concrete source before encoding and reconstructs a
+concrete parent on decoding, independently of whether an origin member was
+selected. The combined owned configuration includes the ordinary/view/metadata dimensions
+above; renewed counts are recorded in the table.
+`nullable-missing-object.cfg` fails FieldStorage by omitting concrete-parent
+lowering for this mode. This abstracts the observed generator failure, not a
+claim that the uncompilable output published a response. Header requiredness and
+codec behavior remain the stated assumptions above.
+
+`nullableResponseRequiresConcrete` derives the mode from the captured emitted
+body and native context. `responseBodyArgument`, shared result reconstruction
+and SourcePreparation consume it. `TestNullableObjectBodyProjection` reproduces
+the ordinary-result seam; `TestNullableDefaultErrorGenerated` compiles and runs
+both ordinary and problem-object cases, including null/absent rejection before
+publication and concrete reconstruction. No nullable annotation is added to the
+authored body to avoid the checked projection.
+
+
+## Replacement body ownership and native tag presence
+
+`ResponseBodyOwnership.tla` refines the selected-body boundary above. A custom
+error formatter replaces the declared body, as documented in the error guide;
+it does not replace native metadata or make an absent payload supplied. The
+model separates the selected member from its native parent and metadata access.
+A null parent with no mapped metadata may supply a replacement body. A selected
+native body still needs its concrete parent and supplied member. An absent tag
+parent is unmatched; the selected default's own projection decides admission,
+so a truly bodyless default can succeed without field access.
+
+Use the pinned TLC tool above, with `ResponseBodyOwnership.tla` and one of these
+configurations. These commands are opt-in design checks, never CI prerequisites.
+
+| Configuration | Expected exit / invariant | Generated / distinct states |
+| --- | --- | --- |
+| body-ownership-current | 12, ValidReplacement | 69 / 69 |
+| body-ownership-nil-tag | 12, NativeTagSafety | 50 / 50 |
+| body-ownership-bypass | 12, CheckedPublication | 53 / 53 |
+| body-ownership-owned | 0, all listed invariants | 96 / 96 |
+
+The current alternative checks the unused native body even when a formatter
+owns publication. The bypass alternative incorrectly skips native prerequisites
+as well. The nil-tag alternative reads a field before checking parent presence.
+The accepted owner checks native prerequisites independently and applies member
+checks only when the declared body is selected.
+
+`responseBodyAbsence` captures separate parent/member facts using the existing
+physical absence owner. `SourcePreparation` takes an explicit generated body
+condition; HTTP error encoding supplies `formatter == nil`, while ordinary HTTP,
+WebSocket and JSON-RPC consumers select the declared body unconditionally.
+`responseTagData` uses that same native presence classifier before tag access.
+The ordinary response-selection module covers nil rejection for selected bodies
+and successful nil fallback for a bodyless default. Problem-field and nullable
+projection modules cover replacement callbacks, absent selected members, nullable
+parents and preserved metadata rejection before publication.
+
+The model abstracts actual Go layout, codecs, constraints and callback values.
+Its selected-body admission does not cover the bodyless fallback; that case is
+an implementation regression for the separate tag-safety predicate. Existing
+projection models retain full nullable child, view and reconstruction coverage.
+
+## Preparation failure completion
+
+`ResponsePreparationFailure.tla` covers the failure channel omitted by the earlier
+projection models: source presence and checked conversion may reject before an
+HTTP JSON-RPC envelope exists. Returning that error to the dispatch runtime is
+not protocol completion: the runtime's error path reports transport failures and
+does not manufacture an envelope. `preparation-current.cfg` reproduces that
+missing response with `FailureFramed` failing (36 states). The corrected caller
+supplies the error renderer to shared preparation and conversion, so unary
+requests with IDs attempt one safe internal-error envelope; stream APIs return
+the failure to their existing caller. Notifications still invoke no response
+encoder. Physical encoder failure stays diagnostic and never triggers a retry.
+
+Run the pinned tool above with `-deadlock` (terminal states are intentional),
+`-config preparation-owned.cfg ResponsePreparationFailure.tla` and a fresh
+external metadir. Owned passes all five invariants (77 states).
+`preparation-retry-write.cfg` fails `OnePublicationAttempt` (66 states).
+`preparation-reach-error.cfg` and `preparation-reach-stream.cfg` deliberately
+fail their reachability invariants (66 and 35 states), proving an attempted error
+envelope with encoder failure and a returned stream preparation failure are
+reachable. These checks are opt-in, never CI gates.
+
+The booleans represent checks selected by the actual plan; a bodyless plan
+with no preparation checks is represented by true, not a new nullable guard.
+Source/constraint evaluation and conversion are abstract booleans; error values,
+safe-message resolution, actual encoding and callback behavior are not proved.
+The model records encoding attempts, not successful network delivery. It assumes
+callbacks return and treats each attempt atomically; concurrent stream ownership
+remains with its existing runtime model. Actual mounted shared/shared-reverse,
+nullable result/error and optional-failure-reporting tests establish the generated
+code and error-framing correspondence. The source owner still supplies presence
+and projection; the caller owns failure completion. No nullable/status rule or
+runtime postwrite policy is duplicated here.

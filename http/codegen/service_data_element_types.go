@@ -147,6 +147,8 @@ type (
 
 	// TypeData contains the data needed to render a type definition.
 	TypeData struct {
+		sourceAbsence       string
+		sourceParentAbsence string
 		// Media carries the selected HTTP occurrence's media dispatch plan.
 		Media     *MediaBodyData
 		attribute *expr.AttributeExpr

@@ -295,6 +295,7 @@ func websocketServerFile(genpkg string, svc *expr.HTTPServiceExpr, services *Ser
 	title := fmt.Sprintf("%s WebSocket server streaming", svc.Name())
 	imports := append([]*codegen.ImportSpec{
 		{Path: "context"},
+		{Path: "fmt"},
 		{Path: "io"},
 		{Path: "net/http"},
 		{Path: "sync"},

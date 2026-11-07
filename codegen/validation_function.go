@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/CaliLuke/loom/internal/representation"
+
 	"github.com/CaliLuke/loom/expr"
 )
 
@@ -37,7 +39,7 @@ func NamedValidationFunction(att *expr.AttributeExpr, ctx *AttributeContext, arg
 		prefix = "Validate"
 	}
 	return ValidationFunction{
-		Name:     prefix + ctx.Scope.Name(concretePresenceAttribute(att), "", mode),
+		Name:     prefix + ctx.Scope.Name(representation.ConcreteAttribute(att), "", mode),
 		Argument: argument,
 		Ref:      ctx.Scope.Ref(att, ctx.DefaultPkg),
 		mode:     mode,

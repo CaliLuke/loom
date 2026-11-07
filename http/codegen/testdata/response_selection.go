@@ -13,6 +13,21 @@ var ResponseSelectionOrderDSL = func() {
 		Required("first", "second", "message", "trace")
 	})
 	Service("selection", func() {
+		Method("bodyless", func() {
+			Result(func() {
+				Attribute("kind", String)
+			})
+			HTTP(func() {
+				GET("/bodyless")
+				Response(StatusOK, func() {
+					Body(Empty)
+				})
+				Response(StatusAccepted, func() {
+					Tag("kind", "accepted")
+					Body(Empty)
+				})
+			})
+		})
 		for _, method := range []struct {
 			name     string
 			statuses []int

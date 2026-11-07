@@ -64,6 +64,7 @@ func writeServerWebSocketResponseBody(b *strings.Builder, ws *WebSocketData) boo
 	if len(ws.Response.ServerBody) == 0 {
 		return false
 	}
+	b.WriteString(ws.Response.EncodePlan.SourcePreparation(nil, ""))
 	prefix := "\tbody := "
 	viewed := ws.Endpoint.Method.ViewedResult
 	if viewed != nil && viewed.ViewName == "" {

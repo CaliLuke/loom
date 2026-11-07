@@ -3,6 +3,8 @@ package codegen
 import (
 	"fmt"
 
+	nativerep "github.com/CaliLuke/loom/internal/representation"
+
 	"github.com/dave/jennifer/jen"
 
 	"github.com/CaliLuke/loom/codegen"
@@ -249,9 +251,49 @@ func (sds *ServicesData) buildResponseBodyType(body, att *expr.AttributeExpr, lo
 	addMarshalTags(body)
 	value = representation.BuildValuePlan(value, body, httpctx, expr.ValuePlanRuntime)
 
+	applyResponseBodyTypeData(data, body, endpointName, httpctx, sd, svr, view == nil)
+	if svr {
+		collectServerResponseBodyTypes(sds, body, data.name, sd)
+	}
+	init := sds.buildResponseBodyInit(body, att, svcctx.DefaultPkg, sourceVar, endpointName, view, data.mustInit, data.validateDef, svr, svcctx, httpctx, sd)
+	if init != nil {
+		data.ref = init.ReturnTypeRef
+	}
+	parentAbsence, memberAbsence := responseBodyAbsence(att, body, svcctx, sourceVar, view != nil, svr, sd)
+	result := &TypeData{
+		sourceAbsence:       memberAbsence,
+		sourceParentAbsence: parentAbsence,
+		attribute:           body,
+		context:             httpctx,
+		Name:                data.name,
+		VarName:             data.varName,
+		Description:         data.desc,
+		Def:                 data.def,
+		Ref:                 data.ref,
+		ValueRef:            bodyValueRef(sd.Scope, body, data.varName, httpctx),
+		AllowsNull:          bodyAllowsNull(body),
+		Init:                init,
+		ValidateDef:         data.validateDef,
+		validationFunction:  codegen.NamedValidationFunction(body, httpctx, "body"),
+		ValidateRef:         data.validateRef,
+		Example:             body.Example(sds.examplesFor(sd)),
+		Value:               value,
+		View:                viewName,
+	}
+	if _, named := body.Type.(expr.UserType); svr && named && view == nil {
+		sd.responseValidations = append(sd.responseValidations, serverResponseValidation{
+			data: result, attribute: body, context: httpctx, root: data,
+		})
+	}
+	return result
+}
+
+// applyResponseBodyTypeData selects the existing declaration and validation owner
+// for the actual response body shape.
+func applyResponseBodyTypeData(data *responseBodyTypeData, body *expr.AttributeExpr, endpointName string, httpctx *codegen.AttributeContext, sd *ServiceData, svr, allowValidateDef bool) {
 	switch ut := body.Type.(type) {
 	case expr.UserType:
-		applyUserResponseBodyTypeData(data, body, ut, endpointName, httpctx, sd, svr, view == nil)
+		applyUserResponseBodyTypeData(data, body, ut, endpointName, httpctx, sd, svr, allowValidateDef)
 	default:
 		switch {
 		case expr.IsUnion(body.Type):
@@ -262,37 +304,6 @@ func (sds *ServicesData) buildResponseBodyType(body, att *expr.AttributeExpr, lo
 			applyPrimitiveResponseBodyTypeData(data, body, httpctx, sd)
 		}
 	}
-	if svr {
-		collectServerResponseBodyTypes(sds, body, data.name, sd)
-	}
-	init := sds.buildResponseBodyInit(body, att, svcctx.DefaultPkg, sourceVar, endpointName, view, data.mustInit, data.validateDef, svr, svcctx, httpctx, sd)
-	if init != nil {
-		data.ref = init.ReturnTypeRef
-	}
-	result := &TypeData{
-		attribute:          body,
-		context:            httpctx,
-		Name:               data.name,
-		VarName:            data.varName,
-		Description:        data.desc,
-		Def:                data.def,
-		Ref:                data.ref,
-		ValueRef:           bodyValueRef(sd.Scope, body, data.varName, httpctx),
-		AllowsNull:         bodyAllowsNull(body),
-		Init:               init,
-		ValidateDef:        data.validateDef,
-		validationFunction: codegen.NamedValidationFunction(body, httpctx, "body"),
-		ValidateRef:        data.validateRef,
-		Example:            body.Example(sds.examplesFor(sd)),
-		Value:              value,
-		View:               viewName,
-	}
-	if _, named := body.Type.(expr.UserType); svr && named && view == nil {
-		sd.responseValidations = append(sd.responseValidations, serverResponseValidation{
-			data: result, attribute: body, context: httpctx, root: data,
-		})
-	}
-	return result
 }
 
 func applyUnionResponseBodyTypeData(data *responseBodyTypeData, body *expr.AttributeExpr, endpointName string, httpctx *codegen.AttributeContext, sd *ServiceData) {
@@ -493,6 +504,7 @@ func (sds *ServicesData) buildResponseBodyInit(
 		svcctx = viewContext(sd.Service.ViewsPkg, sd.Service.ViewScope)
 	}
 
+	att, arg := sds.responseBodyArgument(att, body, svcctx, pkg, sourceVar, validateDef, view != nil, sd)
 	field, src := serviceBodyTransformSource(att, body, sourceVar)
 	pointer := svcctx.IsPrimitivePointer(field.Name, att)
 	plan, rtref, err := marshalResponseBodySource(field.Attribute, body, src, rtref, pointer, svcctx, httpctx)
@@ -501,11 +513,32 @@ func (sds *ServicesData) buildResponseBodyInit(
 	}
 	sd.ServerTransformHelpers = codegen.AppendHelpers(sd.ServerTransformHelpers, plan.Helpers)
 
+	return &InitData{
+		Name:                initName,
+		Description:         initDesc,
+		ReturnTypeRef:       rtref,
+		ReturnTypeAttribute: field.GoName,
+		ServerCode:          plan.Code,
+		ServerErrorAware:    plan.ErrorAware,
+		ServerArgs:          []*InitArgData{arg},
+	}
+}
+
+// responseBodyArgument retains the concrete selected parent and its caller
+// binding together, while whole-body constructors retain the nullable carrier.
+func (sds *ServicesData) responseBodyArgument(att, body *expr.AttributeExpr, svcctx *codegen.AttributeContext, pkg, sourceVar, validateDef string, viewed bool, sd *ServiceData) (*expr.AttributeExpr, *InitArgData) {
+	selectedNullable := nullableResponseRequiresConcrete(att, body)
+	if selectedNullable {
+		att = nativerep.ConcreteAttribute(att)
+	}
 	argRef := sourceVar
 	argTypeRef := svcctx.Scope.Ref(att, pkg)
-	if view != nil {
+	if viewed {
 		argRef += ".Projected"
 		argTypeRef = sd.Service.ViewScope.GoFullTypeRef(att, sd.Service.ViewsPkg)
+	}
+	if selectedNullable {
+		argRef = "&responseValue"
 	}
 	arg := &InitArgData{
 		Ref: argRef,
@@ -518,15 +551,8 @@ func (sds *ServicesData) buildResponseBodyInit(
 			Example:  att.Example(sds.examplesFor(sd)),
 		},
 	}
-	return &InitData{
-		Name:                initName,
-		Description:         initDesc,
-		ReturnTypeRef:       rtref,
-		ReturnTypeAttribute: field.GoName,
-		ServerCode:          plan.Code,
-		ServerErrorAware:    plan.ErrorAware,
-		ServerArgs:          []*InitArgData{arg},
-	}
+
+	return att, arg
 }
 
 // marshalResponseBodySource preserves a detached scalar source's physical

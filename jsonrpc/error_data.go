@@ -34,7 +34,7 @@ func NewErrorData(err error) any {
 
 	response := loom.ResolveErrorResponse(err)
 	data := &ErrorData{Name: response.Name, Remedy: response.Remedy}
-	if serviceError, ok := response.Owner.(*loom.ServiceError); ok {
+	if serviceError := response.ServiceError; serviceError != nil {
 		data.ID = serviceError.ID
 		data.Temporary = serviceError.Temporary
 		data.Timeout = serviceError.Timeout

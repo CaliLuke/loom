@@ -33,6 +33,91 @@ and distinct wire names remain valid even when their generated Go names collide.
 API error definitions remain reusable definitions rather than automatically
 inherited method errors. Valid designs retain their generated output.
 
+### Nullable error payloads
+
+HTTP and JSON-RPC errors can carry explicit JSON null. A nullable payload is data,
+so return its generated named error owner, not `loom.Nullable[T]` itself:
+
+```go
+// Design: Error("missing", Details, func() { Nullable() })
+failure, err := service.NewMissingError(loom.NullValue[service.Details]())
+if err != nil {
+    return err
+}
+return failure
+```
+
+The generated constructor returns `(*MissingError, error)`. Its `Payload()` method
+returns `(loom.Nullable[Details], error)`, preserving absent, explicit null and
+concrete values. The owner retains the declared error name even for null. If the
+payload has an `ErrorName` field, a concrete value must match that declared name.
+Construction and transport projection both check it; neither rewrites the field.
+A nil owner is invalid. Generated names follow the usual collision allocation.
+Regenerate transports and use the generated constructor when adopting this behavior.
+
+A response with a body cannot encode an absent nullable payload. JSON-RPC keeps
+explicit `data: null` distinct from missing `data`. If several declared errors
+with the same JSON-RPC code could accept null, decoding rejects the ambiguity;
+use distinct codes or a concrete value with an unambiguous selector. gRPC still
+rejects nullable error payloads.
+
+For results and errors, HTTP `Body("field")` selects a member of a concrete
+parent. Null or absent parents cannot supply that member and fail before response
+publication. A nullable selected member may itself be null; decoding that member
+reconstructs a concrete parent. A whole-body null with excluded header or cookie
+fields remains null only when no mapped metadata is supplied. Incoming null plus
+metadata is rejected, and absent metadata defaults do not create a parent. A
+required mapped header or cookie still prevents a null response.
+
+A selected member must be supplied even when it is optional in the parent type.
+An absent selected member fails before publication; a supplied zero, empty value
+or explicitly nullable null retains its own contract. A response containing only
+mapped headers/cookies also requires a concrete parent. Its client reconstructs
+that parent even when all optional metadata is absent, applying existing defaults
+and requiredness checks. A truly bodyless response without metadata keeps its
+existing absence behavior. Regenerate clients and servers for these corrections.
+
+JSON-RPC also preserves supplied empty error data (`""`, `{}`, or `[]`) instead
+of omitting it; only absent data is omitted.
+
+### Nullable default errors
+
+Applying `Nullable()` to the callback of `Error("missing", ...)` uses a generated nominal error owner
+with a `loom.Nullable[loom.ServiceError]` payload. `MakeMissing(cause)` returns a
+concrete owner with the usual instance ID, cause, trait seeds and remedy.
+`NewMissingError(loom.NullValue[loom.ServiceError]())` constructs explicit null.
+No additional response mapping is required for declaring the error.
+
+A concrete owner stores one native occurrence. `errors.As` can expose that
+`*loom.ServiceError`; mutations are observed by later `Payload()` and transport
+projection. A mismatched `Name` is rejected, including after mutation. Payload
+values returned by `Payload()` are struct copies: assigning their scalar fields
+does not mutate the stored occurrence. Referenced objects retain ordinary Go
+aliasing. Null and
+absent payloads expose no native occurrence. Errors are not synchronized for
+concurrent application mutation.
+
+Mapped whole nullable problem bodies use `application/json` for concrete and
+null values. Explicit `application/problem+json` is rejected for a nullable whole
+body because that media type requires a problem object. Nonnullable default
+errors keep their existing problem media type. A nonnullable authored object
+`Body` projection requires a concrete parent, just like member selection; null
+and absent parents fail before publication. Clients reconstruct a concrete
+parent from that nonnullable body.
+
+When a designed problem projection omits `code`, clients recover the error name
+from its declared transport alternative. If the body or mapped metadata conveys
+`code`, even an empty value must agree with that declaration. Omitted traits
+remain false; they are never inferred from HTTP status or the factory's seeds.
+
+An error with no `Response` mapping still uses the ordinary fallback encoder.
+Fallback does not promise the designed nullable body: a valid concrete default
+owner supplies its native ID and traits, while null, absent and invalid payloads
+supply no native occurrence. HTTP then uses its existing generic fault document;
+JSON-RPC retains its existing named-error/remedy fallback. An outer remedy or
+safe-message wrapper keeps its established precedence. Resolution stops at the
+first named owner and never selects a native error from an independent join.
+
 ### Merging validation errors
 
 Use the return value of `loom.MergeErrors(first, second)`. When both operands
@@ -217,7 +302,11 @@ The existing body-selection rules still map other attributes to automatic
 headers. To author a body with only listed fields, use an explicit
 `Body(func() { Attribute("detail") })` shape. A custom error formatter receives
 the whole error and replaces the body, including for a selected scalar. Its
-output must agree with the intended client contract.
+output must agree with the intended client contract. The selected native member
+is not required when a formatter replaces it. Native payload presence and mapped
+headers or cookies keep their own requirements; a formatter does not create a
+concrete parent for those mappings. Without a formatter, selecting an absent
+optional field, such as an unset `retry_hint`, fails before publication.
 
 Regenerate HTTP clients and servers to adopt these projection corrections.
 

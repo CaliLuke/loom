@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/CaliLuke/loom/internal/representation"
+
 	"github.com/dave/jennifer/jen"
 
 	"github.com/CaliLuke/loom/expr"
@@ -279,7 +281,7 @@ func nullablePhysicalTypeRef(attribute *expr.AttributeExpr, context *AttributeCo
 }
 
 func presenceValueTypeRef(attribute *expr.AttributeExpr, context *AttributeContext) string {
-	concrete := concretePresenceAttribute(attribute)
+	concrete := representation.ConcreteAttribute(attribute)
 	if expr.IsArray(concrete.Type) || expr.IsMap(concrete.Type) {
 		// Render the collection as its declaring type does so that element
 		// pointers, defaults and inline struct tags match.

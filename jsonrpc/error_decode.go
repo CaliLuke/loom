@@ -22,6 +22,9 @@ type (
 		// Selector is the JSON member path of ErrorName. Nil means absent; a nonnil
 		// empty path selects the data root. Selection precedes decoding and defaults.
 		Selector []string
+		// Nullable permits explicit JSON null without an ErrorName member.
+		// Missing data and concrete selectors retain their ordinary rules.
+		Nullable bool
 		// Decode consumes a private response and returns a private candidate.
 		// Its second result uses the generated ErrDecodingError/ErrValidationError
 		// wrappers, preserving the distinction from application decoder failures.
@@ -49,7 +52,8 @@ func DecodeErrorResponse(service, method string, raw *RawErrorResponse, response
 	matches := 0
 	eligible := 0
 	for _, candidate := range candidates {
-		if !matchesErrorSelector(raw.Data, candidate.Selector, candidate.Name) {
+		if !(candidate.Nullable && bytes.Equal(bytes.TrimSpace(raw.Data), []byte("null"))) &&
+			!matchesErrorSelector(raw.Data, candidate.Selector, candidate.Name) {
 			continue
 		}
 		eligible++

@@ -322,7 +322,7 @@ func encodeJSONRPCResponse(
 //nolint:errorlint // The response owner is resolved before inspecting its concrete contract.
 func envelopeDecodeError(err error) (Code, string, any) {
 	response := loom.ResolveErrorResponse(err)
-	if serviceError, ok := response.Owner.(*loom.ServiceError); ok && serviceError.Name == loom.RequestBodyTooLarge {
+	if serviceError := response.ServiceError; serviceError != nil && serviceError.Name == loom.RequestBodyTooLarge {
 		return CodeForServiceError(serviceError), loom.ErrorSafeMessage(err), NewErrorData(err)
 	}
 	return ParseError, "Parse error", nil

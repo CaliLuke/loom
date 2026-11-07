@@ -67,18 +67,24 @@ func (b *errorBuilder) build() []*ErrorGroupData {
 func (b *errorBuilder) buildSingle(errorResponse *transportir.ResponseStatus) (string, *ErrorData) {
 	httpError := errorResponse.Error
 	errorDesc := service.BuildErrorDescriptor(b.svc, httpError.Name, httpError.Attribute)
-	pkg := errorDesc.Type.Package
+	pkg := errorDesc.Payload.Package
 	errctx := serviceContext(pkg, b.sd.Service.Scope)
 	serverBodyData, clientBodyData := b.buildResponseBodyData(errorResponse)
 	init := b.buildResultInit(errorResponse, clientBodyData, pkg, errctx)
 	responseData := b.buildResponseData(errorResponse, serverBodyData, clientBodyData, errctx, init)
+	if errorDesc.Constructor != "" {
+		init.errorConstructor = errorDesc.Constructor
+		init.errorOwnerRef = errorDesc.Type.Ref
+		init.ClientErrorAware = true
+		responseData.ErrorPayload = true
+	}
 	ref := errorDesc.Type.Ref
 	return ref, &ErrorData{Name: httpError.Name, Response: responseData, Ref: ref, Selector: errorResponse.ErrorSelector}
 }
 
 func (b *errorBuilder) buildResultInit(errorResponse *transportir.ResponseStatus, clientBody *TypeData, pkg string, errctx *codegen.AttributeContext) *InitData {
 	httpError := errorResponse.Error
-	if !needInit(httpError.Attribute) && !expr.ContainsNonNullableCollectionElement(responseStatusBody(errorResponse)) {
+	if !expr.IsNullable(httpError.Attribute) && !needInit(httpError.Attribute) && !expr.ContainsNonNullableCollectionElement(responseStatusBody(errorResponse)) {
 		return nil
 	}
 	vars := newResponseVarScope(b.sd)
@@ -101,7 +107,7 @@ func (b *errorBuilder) buildResultInit(errorResponse *transportir.ResponseStatus
 		ClientArgs:               args,
 		ReturnTypeName:           b.svc.Scope.GoFullTypeName(httpError.Attribute, pkg),
 		ReturnTypeRef:            b.svc.Scope.GoFullTypeRef(httpError.Attribute, pkg),
-		ReturnIsStruct:           expr.IsObject(httpError.Type),
+		ReturnIsStruct:           expr.IsObject(httpError.Type) && !expr.IsNullable(httpError.Attribute),
 		ReturnIsUnionValue:       bodyFieldIsUnionValue(httpError.Attribute, field.Name),
 		ReturnTypeAttribute:      field.GoName,
 		ReturnIsPrimitivePointer: buildResponseResultPointer(errorResponse, httpError.Attribute, field.Name, errctx),
@@ -154,9 +160,18 @@ func (b *errorBuilder) buildResponseData(errorResponse *transportir.ResponseStat
 		problemTypeOverride = quotedMetaValue(httpError.Attribute.Meta, "http:problem:type")
 		problemTitleOverride = quotedMetaValue(httpError.Attribute.Meta, "http:problem:title")
 	}
+	projectionSource, projectionContext := httpError.Attribute, errctx
+	if expr.IsDefaultErrorResult(httpError.Attribute.Type) {
+		projectionSource, projectionContext, _ = responseBodySource(httpError.Attribute, nil, true, b.sd)
+	}
+	projection := newNullableResponseProjection(projectionSource, errorResponse.Body, headers, cookies, projectionContext, false)
+	if projection != nil {
+		projection.source = headerSourceVar
+	}
 	return newResponseData(
 		"",
 		ResponseData{
+			nullableProjection:   projection,
 			StatusCode:           statusCodeToHTTPConst(errorResponse.StatusCode),
 			Code:                 errorResponse.StatusCode,
 			Headers:              headers,

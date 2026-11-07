@@ -190,7 +190,8 @@ func TestSelectedConstructorSource(t *testing.T) {
 `
 
 // ConstructorOwnershipSharedHarness exercises both selected alias conversions
-// through mounted generated servers, preserving absent, empty and nonempty values.
+// through mounted generated servers: absent selected values fail safely, while
+// supplied empty and nonempty values preserve their payloads.
 const ConstructorOwnershipSharedHarness = `package constructors_test
 
 import (
@@ -242,13 +243,35 @@ func TestMountedSharedConstructor(t *testing.T) {
     }
     response:=httptest.NewRecorder()
     mux.ServeHTTP(response,request)
-    require.Equal(t,http.StatusOK,response.Code,response.Body.String())
     body:=response.Body.Bytes()
+    absent:=method=="optional" && tc.value==nil
     if %t {
+     require.Equal(t,http.StatusOK,response.Code,response.Body.String())
      var envelope map[string]jsontext.Value
      require.NoError(t,json.Unmarshal(body,&envelope))
+     if absent {
+      require.Empty(t,response.Header().Get("loom-view"))
+      var failure map[string]jsontext.Value
+      require.NoError(t,json.Unmarshal(envelope["error"],&failure))
+      require.JSONEq(t,"-32603",string(failure["code"]))
+      require.JSONEq(t,"\"internal server error\"",string(failure["message"]))
+      require.Empty(t,envelope["result"])
+      require.JSONEq(t,"1",string(envelope["id"]))
+      continue
+     }
      require.Empty(t,envelope["error"])
      body=envelope["result"]
+    } else if absent {
+     require.Equal(t,http.StatusInternalServerError,response.Code,response.Body.String())
+     var problem loomhttp.ProblemResponse
+     require.NoError(t,json.Unmarshal(body,&problem))
+     require.Equal(t,http.StatusInternalServerError,problem.Status)
+     require.Equal(t,"fault",problem.Code)
+     require.Equal(t,"internal server error",problem.Detail)
+     require.Contains(t,response.Header().Get("Content-Type"),"application/problem+json")
+     continue
+    } else {
+     require.Equal(t,http.StatusOK,response.Code,response.Body.String())
     }
     want:=tc.want
     if method=="required" {

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/CaliLuke/loom/internal/representation"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/expr"
@@ -21,7 +23,7 @@ func TestConcretePresenceAliases(t *testing.T) {
 						TypeName: fmt.Sprintf("Alias%d", i), AttributeExpr: source,
 					}}
 				}
-				concrete := concretePresenceAttribute(source)
+				concrete := representation.ConcreteAttribute(source)
 				require.Equal(t, nullable, expr.IsNullable(source), "source contract is unchanged")
 				require.False(t, expr.IsNullable(concrete), "all inherited root nullability is consumed")
 				require.True(t, expr.IsNullable(expr.AsObject(concrete.Type).Attribute("child")), "child retains its independent carrier")
@@ -44,7 +46,7 @@ func TestConcretePresenceRecursiveChild(t *testing.T) {
 	}, Nullable: true}
 	alias := &expr.UserTypeExpr{TypeName: "Alias", AttributeExpr: &expr.AttributeExpr{Type: node}}
 	source := &expr.AttributeExpr{Type: alias}
-	concrete := concretePresenceAttribute(source)
+	concrete := representation.ConcreteAttribute(source)
 	require.False(t, expr.IsNullable(concrete))
 	require.True(t, expr.IsNullable(source))
 	child := expr.AsObject(concrete.Type).Attribute("next")
@@ -71,7 +73,7 @@ func TestConcretePresenceAliasConsumers(t *testing.T) {
 			alias := &expr.UserTypeExpr{TypeName: "Alias", AttributeExpr: &expr.AttributeExpr{Type: base}}
 			source := &expr.AttributeExpr{Type: base}
 			target := &expr.AttributeExpr{Type: alias}
-			concrete := concretePresenceAttribute(target)
+			concrete := representation.ConcreteAttribute(target)
 			require.False(t, expr.IsNullable(concrete))
 			require.True(t, expr.IsNullable(target))
 			switch kind {
@@ -100,7 +102,7 @@ func TestConcretePresenceAliasCycle(t *testing.T) {
 	first.AttributeExpr = &expr.AttributeExpr{Type: second, Nullable: true}
 	second.AttributeExpr = &expr.AttributeExpr{Type: first}
 	source := &expr.AttributeExpr{Type: first}
-	concrete := concretePresenceAttribute(source)
+	concrete := representation.ConcreteAttribute(source)
 	require.False(t, expr.IsNullable(concrete))
 	require.True(t, expr.IsNullable(source))
 	require.NotSame(t, first, concrete.Type)

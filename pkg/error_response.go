@@ -14,6 +14,9 @@ type (
 		// Remedy is the first explicitly supplied remedy on the permitted spine.
 		// A nil remedy on an outer remedier shadows remedies of its causes.
 		Remedy *ErrorRemedy
+		// ServiceError is the agreeing native occurrence supplied directly by Owner.
+		// It is nil for null, absent or invalid payloads and independent joins.
+		ServiceError *ServiceError
 	}
 )
 
@@ -38,6 +41,14 @@ func ResolveErrorResponse(err error) ErrorResponse {
 		if named, ok := node.(LoomErrorNamer); ok {
 			response.Owner = node
 			response.Name = named.LoomErrorName()
+			if native, ok := node.(interface{ LoomServiceError() *ServiceError }); ok {
+				value := native.LoomServiceError()
+				if value != nil && value.Name == response.Name {
+					response.ServiceError = value
+				}
+			} else if native, ok := node.(*ServiceError); ok {
+				response.ServiceError = native
+			}
 			return response
 		}
 	}

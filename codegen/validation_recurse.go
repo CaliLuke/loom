@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/CaliLuke/loom/internal/representation"
+
 	"github.com/CaliLuke/loom/codegen/unionnames"
 
 	"github.com/CaliLuke/loom/expr"
@@ -438,7 +440,7 @@ func validateNullableAttribute(
 	view bool,
 	definition bool,
 ) string {
-	underlying := concretePresenceAttribute(att)
+	underlying := representation.ConcreteAttribute(att)
 	underlying.Meta = make(expr.MetaExpr, len(att.Meta))
 	for name, values := range att.Meta {
 		if name == "openapi:nullable" || name == "struct:field:type" {
@@ -482,7 +484,7 @@ func validateOptionalAttribute(
 	context string,
 	view bool,
 ) string {
-	underlying := concretePresenceAttribute(att)
+	underlying := representation.ConcreteAttribute(att)
 	valueCtx := presenceValueContext(ctx, underlying)
 	validation := validateAttribute(valueCtx, underlying, put, "actual", context, true, view)
 	if validation == "" {
@@ -511,31 +513,6 @@ func presenceValueContext(ctx *AttributeContext, underlying *expr.AttributeExpr)
 		}
 	}
 	return valueCtx
-}
-
-func concretePresenceAttribute(att *expr.AttributeExpr) *expr.AttributeExpr {
-	underlying := *att
-	underlying.Nullable = false
-	// Unwrapping consumes the whole inherited root carrier. Structural children
-	// retain their original declarations, including recursive nullable members.
-	copies := make(map[expr.UserType]expr.UserType)
-	for current := &underlying; ; {
-		userType, ok := current.Type.(expr.UserType)
-		if !ok || !expr.IsNullable(userType.Attribute()) {
-			break
-		}
-		if copied, ok := copies[userType]; ok {
-			current.Type = copied
-			break
-		}
-		concreteAttribute := *userType.Attribute()
-		concreteAttribute.Nullable = false
-		concreteType := userType.Dup(&concreteAttribute)
-		copies[userType] = concreteType
-		current.Type = concreteType
-		current = &concreteAttribute
-	}
-	return &underlying
 }
 
 func nullableValidationContext(context string) (field, parent string) {

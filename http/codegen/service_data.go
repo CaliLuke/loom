@@ -438,6 +438,7 @@ type (
 
 	// ResponseData describes a response.
 	ResponseData struct {
+		nullableProjection *nullableResponseProjection
 		// StatusCode is the return code of the response.
 		StatusCode string
 		// Code is the return code of the response.
@@ -481,6 +482,9 @@ type (
 		Tag *ResponseTagData
 		// MustValidate is true if at least one header requires validation.
 		MustValidate bool
+		// ErrorPayload records a nullable nominal owner whose checked Payload
+		// projection supplies the unchanged authored response value.
+		ErrorPayload bool
 		// SourceVar selects the source variable used when rendering
 		// response body, headers and cookies. It defaults to "res".
 		SourceVar string
@@ -509,6 +513,12 @@ type (
 	// ResponseEncodePlan contains the derived control flow decisions for
 	// rendering a server response encoder.
 	ResponseEncodePlan struct {
+		sourceProjection *nullableResponseProjection
+		bodies           []*TypeData
+		// FieldSource names the native value used by header and cookie serializers.
+		FieldSource string
+		// MetadataGuard is nonempty when null whole bodies must not emit metadata defaults.
+		MetadataGuard string
 		// BodyValues maps each server body variant to its complete Go value
 		// expression. Expressions use the canonical res (or problem) binding
 		// and include selected fields even when no constructor is needed.
@@ -537,7 +547,10 @@ type (
 
 	// InitData contains the data required to render a constructor.
 	InitData struct {
-		constructor *constructorPlan
+		constructor        *constructorPlan
+		nullableProjection *nullableResponseProjection
+		errorConstructor   string
+		errorOwnerRef      string
 		// serverOptionalObjectBody makes whole-object body conversion conditional
 		// on presence. Selected bodies retain ReturnIsOptionalBody semantics.
 		serverOptionalObjectBody bool

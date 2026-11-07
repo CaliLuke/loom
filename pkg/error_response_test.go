@@ -105,3 +105,48 @@ func (e responseAsWrapper) As(target any) bool {
 func (e responseAsWrapper) Unwrap() error {
 	return e.cause
 }
+
+type responseNativeOwner struct {
+	native *ServiceError
+}
+
+func (e responseNativeOwner) Error() string {
+	return "owner message"
+}
+
+func (e responseNativeOwner) LoomErrorName() string {
+	return "expected"
+}
+
+func (e responseNativeOwner) LoomServiceError() *ServiceError {
+	return e.native
+}
+
+func (e responseNativeOwner) Unwrap() error {
+	return e.native
+}
+
+func TestResolveErrorResponseNativeOccurrence(t *testing.T) {
+	native := NewServiceError(errors.New("cause"), "expected", true, true, false)
+	for _, test := range []struct {
+		name    string
+		failure error
+		want    *ServiceError
+	}{
+		{"direct", native, native},
+		{"nominal", responseNativeOwner{native}, native},
+		{"wrapped", fmt.Errorf("wrapped: %w", responseNativeOwner{native}), native},
+		{"absent", responseNativeOwner{}, nil},
+		{"different named owner", responseNamedWrapper{responseNativeOwner{native}}, nil},
+		{"independent join", errors.Join(responseNativeOwner{native}, errors.New("other")), nil},
+		{"mismatch", responseNativeOwner{NewServiceError(errors.New("cause"), "other", true, true, true)}, nil},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			require.Same(t, test.want, ResolveErrorResponse(test.failure).ServiceError)
+		})
+	}
+	remedy := &ErrorRemedy{Code: "outer", SafeMessage: "safe"}
+	resolved := ResolveErrorResponse(responseRemedyWrapper{responseNativeOwner{native}, remedy})
+	require.Same(t, remedy, resolved.Remedy)
+	require.Same(t, native, resolved.ServiceError)
+}

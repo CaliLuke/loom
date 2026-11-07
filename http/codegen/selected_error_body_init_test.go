@@ -33,6 +33,11 @@ func TestSelectedProblemBodyInitTarget(t *testing.T) {
 			require.False(t, init.ReturnIsUnionValue)
 			require.True(t, init.SkipFieldInit)
 			require.Contains(t, init.ClientCode, "v := loomhttp.ProblemErrorFromBody(")
+			if field == "retry_hint" {
+				prepare := response.EncodePlan.SourcePreparation(nil, "formatter == nil")
+				require.Contains(t, prepare, "if problem == nil")
+				require.Contains(t, prepare, "if (formatter == nil) && (problem.RetryHint == nil)")
+			}
 		})
 	}
 }

@@ -20,6 +20,15 @@ The [documentation schema admission model](../../../../expr/tla/documentation_sc
 separates valid documentation schemas from unsupported generated codecs and
 checks that validation visits cannot leak between those contexts.
 
+## Nullable error and response ownership
+
+The [nullable error owner model](../../../../codegen/service/tla/nullable_error_owner/README.md)
+separates nominal failure identity from payload presence and checks selector
+agreement and exact-one decoding. The [nullable response projection model](../../../../http/codegen/tla/response_projection/README.md)
+adds concrete field storage, selected-body parent requirements and whole-body
+metadata coherence. Generated compile and wire tests establish the implementation
+correspondence outside these bounded abstractions.
+
 ## HTTP media contracts
 
 The [media contract models](../../../../internal/httpcodec/tla/media_contracts/README.md)

@@ -1,6 +1,7 @@
 package codegen
 
 import (
+	"github.com/CaliLuke/loom/internal/representation"
 	"github.com/dave/jennifer/jen"
 
 	"github.com/CaliLuke/loom/expr"
@@ -76,8 +77,8 @@ func transformFailurePlan(source, target *expr.AttributeExpr, ta *TransformAttrs
 	// separately cloning it would lose both helper and failure identity.
 	for _, key := range graph.order {
 		node := graph.nodes[key]
-		node.concreteSource = concretePresenceAttribute(node.source)
-		node.concreteTarget = concretePresenceAttribute(node.target)
+		node.concreteSource = representation.ConcreteAttribute(node.source)
+		node.concreteTarget = representation.ConcreteAttribute(node.target)
 		copyKey := transformPairKey(node.concreteSource, node.concreteTarget, node.attrs)
 		copyKey.sourceCopy, copyKey.targetCopy = node.concreteSource, node.concreteTarget
 		graph.nodes[copyKey] = node
@@ -258,7 +259,7 @@ func concreteTransformPair(source, target *expr.AttributeExpr, ta *TransformAttr
 			return node.concreteSource, node.concreteTarget
 		}
 	}
-	return concretePresenceAttribute(source), concretePresenceAttribute(target)
+	return representation.ConcreteAttribute(source), representation.ConcreteAttribute(target)
 }
 
 // node recognizes an exact plan-owned concrete pair before canonical lookup.

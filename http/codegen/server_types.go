@@ -198,6 +198,9 @@ func fieldCode(init *InitData, typ string, pkgs *codegen.NameScope) codegen.Tran
 	if typ == "client" {
 		args = init.ClientArgs
 	}
+	if typ == "client" && init.nullableProjection != nil && !init.nullableProjection.selected && !init.nullableProjection.metadataOnly {
+		varn = "responseValue"
+	}
 	targetContext := init.returnContext
 	if targetContext == nil {
 		targetContext = serviceContext(init.ReturnTypePkg, pkgs)

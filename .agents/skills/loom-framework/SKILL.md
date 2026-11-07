@@ -75,6 +75,25 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- Nullable errors have a shared service-level nominal owner distinct from the
+  authored payload. Error descriptors retain both representations and a checked
+  constructor. HTTP and JSON-RPC consume that owner; generic Nullable remains
+  data, and gRPC admission stays unchanged. ErrorName agreement belongs to the
+  generated owner's checked Payload operation. JSON-RPC candidate arbitration
+  preserves absent/null/concrete data and requires exactly one match. Keep the
+  nullable_error_owner model and actual generated error round trips aligned.
+- `internal/representation.ConcreteAttribute` owns root carrier extraction while
+  retaining child/layout/default facts. HTTP nullable response projection uses it
+  for selected body and metadata field storage, with checked source preparation
+  before publication and checked reconstruction through existing transforms.
+  Selected members need concrete parents and supplied child storage. Metadata-only
+  mappings reconstruct concrete parents; truly bodyless mappings retain absence.
+  Shared source presence captures actual native/view layout before conversions;
+  tag matching remains independent of subsequent projection validity. Whole null
+  plus supplied metadata is a contradiction. Wire presence, not defaulted decoded values, determines supplied
+  metadata. Keep the nullable response_projection model and generated ordinary
+  result/error controls aligned.
+
 - `encodingmeta.StructTags`, `FormFieldName` and `FormTagName` own full-tag
   replacement and form omission. `expr.HTTPFormBodyEncoding` and
   `expr.HTTPMultipartBodyEncoding` capture recursive root alternatives, effective

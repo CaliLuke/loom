@@ -27,7 +27,8 @@ func TestResponseTagBindings(t *testing.T) {
 			require.Nil(t, data.Endpoints[i].Result.Responses[1].Tag)
 			switch endpoint.Name() {
 			case "nullable", "named_nullable":
-				require.Equal(t, `tag, ok := res.Kind.Value(); ok && tag == "accepted"`, physical.Match)
+				require.Contains(t, physical.Match, `if res == nil {`)
+				require.Contains(t, physical.Match, `tag, ok := res.Kind.Value(); ok && tag == "accepted"`)
 				require.Equal(t, `res.Kind.SetValue("accepted")`, physical.Assignment)
 			case "renamed":
 				require.Equal(t, "Disposition", physical.Field)

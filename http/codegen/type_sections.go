@@ -70,6 +70,10 @@ func appendInitResult(group *jen.Group, init *InitData, code string, client bool
 				values.Id(init.ReturnTypeAttribute).Op(":").Add(codegen.Expr(valueExpr))
 			})
 		}
+	case client && init.nullableProjection != nil && init.nullableProjection.metadataOnly:
+		group.Id("v").Op(":=").Op("&").Id(init.ReturnTypeName).Values()
+	case client && init.errorConstructor != "":
+		group.Var().Id("v").Add(codegen.TypeRef(init.ReturnTypeRef))
 	case init.ReturnIsStruct:
 		if init.ReturnTypeAttribute != "" {
 			group.Id("res").Op(":=").Op("&").Id(init.ReturnTypeName).Values()

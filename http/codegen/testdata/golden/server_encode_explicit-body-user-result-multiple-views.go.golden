@@ -7,6 +7,10 @@ func EncodeMethodExplicitBodyUserResultMultipleViewResponse(encoder func(context
 		if !ok {
 			return loomhttp.ErrInvalidType("ServiceExplicitBodyUserResultMultipleView", "MethodExplicitBodyUserResultMultipleView", "*serviceexplicitbodyuserresultmultipleviewviews.Resulttypemultipleviews", v)
 		}
+		if res.Projected == nil || (res.Projected.A == nil) {
+			return fmt.Errorf("selected response value is absent")
+		}
+
 		w.Header().Set("loom-view", res.View)
 		enc := encoder(ctx, w)
 		body := NewMethodExplicitBodyUserResultMultipleViewResponseBody(res.Projected)

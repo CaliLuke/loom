@@ -9,6 +9,7 @@ import (
 	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
+	"github.com/CaliLuke/loom/internal/representation"
 )
 
 type resultBuilder struct {
@@ -130,19 +131,20 @@ func (sds *ServicesData) buildSingleResponseData(
 	return newResponseData(
 		resp.Description,
 		ResponseData{
-			StatusCode:   statusCodeToHTTPConst(resp.StatusCode),
-			Code:         resp.StatusCode,
-			Headers:      headersData,
-			Cookies:      cookiesData,
-			ContentType:  resp.ContentType,
-			ServerBody:   serverBodyData,
-			ClientBody:   clientBodyData,
-			ResultInit:   init,
-			Tag:          tag,
-			MustValidate: responseFieldsNeedValidation(headersData, cookiesData),
-			ResultAttr:   field.GoName,
-			ViewedResult: md.ViewedResult,
-			DeferStatus:  endpointIR.Response.FileResponse,
+			nullableProjection: newNullableResponseProjection(result, resp.Body, headersData, cookiesData, svcctx, viewed),
+			StatusCode:         statusCodeToHTTPConst(resp.StatusCode),
+			Code:               resp.StatusCode,
+			Headers:            headersData,
+			Cookies:            cookiesData,
+			ContentType:        resp.ContentType,
+			ServerBody:         serverBodyData,
+			ClientBody:         clientBodyData,
+			ResultInit:         init,
+			Tag:                tag,
+			MustValidate:       responseFieldsNeedValidation(headersData, cookiesData),
+			ResultAttr:         field.GoName,
+			ViewedResult:       md.ViewedResult,
+			DeferStatus:        endpointIR.Response.FileResponse,
 		},
 	)
 }
@@ -348,7 +350,25 @@ func (sds *ServicesData) buildClientResultUnmarshalCode(
 	sourcectx, targetctx *codegen.AttributeContext,
 	sd *ServiceData,
 ) (codegen.TransformPlan, error) {
-	plan, err := unmarshal(source, target, sourceVar, sourcectx.Dup(), targetctx)
+	var plan codegen.TransformPlan
+	var err error
+	if nullableResponseRequiresConcrete(target, source) && selectBodyField(target, source).Name == "" {
+		concrete := representation.ConcreteAttribute(target)
+		plan, err = codegen.GoTransform(source, concrete, sourceVar, "responseValue", sourcectx.Dup(), targetctx, "unmarshal", true)
+		if err == nil {
+			ref := targetctx.Scope.Ref(target, targetctx.DefaultPkg)
+			value := "responseValue"
+			guard := ""
+			if strings.HasPrefix(targetctx.Scope.Ref(concrete, targetctx.DefaultPkg), "*") {
+				value = "*responseValue"
+				guard = "if responseValue == nil {\n*transformErr = loom.ErrAbsentNullable\n} else "
+			}
+			plan.Code += fmt.Sprintf("\nvar v %s\nif *transformErr == nil {\n%s{\nv.SetValue(%s)\n}\n}\n", ref, guard, value)
+			plan.ErrorAware = true
+		}
+	} else {
+		plan, err = unmarshal(source, target, sourceVar, sourcectx.Dup(), targetctx)
+	}
 	if err != nil {
 		return codegen.TransformPlan{}, err
 	}
@@ -365,6 +385,7 @@ func responseStatusBody(resp *transportir.ResponseStatus) *expr.AttributeExpr {
 
 func newResponseData(description string, data ResponseData) *ResponseData {
 	data.Description = description
+	data.nullableProjection.prepareConstructor(data.ResultInit, data.Headers, data.Cookies)
 	data.EncodePlan = newResponseEncodePlan(&data)
 	return &data
 }
@@ -392,11 +413,16 @@ func newResponseEncodePlan(response *ResponseData) *ResponseEncodePlan {
 			source += ".Projected"
 		}
 		if response.ResultAttr != "" {
+			if response.nullableProjection != nil {
+				source = "responseValue"
+			}
 			source += "." + response.ResultAttr
 		}
 		values[body] = source
 	}
+	fieldSource, guard := response.nullableProjection.encoderFields()
 	return &ResponseEncodePlan{
+		sourceProjection: response.nullableProjection, bodies: response.ServerBody, FieldSource: fieldSource, MetadataGuard: guard,
 		BodyValues:        values,
 		BodyCount:         bodyCount,
 		HasBody:           bodyCount > 0,

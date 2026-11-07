@@ -41,7 +41,9 @@ type (
 	ErrorResponse struct {
 		Code    Code   `json:"code"`
 		Message string `json:"message"`
-		Data    any    `json:"data,omitempty"`
+		// Data is absent only when the interface is nil; supplied null and empty
+		// values are part of the designed error payload.
+		Data any `json:"data,omitzero"`
 	}
 
 	// RawRequest represents a JSON-RPC request with a marshalled params.
@@ -75,9 +77,10 @@ type (
 	// RawErrorResponse represents a JSON-RPC error response with marshalled
 	// data.
 	RawErrorResponse struct {
-		Code    int            `json:"code"`
-		Message string         `json:"message"`
-		Data    jsontext.Value `json:"data,omitempty"`
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+		// Data retains the exact supplied JSON value, including null. Nil is absent.
+		Data jsontext.Value `json:"data,omitzero"`
 	}
 
 	// Code is a JSON-RPC error code, see JSON-RPC 2.0 section 5.1

@@ -67,8 +67,8 @@ func NewErrorResponse(ctx context.Context, err error) StatusCoder {
 //nolint:errorlint // The response owner is resolved; do not select an inner contract.
 func NewProblemResponse(_ context.Context, err error, status int, problemType, problemTitle string) *ProblemResponse {
 	response := loom.ResolveErrorResponse(err)
-	gerr, ok := response.Owner.(*loom.ServiceError)
-	if !ok {
+	gerr := response.ServiceError
+	if gerr == nil {
 		gerr = loom.Fault("internal server error")
 	}
 	if status == 0 {

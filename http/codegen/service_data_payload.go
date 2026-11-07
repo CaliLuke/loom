@@ -140,7 +140,7 @@ func (b *payloadBuilder) buildRequestData() (*RequestData, *ParamData) {
 		Cookies:               cookiesData,
 		ServerBody:            serverBodyData,
 		ClientBody:            clientBodyData,
-		ClientBodyAbsent:      requestMemberAbsence(b.payload, b.selectedBody),
+		ClientBodyAbsent:      sourceMemberAbsence(b.payload, b.selectedBody, b.svcctx, "p"),
 		PayloadAttr:           b.selectedBody.GoName,
 		PayloadType:           b.endpointIR.Request.Payload.Type,
 		MustHaveBody:          b.endpointIR.Request.MustHaveBody,

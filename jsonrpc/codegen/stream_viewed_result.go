@@ -49,7 +49,7 @@ func writeStreamResultBodyInit(g *jen.Group, resultVar, view string, ed *httpcod
 		g.Add(codegen.Expr(code))
 		return
 	}
-	g.Add(codegen.Expr(responseBodyInit(resultVar, response, response.ServerBody)))
+	g.Add(codegen.Expr(responseBodyInit(resultVar, response, response.ServerBody, nil)))
 }
 
 // viewedStreamResultBodyInit renders the statements that declare body, the
@@ -82,21 +82,29 @@ func viewedStreamResultBodyInit(resultVar, view string, response *httpcodegen.Re
 	var b strings.Builder
 	fmt.Fprintf(&b, "vres, err := %s.%s(%s, %s)\n", ed.ServicePkgName, viewed.Init.Name, resultVar, view)
 	b.WriteString("if err != nil {\n\treturn err\n}\n")
-	b.WriteString(responseBodyInit("vres", response, bodies))
+	b.WriteString(responseBodyInit("vres", response, bodies, nil))
 	return b.String(), true
 }
 
 // responseBodyInit binds the source required by the shared response plan and
 // declares body for protocol framing. It does not infer projection from whether
-// a conversion constructor exists. View validation remains with the caller.
-func responseBodyInit(source string, response *httpcodegen.ResponseData, bodies []*httpcodegen.TypeData) string {
+// a conversion constructor exists. onError owns preparation/conversion failure
+// completion; nil returns the error to a stream caller. View validation remains
+// with the caller.
+func responseBodyInit(source string, response *httpcodegen.ResponseData, bodies []*httpcodegen.TypeData, onError func(string) string) string {
 	if !response.EncodePlan.HasBody {
 		return "var body any"
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "var body any\n{\nres := %s\n", source)
+	if onError == nil {
+		onError = func(value string) string {
+			return "return " + value
+		}
+	}
+	b.WriteString(response.EncodePlan.SourcePreparation(onError, ""))
 	if len(bodies) == 1 {
-		writeResponseBodyAssignment(&b, response, bodies[0])
+		writeResponseBodyAssignment(&b, response, bodies[0], onError)
 	} else {
 		b.WriteString("switch res.View {\n")
 		for _, body := range bodies {
@@ -105,7 +113,7 @@ func responseBodyInit(source string, response *httpcodegen.ResponseData, bodies 
 			} else {
 				fmt.Fprintf(&b, "case %q:\n", body.View)
 			}
-			writeResponseBodyAssignment(&b, response, body)
+			writeResponseBodyAssignment(&b, response, body, onError)
 		}
 		b.WriteString("}\n")
 	}
@@ -138,9 +146,9 @@ func writeStreamMessage(g *jen.Group, connection, ctx, constructor jen.Code, ed 
 	g.Return(jen.Add(connection).Dot("WriteJSON").Call(ctx, message))
 }
 
-func writeResponseBodyAssignment(output *strings.Builder, response *httpcodegen.ResponseData, body *httpcodegen.TypeData) {
+func writeResponseBodyAssignment(output *strings.Builder, response *httpcodegen.ResponseData, body *httpcodegen.TypeData, onError func(string) string) {
 	if body.Init != nil && body.Init.ServerErrorAware {
-		fmt.Fprintf(output, "convertedBody, conversionError := %s\nif conversionError != nil {\nreturn conversionError\n}\nbody = convertedBody\n", response.EncodePlan.BodyValues[body])
+		fmt.Fprintf(output, "convertedBody, conversionError := %s\nif conversionError != nil {\n%s\n}\nbody = convertedBody\n", response.EncodePlan.BodyValues[body], onError("conversionError"))
 		return
 	}
 	fmt.Fprintf(output, "body = %s\n", response.EncodePlan.BodyValues[body])
