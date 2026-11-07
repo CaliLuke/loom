@@ -44,37 +44,37 @@ var httpDecoderConversionPartials = []templateSource{
 			if err2 != nil {
 				err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .Locals.Raw }}, "array of integers"))
 			}
-			{{ .VarName }}[i] = int(v)
+			{{ with integerSliceAssign . "v" "array of integers" }}{{ . }}{{ else }}{{ .VarName }}[i] = int(v){{ end }}
 		{{- else if eq .Type.ElemType.Type.Name "int32" }}
 			v, err2 := strconv.ParseInt(rv, 10, 32)
 			if err2 != nil {
 				err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .Locals.Raw }}, "array of integers"))
 			}
-			{{ .VarName }}[i] = int32(v)
+			{{ with integerSliceAssign . "v" "array of integers" }}{{ . }}{{ else }}{{ .VarName }}[i] = int32(v){{ end }}
 		{{- else if eq .Type.ElemType.Type.Name "int64" }}
 			v, err2 := strconv.ParseInt(rv, 10, 64)
 			if err2 != nil {
 				err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .Locals.Raw }}, "array of integers"))
 			}
-			{{ .VarName }}[i] = v
+			{{ with integerSliceAssign . "v" "array of integers" }}{{ . }}{{ else }}{{ .VarName }}[i] = v{{ end }}
 		{{- else if eq .Type.ElemType.Type.Name "uint" }}
 			v, err2 := strconv.ParseUint(rv, 10, strconv.IntSize)
 			if err2 != nil {
 				err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .Locals.Raw }}, "array of unsigned integers"))
 			}
-			{{ .VarName }}[i] = uint(v)
+			{{ with integerSliceAssign . "v" "array of unsigned integers" }}{{ . }}{{ else }}{{ .VarName }}[i] = uint(v){{ end }}
 		{{- else if eq .Type.ElemType.Type.Name "uint32" }}
 			v, err2 := strconv.ParseUint(rv, 10, 32)
 			if err2 != nil {
 				err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .Locals.Raw }}, "array of unsigned integers"))
 			}
-			{{ .VarName }}[i] = uint32(v)
+			{{ with integerSliceAssign . "v" "array of unsigned integers" }}{{ . }}{{ else }}{{ .VarName }}[i] = uint32(v){{ end }}
 		{{- else if eq .Type.ElemType.Type.Name "uint64" }}
 			v, err2 := strconv.ParseUint(rv, 10, 64)
 			if err2 != nil {
 				err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .Locals.Raw }}, "array of unsigned integers"))
 			}
-			{{ .VarName }}[i] = v
+			{{ with integerSliceAssign . "v" "array of unsigned integers" }}{{ . }}{{ else }}{{ .VarName }}[i] = v{{ end }}
 		{{- else if eq .Type.ElemType.Type.Name "float32" }}
 			v, err2 := strconv.ParseFloat(rv, 32)
 			if err2 != nil {
@@ -122,6 +122,9 @@ var httpDecoderConversionPartials = []templateSource{
 		if err2 != nil {
 			err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .Locals.Raw }}, "integer"))
 		}
+		{{- with integerDecodeCheck . "v" }}
+		{{ . }}
+		{{- end }}
 		{{- if .Pointer }}
 		pv := {{ if .TypeRef }}{{slice .TypeRef 1 (len .TypeRef)}}{{ else }}int{{ end }}(v)
 		{{ .VarName }} = &pv
@@ -133,6 +136,9 @@ var httpDecoderConversionPartials = []templateSource{
 		if err2 != nil {
 			err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .Locals.Raw }}, "integer"))
 		}
+		{{- with integerDecodeCheck . "v" }}
+		{{ . }}
+		{{- end }}
 		{{- if .Pointer }}
 		pv := {{ if .TypeRef }}{{ slice .TypeRef 1 (len .TypeRef) }}{{ else }}int32{{ end }}(v)
 		{{ .VarName }} = &pv
@@ -144,12 +150,18 @@ var httpDecoderConversionPartials = []templateSource{
 		if err2 != nil {
 			err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .Locals.Raw }}, "integer"))
 		}
-		{{ if and (ne .TypeRef nil) (and (ne .TypeRef "int64") (ne .TypeRef "*int64")) }}{{ .VarName }} = ({{.TypeRef}})({{ if .Pointer }}&{{ end }}v){{ else }}{{ .VarName }} = {{ if .Pointer }}&{{ end }}v{{ end }}
+		{{- with integerDecodeCheck . "v" }}
+		{{ . }}
+		{{- end }}
+		{{ with integerPointerAssign . "v" }}{{ . }}{{ else }}{{ if and (ne .TypeRef nil) (and (ne .TypeRef "int64") (ne .TypeRef "*int64")) }}{{ .VarName }} = ({{.TypeRef}})({{ if .Pointer }}&{{ end }}v){{ else }}{{ .VarName }} = {{ if .Pointer }}&{{ end }}v{{ end }}{{ end }}
 	{{- else if eq .Type.Name "uint" }}
 		v, err2 := strconv.ParseUint({{ .Locals.Raw }}, 10, strconv.IntSize)
 		if err2 != nil {
 			err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .Locals.Raw }}, "unsigned integer"))
 		}
+		{{- with integerDecodeCheck . "v" }}
+		{{ . }}
+		{{- end }}
 		{{- if .Pointer }}
 		pv := {{ if .TypeRef }}{{ slice .TypeRef 1 (len .TypeRef) }}{{ else }}uint{{ end }}(v)
 		{{ .VarName }} = &pv
@@ -161,6 +173,9 @@ var httpDecoderConversionPartials = []templateSource{
 		if err2 != nil {
 			err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .Locals.Raw }}, "unsigned integer"))
 		}
+		{{- with integerDecodeCheck . "v" }}
+		{{ . }}
+		{{- end }}
 		{{- if .Pointer }}
 		pv := {{ if .TypeRef }}{{ slice .TypeRef 1 (len .TypeRef) }}{{ else }}uint32{{ end }}(v)
 		{{ .VarName }} = &pv
@@ -172,7 +187,10 @@ var httpDecoderConversionPartials = []templateSource{
 		if err2 != nil {
 			err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .Locals.Raw }}, "unsigned integer"))
 		}
-		{{ if and (ne .TypeRef nil) (and (ne .TypeRef "uint64") (ne .TypeRef "*uint64")) }}{{ .VarName }} = ({{.TypeRef}})({{ if .Pointer }}&{{ end }}v){{ else }}{{ .VarName }} = {{ if .Pointer }}&{{ end }}v{{ end }}
+		{{- with integerDecodeCheck . "v" }}
+		{{ . }}
+		{{- end }}
+		{{ with integerPointerAssign . "v" }}{{ . }}{{ else }}{{ if and (ne .TypeRef nil) (and (ne .TypeRef "uint64") (ne .TypeRef "*uint64")) }}{{ .VarName }} = ({{.TypeRef}})({{ if .Pointer }}&{{ end }}v){{ else }}{{ .VarName }} = {{ if .Pointer }}&{{ end }}v{{ end }}{{ end }}
 	{{- else if eq .Type.Name "float32" }}
 		v, err2 := strconv.ParseFloat({{ .Locals.Raw }}, 32)
 		if err2 != nil {

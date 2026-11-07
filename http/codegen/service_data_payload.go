@@ -307,7 +307,7 @@ func (b *payloadBuilder) buildMapQueryParam() *ParamData {
 				}
 			}
 		}
-		fieldType := attr.Type
+		field := attr
 		attr = makeHTTPType(attr)
 		varName, locals := b.vars.allocate(codegen.Goify(param.Name, false), isMapQueryLocal)
 		defaultValue, _ := selectedTransportConstraints(attr).Default()
@@ -320,18 +320,20 @@ func (b *payloadBuilder) buildMapQueryParam() *ParamData {
 				HTTPName:  param.HTTPName,
 				Codec:     param.Codec,
 				AttributeData: &AttributeData{
-					Name:         param.Name,
-					VarName:      varName,
-					FieldName:    fieldName,
-					FieldType:    fieldType,
-					Required:     param.Required,
-					Type:         attr.Type,
-					TypeName:     b.sd.Scope.GoTypeName(attr),
-					TypeRef:      b.sd.Scope.GoTypeRef(attr),
-					Validate:     codegen.AttributeValidationCode(attr, nil, ctx, param.Required, expr.IsAlias(attr.Type), varName, param.Name),
-					DefaultValue: defaultValue,
-					Example:      attr.Example(b.sds.examplesFor(b.sd)),
-					Locals:       locals,
+					Name:           param.Name,
+					VarName:        varName,
+					FieldName:      fieldName,
+					FieldType:      field.Type,
+					fieldAttribute: field,
+					fieldContext:   b.svcctx,
+					Required:       param.Required,
+					Type:           attr.Type,
+					TypeName:       b.sd.Scope.GoTypeName(attr),
+					TypeRef:        b.sd.Scope.GoTypeRef(attr),
+					Validate:       codegen.AttributeValidationCode(attr, nil, ctx, param.Required, expr.IsAlias(attr.Type), varName, param.Name),
+					DefaultValue:   defaultValue,
+					Example:        attr.Example(b.sds.examplesFor(b.sd)),
+					Locals:         locals,
 				},
 			},
 		}
@@ -345,12 +347,13 @@ func (b *payloadBuilder) buildPathParams(params []*transportir.Parameter) []*Par
 	for _, param := range params {
 		attr := makeHTTPMappedType(param.Attribute, rawServiceField(b.payload, param.Name, param.Attribute))
 		stringSlice := transportStringSlice(rawServiceField(b.payload, param.Name, param.Attribute))
-		fieldName, fieldType, fieldPointer := transportFieldBinding(param.Name, attr, b.payload, nil)
+		fieldName, field, fieldPointer := transportFieldBinding(param.Name, attr, b.payload, nil)
 		data = append(data, &ParamData{
 			Map:            false,
 			MapStringSlice: false,
-			Element:        b.sds.buildTransportElement(param.Name, param.HTTPName, attr, stringSlice, true, false, fieldName, fieldType, fieldPointer, ctx, b.sd.Scope, b.vars, b.sds.examplesFor(b.sd)),
+			Element:        b.sds.buildTransportElement(param.Name, param.HTTPName, attr, stringSlice, true, false, fieldName, field, fieldPointer, ctx, b.sd.Scope, b.vars, b.sds.examplesFor(b.sd)),
 		})
+		data[len(data)-1].Element.fieldContext = b.svcctx
 		b.configureParameterElement(data[len(data)-1].Element, param, params)
 	}
 	return data
@@ -366,7 +369,7 @@ func (b *payloadBuilder) buildQueryParams(params []*transportir.Parameter) []*Pa
 		attr := makeHTTPMappedType(param.Attribute, rawServiceField(b.payload, param.Name, param.Attribute))
 		mp := expr.AsMap(attr.Type)
 		stringSlice := transportStringSlice(rawServiceField(b.payload, param.Name, param.Attribute))
-		fieldName, fieldType, fieldPointer := transportFieldBinding(param.Name, attr, b.payload, nil)
+		fieldName, field, fieldPointer := transportFieldBinding(param.Name, attr, b.payload, nil)
 		data = append(data, &ParamData{
 			Map:       mp != nil,
 			JSONField: param.Codec.Style == httpencoding.JSON,
@@ -374,8 +377,9 @@ func (b *payloadBuilder) buildQueryParams(params []*transportir.Parameter) []*Pa
 				mp.KeyType.Type.Kind() == expr.StringKind &&
 				mp.ElemType.Type.Kind() == expr.ArrayKind &&
 				expr.AsArray(mp.ElemType.Type).ElemType.Type.Kind() == expr.StringKind,
-			Element: b.sds.buildTransportElement(param.Name, param.HTTPName, attr, stringSlice, param.Required, param.PrimitivePointer, fieldName, fieldType, fieldPointer, ctx, b.sd.Scope, b.vars, b.sds.examplesFor(b.sd)),
+			Element: b.sds.buildTransportElement(param.Name, param.HTTPName, attr, stringSlice, param.Required, param.PrimitivePointer, fieldName, field, fieldPointer, ctx, b.sd.Scope, b.vars, b.sds.examplesFor(b.sd)),
 		})
+		data[len(data)-1].Element.fieldContext = b.svcctx
 		b.jsonQueryCarrier(data[len(data)-1], attr)
 		b.configureParameterElement(data[len(data)-1].Element, param, params)
 	}
@@ -400,10 +404,10 @@ func (b *payloadBuilder) buildHeaders(params []*transportir.Parameter) []*Header
 		}
 		stringSlice := transportStringSlice(attr)
 		hattr := makeHTTPMappedType(param.Attribute, attr)
-		fieldName, fieldType, fieldPointer := transportFieldBinding(param.Name, attr, b.payload, b.svcctx)
+		fieldName, field, fieldPointer := transportFieldBinding(param.Name, attr, b.payload, b.svcctx)
 		headers = append(headers, &HeaderData{
 			CanonicalName: http.CanonicalHeaderKey(param.HTTPName),
-			Element:       b.sds.buildTransportElement(param.Name, param.HTTPName, hattr, stringSlice, param.Required, param.PrimitivePointer, fieldName, fieldType, fieldPointer, b.svcctx, b.sd.Scope, b.vars, b.sds.examplesFor(b.sd)),
+			Element:       b.sds.buildTransportElement(param.Name, param.HTTPName, hattr, stringSlice, param.Required, param.PrimitivePointer, fieldName, field, fieldPointer, b.svcctx, b.sd.Scope, b.vars, b.sds.examplesFor(b.sd)),
 		})
 		b.configureParameterElement(headers[len(headers)-1].Element, param, params)
 	}
@@ -519,6 +523,7 @@ func (b *payloadBuilder) buildPayloadBodyArgs(request *RequestData, argsCap int)
 		serverRef = "body"
 	}
 	serverArgs = append(serverArgs, &InitArgData{
+		attribute: b.bodyAttr, context: b.httpsvrctx,
 		Ref: serverRef,
 		AttributeData: &AttributeData{
 			Name:     "body",
@@ -536,6 +541,7 @@ func (b *payloadBuilder) buildPayloadBodyArgs(request *RequestData, argsCap int)
 	// their discriminator and value.
 	defaultValue := cliBodyDefault(b.endpointIR.Request, b.bodyAttr)
 	clientArgs = append(clientArgs, &InitArgData{
+		attribute: b.bodyAttr, context: b.httpclictx,
 		Ref: b.sd.Scope.GoVar("body", b.body),
 		AttributeData: &AttributeData{
 			Name:         "body",

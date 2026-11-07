@@ -20,24 +20,25 @@ func transportStringSlice(att *expr.AttributeExpr) bool {
 	return arr != nil && arr.ElemType.Type.Kind() == expr.StringKind
 }
 
-func transportFieldBinding(name string, fieldAttr, svcAtt *expr.AttributeExpr, svcCtx *codegen.AttributeContext) (string, expr.DataType, bool) {
-	fieldType := svcAtt.Type
+// transportFieldBinding resolves the actual physical service occurrence bound
+// to a transport value. The returned attribute retains its authored storage
+// metadata, which value conversions consume.
+func transportFieldBinding(name string, fieldAttr, svcAtt *expr.AttributeExpr, svcCtx *codegen.AttributeContext) (string, *expr.AttributeExpr, bool) {
 	if !expr.IsObject(svcAtt.Type) {
-		return "", fieldType, false
+		return "", svcAtt, false
 	}
 	key, svcField := svcAtt.FindAttribute(name)
 	if svcField == nil {
-		return "", fieldAttr.Type, false
+		return "", fieldAttr, false
 	}
-	fieldType = svcField.Type
 	fieldName := codegen.GoifyAtt(svcField, name, true)
-	if expr.AsUnion(fieldType) != nil {
-		return fieldName, fieldType, expr.ServiceFieldLayout(svcAtt, key, svcField, false, true).Pointer
+	if expr.AsUnion(svcField.Type) != nil {
+		return fieldName, svcField, expr.ServiceFieldLayout(svcAtt, key, svcField, false, true).Pointer
 	}
 	if svcCtx == nil {
-		return fieldName, fieldType, svcAtt.IsPrimitivePointer(key, true)
+		return fieldName, svcField, svcAtt.IsPrimitivePointer(key, true)
 	}
-	return fieldName, fieldType, svcCtx.IsPrimitivePointer(key, svcAtt)
+	return fieldName, svcField, svcCtx.IsPrimitivePointer(key, svcAtt)
 }
 
 func (sds *ServicesData) buildTransportAttributeData(
@@ -46,7 +47,7 @@ func (sds *ServicesData) buildTransportAttributeData(
 	required bool,
 	pointer bool,
 	fieldName string,
-	fieldType expr.DataType,
+	field *expr.AttributeExpr,
 	fieldPointer bool,
 	validateCtx *codegen.AttributeContext,
 	scope *codegen.NameScope,
@@ -76,7 +77,9 @@ func (sds *ServicesData) buildTransportAttributeData(
 		Description:       attr.Description,
 		FieldName:         fieldName,
 		FieldPointer:      fieldPointer,
-		FieldType:         fieldType,
+		FieldType:         field.Type,
+		fieldAttribute:    field,
+		fieldContext:      validateCtx,
 		VarName:           varName,
 		Required:          required,
 		Type:              attr.Type,
@@ -124,7 +127,7 @@ func (sds *ServicesData) buildTransportElement(
 	required bool,
 	pointer bool,
 	fieldName string,
-	fieldType expr.DataType,
+	field *expr.AttributeExpr,
 	fieldPointer bool,
 	validateCtx *codegen.AttributeContext,
 	scope *codegen.NameScope,
@@ -138,7 +141,7 @@ func (sds *ServicesData) buildTransportElement(
 		AttributeName: name,
 		StringSlice:   stringSlice,
 		Slice:         expr.AsArray(attr.Type) != nil,
-		AttributeData: sds.buildTransportAttributeData(name, attr, required, pointer, fieldName, fieldType, fieldPointer, validateCtx, scope, vars, examples),
+		AttributeData: sds.buildTransportAttributeData(name, attr, required, pointer, fieldName, field, fieldPointer, validateCtx, scope, vars, examples),
 	}
 }
 
@@ -154,10 +157,10 @@ func (sds *ServicesData) extractHeaders(headersIR []*transportir.Header, svcAtt 
 		stringSlice := transportStringSlice(attr)
 		hattr := makeHTTPType(attr)
 		pointer := headerIR.PrimitivePointer
-		fieldName, fieldType, fieldPointer := transportFieldBinding(name, attr, svcAtt, svcCtx)
+		fieldName, field, fieldPointer := transportFieldBinding(name, attr, svcAtt, svcCtx)
 		headers = append(headers, &HeaderData{
 			CanonicalName: http.CanonicalHeaderKey(elem),
-			Element:       sds.buildTransportElement(name, elem, hattr, stringSlice, headerIR.Required, pointer, fieldName, fieldType, fieldPointer, svcCtx, scope, vars, examples),
+			Element:       sds.buildTransportElement(name, elem, hattr, stringSlice, headerIR.Required, pointer, fieldName, field, fieldPointer, svcCtx, scope, vars, examples),
 		})
 		header := headers[len(headers)-1]
 		header.Codec = headerIR.Codec
@@ -209,8 +212,8 @@ func (sds *ServicesData) cookieData(name, elem string, required bool, pointer bo
 	}
 	stringSlice := transportStringSlice(serviceAttr)
 	hattr := makeHTTPMappedType(mappedAttr, serviceAttr)
-	fieldName, fieldType, fieldPointer := transportFieldBinding(name, hattr, svcAtt, svcCtx)
+	fieldName, field, fieldPointer := transportFieldBinding(name, hattr, svcAtt, svcCtx)
 	return &CookieData{
-		Element: sds.buildTransportElement(name, elem, hattr, stringSlice, required, pointer, fieldName, fieldType, fieldPointer, svcCtx, scope, vars, examples),
+		Element: sds.buildTransportElement(name, elem, hattr, stringSlice, required, pointer, fieldName, field, fieldPointer, svcCtx, scope, vars, examples),
 	}
 }

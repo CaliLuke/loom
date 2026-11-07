@@ -32,7 +32,8 @@ func TestProjectedHeaderCarrierBinding(t *testing.T) {
 			field := &expr.AttributeExpr{Type: tc.dataType}
 			parent := &expr.AttributeExpr{Type: &expr.Object{&expr.NamedAttributeExpr{Name: "tags", Attribute: field}}}
 			context := base.NewAttributeContext(tc.viewed, false, true, "", base.NewNameScope())
-			name, dataType, pointer := transportFieldBinding("tags", field, parent, context)
+			name, binding, pointer := transportFieldBinding("tags", field, parent, context)
+			dataType := binding.Type
 			require.Equal(t, "Tags", name)
 			require.Equal(t, tc.dataType, dataType)
 			require.Equal(t, tc.pointer, pointer)

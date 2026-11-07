@@ -96,7 +96,7 @@ func renderMultipartLeafFieldEncode(out *strings.Builder, body *TypeData, field 
 		fmt.Fprintf(out, "partPresent, partError := multipartForm.%s(%q, %q, %s, %s)\nif partError != nil {\nreturn nil, partError\n}\n", method, field.HTTPName, codec.ContentType, value, formApplicationLiteral(codec.Application))
 	default:
 		key, physical := body.attribute.FindAttribute(field.AttributeName)
-		out.WriteString(renderParameterValue(field.Attribute, physical, body.context, value, "parameterValue", body.context.IsPrimitivePointer(key, body.attribute)))
+		out.WriteString(renderParameterValue(field.Attribute, physical, body.context, value, "parameterValue", body.context.IsPrimitivePointer(key, body.attribute), "nil, "))
 		text := multipartTextCodec(field.Attribute, codec)
 		fmt.Fprintf(out, "partPresent := parameterValue.Present\nif partError := multipartForm.AddParam(%q, %q, %s, parameterValue, %s); partError != nil {\nreturn nil, partError\n}\n", field.HTTPName, codec.ContentType, parameterCodecLiteral(text), parameterNamespaceLiteral(&Element{Namespace: field.Namespace}))
 		if parameterEmptyHasNoKey(text) {

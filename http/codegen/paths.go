@@ -10,6 +10,7 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/representation"
 )
 
 // PathFiles returns the service path files.
@@ -134,7 +135,14 @@ func renderPathValue(b *strings.Builder, arg *InitArgData, escape string) string
 	if expr.IsArray(typ) {
 		fmt.Fprintf(b, "\t%s := make([]string, len(%s))\n", arg.Locals.Slice, arg.VarName)
 		fmt.Fprintf(b, "\tfor i, v := range %s {\n", arg.VarName)
-		fmt.Fprintf(b, "\t\t%s[i] = %s\n", arg.Locals.Slice, renderPathSliceConversion(expr.AsArray(typ).ElemType.Type, escape))
+		element := expr.AsArray(typ).ElemType
+		conversion := renderPathSliceConversion(element.Type, escape)
+		if physical := pathPhysicalElement(arg); representation.IsIntegerKind(element.Type) && !nativeIntegerStorage(physical) {
+			// Public path builders do not validate; they print the stored value
+			// faithfully. BuildRequest preflight rejects unrepresentable values.
+			conversion = renderIntegerDecimal(b, physical, arg.fieldContext.Scope.Ref(physical, arg.fieldContext.Pkg(physical)), "v", arg.Locals.Text)
+		}
+		fmt.Fprintf(b, "\t\t%s[i] = %s\n", arg.Locals.Slice, conversion)
 		b.WriteString("\t}\n")
 		return "strings.Join(" + arg.Locals.Slice + ", \",\")"
 	}
@@ -158,7 +166,44 @@ func renderPathValue(b *strings.Builder, arg *InitArgData, escape string) string
 			return arg.VarName
 		}
 	}
+	if representation.IsIntegerKind(typ) {
+		// Integer storage overrides are transparent: print the decimal value
+		// without validating the wire range here.
+		return renderIntegerDecimal(b, arg.AttributeData.fieldAttribute, arg.TypeRef, arg.VarName, arg.Locals.Text)
+	}
 	return escape + "(" + renderJen(jen.Qual("fmt", "Sprint").Call(jen.Id(arg.VarName))) + ")"
+}
+
+// pathNeedsIntegerText reports an ordinary path argument whose faithful
+// integer text needs a declared local: opaque scalar storage or opaque array
+// element storage. It mirrors the integer branches of renderPathValue.
+func pathNeedsIntegerText(arg *InitArgData) bool {
+	if arg.parameter != nil && arg.parameter.Styled || arg.AttributeData.fieldAttribute == nil {
+		return false
+	}
+	if array := expr.AsArray(arg.FieldType); array != nil {
+		physical := pathPhysicalElement(arg)
+		return representation.IsIntegerKind(array.ElemType.Type) && !nativeIntegerStorage(physical) && representation.IntegerStorage(physical) == nil
+	}
+	typ, _ := transportUnderlyingType(arg.FieldType)
+	return representation.IsIntegerKind(typ) && arg.TypeRef != codegen.GoNativeTypeName(typ) && representation.IntegerStorage(arg.AttributeData.fieldAttribute) == nil
+}
+
+// pathPhysicalElement returns the actual element storage of an array path
+// argument. InitArgData.fieldAttribute names the constructor destination, so
+// the retained transport storage is read from the embedded AttributeData.
+func pathPhysicalElement(arg *InitArgData) *expr.AttributeExpr {
+	return expr.AsArray(arg.AttributeData.fieldAttribute.Type).ElemType
+}
+
+// nativeIntegerStorage reports an unnamed integer whose storage is the wire's
+// own Go carrier.
+func nativeIntegerStorage(attribute *expr.AttributeExpr) bool {
+	if _, named := attribute.Type.(expr.UserType); named {
+		return false
+	}
+	storage := representation.IntegerStorage(attribute)
+	return storage != nil && storage.Name() == codegen.GoNativeTypeName(attribute.Type)
 }
 
 // renderPathSliceConversion returns the expression that formats the element v

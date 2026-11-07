@@ -35,7 +35,7 @@ func renderStyledPathInitCode(args []*InitArgData, path string) string {
 		}
 		// Constructor arguments are native values, including optional primitives
 		// whose presence was resolved by the request builder before this call.
-		code.WriteString(renderParameterValue(arg.parameter.attribute, arg.parameter.attribute, arg.parameter.context, arg.VarName, value, false))
+		code.WriteString(renderParameterValue(arg.parameter.attribute, arg.parameter.attribute, arg.parameter.context, arg.VarName, value, false, `"", `))
 		fmt.Fprintf(&code, "%s, parameterError := loomhttp.EncodePathParam(%q, %s, %s)\nif parameterError != nil {\nreturn \"\", parameterError\n}\n", segment, arg.parameter.HTTPName, parameterCodecLiteral(arg.parameter.Codec), value)
 		values[i] = segment
 	}

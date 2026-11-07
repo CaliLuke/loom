@@ -154,7 +154,7 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
 {
 {{- end }}
 	val := {{ if .FieldPointer }}*{{ end }}{{ if eq $.SourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}{{ if .FieldName }}.{{ .FieldName }}{{ end }}
-	{{ renderHeaderConversion .Type .FieldType .Locals.Encoded "val" .IsTextUnmarshaler }}
+	{{ if isIntegerValue .AttributeData }}{{ renderIntegerValue .AttributeData .Locals.Encoded "val" "" }}{{ else }}{{ renderHeaderConversion .Type .FieldType .Locals.Encoded "val" .IsTextUnmarshaler }}{{ end }}
 	{{- if .Slice }}
 	if err := loomhttp.SetHeaderValues(w.Header(), "{{ .CanonicalName }}", {{ .Locals.Encoded }}); err != nil {
 		return err
@@ -198,7 +198,7 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
 	{{ .VarName }} := {{ transportScalarValue .Type .FieldType (transportFieldReference .AttributeData $source) .IsTextUnmarshaler }}
 		{{- else }}
 	{{ .Locals.EncodedRaw }} := {{ if .FieldPointer }}*{{ end }}{{ if eq $.SourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}{{ if .FieldName }}.{{ .FieldName }}{{ end }}
-	{{ renderHeaderConversion .Type .FieldType .VarName .Locals.EncodedRaw .IsTextUnmarshaler }}
+	{{ if isIntegerValue .AttributeData }}{{ renderIntegerValue .AttributeData .VarName .Locals.EncodedRaw "" }}{{ else }}{{ renderHeaderConversion .Type .FieldType .VarName .Locals.EncodedRaw .IsTextUnmarshaler }}{{ end }}
 		{{- end }}
 
 		{{- if $initDef }}

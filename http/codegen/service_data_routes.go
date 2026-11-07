@@ -37,6 +37,19 @@ func (sds *ServicesData) buildPathInitData(endpointIR *transportir.Endpoint, met
 			arg.parameterSegmentVar = vars.names.Unique(fmt.Sprintf("parameterSegment%d", i))
 		}
 	}
+	// Text locals are allocated after every authored path argument so a
+	// collision renames the derived local, never a builder parameter. Array
+	// element text is named after the loop variable v.
+	for _, arg := range initArgs {
+		if !pathNeedsIntegerText(arg) {
+			continue
+		}
+		base := arg.VarName
+		if expr.IsArray(arg.FieldType) {
+			base = "v"
+		}
+		arg.Locals.Text = vars.names.Unique(base + "Text")
+	}
 	code := ""
 	if fallible {
 		code = renderStyledPathInitCode(initArgs, path)
@@ -133,19 +146,21 @@ func (sds *ServicesData) buildPathInitArg(endpointIR *transportir.Endpoint, meth
 	initArg := &InitArgData{
 		Ref: varName,
 		AttributeData: &AttributeData{
-			Name:        arg,
-			VarName:     varName,
-			Description: att.Description,
-			FieldName:   codegen.GoifyAtt(rawServiceField(endpointIR.Request.Payload, arg, patt), arg, true),
-			FieldType:   patt.Type,
-			TypeName:    sd.Scope.GoTypeName(att),
-			TypeRef:     sd.Scope.GoTypeRef(att),
-			Type:        att.Type,
-			Pointer:     pointer,
-			Required:    true,
-			Example:     att.Example(sds.examplesFor(sd)),
-			Validate:    validate,
-			Locals:      locals,
+			Name:           arg,
+			VarName:        varName,
+			Description:    att.Description,
+			FieldName:      codegen.GoifyAtt(rawServiceField(endpointIR.Request.Payload, arg, patt), arg, true),
+			FieldType:      patt.Type,
+			fieldAttribute: rawServiceField(endpointIR.Request.Payload, arg, patt),
+			fieldContext:   serviceContext("", sd.Scope),
+			TypeName:       sd.Scope.GoTypeName(att),
+			TypeRef:        sd.Scope.GoTypeRef(att),
+			Type:           att.Type,
+			Pointer:        pointer,
+			Required:       true,
+			Example:        att.Example(sds.examplesFor(sd)),
+			Validate:       validate,
+			Locals:         locals,
 		},
 	}
 
@@ -174,11 +189,7 @@ func (sds *ServicesData) buildClientPathArgs(endpointIR *transportir.Endpoint, s
 			arg.IsAliased = false
 		}
 		if arg.IsAliased {
-			if svcData := sds.ServicesData.Get(svc.Name); svcData != nil {
-				arg.ServiceTypeRef = svcData.Scope.GoTypeRef(&expr.AttributeExpr{Type: arg.Type})
-			} else {
-				arg.ServiceTypeRef = codegen.Goify(arg.FieldType.Name(), true)
-			}
+			arg.ServiceTypeRef = arg.TypeRef
 		}
 		if array := expr.AsArray(arg.FieldType); array != nil && expr.IsAlias(array.ElemType.Type) {
 			source := &expr.AttributeExpr{Type: arg.FieldType}

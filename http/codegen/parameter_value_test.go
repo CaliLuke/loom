@@ -29,7 +29,7 @@ func TestParameterValueEncoding(t *testing.T) {
 		{"object", record, false, []string{"if value != nil", `Key: "R"`, "strconv.Itoa(value.R)", "if value.G != nil", `Key: "G"`, "*value.G"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			code := renderParameterValue(&expr.AttributeExpr{Type: tc.typ}, &expr.AttributeExpr{Type: tc.typ}, serviceContext("", codegen.NewNameScope()), "value", "paramValue", tc.pointer)
+			code := renderParameterValue(&expr.AttributeExpr{Type: tc.typ}, &expr.AttributeExpr{Type: tc.typ}, serviceContext("", codegen.NewNameScope()), "value", "paramValue", tc.pointer, "")
 			for _, fragment := range tc.fragments {
 				require.Contains(t, code, fragment)
 			}

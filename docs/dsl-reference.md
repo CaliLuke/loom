@@ -2577,6 +2577,22 @@ Response headers and cookies, including mapped errors and viewed results, use
 the same custom text representation. Regenerate transports after adopting this
 correction; optional nil values remain absent.
 
+An integer attribute with `struct:field:type` keeps its declared integer wire
+type; the override only selects Go storage, for example `int8`, `uint64` or an
+external integer such as `time.Duration`. HTTP path, query, header and cookie
+text is always the decimal integer value, never `String()` output. Generated
+code converts each value between storage and the wire type and rejects only
+values the other side cannot represent: a server answers a request value such
+as `200` for `int8` storage with a 400 `invalid_field_type` error, a client
+returns an encoding error before sending, and a server response fails before
+its headers or cookies are written. Ordinary generated path builders remain
+infallible and print the stored value; `BuildRequest` rejects it when the wire
+type cannot represent it. OpenAPI bounds are not inferred from Go storage;
+declare `Minimum` and `Maximum` to publish a narrower range. External storage
+must have an integer underlying type. Regenerate transports to adopt this
+correction; previously such fields could fail to compile, wrap silently or
+send `String()` text.
+
 If the DSL field also uses `Format(...)`, Loom skips the duplicate generated
 string format check and lets the custom type's parser own that validation.
 Other string constraints, such as `MinLength`, validate the original text.

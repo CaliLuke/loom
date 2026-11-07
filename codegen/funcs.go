@@ -21,11 +21,15 @@ type (
 		Pointer bool
 		// Type is the argument type.
 		Type expr.DataType
-		// Attribute preserves the argument occurrence metadata when provided.
+		// Attribute is the actual physical source occurrence, including storage metadata.
+		// Nil means Type alone fully describes the declared source storage.
 		Attribute *expr.AttributeExpr
 		// SourceContext identifies an already selected physical argument layout.
 		// Nil uses the constructor's source package and argument pointer policy.
 		SourceContext *AttributeContext
+		// TargetContext retains the selected physical destination layout, including nested fields.
+		// Nil uses the constructor target package and field pointer policy.
+		TargetContext *AttributeContext
 		// FieldName is the name of the field in the struct initialized by the
 		// argument.
 		FieldName string
@@ -204,6 +208,9 @@ func initStructField(arg *InitArgData, args []*InitArgData, targetVar, sourcePkg
 		sourceContext = arg.SourceContext
 	}
 	targetContext := NewAttributeContext(arg.FieldPointer, false, true, targetPkg, scope)
+	if arg.TargetContext != nil {
+		targetContext = arg.TargetContext
+	}
 	attributes := &TransformAttrs{SourceCtx: sourceContext, TargetCtx: targetContext}
 	if source.Type != nil && target.Type != nil && stringRepresentationCrossing(source, target, attributes) {
 		return initStringRepresentationField(arg, args, targetVar, source, target, attributes)
@@ -223,7 +230,7 @@ func initStructField(arg *InitArgData, args []*InitArgData, targetVar, sourcePkg
 		}
 		return TransformPlan{Code: fmt.Sprintf("%s.%s = %s%s\n", targetVar, arg.FieldName, deref, arg.Name)}, nil // nolint: namescope -- target.field assignment, not a type ref
 	case expr.IsPrimitive(arg.FieldType):
-		return TransformPlan{Code: initAliasedPrimitiveField(arg, targetVar, targetPkg, scope)}, nil
+		return initPrimitiveField(arg, args, targetVar, source, target, attributes)
 	case expr.IsUnion(source.Type) && expr.IsUnion(target.Type) && !expr.IsNullable(source) && !expr.IsNullable(target):
 		plan, err = initUnionField(arg, targetVar, source, target, attributes)
 	default:
@@ -244,37 +251,10 @@ func canCopyInitField(arg *InitArgData, source, target *expr.AttributeExpr, ta *
 	if !expr.Equal(unalias(arg.Type), arg.FieldType) {
 		return false
 	}
-	if !representation.ContainsCustomString(source) && !representation.ContainsCustomString(target) {
+	if !expr.IsPrimitive(source.Type) && !expr.IsPrimitive(target.Type) && !representation.ContainsCustomString(source) && !representation.ContainsCustomString(target) {
 		return true
 	}
 	return ta.SourceCtx.Scope.Ref(source, ta.SourceCtx.Pkg(source)) == ta.TargetCtx.Scope.Ref(target, ta.TargetCtx.Pkg(target))
-}
-
-func initAliasedPrimitiveField(arg *InitArgData, targetVar, targetPkg string, scope *NameScope) string {
-	var code string
-	// aliased primitive type
-	pkg := targetPkg
-	if loc := UserTypeLocation(arg.FieldType); loc != nil {
-		pkg = scope.PackageName(loc)
-	}
-	t := scope.GoFullTypeRef(&expr.AttributeExpr{Type: arg.FieldType}, pkg)
-	cast := fmt.Sprintf("%s(%s)", t, arg.Name)
-	if arg.Pointer {
-		code += "if " + arg.Name + " != nil {\n"
-		cast = fmt.Sprintf("%s(*%s)", t, arg.Name)
-	}
-	switch {
-	case arg.FieldPointer:
-		code += fmt.Sprintf("tmp%s := %s\n%s.%s = &tmp%s\n", arg.Name, cast, targetVar, arg.FieldName, arg.Name)
-	case arg.FieldName != "":
-		code += fmt.Sprintf("%s.%s = %s\n", targetVar, arg.FieldName, cast) // nolint: namescope -- target.field assignment, not a type ref
-	default:
-		code += fmt.Sprintf("%s := %s\n", targetVar, cast)
-	}
-	if arg.Pointer {
-		code += "}\n"
-	}
-	return code
 }
 
 func initStringRepresentationField(arg *InitArgData, args []*InitArgData, targetVar string, source, target *expr.AttributeExpr, ta *TransformAttrs) (TransformPlan, error) {

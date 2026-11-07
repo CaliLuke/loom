@@ -44,7 +44,7 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
    req.Header.Set({{ printf "%q" .HTTPName }}, "Bearer "+{{ if isAlias .FieldType }}string(head){{ else }}head{{ end }})
    {{- else }}
 			{{- if eq .Type.Name "array" }}
-			{{ renderHeaderConversion .Type .FieldType "values" "head" false }}
+			{{ if isIntegerValue .AttributeData }}{{ renderIntegerValue .AttributeData "values" "head" "" }}{{ else }}{{ renderHeaderConversion .Type .FieldType "values" "head" false }}{{ end }}
 			if err := loomhttp.SetHeaderValues(req.Header, {{ printf "%q" .HTTPName }}, values); err != nil {
 				return err
 			}
@@ -53,7 +53,7 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 			{{- else if eq .Type.Name "string" }}
 			req.Header.Set({{ printf "%q" .HTTPName }}, head)
 			{{- else }}
-			{{ template "partial_client_type_conversion" (typeConversionData .Type .FieldType "headStr" "head") }}
+			{{ if isIntegerValue .AttributeData }}{{ renderIntegerValue .AttributeData "headStr" "head" "" }}{{ else }}{{ template "partial_client_type_conversion" (typeConversionData .Type .FieldType "headStr" "head") }}{{ end }}
 			req.Header.Set({{ printf "%q" .HTTPName }}, headStr)
 			{{- end }}
 			{{- end }}
@@ -71,7 +71,7 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 			{{- end }}
 			v{{ if or (not (eq .Type.Name "string")) (and (isAlias .FieldType) (not .IsTextUnmarshaler)) }}raw{{ end }} := {{ if .IsTextUnmarshaler }}{{ transportScalarValue .Type .FieldType (transportFieldReference .AttributeData "p") true }}{{ else }}{{ transportFieldReference .AttributeData "p" }}{{ end }}
 			{{- if or (not (eq .Type.Name "string")) (and (isAlias .FieldType) (not .IsTextUnmarshaler)) }}
-			{{ template "partial_client_type_conversion" (typeConversionData .Type .FieldType "v" "vraw") }}
+			{{ if isIntegerValue .AttributeData }}{{ renderIntegerValue .AttributeData "v" "vraw" "" }}{{ else }}{{ template "partial_client_type_conversion" (typeConversionData .Type .FieldType "v" "vraw") }}{{ end }}
 			{{- end }}
 			if err := loomhttp.AddRequestCookie(req, {{ printf "%q" .HTTPName }}, v); err != nil {
 				return loomhttp.ErrEncodingError("{{ $.ServiceName }}", "{{ $.Method.Name }}", err)
@@ -90,14 +90,14 @@ var parameterBuilder loomhttp.RawPairsBuilder
 {{ renderStyledEncode .Element "p" "query" }}
 {{- else if .MapQueryParams }}
 		for key, value := range p{{ if .FieldName }}.{{ .FieldName }}{{ end }} {
-			{{ template "partial_client_type_conversion" (typeConversionData .Type.KeyType.Type (aliasedType .FieldType).KeyType.Type "keyStr" "key") }}
+			{{ with integerElementText .AttributeData "key" "keyStr" "key" }}{{ . }}{{ else }}{{ template "partial_client_type_conversion" (typeConversionData .Type.KeyType.Type (aliasedType .FieldType).KeyType.Type "keyStr" "key") }}{{ end }}
 			{{- if eq .Type.ElemType.Type.Name "array" }}
 			for _, val := range value {
-				{{ template "partial_client_type_conversion" (typeConversionData .Type.ElemType.Type.ElemType.Type (aliasedType (aliasedType .FieldType).ElemType.Type).ElemType.Type "valStr" "val") }}
+				{{ with integerElementText .AttributeData "elem.elem" "valStr" "val" }}{{ . }}{{ else }}{{ template "partial_client_type_conversion" (typeConversionData .Type.ElemType.Type.ElemType.Type (aliasedType (aliasedType .FieldType).ElemType.Type).ElemType.Type "valStr" "val") }}{{ end }}
 				values.Add(keyStr, valStr)
 			}
 			{{- else }}
-			{{ template "partial_client_type_conversion" (typeConversionData .Type.ElemType.Type (aliasedType .FieldType).ElemType.Type "valueStr" "value") }}
+			{{ with integerElementText .AttributeData "elem" "valueStr" "value" }}{{ . }}{{ else }}{{ template "partial_client_type_conversion" (typeConversionData .Type.ElemType.Type (aliasedType .FieldType).ElemType.Type "valueStr" "value") }}{{ end }}
 			values.Add(keyStr, valueStr)
 			{{- end }}
     }
@@ -107,12 +107,23 @@ var parameterBuilder loomhttp.RawPairsBuilder
 			}
 		{{- else if .Slice }}
 			for _, value := range p{{ if .FieldName }}.{{ .FieldName }}{{ end }} {
-				{{ template "partial_client_type_conversion" (typeConversionData .Type.ElemType.Type (aliasedType .FieldType).ElemType.Type "valueStr" "value") }}
+				{{ with integerElementText .AttributeData "elem" "valueStr" "value" }}{{ . }}{{ else }}{{ template "partial_client_type_conversion" (typeConversionData .Type.ElemType.Type (aliasedType .FieldType).ElemType.Type "valueStr" "value") }}{{ end }}
 				values.Add("{{ .HTTPName }}", valueStr)
 			}
 		{{- else if .JSONField }}
 		if _, err := loomhttp.EncodeJSONField(values, {{ printf "%q" .HTTPName }}, p{{ if .FieldName }}.{{ .FieldName }}{{ end }}, loomhttp.FieldValue); err != nil {
 			return err
+		}
+		{{- else if and .FieldName (isStoredIntegerValue .AttributeData) }}
+		{
+			{{- if .FieldPointer }}
+		if p.{{ .FieldName }} != nil {
+			{{- end }}
+		{{ renderIntegerValue .AttributeData "queryText" (printf "%sp.%s" (or (and .FieldPointer "*") "") .FieldName) "" }}
+		values.Add("{{ .HTTPName }}", queryText)
+			{{- if .FieldPointer }}
+		}
+			{{- end }}
 		}
 		{{- else if .FieldName }}
 			{{- if .FieldPointer }}
@@ -137,7 +148,7 @@ var parameterBuilder loomhttp.RawPairsBuilder
 			{{- else if (and (isAlias .Type) (eq (underlyingType .Type).Name "string")) }}
 				values.Add("{{ .HTTPName }}", string(p))
 			{{- else }}
-				{{ template "partial_client_type_conversion" (typeConversionData .Type .FieldType "pStr" "p") }}
+				{{ with integerElementText .AttributeData "" "pStr" "p" }}{{ . }}{{ else }}{{ template "partial_client_type_conversion" (typeConversionData .Type .FieldType "pStr" "p") }}{{ end }}
 				values.Add("{{ .HTTPName }}", pStr)
 			{{- end }}
 		{{- end }}

@@ -14,7 +14,7 @@ func (b *errorBuilder) statusErrorNameArg(response *transportir.ResponseStatus, 
 	name := response.StatusErrorName
 	source := response.Error.Attribute
 	_, field := source.FindAttribute(name)
-	fieldName, fieldType, pointer := transportFieldBinding(name, field, source, context)
+	fieldName, field, pointer := transportFieldBinding(name, field, source, context)
 	varName, _ := vars.allocate(codegen.Goify(expr.AttributeName(name), false), nil)
 	return &InitArgData{
 		Ref: strconv.Quote(response.Error.Name),
@@ -22,7 +22,7 @@ func (b *errorBuilder) statusErrorNameArg(response *transportir.ResponseStatus, 
 			Name:         name,
 			VarName:      varName,
 			FieldName:    fieldName,
-			FieldType:    fieldType,
+			FieldType:    field.Type,
 			FieldPointer: pointer,
 			Required:     true,
 			Type:         expr.String,

@@ -124,7 +124,7 @@ func (b *errorBuilder) buildResultInitCode(
 	httpError := errorResponse.Error
 	body := responseStatusBody(errorResponse)
 	if expr.IsDefaultErrorResult(httpError.Attribute.Type) {
-		return codegen.TransformPlan{Code: b.buildProblemClientResult(errorResponse, clientBody, args)}, selectedServiceField{Attribute: httpError.Attribute}, true
+		return b.buildProblemClientResult(errorResponse, clientBody, args), selectedServiceField{Attribute: httpError.Attribute}, true
 	}
 	field := selectBodyField(httpError.Attribute, body)
 	code, err := b.sds.buildClientResultTransformCode(clientBody, field.Attribute, httpError.Attribute, args, errctx, b.sd)

@@ -607,6 +607,10 @@ type (
 	// related to a specific payload or result attribute.
 	AttributeData struct {
 		nativeContext *codegen.AttributeContext
+		// fieldAttribute and fieldContext retain the actual physical service
+		// occurrence bound to the value and the context that references it.
+		fieldAttribute *expr.AttributeExpr
+		fieldContext   *codegen.AttributeContext
 		// Name is the name of the attribute.
 		Name string
 		// VarName is the name of the variable that holds the attribute value.
@@ -653,7 +657,9 @@ type (
 	// InitArgData represents a single constructor argument.
 	InitArgData struct {
 		// attribute and context retain the actual decoded argument representation.
-		attribute           *expr.AttributeExpr
+		attribute *expr.AttributeExpr
+		// fieldAttribute retains the selected native destination occurrence.
+		fieldAttribute      *expr.AttributeExpr
 		context             *codegen.AttributeContext
 		parameter           *Element
 		parameterValueVar   string

@@ -422,6 +422,30 @@ consumer validation.
   from named elements to primitive elements. Scalar query/cookie adapters reuse
   the formatter; escaping, custom codecs and framing stay with their owners.
 
+- Integer `struct:field:type` storage is transparent and stays admitted,
+  whether narrow, cross-signed or opaque. Representability is checked per value
+  at each text boundary. `internal/representation/integer.go` is the single
+  classifier and checked-conversion core; it serves F1 constructors and HTTP.
+  Transport data keeps the actual service attribute and context
+  (`fieldAttribute`, `fieldContext`); never fabricate physical metadata or infer
+  storage from namedness.
+  - Encoding converts storage to the wire carrier with the check, then formats
+    it, in `renderIntegerText`, `renderIntegerValue` and `integerElementText`.
+  - Decoding parses in the wire domain, then converts to storage with the same
+    check before assignment, in `integerDecodeCheck`, `integerSliceAssign` and
+    `integerPointerAssign`.
+  - Failures use the existing owners: an encoder error before `Do`, a response
+    error before `WriteHeader`, `InvalidFieldTypeError` on decode, and styled
+    closure returns.
+  - Ordinary scalar and array path builders print faithful decimal text
+    derived from numeric storage (`renderIntegerDecimal`), never through
+    `fmt.Formatter` or `fmt.Stringer`, and without validating;
+    `BuildRequest` preflight rejects the value.
+  - Native storage keeps its exact bytes.
+  - Keep `internal/representation/tla/integer_text_boundary` and
+    `TestIntegerTextBoundaryGenerated`/`TestIntegerTextBoundaryJSONRPC`
+    aligned.
+
 - Service package symbol analysis allocates every emitted interceptor Info and
   accessor interface before nominal user types. Store those public identities in
   `InterceptorData` and consume them in declarations, wrappers and examples;

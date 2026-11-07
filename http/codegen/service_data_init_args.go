@@ -12,7 +12,14 @@ func buildPayloadFieldArgs(request *RequestData, payload *expr.AttributeExpr) []
 		field := *element.AttributeData
 		field.Description = description
 		field.DefaultValue = defaultValue
-		args = append(args, &InitArgData{Ref: element.VarName, AttributeData: &field, parameter: element})
+		_, target := payload.FindAttribute(element.AttributeName)
+		if target == nil {
+			target = payload
+		}
+		args = append(args, &InitArgData{
+			Ref: element.VarName, AttributeData: &field, parameter: element,
+			attribute: element.attribute, context: element.context, fieldAttribute: target,
+		})
 	}
 	for _, param := range request.PathParams {
 		appendField(param.Element, param.Description, nil)
@@ -56,7 +63,8 @@ func buildBasicAuthCLIArgs(ep *service.MethodData, payload *expr.AttributeExpr, 
 			}
 			return []*InitArgData{
 				{
-					Ref: scheme.UsernameAttr,
+					Ref:       scheme.UsernameAttr,
+					attribute: &expr.AttributeExpr{Type: expr.String}, context: cliCtx, fieldAttribute: uatt,
 					AttributeData: &AttributeData{
 						Name:         scheme.UsernameAttr,
 						VarName:      scheme.UsernameAttr,
@@ -75,7 +83,8 @@ func buildBasicAuthCLIArgs(ep *service.MethodData, payload *expr.AttributeExpr, 
 					},
 				},
 				{
-					Ref: scheme.PasswordAttr,
+					Ref:       scheme.PasswordAttr,
+					attribute: &expr.AttributeExpr{Type: expr.String}, context: cliCtx, fieldAttribute: patt,
 					AttributeData: &AttributeData{
 						Name:         scheme.PasswordAttr,
 						VarName:      scheme.PasswordAttr,
@@ -121,9 +130,10 @@ func buildHeaderInitArgs(headers []*HeaderData) []*InitArgData {
 	args := make([]*InitArgData, 0, len(headers))
 	for _, header := range headers {
 		args = append(args, &InitArgData{
-			attribute: header.attribute,
-			context:   header.context,
-			Ref:       header.VarName,
+			attribute:      header.attribute,
+			fieldAttribute: header.fieldAttribute,
+			context:        header.context,
+			Ref:            header.VarName,
 			AttributeData: &AttributeData{
 				Name:          header.Name,
 				VarName:       header.VarName,
@@ -147,9 +157,10 @@ func buildCookieInitArgs(cookies []*CookieData) []*InitArgData {
 	args := make([]*InitArgData, 0, len(cookies))
 	for _, cookie := range cookies {
 		args = append(args, &InitArgData{
-			attribute: cookie.attribute,
-			context:   cookie.context,
-			Ref:       cookie.VarName,
+			attribute:      cookie.attribute,
+			fieldAttribute: cookie.fieldAttribute,
+			context:        cookie.context,
+			Ref:            cookie.VarName,
 			AttributeData: &AttributeData{
 				Name:         cookie.Name,
 				VarName:      cookie.VarName,

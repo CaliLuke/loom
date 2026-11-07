@@ -43,6 +43,10 @@ type (
 		// Slice holds the string forms of the elements of an array value that
 		// are joined into a single path segment or cookie value.
 		Slice string
+		// Text holds the decimal text of an opaque integer path value, or of
+		// each element of an opaque integer array path value. Path builders
+		// allocate it in the path variable scope after every authored param.
+		Text string
 		// Encoded holds the string form of a response header value.
 		Encoded string
 		// EncodedRaw holds a response cookie value before its conversion to a

@@ -8,6 +8,7 @@ import (
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 	"github.com/CaliLuke/loom/internal/httpencoding"
+	"github.com/CaliLuke/loom/internal/representation"
 )
 
 // renderParameterPreflight rejects values whose grammar has no representation
@@ -19,11 +20,11 @@ func renderParameterPreflight(endpoint *transportir.Endpoint, payload *PayloadDa
 		if param.Styled || strings.Contains(endpoint.Routes[0].Path, "{*"+param.HTTPName+"}") {
 			continue
 		}
-		if param.Codec.Shape != httpencoding.Sequence && param.Type != expr.String && param.Type != expr.Bytes {
+		if param.Codec.Shape != httpencoding.Sequence && param.Type != expr.String && param.Type != expr.Bytes && !integerPathChecked(param.Element) {
 			continue
 		}
 		checks.WriteString("{\n")
-		checks.WriteString(renderParameterValue(param.attribute, parameterPhysicalAttribute(param.Element), param.context, parameterServiceValue(param.Element, "p"), "parameterValue", param.FieldPointer))
+		checks.WriteString(renderParameterValue(param.attribute, param.fieldAttribute, parameterServiceContext(param.Element), parameterServiceValue(param.Element, "p"), "parameterValue", param.FieldPointer, ""))
 		fmt.Fprintf(&checks, "if _, parameterError := loomhttp.EncodePathParam(%q, %s, parameterValue); parameterError != nil {\nreturn parameterError\n}\n}\n", param.HTTPName, parameterCodecLiteral(param.Codec))
 	}
 	for _, param := range payload.Request.QueryParams {
@@ -57,11 +58,32 @@ func renderParameterPreflight(endpoint *transportir.Endpoint, payload *PayloadDa
 	return code.String()
 }
 
+// integerPathChecked reports an integer path value whose physical storage can
+// hold values outside its wire type. The non-fallible path builder prints such
+// values faithfully, so BuildRequest owns their rejection before allocation.
+func integerPathChecked(element *Element) bool {
+	if !representation.IsIntegerKind(element.Type) {
+		return false
+	}
+	base, _ := transportUnderlyingType(element.Type)
+	conversion, ok, err := representation.ClassifyIntegerConversion(element.fieldAttribute, &expr.AttributeExpr{Type: base})
+	return ok && err == nil && conversion.Checked
+}
+
 func parameterEmptyHasNoKey(codec httpencoding.Codec) bool {
 	if codec.Shape == httpencoding.Scalar || codec.Shape == httpencoding.Union || codec.Style == httpencoding.Root || codec.Style == httpencoding.JSON {
 		return false
 	}
 	return codec.Style == httpencoding.DeepObject || codec.Explode && (codec.Style == httpencoding.Form || codec.Style == httpencoding.CookieStyle)
+}
+
+// parameterServiceContext selects the context that references the payload's
+// service field storage, falling back to the parameter's own context.
+func parameterServiceContext(element *Element) *codegen.AttributeContext {
+	if element.fieldContext != nil {
+		return element.fieldContext
+	}
+	return element.context
 }
 
 func parameterServiceValue(element *Element, source string) string {
@@ -74,7 +96,7 @@ func parameterServiceValue(element *Element, source string) string {
 func renderParameterEmptyCheck(element *Element, source string) string {
 	var code strings.Builder
 	code.WriteString("{\n")
-	code.WriteString(renderParameterValue(element.attribute, parameterPhysicalAttribute(element), element.context, parameterServiceValue(element, source), "parameterValue", element.FieldPointer))
+	code.WriteString(renderParameterValue(element.attribute, element.fieldAttribute, parameterServiceContext(element), parameterServiceValue(element, source), "parameterValue", element.FieldPointer, ""))
 	code.WriteString(renderParameterKeyCheck(element.Codec, element.HTTPName, ""))
 	code.WriteString("}\n")
 	return code.String()
@@ -105,7 +127,7 @@ func renderFormPreflight(checks *strings.Builder, endpoint *transportir.Endpoint
 			panic("missing form parameter source " + field.AttributeName)
 		}
 		element := &Element{attribute: field.Attribute, context: serviceContext("", codegen.NewNameScope()), HTTPName: field.HTTPName, Codec: field.Codec, AttributeData: &AttributeData{
-			Type: field.Attribute.Type, FieldType: physical.Type,
+			Type: field.Attribute.Type, FieldType: physical.Type, fieldAttribute: physical,
 			FieldName:    codegen.GoifyAtt(physical, expr.AttributeName(key), true),
 			FieldPointer: selected.Attribute.IsPrimitivePointer(key, true),
 		}}

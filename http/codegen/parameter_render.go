@@ -42,13 +42,16 @@ func renderStyledEncode(element *Element, source, location string) string {
 	if expr.AsUnion(element.Type) != nil {
 		return renderTextUnionEncode(element, source, location)
 	}
+	if element.fieldAttribute == nil {
+		panic("styled parameter " + element.Name + " has no retained physical attribute") // bug
+	}
 	var code strings.Builder
 	code.WriteString("{\n")
 	value := source
 	if element.FieldName != "" {
 		value += "." + element.FieldName
 	}
-	code.WriteString(renderParameterValue(element.attribute, parameterPhysicalAttribute(element), element.context, value, "parameterValue", element.FieldPointer))
+	code.WriteString(renderParameterValue(element.attribute, element.fieldAttribute, parameterServiceContext(element), value, "parameterValue", element.FieldPointer, ""))
 	codec := parameterCodecLiteral(element.Codec)
 	switch location {
 	case "header", "response-header":
@@ -125,12 +128,6 @@ func hasOrdinaryQuery(params []*ParamData) bool {
 		}
 	}
 	return false
-}
-
-func parameterPhysicalAttribute(element *Element) *expr.AttributeExpr {
-	physical := *element.attribute
-	physical.Type = element.FieldType
-	return &physical
 }
 
 func renderParameterValidation(element *Element, text string) string {

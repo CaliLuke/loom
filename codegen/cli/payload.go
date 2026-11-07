@@ -17,6 +17,11 @@ import (
 // of the payload field types, see codegen.NameScope.PackageName.
 func PayloadBuilderSection(buildFunction *BuildFunctionData, pkgs *codegen.NameScope) codegen.Section {
 	return codegen.NewJenniferSection("cli-build-payload", func(stmt *jen.Statement) {
+		var fields codegen.TransformPlan
+		if init := buildFunction.PayloadInit; init != nil && init.ReturnIsStruct && len(init.Args) > 0 {
+			fields = fieldCode(init, pkgs)
+		}
+		errorAware := buildFunction.PayloadInit != nil && (buildFunction.PayloadInit.ErrorAware || fields.ErrorAware)
 		codegen.Doc(stmt, fmt.Sprintf("%s builds the payload for the %s %s endpoint from CLI flags.", buildFunction.Name, buildFunction.ServiceName, buildFunction.MethodName))
 		fn := stmt.Func().Id(buildFunction.Name).ParamsFunc(func(group *jen.Group) {
 			for _, formal := range buildFunction.FormalParams {
@@ -35,7 +40,7 @@ func PayloadBuilderSection(buildFunction *BuildFunctionData, pkgs *codegen.NameS
 				group.Block(field.Init)
 			}
 			if buildFunction.PayloadInit != nil {
-				if buildFunction.PayloadInit.ErrorAware {
+				if errorAware {
 					group.Id("transformErr").Op(":=").New(jen.Error())
 				}
 				appendPayloadInitCode(group, buildFunction.PayloadInit)
@@ -48,14 +53,14 @@ func PayloadBuilderSection(buildFunction *BuildFunctionData, pkgs *codegen.NameS
 						group.Id(target).Op(":=").Op("&").Add(codegen.TypeRef(buildFunction.PayloadInit.ReturnTypeName)).Values()
 					}
 					if len(buildFunction.PayloadInit.Args) > 0 {
-						group.Add(fieldCode(buildFunction.PayloadInit, pkgs))
+						group.Add(codegen.Expr(fields.Code))
 					}
 				}
 				resultVar := "v"
 				if buildFunction.PayloadInit.ReturnTypeAttribute != "" {
 					resultVar = "res"
 				}
-				if buildFunction.PayloadInit.ErrorAware {
+				if errorAware {
 					group.If(jen.Op("*").Id("transformErr").Op("!=").Nil()).Block(
 						jen.Var().Id("zero").Add(codegen.TypeRef(buildFunction.ResultType)),
 						jen.Return(jen.Id("zero"), jen.Op("*").Id("transformErr")),
@@ -254,7 +259,7 @@ func generateExample(sub *SubcommandData, svc string) {
 
 // fieldCode generates code to initialize the data structures fields
 // from the given args. It is used only in templates.
-func fieldCode(init *PayloadInitData, pkgs *codegen.NameScope) *jen.Statement {
+func fieldCode(init *PayloadInitData, pkgs *codegen.NameScope) codegen.TransformPlan {
 	varn := "res"
 	if init.ReturnTypeAttribute == "" {
 		varn = "v"
@@ -265,5 +270,5 @@ func fieldCode(init *PayloadInitData, pkgs *codegen.NameScope) *jen.Statement {
 	if err != nil {
 		panic(fmt.Errorf("build CLI payload field init for %s: %w", init.ReturnTypeName, err))
 	}
-	return codegen.Expr(plan.Code)
+	return plan
 }

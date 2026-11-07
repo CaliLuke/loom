@@ -86,7 +86,7 @@ func (b *payloadBuilder) buildJSONRPCID() *JSONRPCIDData {
 	b.sd.ServerTransformHelpers = codegen.AppendHelpers(b.sd.ServerTransformHelpers, plan.Helpers)
 	validation := codegen.ValidationCode(source, nil, sourceContext, true, false, false, carrier)
 	defaultValue, _ := selectedTransportConstraints(attribute).Default()
-	argument := &InitArgData{Ref: value, AttributeData: &AttributeData{
+	argument := &InitArgData{Ref: value, attribute: attribute, context: b.svcctx, fieldAttribute: attribute, AttributeData: &AttributeData{
 		Name: name, VarName: value, FieldName: field, Type: attribute.Type,
 		FieldType: attribute.Type, TypeName: typeRef,
 		TypeRef: typeRef, FieldPointer: layout.Pointer, Pointer: layout.Pointer,

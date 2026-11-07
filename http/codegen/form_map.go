@@ -42,7 +42,7 @@ func renderFormMapEncode(body *TypeData, contract *expr.HTTPFormEncoding, value 
 			out.WriteString(renderTextUnionEncode(element, "formValue", "form"))
 		}
 	default:
-		out.WriteString(renderParameterValue(element.attribute, element.attribute, element.context, "formValue", "parameterValue", false))
+		out.WriteString(renderParameterValue(element.attribute, element.attribute, element.context, "formValue", "parameterValue", false, ""))
 		out.WriteString("if !parameterValue.Present {\nreturn fmt.Errorf(\"form map entry is absent\")\n}\n")
 		if parameterEmptyHasNoKey(element.Codec) {
 			out.WriteString(renderParameterKeyCheck(element.Codec, "map entry", ""))

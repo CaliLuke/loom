@@ -198,30 +198,32 @@ func fieldCode(init *InitData, typ string, pkgs *codegen.NameScope) codegen.Tran
 	if typ == "client" {
 		args = init.ClientArgs
 	}
-	pkg := init.ReturnTypePkg
-	if init.returnContext != nil {
-		pkg = init.returnContext.DefaultPkg
-		pkgs = init.returnContext.Scope.Scope()
+	targetContext := init.returnContext
+	if targetContext == nil {
+		targetContext = serviceContext(init.ReturnTypePkg, pkgs)
 	}
-	return initFieldAssignments(args, varn, pkg, pkgs)
+	return initFieldAssignments(args, varn, targetContext)
 }
 
-func initFieldAssignments(args []*InitArgData, targetVar, targetPkg string, pkgs *codegen.NameScope) codegen.TransformPlan {
+func initFieldAssignments(args []*InitArgData, targetVar string, targetContext *codegen.AttributeContext) codegen.TransformPlan {
 	initArgs := make([]*codegen.InitArgData, len(args))
 	for i, arg := range args {
 		initArgs[i] = &codegen.InitArgData{
-			SourceContext: arg.nativeContext,
-			Name:          arg.VarName,
-			Pointer:       arg.Pointer,
-			Type:          arg.Type,
-			FieldName:     arg.FieldName,
-			FieldPointer:  arg.FieldPointer,
-			FieldType:     arg.FieldType,
+			SourceContext:  arg.context,
+			TargetContext:  targetContext,
+			Attribute:      arg.attribute,
+			FieldAttribute: arg.fieldAttribute,
+			Name:           arg.VarName,
+			Pointer:        arg.Pointer,
+			Type:           arg.Type,
+			FieldName:      arg.FieldName,
+			FieldPointer:   arg.FieldPointer,
+			FieldType:      arg.FieldType,
 		}
 	}
 	// Transport-bound fields can be named scalar or collection types, but
 	// their inline conversions do not require object transform helpers.
-	plan, err := codegen.InitStructFields(initArgs, targetVar, "", targetPkg, pkgs)
+	plan, err := codegen.InitStructFields(initArgs, targetVar, "", targetContext.DefaultPkg, targetContext.Scope.Scope())
 	if err != nil {
 		panic(fmt.Errorf("build HTTP field init for %s: %w", targetVar, err))
 	}

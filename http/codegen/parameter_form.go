@@ -24,7 +24,7 @@ func renderFormFieldsEncode(body *TypeData, ordinary, styled []*FormFieldData, t
 		if field.Required && parameterEmptyHasNoKey(field.Codec) {
 			key, physical := body.attribute.FindAttribute(field.AttributeName)
 			code.WriteString("{\n")
-			code.WriteString(renderParameterValue(field.Attribute, physical, body.context, target+"."+field.FieldName, "parameterValue", body.context.IsPrimitivePointer(key, body.attribute)))
+			code.WriteString(renderParameterValue(field.Attribute, physical, body.context, target+"."+field.FieldName, "parameterValue", body.context.IsPrimitivePointer(key, body.attribute), `"", `))
 			code.WriteString(renderParameterKeyCheck(field.Codec, field.HTTPName, "\"\", "))
 			code.WriteString("}\n")
 		}
@@ -47,7 +47,7 @@ func renderFormFieldsEncode(body *TypeData, ordinary, styled []*FormFieldData, t
 			panic("missing styled form carrier " + field.AttributeName)
 		}
 		code.WriteString("{\n")
-		code.WriteString(renderParameterValue(field.Attribute, physical, body.context, target+"."+field.FieldName, "parameterValue", body.context.IsPrimitivePointer(key, body.attribute)))
+		code.WriteString(renderParameterValue(field.Attribute, physical, body.context, target+"."+field.FieldName, "parameterValue", body.context.IsPrimitivePointer(key, body.attribute), `"", `))
 		if field.Required && parameterEmptyHasNoKey(field.Codec) {
 			code.WriteString(renderParameterKeyCheck(field.Codec, field.HTTPName, "\"\", "))
 		}

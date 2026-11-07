@@ -169,7 +169,7 @@ func renderTextUnionEncodingChoice(out *strings.Builder, element *Element, union
 			renderTextUnionEncodingChoice(out, branchElement, nested, codecs[index].Inner, "v", location, path)
 		} else {
 			fmt.Fprintf(out, "selected = []int{%s}\n", strings.Join(path, ", "))
-			out.WriteString(renderParameterValue(branch.Attribute, branch.Attribute, element.context, "v", "branchValue", false))
+			out.WriteString(renderParameterValue(branch.Attribute, branch.Attribute, element.context, "v", "branchValue", false, ""))
 			fmt.Fprintf(out, "parameterValue = branchValue\nparameterCodec = %s\n", parameterCodecLiteral(branchElement.Codec))
 			if location == "query" || location == "form" || location == "cookie" {
 				fmt.Fprintf(out, "parameterNamespace = %s\n", parameterNamespaceLiteral(branchElement))
