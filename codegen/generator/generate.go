@@ -27,6 +27,19 @@ import (
 // as replaceable. Options configure per-run resource use; invalid options fail
 // before design loading or generation effects.
 func Generate(dir, cmd, designPackage string, debug bool, options ...GenerateOption) (outputs []codegen.Artifact, err1 error) {
+	defer func() {
+		failure := recover()
+		if failure == nil {
+			return
+		}
+		err, ok := failure.(error)
+		var materialization *codegen.DefaultValueError
+		if !ok || !errors.As(err, &materialization) {
+			panic(failure)
+		}
+		outputs = nil
+		err1 = wrapStageError("generation-analysis", "", codegen.NewError(nil, materialization.Attribute, err))
+	}()
 	config, err := generationConfiguration(options)
 	if err != nil {
 		return nil, wrapStageError("options", "", err)

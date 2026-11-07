@@ -210,23 +210,8 @@ func (c EffectiveConstraints) UpperBound() EffectiveNumericBound {
 }
 
 func (b *valueOccurrenceBuilder) effectiveConstraints(context *ValueContext) error {
-	for _, node := range b.graph.nodes {
-		node.constraints = buildEffectiveConstraints(context, b.graph, node)
-	}
-	for _, node := range b.graph.nodes {
-		if err := validateEffectiveDomain(context, b.graph, node); err != nil {
-			return err
-		}
-	}
-	for _, node := range b.graph.nodes {
-		if err := projectEffectiveEnumJSON(context, b.graph, node); err != nil {
-			return err
-		}
-	}
-	for _, node := range b.graph.nodes {
-		if err := validateEffectiveEnums(context, b.graph, node); err != nil {
-			return err
-		}
+	if err := b.effectiveValidation(context); err != nil {
+		return err
 	}
 	for _, node := range b.graph.nodes {
 		if err := selectEffectiveDefault(context, b.graph, node); err != nil {

@@ -118,8 +118,24 @@ func (c *ValueContext) newCollisionOccurrence(attribute *AttributeExpr) (ValueOc
 }
 
 func (c *ValueContext) newOccurrence(finalized *AttributeExpr, structuralOnly bool) (ValueOccurrence, error) {
+	b, err := c.captureOccurrence(finalized, structuralOnly)
+	if err != nil {
+		return ValueOccurrence{}, err
+	}
+	if !structuralOnly {
+		if err := b.effectiveConstraints(c); err != nil {
+			return ValueOccurrence{}, err
+		}
+	}
+	return ValueOccurrence{context: c.identity, graph: b.graph, node: b.graph.root}, nil
+}
+
+// captureOccurrence owns graph capture independently of the consumer's query.
+// Semantic occurrences admit authored values after capture; predicate facts do
+// not resolve default declarations against a physical representation.
+func (c *ValueContext) captureOccurrence(finalized *AttributeExpr, structuralOnly bool) (*valueOccurrenceBuilder, error) {
 	if c == nil || c.identity == nil {
-		return ValueOccurrence{}, fmt.Errorf("value occurrence requires a value context")
+		return nil, fmt.Errorf("value occurrence requires a value context")
 	}
 	b := &valueOccurrenceBuilder{
 		graph:          &valueOccurrenceGraph{},
@@ -128,18 +144,13 @@ func (c *ValueContext) newOccurrence(finalized *AttributeExpr, structuralOnly bo
 	}
 	root, err := b.occurrence(finalized)
 	if err != nil {
-		return ValueOccurrence{}, err
+		return nil, err
 	}
 	b.graph.root = root
 	if err := b.checkRanks(); err != nil {
-		return ValueOccurrence{}, err
+		return nil, err
 	}
-	if !structuralOnly {
-		if err := b.effectiveConstraints(c); err != nil {
-			return ValueOccurrence{}, err
-		}
-	}
-	return ValueOccurrence{context: c.identity, graph: b.graph, node: root}, nil
+	return b, nil
 }
 
 // ID returns a generation-local identity for this occurrence. It is not a

@@ -49,6 +49,9 @@ func effectiveDefaultLayer(node *valueOccurrenceNode) *valueOccurrenceNode {
 }
 
 func resolveEffectiveDefault(context *ValueContext, graph *valueOccurrenceGraph, node, layer *valueOccurrenceNode) (ValueResult, error) {
+	if valueUnderlyingOccurrence(node).declaration.kind == UnionKind {
+		return ValueResult{}, fmt.Errorf("%sdefault values are not supported for union attributes", effectiveConstraintPrefix(node))
+	}
 	if layer.defaultValue.err != nil {
 		return ValueResult{}, fmt.Errorf("%sinvalid authored default: %w", effectiveConstraintPrefix(node), layer.defaultValue.err)
 	}

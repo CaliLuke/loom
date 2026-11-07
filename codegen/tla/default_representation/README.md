@@ -107,3 +107,151 @@ These are evidence for separate shared carrier/validation work, not #693 repairs
 Keep checker state, raw logs and temporary modules outside the repository.
 Remove task-owned temporary outputs after independent validation and review;
 retain reusable toolchains and these durable inputs/results.
+
+
+## Union and opaque default contract correction
+
+This is a standalone correction to native default admission and materialization,
+not complete untagged oneOf #1014, discriminator contracts #1005, or imported
+annotation preservation #1006. Imported default annotations are unchanged.
+
+The accepted policy rejects `Default` attached directly or effectively to a
+union occurrence, including aliases and late-bound Param/Header types. It keeps
+ordinary branch defaults and container defaults containing valid, uniquely
+selected union values. Empty containers and omitted optional union fields remain
+valid. Alternatives considered were enabling whole-union defaults, banning every
+container containing a union, or reselecting from JSON; all are rejected. The
+first changes the DSL contract, the second removes admitted values, and the third
+loses selected branch identity. Default application remains absence-only.
+
+`UnionDefaults.tla` models finalized admission, retained selected branch and
+allocated declaration identity, recursive pointer/value/Nullable storage, and
+no loss of supplied payload. Its current-admission configuration reproduces the
+late-binding gap in 3 states; current-renderer reproduces rejection of a valid
+container in 4 states. Branch reselection, ignoring allocated identity and
+value-only storage each fail in 4 states. Blanket container rejection fails in
+3 states. Checked mode passes all five invariants in 31 states. The model was
+run before production implementation; its initial negative control exposed an
+incorrectly parenthesized action, which was fixed and all configurations rerun.
+
+The common implementation is `expr.resolveEffectiveDefault` plus
+`AttributeContext.DefaultValue`. The renderer consumes `ResolvedValue.Union`
+and `ValueOccurrence.Branches`, uses `unionnames.PackageDeclarations` from the
+owning scope's allocated primary, and derives pointer layout from shared field
+and branch contexts. Actual service declaration allocation precedes qualified
+references; raw external references do not allocate local names. Direct tests
+in `expr/effective_union_default_test.go`, `dsl/union_default_contract_test.go`
+and `codegen/union_default_representation_test.go` cover these correspondences.
+The model abstracts branch selection and assumes the resolver has already
+rejected ambiguous or invalid values; tests exercise those rejected cases.
+
+For opaque composites, the accepted policy requires an existing materialization
+capability or proof of a constructible physical Go literal. Exact typed
+`url.Values` inputs and their import aliases remain supported. An unnamed
+`map[string][]string` is rejected even though it can be Go-assignable to
+`url.Values`: metadata alone cannot prove the opaque definition. The migration
+is `Default(url.Values{...})`. Reflection here checks an already-authored Go
+value for literal constructibility; it does not convert it into the target.
+No package discovery or codec-based conversion is introduced. Unknown aliases,
+inaccessible fields, cyclic state, custom Go formatting and nonliteral pointer
+addresses fail with the default's member path. Explicit builtin aliases are
+provable; existing String semantic/text and raw JSON operations keep ownership.
+Scalar override behavior is outside this composite clarification.
+
+`OpaqueDefaults.tla` supplements the original custom-boundary abstraction with
+proved identity and constructibility. Current mode emits unsupported literals and violates its safety invariant in
+15 states; checked mode preserves supported literals and explicit capabilities
+in 20 states. This
+supplement was checked after the initial literal implementation and before its
+review; it does not prove reflection, Go parsing, imports or arbitrary codecs.
+`TestOpaqueCompositeDefaultMaterialization` supplies direct implementation
+controls. Native generated compilation and transport application require the
+separate bounded acceptance specimen; these finite models cannot establish them.
+
+All commands remain opt-in design tools. From this directory:
+
+```sh
+for cfg in union-current-admission union-current-renderer union-reselect union-unqualified union-value-only union-reject-containers union-checked; do
+  java -XX:+UseParallelGC -cp "$TLA_JAR" tlc2.TLC -workers 1 -config "$cfg.cfg" -metadir "/tmp/loom-defaults-$cfg" UnionDefaults.tla
+done
+for cfg in opaque-current opaque-checked; do
+  java -XX:+UseParallelGC -cp "$TLA_JAR" tlc2.TLC -workers 1 -config "$cfg.cfg" -metadir "/tmp/loom-defaults-$cfg" OpaqueDefaults.tla
+done
+```
+
+Only the `checked` configurations should pass; the others are negative controls.
+Remove those temporary state directories after inspection. No proof execution
+or installation is part of normal tests, hooks, CI or release eligibility.
+
+
+### Review revision: structural identity and diagnostic ownership
+
+The first reviewed opaque implementation only established an imported qualifier
+when the source root itself was named. F1 showed that `[]url.Values`,
+`map[string]url.Values`, `[1]url.Values` and their declared aliases are already
+provable physical types, including empty/nil containers. The identity owner now
+walks explicit structural source components and checks every named component
+against the declared import path. Source and target type syntax are then compared
+using that same qualifier proof; native literal rewriting consumes the result.
+This does not infer an opaque named target from an unnamed source. Tests cover
+populated, empty, nil, alias and mismatched-import cases. `OpaqueDefaults.tla`
+now adds four structural cases plus a root-only negative mode. The earlier
+15/20-state results above refer to the initial ten-case model; the expanded
+model now reproduces unsupported emission in 19 states and root-only identity
+loss in 16 states; checked mode preserves both invariants across 28 states.
+Direct tests and compiled opaque literals cover imported structural types,
+aliases, empty/nil containers and unsupported inputs. The finite model does not
+prove Go parsing or arbitrary custom type semantics.
+
+F2 showed that attributed analysis panics had no corresponding normal diagnostic
+boundary. `DefaultDiagnostics.tla` was prepared and checked before implementing
+the correction: the old boundary violates ExpectedDiagnostic in 7 states;
+catching all panics violates ProgrammerPanic in 9; global preflight violates
+ActualInvocation in 6. Checked mode passes all four invariants in 10 states.
+The implementation labels normal `AttributeContext.DefaultValue` failures with
+`DefaultValueError`; `generator.Generate` recognizes only that error chain when
+an analysis caller panics. Attribution survives wrapping, while unexpected
+programmer panics (including attributed ones) retain panic behavior. Existing
+returned errors continue through their ordinary path. Invocation gates remain
+with the transport and shared transform owners. A required or unused default
+is not preflighted merely because it exists in the design.
+
+`TestGenerateDefaultMaterializationDiagnostic` exercises an optional HTTP body
+materialization and a required-field control through Generate;
+`TestGeneratePreservesProgrammerPanics` covers ordinary and attributed programmer
+panics. The direct generator diagnostic and programmer-panic tests pass after
+the attribution correction below. Actual CLI checks report the authored
+`design/design.go:12` and service/method without a panic stack; required unused
+default controls succeed. The old CLI witness reproduces the expected
+materialization panic and its missing source location. The shared predicate-facts
+split under `expr/tla/constraint_facts` also allows the unchanged nested-union
+gRPC default specimen to generate, compile and preserve runtime defaults.
+HTTP/gRPC ordinary controls remain byte-identical, and 59 candidate artifacts
+are byte-identical across independent generations. Query callers
+must retain the error with `%w` and supply their physical
+attribute to `codegen.NewError`; runtime emitted failure callbacks are separate.
+
+```sh
+java -XX:+UseParallelGC -cp "$TLA_JAR" tlc2.TLC -workers 1 -config opaque-root-only.cfg -metadir /tmp/loom-defaults-root-only OpaqueDefaults.tla
+for cfg in diagnostics-current diagnostics-catch-all diagnostics-preflight diagnostics-checked; do
+  java -XX:+UseParallelGC -cp "$TLA_JAR" tlc2.TLC -workers 1 -config "$cfg.cfg" -metadir "/tmp/loom-defaults-$cfg" DefaultDiagnostics.tla
+done
+```
+
+The root-only and three diagnostic mutants must fail their designated invariant;
+checked mode must pass. Keep execution opt-in and remove checker state afterward.
+
+### Source attribution after materialization recovery
+
+The exact-parent acceptance run exposed an attribution gap not represented by
+this model's abstract `attributed` flag: a transport wrapped the expected error
+with a synthesized body that had no DSL source. Recovery supplied the authored
+field, but `NewError` retained the unlocated body. The shared error owner now
+uses a located fallback only when its existing expression cannot supply a source
+location. An already located owner wins even when the fallback has another
+location; an unlocated fallback never replaces a nonnil owner. Existing
+service/method scope, wrapped causes and expected-error identity remain intact.
+`TestNewErrorRetainsUsableAttribution` covers these choices and chain identity;
+the generator diagnostic and programmer-panic controls exercise the boundary.
+This is a deterministic attribution selection, without a new protocol state or
+public default-policy change; the existing diagnostic model remains unchanged.

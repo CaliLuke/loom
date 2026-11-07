@@ -33,7 +33,7 @@ type (
 )
 
 func collectionContract(att *expr.AttributeExpr) collectionValidationContract {
-	constraints, err := expr.EffectiveConstraintsFor(att)
+	constraints, err := expr.EffectiveConstraintFactsFor(att)
 	if err != nil {
 		panic(fmt.Sprintf("invalid anonymous protobuf collection constraints: %v", err))
 	}
@@ -47,7 +47,7 @@ func collectionContract(att *expr.AttributeExpr) collectionValidationContract {
 	for i := range contract.clauses {
 		contract.clauses[i].Provenance = expr.EffectiveConstraintSource{}
 	}
-	contract.defaultValue, contract.hasDefault = constraints.Default()
+	contract.defaultValue, contract.hasDefault = constraints.DefaultDeclaration()
 	switch dt := att.Type.(type) {
 	case expr.UserType:
 		contract.declaration = dt.ID()

@@ -29,7 +29,8 @@ type Error struct {
 }
 
 // NewError wraps err with DSL attribution derived from ctx and (when non-nil)
-// expr. Returns nil if err is nil.
+// expr. A fallback with a DSL location may replace an unlocated expression, but
+// never replaces an existing usable location. Returns nil if err is nil.
 func NewError(ctx *Context, expr eval.Expression, err error) error {
 	if err == nil {
 		return nil
@@ -75,6 +76,14 @@ func enrichError(e *Error, ctx *Context, fallback eval.Expression) {
 			} else if svc := ctx.CurrentService(); svc != nil {
 				e.Expr = svc
 			}
+		}
+	}
+	// A synthesized carrier can retain useful service/method scope without
+	// retaining its DSL declaration. Prefer a located fallback only in that
+	// case; an existing source owner must never be relabeled.
+	if _, _, located := eval.ExpressionLocation(e.Expr); !located {
+		if _, _, fallbackLocated := eval.ExpressionLocation(fallback); fallbackLocated {
+			e.Expr = fallback
 		}
 	}
 }

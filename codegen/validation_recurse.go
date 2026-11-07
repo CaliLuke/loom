@@ -334,20 +334,20 @@ func validateNamedOccurrence(
 	ctx = presenceValueContext(ctx, &expr.AttributeExpr{Type: ut, Meta: att.Meta})
 	ctx.validationValue = value
 	hasNamedValidator := hasValidations(ctx, ut)
-	constraints, err := expr.EffectiveConstraintsFor(att)
+	constraints, err := expr.EffectiveConstraintFactsFor(att)
 	if err != nil {
 		panic(fmt.Sprintf("invalid effective constraints during generation: %v", err))
 	}
 	effective := constraints.Validation()
 	validation := validationRenderSnapshot{rules: effective.Lowered(), clauses: effective.Clauses()}
 	if hasNamedValidator {
-		intrinsic, intrinsicErr := expr.EffectiveConstraintsFor(ut.Attribute())
+		intrinsic, intrinsicErr := expr.EffectiveConstraintFactsFor(ut.Attribute())
 		if intrinsicErr != nil {
 			panic(fmt.Sprintf("invalid named constraints during generation: %v", intrinsicErr))
 		}
 		validation = validationWithoutExactPredicates(effective, intrinsic.Validation())
 	}
-	_, hasDefault := constraints.Default()
+	hasDefault := constraints.HasDefault()
 	inline := validationCodeFromSnapshot(att, validation, ctx, required, false, hasDefault, false, target, context)
 	var validations []string
 	if inline != "" {
@@ -388,12 +388,11 @@ func validateNamedOccurrence(
 }
 
 func effectiveValidationDefault(attribute *expr.AttributeExpr) bool {
-	constraints, err := expr.EffectiveConstraintsFor(attribute)
+	constraints, err := expr.EffectiveConstraintFactsFor(attribute)
 	if err != nil {
 		panic(fmt.Sprintf("invalid effective constraints during generation: %v", err))
 	}
-	_, present := constraints.Default()
-	return present
+	return constraints.HasDefault()
 }
 
 // optionalUnionValidation skips absent optional union fields. Native null

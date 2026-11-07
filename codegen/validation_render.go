@@ -68,11 +68,11 @@ type (
 //
 // context is used to produce helpful messages in case of error.
 func validationCode(att *expr.AttributeExpr, attCtx *AttributeContext, req, alias bool, target, context string) string {
-	constraints, err := expr.EffectiveConstraintsFor(att)
+	constraints, err := expr.EffectiveConstraintFactsFor(att)
 	if err != nil {
 		panic(fmt.Sprintf("invalid effective constraints during generation: %v", err))
 	}
-	_, hasDefault := constraints.Default()
+	hasDefault := constraints.HasDefault()
 	effective := constraints.Validation()
 	snapshot := validationRenderSnapshot{rules: effective.Lowered(), clauses: effective.Clauses()}
 	return validationCodeFromSnapshot(att, snapshot, attCtx, req, alias,
@@ -217,11 +217,11 @@ func validationWithoutExactPredicates(current, enforced expr.EffectiveValidation
 	return validationRenderSnapshot{rules: result, clauses: clauses}
 }
 
-// mergedValidation returns the expr-owned immutable effective validation for
-// att. Invalid declarations have already failed design validation; reaching one
-// while generating is an internal lifecycle error.
+// mergedValidation returns expr-owned predicates for the current physical
+// occurrence. Default admission belongs to the semantic design lifecycle;
+// malformed predicate declarations remain generation errors.
 func mergedValidation(att *expr.AttributeExpr) *expr.ValidationExpr {
-	constraints, err := expr.EffectiveConstraintsFor(att)
+	constraints, err := expr.EffectiveConstraintFactsFor(att)
 	if err != nil {
 		panic(fmt.Sprintf("invalid effective constraints during generation: %v", err))
 	}

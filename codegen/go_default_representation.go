@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/CaliLuke/loom/codegen/unionnames"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/internal/representation"
 )
@@ -33,7 +34,12 @@ type (
 // default applies. Unrepresentable members return an error rather than being
 // dropped. Opaque values remain owned by an explicitly selected custom or raw
 // JSON representation; they are never reflected into guessed object fields.
-func (a *AttributeContext) DefaultValue(att *expr.AttributeExpr, value any) (DefaultValueCode, error) {
+func (a *AttributeContext) DefaultValue(att *expr.AttributeExpr, value any) (code DefaultValueCode, err error) {
+	defer func() {
+		if err != nil {
+			err = &DefaultValueError{Attribute: att, Err: err}
+		}
+	}()
 	context := expr.NewValueContext()
 	occurrence, err := context.NewOccurrence(att)
 	if err != nil {
@@ -58,6 +64,9 @@ func defaultFieldLiteral(child, selected *expr.AttributeExpr, facts expr.ObjectF
 		}
 		return "loom.OptionalValue[" + ref + "](" + literal + ")"
 	case NativePresence:
+		if expr.IsUnion(child.Type) && facts.ServiceLayout(selected, context.Pointer, context.UseDefault).Pointer {
+			return defaultUnionPointer(context.Scope.Ref(child, context.Pkg(child)), literal)
+		}
 		if expr.IsPrimitive(child.Type) && expr.IsPrimitive(selected.Type) && facts.ServiceLayout(selected, context.Pointer, context.UseDefault).Pointer {
 			ref := context.Scope.Ref(child, context.Pkg(child))
 			return "func() *" + ref + " {\n v := " + ref + "(" + literal + ")\n return &v\n}()"
@@ -84,7 +93,7 @@ func (r *defaultRenderer) render(att *expr.AttributeExpr, occurrence expr.ValueO
 			r.errorAware = true
 			return renderCustomStringDefault(att, text, context, path), nil
 		}
-		return formatAttributeGoLiteral(att, source), nil
+		return opaqueDefaultLiteral(att, source, path)
 	}
 	if expr.IsNullable(att) {
 		return r.nullable(att, occurrence, value, context, path)
@@ -96,6 +105,8 @@ func (r *defaultRenderer) render(att *expr.AttributeExpr, occurrence expr.ValueO
 		return r.array(att, actual, occurrence, value, context, path)
 	case *expr.Map:
 		return r.mapping(att, actual, occurrence, value, context, path)
+	case *expr.Union:
+		return r.union(att, actual, occurrence, value, context, path)
 	default:
 		scalar, ok := value.Scalar()
 		if !ok {
@@ -103,6 +114,46 @@ func (r *defaultRenderer) render(att *expr.AttributeExpr, occurrence expr.ValueO
 		}
 		return formatAttributeGoLiteral(att, scalar), nil
 	}
+}
+
+func defaultUnionPointer(ref, literal string) string {
+	return "func() " + ref + " { v := " + literal + "; return &v }()"
+}
+
+// union lowers the branch already selected by the value owner. Constructor
+// identity belongs to the same allocated declaration family as the emitter.
+func (r *defaultRenderer) union(att *expr.AttributeExpr, actual *expr.Union, occurrence expr.ValueOccurrence, value expr.ResolvedValue, context *AttributeContext, path string) (string, error) {
+	_, selected, payload, ok := value.Union()
+	if !ok {
+		return "", fmt.Errorf("%s: default has no selected union branch", path)
+	}
+	context = transformPhysicalContext(att, context)
+	for _, branch := range occurrence.Branches() {
+		if branch.ID != selected {
+			continue
+		}
+		for _, declaration := range actual.Values {
+			if declaration.Name != branch.Name {
+				continue
+			}
+			attribute := declaration.Attribute
+			branchContext, pointer := context.UnionBranchContext(attribute)
+			literal, err := r.render(attribute, branch.Occurrence, payload, branchContext, path+"."+branch.Name)
+			if err != nil {
+				return "", err
+			}
+			if pointer && expr.IsUnion(attribute.Type) && !expr.IsNullable(attribute) {
+				literal = defaultUnionPointer(branchContext.Scope.Ref(attribute, branchContext.Pkg(attribute)), literal)
+			}
+			primary := context.Scope.Scope().GoValueTypeName(att)
+			constructor := unionnames.PackageDeclarations(actual, primary).Branches[branch.Name].Constructor
+			if pkg := context.Pkg(att); pkg != "" {
+				constructor = pkg + "." + constructor
+			}
+			return constructor + "(" + literal + ")", nil
+		}
+	}
+	return "", fmt.Errorf("%s: selected union branch has no native declaration", path)
 }
 
 func (r *defaultRenderer) nullable(att *expr.AttributeExpr, occurrence expr.ValueOccurrence, value expr.ResolvedValue, context *AttributeContext, path string) (string, error) {

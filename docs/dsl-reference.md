@@ -807,6 +807,25 @@ with its member path, even when incoming wire objects permit unknown members.
 Regenerate affected clients and servers after upgrading. Existing rules for when
 a default applies are unchanged by this representation correction.
 
+A `Default` directly on a union attribute remains unsupported, including an
+alias or an HTTP parameter/header whose type is resolved from the payload.
+Branch defaults follow the ordinary attribute rules. An object, array or map
+default may contain union values: each must select exactly one valid branch.
+Loom retains that selection when constructing native values. Empty containers
+and omitted optional union members remain valid; ambiguous or invalid supplied
+members fail validation.
+
+For an opaque composite Go override, supply a constructible value of the declared
+physical type, for example `Default(url.Values{"q": {"one"}})` with
+`Meta("struct:field:type", "url.Values", "net/url")`. Untyped composites cannot
+establish the target's Go representation. This also rejects an unnamed
+`map[string][]string` default even where Go previously accepted its assignment
+to `url.Values`; change that default to `url.Values{...}`. Private struct state,
+nonliteral pointer state and unknown type aliases fail with the member path.
+Explicit builtin types and provable builtin aliases retain literal support.
+Existing custom String semantic operations and raw JSON materialization retain
+their contracts; JSON codecs do not infer opaque composite storage.
+
 #### Collection Validations
 - `MinLength(n)` - Minimum number of elements
 - `MaxLength(n)` - Maximum number of elements
