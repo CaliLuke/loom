@@ -59,8 +59,8 @@ paths:
 `
 
 // responseNullabilityFailurePath covers the same occurrences for error
-// responses. Generated error codecs do not accept nullable error roots, so
-// only evaluation covers it.
+// responses. These error occurrences are checked during evaluation; the
+// separate generation control covers the success response paths.
 const responseNullabilityFailurePath = `  /failure:
     get:
       operationId: failure
@@ -91,7 +91,7 @@ body := func(method string, status int, openAPI bool) *expr.AttributeExpr {
   responses = append(responses, failure.Response)
  }
  for _, response := range responses {
-  if response.StatusCode != status {
+  if code, exact := response.Status.Exact(); !exact || code != status {
    continue
   }
   if openAPI {
