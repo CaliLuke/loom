@@ -1,0 +1,11 @@
+get:
+  operationId: listPets
+  tags: [pets]
+  responses:
+    '200':
+      description: Pets
+      content:
+        application/json:
+          schema:
+            type: array
+            items: {$ref: '../models.yaml#/Pet'}

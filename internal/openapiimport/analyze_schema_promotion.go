@@ -2,7 +2,6 @@ package openapiimport
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
 )
@@ -78,7 +77,7 @@ func (a *analyzer) prepareObjectConstructors(document *Document) {
 	}
 	for operationIndex := range document.Operations {
 		operation := &document.Operations[operationIndex]
-		operationPath := "#/paths/" + escapeJSONPointer(operation.Path) + "/" + strings.ToLower(operation.Method)
+		operationPath := operation.sourcePath
 		for parameterIndex := range operation.Parameters {
 			parameter := &operation.Parameters[parameterIndex]
 			parameter.Schema = a.prepareSchemaObjects(document, parameter.Schema, operation.GoName+"Parameter",
@@ -126,11 +125,11 @@ func (a *analyzer) prepareSchemaObjects(
 			componentName := uniqueComponentName(name+"Media", used)
 			a.prepareSchemaObjects(document, branch, componentName,
 				fmt.Sprintf("%s/content/%s/schema", path, escapeJSONPointer(schema.MediaTypes[index])), objectDeclaration, used)
-			document.Components.Schemas = append(document.Components.Schemas, NamedSchema{Name: componentName, Schema: branch})
+			document.Components.Schemas = append(document.Components.Schemas, NamedSchema{Name: componentName, Schema: branch, origin: a.bundle.declarationOrigin(path)})
 			schema.OneOf[index] = &Schema{Ref: "#/components/schemas/" + componentName}
 			continue
 		}
-		a.prepareUnionFields(document, branch, name+"Variant", used)
+		a.prepareUnionFields(document, branch, name+"Variant", fmt.Sprintf("%s/oneOf/%d", path, index), used)
 		branchName := name + "Variant"
 		if len(branch.Required) > 0 {
 			branchName = name + codegen.Goify(branch.Required[0], true)
@@ -144,6 +143,7 @@ func (a *analyzer) prepareSchemaObjects(
 	}
 	componentName := uniqueComponentName(name, used)
 	document.Components.Schemas = append(document.Components.Schemas, NamedSchema{
+		origin: a.bundle.declarationOrigin(path),
 		Name:   componentName,
 		Schema: schema,
 	})

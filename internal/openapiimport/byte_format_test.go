@@ -34,7 +34,7 @@ components:
 
 	var strictDesign []byte
 	for _, allowLossy := range []bool{false, true} {
-		analysis, _, err := AnalyzePartial(source, Selection{}, allowLossy)
+		analysis, _, err := AnalyzePartial(Source{Bytes: source}, Selection{}, allowLossy)
 		require.NoError(t, err)
 		require.Empty(t, analysis.Blocked)
 		require.Empty(t, analysis.Warnings)

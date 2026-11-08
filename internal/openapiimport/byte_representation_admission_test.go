@@ -72,7 +72,7 @@ components:
 				for _, diagnostic := range diagnostics {
 					if diagnostic.Code == "schema-binary-location" {
 						found = true
-						assert.Contains(t, diagnostic.Path, "#/operations/")
+						assert.Contains(t, diagnostic.Path, "#/paths/~1data/")
 					}
 				}
 				assert.True(t, found, "missing binary occurrence diagnostic: %v", diagnostics)

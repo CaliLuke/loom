@@ -1,0 +1,13 @@
+openapi: 3.2.0
+info: {title: Display boundaries, version: '1'}
+paths:
+  /value:
+    get:
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: string
+                format: 'https://host.example is unavailable; contact user@example.test'

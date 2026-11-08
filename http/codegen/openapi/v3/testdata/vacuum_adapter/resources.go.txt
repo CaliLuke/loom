@@ -1,0 +1,285 @@
+package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io/fs"
+	"net/url"
+	"os"
+	"path"
+	"slices"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/pb33f/go-yaml"
+	"github.com/pb33f/libopenapi/datamodel"
+	"github.com/pb33f/libopenapi/index"
+)
+
+type (
+	resourceFS struct {
+		documents  map[string][]byte
+		mu         sync.Mutex
+		admissions map[*index.SpecIndex]resourceAdmission
+	}
+	resourceAdmission struct {
+		uri           string
+		contentSHA256 string
+		owner         *index.Rolodex
+	}
+	resourceFile struct {
+		*bytes.Reader
+		uri       string
+		data      []byte
+		idx       *index.SpecIndex
+		resources *resourceFS
+	}
+)
+
+var (
+	_ index.RolodexFS    = (*resourceFS)(nil)
+	_ index.RolodexFile  = (*resourceFile)(nil)
+	_ index.CanBeIndexed = (*resourceFile)(nil)
+	_ fs.File            = (*resourceFile)(nil)
+)
+
+func loadResources(pairs []string) (*resourceFS, error) {
+	resources := &resourceFS{documents: map[string][]byte{}, admissions: map[*index.SpecIndex]resourceAdmission{}}
+	seen := map[string]bool{}
+	for i := 0; i < len(pairs); i += 2 {
+		uri, err := url.Parse(pairs[i])
+		if err != nil || !uri.IsAbs() {
+			return nil, fmt.Errorf("resource URI must be absolute: %q", pairs[i])
+		}
+		if uri.Fragment != "" || strings.Contains(pairs[i], "#") {
+			return nil, fmt.Errorf("resource URI must not contain a fragment: %q", pairs[i])
+		}
+		identity := *uri
+		identity.Scheme = strings.ToLower(identity.Scheme)
+		identity.Host = strings.ToLower(identity.Host)
+		key := identity.ResolveReference(&url.URL{}).String()
+		if seen[key] {
+			return nil, fmt.Errorf("duplicate resource identity: %q", pairs[i])
+		}
+		seen[key] = true
+		data, err := os.ReadFile(pairs[i+1])
+		if err != nil {
+			return nil, fmt.Errorf("read resource %q: %w", pairs[i], err)
+		}
+		if _, err := parseResource(data); err != nil {
+			return nil, fmt.Errorf("parse resource %q: %w", pairs[i], err)
+		}
+		resources.documents[pairs[i]] = data
+	}
+	return resources, nil
+}
+
+func parseResource(data []byte) (*datamodel.SpecInfo, error) {
+	// The document parser's bypass mode permits fragments but also tolerates
+	// malformed bytes. Validate syntax first without requiring an OpenAPI root.
+	var syntax any
+	var syntaxErr error
+	if json.Valid(data) {
+		syntaxErr = json.Unmarshal(data, &syntax)
+	} else {
+		syntaxErr = yaml.Unmarshal(data, &syntax)
+	}
+	if syntaxErr != nil {
+		return nil, syntaxErr
+	}
+	info, err := datamodel.ExtractSpecInfoWithDocumentCheckSync(data, true)
+	if err != nil {
+		return nil, err
+	}
+	if info == nil || info.RootNode == nil || len(bytes.TrimSpace(data)) == 0 {
+		return nil, fmt.Errorf("empty document")
+	}
+	return info, nil
+}
+
+// Open serves only explicitly admitted identities and never performs network I/O.
+func (r *resourceFS) Open(name string) (fs.File, error) {
+	data, ok := r.documents[name]
+	if !ok {
+		return nil, &fs.PathError{Op: "open", Path: name, Err: fs.ErrNotExist}
+	}
+	return r.newResource(name, data), nil
+}
+
+// GetFiles gives each document-build owner independent indexing handles.
+func (r *resourceFS) GetFiles() map[string]index.RolodexFile {
+	files := make(map[string]index.RolodexFile, len(r.documents))
+	for uri, data := range r.documents {
+		files[uri] = r.newResource(uri, data)
+	}
+	return files
+}
+
+func (r *resourceFS) newResource(uri string, data []byte) *resourceFile {
+	return &resourceFile{Reader: bytes.NewReader(data), uri: uri, data: data, resources: r}
+}
+
+// Index uses the public format-aware parser and caller-owned index configuration.
+func (f *resourceFile) Index(config *index.SpecIndexConfig) (*index.SpecIndex, error) {
+	info, err := parseResource(f.data)
+	if err != nil {
+		return nil, err
+	}
+	owned := *config
+	owned.SpecInfo = info
+	want, err := contentHash(info.RootNode)
+	if err != nil {
+		return nil, err
+	}
+	idx := index.NewSpecIndexWithConfig(info.RootNode, &owned)
+	got, err := contentHash(idx.GetRootNode())
+	if err != nil {
+		return nil, err
+	}
+	if idx.GetSpecAbsolutePath() != f.uri || idx.GetRolodex() != config.Rolodex || config.Rolodex == nil || got != want {
+		return nil, fmt.Errorf("resource admission changed identity, owner or contents: %s", f.uri)
+	}
+	// Indexing and any library callbacks finish before taking the evidence lock.
+	// The map associates admission with this exact returned index/build owner.
+	f.resources.mu.Lock()
+	f.resources.admissions[idx] = resourceAdmission{uri: f.uri, contentSHA256: want, owner: config.Rolodex}
+	f.resources.mu.Unlock()
+	f.idx = idx
+	return idx, nil
+}
+
+// GetIndex returns this build owner's completed index.
+func (f *resourceFile) GetIndex() *index.SpecIndex {
+	return f.idx
+}
+
+// GetContent returns the supplied bytes unchanged.
+func (f *resourceFile) GetContent() string {
+	return string(f.data)
+}
+
+// GetContentAsYAMLNode parses JSON or YAML through the public document parser.
+func (f *resourceFile) GetContentAsYAMLNode() (*yaml.Node, error) {
+	info, err := parseResource(f.data)
+	if err != nil {
+		return nil, err
+	}
+	return info.RootNode, nil
+}
+
+// GetFileExtension returns the detected serialization format, not the URI suffix.
+func (f *resourceFile) GetFileExtension() index.FileExtension {
+	if json.Valid(f.data) {
+		return index.JSON
+	}
+	return index.YAML
+}
+
+// GetFullPath preserves the caller's retrieval identity.
+func (f *resourceFile) GetFullPath() string {
+	return f.uri
+}
+
+// GetErrors returns no deferred errors; parsing and indexing return them directly.
+func (f *resourceFile) GetErrors() []error {
+	return nil
+}
+
+// WaitForIndexing is synchronous because Index completes before returning.
+func (f *resourceFile) WaitForIndexing() {
+}
+
+// Name returns the final URI path segment for the filesystem interface.
+func (f *resourceFile) Name() string {
+	return path.Base(f.uri)
+}
+
+// ModTime is unspecified for explicitly supplied immutable bytes.
+func (f *resourceFile) ModTime() time.Time {
+	return time.Time{}
+}
+
+// IsDir reports a document file.
+func (f *resourceFile) IsDir() bool {
+	return false
+}
+
+// Sys carries no operating-system metadata.
+func (f *resourceFile) Sys() any {
+	return nil
+}
+
+// Size returns the exact byte length.
+func (f *resourceFile) Size() int64 {
+	return int64(len(f.data))
+}
+
+// Mode reports read-only regular storage.
+func (f *resourceFile) Mode() fs.FileMode {
+	return 0o444
+}
+
+// Stat returns this resource's filesystem metadata.
+func (f *resourceFile) Stat() (fs.FileInfo, error) {
+	return f, nil
+}
+
+// Close owns no external resources.
+func (f *resourceFile) Close() error {
+	return nil
+}
+
+func contentHash(node *yaml.Node) (string, error) {
+	var value any
+	if err := node.Decode(&value); err != nil {
+		return "", err
+	}
+	data, err := json.Marshal(value)
+	if err != nil {
+		return "", err
+	}
+	return hash(data), nil
+}
+
+func (r *resourceFS) inspect(role string, root *index.SpecIndex) ([]resourceEvidence, error) {
+	if root == nil || root.GetRolodex() == nil {
+		return nil, fmt.Errorf("%s motor index unavailable", role)
+	}
+	identities := make([]string, 0, len(r.documents))
+	for uri := range r.documents {
+		identities = append(identities, uri)
+	}
+	slices.Sort(identities)
+	evidence := make([]resourceEvidence, 0, len(identities))
+	for _, uri := range identities {
+		count := 0
+		var admitted, indexed string
+		for _, idx := range root.GetRolodex().GetIndexes() {
+			if idx.GetSpecAbsolutePath() != uri {
+				continue
+			}
+			r.mu.Lock()
+			admission, ok := r.admissions[idx]
+			r.mu.Unlock()
+			if !ok || admission.uri != uri || admission.owner != root.GetRolodex() || idx.GetRolodex() != admission.owner {
+				return nil, fmt.Errorf("%s resource lacks admission for actual build owner: %s", role, uri)
+			}
+			got, err := contentHash(idx.GetRootNode())
+			if err != nil {
+				return nil, err
+			}
+			if role == "unresolved" && got != admission.contentSHA256 {
+				return nil, fmt.Errorf("%s resource contents changed: %s", role, uri)
+			}
+			admitted, indexed = admission.contentSHA256, got
+			count++
+		}
+		if count != 1 {
+			return nil, fmt.Errorf("%s resource not admitted exactly once: %s (count %d)", role, uri, count)
+		}
+		evidence = append(evidence, resourceEvidence{Role: role, URI: uri, ContentSHA256: admitted, IndexedContentSHA256: indexed})
+	}
+	return evidence, nil
+}

@@ -1,0 +1,6 @@
+openapi: 3.2.0
+info: {title: Shared security, version: '1'}
+paths: {}
+components:
+  securitySchemes:
+    ApiKey: {type: apiKey, in: header, name: X-Key}

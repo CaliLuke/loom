@@ -17,12 +17,19 @@ import (
 	"github.com/CaliLuke/loom/internal/exactnum"
 )
 
-type numericSource struct {
-	text  string
-	kind  byte
-	tag   string
-	style yaml.Style
-}
+type (
+	numericSource struct {
+		text  string
+		kind  byte
+		tag   string
+		style yaml.Style
+	}
+
+	yamlMappingMember struct {
+		name  string
+		value *yaml.Node
+	}
+)
 
 // numericSources retains source token distinctions before libopenapi converts
 // numeric values into finite carriers or changes inferred YAML scalar tags.
@@ -151,6 +158,41 @@ func effectiveYAMLMapping(node *yaml.Node, active map[*yaml.Node]bool) (map[stri
 				}
 			}
 		}
+	}
+	return members, nil
+}
+
+// orderedYAMLMapping retains explicit key order followed by sorted inherited
+// keys. Merge precedence belongs to effectiveYAMLMapping; values retain their
+// original nodes so grammar source roles can still identify raw key occurrences.
+func orderedYAMLMapping(node *yaml.Node) ([]yamlMappingMember, error) {
+	values, err := effectiveYAMLMapping(node, make(map[*yaml.Node]bool))
+	if err != nil {
+		return nil, err
+	}
+	for node.Kind == yaml.AliasNode {
+		node = node.Alias
+	}
+	var keys []string
+	seen := make(map[string]bool)
+	for i := 0; i+1 < len(node.Content); i += 2 {
+		key := node.Content[i]
+		if key.Tag != "!!merge" && !seen[key.Value] {
+			keys = append(keys, key.Value)
+			seen[key.Value] = true
+		}
+	}
+	var inherited []string
+	for name := range values {
+		if !seen[name] {
+			inherited = append(inherited, name)
+		}
+	}
+	slices.Sort(inherited)
+	keys = append(keys, inherited...)
+	members := make([]yamlMappingMember, 0, len(keys))
+	for _, name := range keys {
+		members = append(members, yamlMappingMember{name: name, value: values[name]})
 	}
 	return members, nil
 }

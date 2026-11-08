@@ -209,7 +209,7 @@ paths:
 			require.NoError(t, os.WriteFile(input, []byte(test.source), 0o644))
 			output := filepath.Join(root, "design")
 
-			target, warnings, err := importOpenAPIDesign(input, output, test.allowLossy)
+			target, warnings, err := importOpenAPIDesign(openapiimport.Source{RetrievalPath: input}, output, test.allowLossy)
 			if test.wantError != "" {
 				require.Empty(t, target)
 				require.ErrorContains(t, err, test.wantError)
@@ -245,7 +245,7 @@ paths:
 	output := filepath.Join(root, "design")
 
 	target, warnings, report, err := importOpenAPIDesignSelected(
-		input,
+		openapiimport.Source{RetrievalPath: input},
 		output,
 		false,
 		openapiimport.Selection{Tags: []string{"Face"}},
@@ -260,7 +260,7 @@ paths:
 
 	missingOutput := filepath.Join(root, "missing")
 	target, warnings, _, err = importOpenAPIDesignSelected(
-		input,
+		openapiimport.Source{RetrievalPath: input},
 		missingOutput,
 		false,
 		openapiimport.Selection{Tags: []string{"Missing"}},
@@ -451,7 +451,7 @@ func TestImportOpenAPIDesignOutputResolution(t *testing.T) {
 				test.prepare(t, output)
 			}
 
-			target, warnings, err := importOpenAPIDesign(input, output, false)
+			target, warnings, err := importOpenAPIDesign(openapiimport.Source{RetrievalPath: input}, output, false)
 			require.NoError(t, err)
 			require.Empty(t, warnings)
 			require.Equal(t, test.wantTarget(root), target)
@@ -510,7 +510,7 @@ paths: {}
 			require.NoError(t, os.WriteFile(input, []byte(test.source), 0o644))
 			output := filepath.Join(root, "generated")
 
-			target, warnings, err := importOpenAPIDesign(input, output, false)
+			target, warnings, err := importOpenAPIDesign(openapiimport.Source{RetrievalPath: input}, output, false)
 			require.Empty(t, target)
 			require.Empty(t, warnings)
 			require.ErrorContains(t, err, test.wantError)
@@ -528,7 +528,7 @@ func TestImportOpenAPIDesignRefusesToOverwrite(t *testing.T) {
 	target := filepath.Join(output, "design.go")
 	require.NoError(t, os.WriteFile(target, []byte("sentinel\n"), 0o600))
 
-	result, warnings, err := importOpenAPIDesign(input, output, false)
+	result, warnings, err := importOpenAPIDesign(openapiimport.Source{RetrievalPath: input}, output, false)
 	require.Empty(t, result)
 	require.Empty(t, warnings)
 	require.ErrorContains(t, err, "already exists; refusing to overwrite")
@@ -545,7 +545,7 @@ func TestImportOpenAPIDesignWritesToDiscardDevice(t *testing.T) {
 	input := filepath.Join(root, "openapi.yaml")
 	require.NoError(t, os.WriteFile(input, supportedOpenAPISource(t), 0o644))
 
-	target, warnings, err := importOpenAPIDesign(input, os.DevNull, false)
+	target, warnings, err := importOpenAPIDesign(openapiimport.Source{RetrievalPath: input}, os.DevNull, false)
 
 	require.NoError(t, err)
 	require.Empty(t, warnings)
@@ -558,7 +558,7 @@ func TestImportOpenAPIDesignRejectsInvalidPackageBeforeCreatingOutput(t *testing
 	require.NoError(t, os.WriteFile(input, supportedOpenAPISource(t), 0o644))
 	output := filepath.Join(root, "bad-name")
 
-	target, warnings, err := importOpenAPIDesign(input, output, false)
+	target, warnings, err := importOpenAPIDesign(openapiimport.Source{RetrievalPath: input}, output, false)
 	require.Empty(t, target)
 	require.Empty(t, warnings)
 	require.ErrorContains(t, err, `package name "bad-name" is not a Go identifier`)
@@ -571,7 +571,7 @@ func TestImportOpenAPIDesignRejectsNonGoOutputFile(t *testing.T) {
 	require.NoError(t, os.WriteFile(input, supportedOpenAPISource(t), 0o644))
 	output := filepath.Join(root, "design.yaml")
 
-	target, warnings, err := importOpenAPIDesign(input, output, false)
+	target, warnings, err := importOpenAPIDesign(openapiimport.Source{RetrievalPath: input}, output, false)
 	require.Empty(t, target)
 	require.Empty(t, warnings)
 	require.ErrorContains(t, err, "must be a .go file or directory")
@@ -595,8 +595,8 @@ func TestMainRoutesOpenAPIImport(t *testing.T) {
 
 	var gotInput, gotOutput string
 	var gotAllowLossy bool
-	importOpenAPI = func(input, output string, allowLossy bool) (string, openapiimport.Diagnostics, error) {
-		gotInput, gotOutput = input, output
+	importOpenAPI = func(input openapiimport.Source, output string, allowLossy bool) (string, openapiimport.Diagnostics, error) {
+		gotInput, gotOutput = input.RetrievalPath, output
 		gotAllowLossy = allowLossy
 		return filepath.Join("design", "design.go"), openapiimport.Diagnostics{{Code: "examples", Path: "#/paths", Message: "examples omitted"}}, nil
 	}
@@ -624,7 +624,7 @@ func TestMainRoutesSelectedOpenAPIImport(t *testing.T) {
 
 	var gotSelection openapiimport.Selection
 	importSelectedOpenAPI = func(
-		_ string,
+		_ openapiimport.Source,
 		_ string,
 		_ bool,
 		selection openapiimport.Selection,
@@ -654,12 +654,12 @@ func TestMainListsOpenAPITags(t *testing.T) {
 		listOpenAPITags = originalList
 	}()
 
-	listOpenAPITags = func(input string) ([]openapiimport.TagSummary, error) {
-		require.Equal(t, "contract.yaml", input)
-		return []openapiimport.TagSummary{
+	listOpenAPITags = func(input openapiimport.Source) (openapiimport.SelectionReport, error) {
+		require.Equal(t, "contract.yaml", input.RetrievalPath)
+		return openapiimport.SelectionReport{Tags: []openapiimport.TagSummary{
 			{Name: "Face", Operations: 3, Paths: 2},
 			{Name: "Other", Operations: 1, Paths: 1},
-		}, nil
+		}}, nil
 	}
 	os.Args = []string{"loom", "import", "openapi", "contract.yaml", "--list-tags"}
 

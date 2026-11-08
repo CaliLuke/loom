@@ -116,7 +116,7 @@ components:
     Values: {type: array, items: {$ref: '#/components/schemas/ItemValue'}}
     ItemValue: %s
 `, tc.item))
-			document, diagnostics, _, err := AnalyzeSelected(source, Selection{Paths: []string{"/selected"}})
+			document, diagnostics, _, err := AnalyzeSelected(Source{Bytes: source}, Selection{Paths: []string{"/selected"}})
 			require.NoError(t, err)
 			fatal, _ := diagnostics.Classify(true)
 			_, renderErr := Render(document, Options{})
@@ -129,7 +129,7 @@ components:
 					t.Error("direct Render must reject referenced unsupported item")
 				}
 			}
-			ordinary, diagnostics, _, err := AnalyzeSelected(source, Selection{Paths: []string{"/ordinary"}})
+			ordinary, diagnostics, _, err := AnalyzeSelected(Source{Bytes: source}, Selection{Paths: []string{"/ordinary"}})
 			require.NoError(t, err)
 			require.Empty(t, diagnostics)
 			_, err = Render(ordinary, Options{})

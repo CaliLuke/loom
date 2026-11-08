@@ -34,6 +34,12 @@ Flags:
   --allow-lossy
         Allow explicitly lossy metadata omissions and report them as warnings
 
+  --document URI=PATH
+        Supply a reference document from a local file. A URI ending in / maps a directory
+
+  --reference-root DIR
+        Confine file references to this directory. The default is the input file's real directory
+
   --tag TAG
         Select operations with this tag. Repeat the flag to form a union
 
@@ -57,6 +63,8 @@ Flags:
 
 type (
 	openAPIImportArgs struct {
+		documents        []openapiimport.DocumentMapping
+		referenceRoot    string
 		input            string
 		output           string
 		allowLossy       bool
@@ -78,7 +86,8 @@ type (
 	}
 )
 
-func parseOpenAPIImportArgs(args []string) (openAPIImportArgs, error) {
+func parseOpenAPIImportArgs(args []string) (result openAPIImportArgs, err error) {
+	defer func() { err = openapiimport.RedactSourceError(err) }()
 	if len(args) < 2 || args[0] != "openapi" || strings.TrimSpace(args[1]) == "" {
 		return openAPIImportArgs{}, fmt.Errorf("usage: loom import openapi INPUT [-o FILE-OR-DIRECTORY] [--allow-lossy] [FILTERS]")
 	}
@@ -94,6 +103,9 @@ func parseOpenAPIImportArgs(args []string) (openAPIImportArgs, error) {
 	listTags := flags.Bool("list-tags", false, "list operation counts by tag")
 	report := flags.Bool("report", false, "report import blockers without writing a design")
 	skipUnrenderable := flags.Bool("skip-unrenderable", false, "write only operations that can be rendered")
+	var documents []openapiimport.DocumentMapping
+	var referenceRoot string
+	sourceFlagError := registerImportSourceFlags(flags, &documents, &referenceRoot)
 	var tags, pathPrefixes, paths []string
 	flags.Func(
 		"tag",
@@ -111,6 +123,9 @@ func parseOpenAPIImportArgs(args []string) (openAPIImportArgs, error) {
 		appendImportFilter(&paths),
 	)
 	if err := flags.Parse(args[2:]); err != nil {
+		if *sourceFlagError != nil {
+			return openAPIImportArgs{}, fmt.Errorf("parse import flags: invalid value for -document: %w", *sourceFlagError)
+		}
 		return openAPIImportArgs{}, fmt.Errorf("parse import flags: %w", err)
 	}
 	if flags.NArg() > 0 {
@@ -123,16 +138,12 @@ func parseOpenAPIImportArgs(args []string) (openAPIImportArgs, error) {
 		return openAPIImportArgs{}, fmt.Errorf("import output path must not be empty")
 	}
 	selection := openapiimport.Selection{Tags: tags, PathPrefixes: pathPrefixes, Paths: paths}
-	if err := selection.Validate(); err != nil {
+	if err := validateImportSelection(selection, *listTags, *report, *skipUnrenderable); err != nil {
 		return openAPIImportArgs{}, err
 	}
-	if *listTags && (selection.Active() || *report || *skipUnrenderable) {
-		return openAPIImportArgs{}, fmt.Errorf("--list-tags cannot be combined with filters, --report, or --skip-unrenderable")
-	}
-	if *report && *skipUnrenderable {
-		return openAPIImportArgs{}, fmt.Errorf("--report and --skip-unrenderable cannot be combined")
-	}
 	return openAPIImportArgs{
+		documents:        documents,
+		referenceRoot:    referenceRoot,
 		input:            args[1],
 		output:           *output,
 		allowLossy:       *allowLossy,
@@ -141,6 +152,47 @@ func parseOpenAPIImportArgs(args []string) (openAPIImportArgs, error) {
 		report:           *report,
 		skipUnrenderable: *skipUnrenderable,
 	}, nil
+}
+
+func validateImportSelection(selection openapiimport.Selection, listTags, report, skipUnrenderable bool) error {
+	if err := selection.Validate(); err != nil {
+		return err
+	}
+	if listTags && (selection.Active() || report || skipUnrenderable) {
+		return fmt.Errorf("--list-tags cannot be combined with filters, --report, or --skip-unrenderable")
+	}
+	if report && skipUnrenderable {
+		return fmt.Errorf("--report and --skip-unrenderable cannot be combined")
+	}
+	return nil
+}
+
+func registerImportSourceFlags(flags *flag.FlagSet, documents *[]openapiimport.DocumentMapping, referenceRoot *string) *error {
+	var sourceFlagError error
+	seenDocuments := make(map[string]bool)
+	flags.Func("document", "supply URI=PATH without network access", func(value string) (err error) {
+		defer func() {
+			sourceFlagError = err
+		}()
+		mapping, err := openapiimport.ParseDocumentMapping(value)
+		if err != nil {
+			return err
+		}
+		if seenDocuments[mapping.URI] {
+			return errors.New("duplicate document mapping URI")
+		}
+		seenDocuments[mapping.URI] = true
+		*documents = append(*documents, mapping)
+		return nil
+	})
+	flags.Func("reference-root", "confine file references to this directory", func(value string) error {
+		if strings.TrimSpace(value) == "" {
+			return errors.New("reference root must not be empty")
+		}
+		*referenceRoot = value
+		return nil
+	})
+	return &sourceFlagError
 }
 
 func openAPIImportHelpRequested(args []string) bool {
@@ -165,23 +217,36 @@ func appendImportFilter(values *[]string) func(string) error {
 	}
 }
 
-func importOpenAPIDesign(input, output string, allowLossy bool) (string, openapiimport.Diagnostics, error) {
+func readOpenAPISource(input openapiimport.Source) (openapiimport.Source, error) {
+	data, err := os.ReadFile(input.RetrievalPath)
+	if err != nil {
+		return openapiimport.Source{}, err
+	}
+	path, err := filepath.Abs(input.RetrievalPath)
+	if err != nil {
+		return openapiimport.Source{}, err
+	}
+	input.Bytes, input.RetrievalPath = data, path
+	return input, nil
+}
+
+func importOpenAPIDesign(input openapiimport.Source, output string, allowLossy bool) (string, openapiimport.Diagnostics, error) {
 	target, warnings, _, err := importOpenAPIDesignSelected(input, output, allowLossy, openapiimport.Selection{})
 	return target, warnings, err
 }
 
 func importOpenAPIDesignSelected(
-	input, output string,
+	input openapiimport.Source, output string,
 	allowLossy bool,
 	selection openapiimport.Selection,
 ) (string, openapiimport.Diagnostics, openapiimport.SelectionReport, error) {
-	source, err := os.ReadFile(input)
+	source, err := readOpenAPISource(input)
 	if err != nil {
-		return "", nil, openapiimport.SelectionReport{}, fmt.Errorf("read OpenAPI input %q: %w", input, err)
+		return "", nil, openapiimport.SelectionReport{}, fmt.Errorf("read OpenAPI input %q: %w", input.RetrievalPath, err)
 	}
 	document, diagnostics, report, err := openapiimport.AnalyzeSelected(source, selection)
 	if err != nil {
-		return "", nil, report, fmt.Errorf("analyze OpenAPI input %q: %w", input, err)
+		return "", nil, report, fmt.Errorf("analyze OpenAPI input %q: %w", input.RetrievalPath, err)
 	}
 	fatal, warnings := diagnostics.Classify(allowLossy)
 	if len(fatal) > 0 {
@@ -202,23 +267,23 @@ func importOpenAPIDesignSelected(
 }
 
 func analyzeOpenAPIPartial(
-	input string,
+	input openapiimport.Source,
 	allowLossy bool,
 	selection openapiimport.Selection,
 ) (*openapiimport.PartialAnalysis, openapiimport.SelectionReport, error) {
-	source, err := os.ReadFile(input)
+	source, err := readOpenAPISource(input)
 	if err != nil {
-		return nil, openapiimport.SelectionReport{}, fmt.Errorf("read OpenAPI input %q: %w", input, err)
+		return nil, openapiimport.SelectionReport{}, fmt.Errorf("read OpenAPI input %q: %w", input.RetrievalPath, err)
 	}
 	analysis, report, err := openapiimport.AnalyzePartial(source, selection, allowLossy)
 	if err != nil {
-		return nil, report, fmt.Errorf("analyze OpenAPI input %q: %w", input, err)
+		return nil, report, fmt.Errorf("analyze OpenAPI input %q: %w", input.RetrievalPath, err)
 	}
 	return analysis, report, nil
 }
 
 func importOpenAPIPartial(
-	input, output string,
+	input openapiimport.Source, output string,
 	allowLossy bool,
 	selection openapiimport.Selection,
 ) (string, *openapiimport.PartialAnalysis, openapiimport.SelectionReport, error) {
@@ -251,19 +316,19 @@ func installOpenAPIDocument(document *openapiimport.Document, output string) (st
 	return target, nil
 }
 
-func inspectOpenAPITags(input string) ([]openapiimport.TagSummary, error) {
-	source, err := os.ReadFile(input)
+func inspectOpenAPITags(input openapiimport.Source) (openapiimport.SelectionReport, error) {
+	source, err := readOpenAPISource(input)
 	if err != nil {
-		return nil, fmt.Errorf("read OpenAPI input %q: %w", input, err)
+		return openapiimport.SelectionReport{}, fmt.Errorf("read OpenAPI input %q: %w", input.RetrievalPath, err)
 	}
 	document, diagnostics, report, err := openapiimport.AnalyzeSelected(source, openapiimport.Selection{})
 	if err != nil {
-		return nil, fmt.Errorf("analyze OpenAPI input %q: %w", input, err)
+		return openapiimport.SelectionReport{}, fmt.Errorf("analyze OpenAPI input %q: %w", input.RetrievalPath, err)
 	}
 	if document == nil {
-		return nil, fmt.Errorf("inspect OpenAPI tags:\n%s", diagnostics.Error())
+		return openapiimport.SelectionReport{}, fmt.Errorf("inspect OpenAPI tags:\n%s", diagnostics.Error())
 	}
-	return report.Tags, nil
+	return report, nil
 }
 
 func writePartialReport(writer io.Writer, analysis *openapiimport.PartialAnalysis) error {
@@ -335,6 +400,13 @@ func writeDiagnosticGroups(writer io.Writer, label string, diagnostics openapiim
 		for _, message := range group.messages {
 			if _, err := fmt.Fprintf(writer, "    %d\t%s\n", message.count, message.message); err != nil {
 				return err
+			}
+		}
+		for _, diagnostic := range diagnostics {
+			if diagnostic.Code == group.code {
+				if err := writeDiagnosticLocation(writer, diagnostic); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -485,4 +557,8 @@ func closeImportTemporary(file *os.File, writeErr error) error {
 		return errors.Join(writeErr, fmt.Errorf("close temporary import output: %w", closeErr))
 	}
 	return writeErr
+}
+
+func (a openAPIImportArgs) source() openapiimport.Source {
+	return openapiimport.Source{RetrievalPath: a.input, ReferenceRoot: a.referenceRoot, Documents: a.documents}
 }

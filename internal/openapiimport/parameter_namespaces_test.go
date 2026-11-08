@@ -68,7 +68,7 @@ paths:
 	_, diagnostics, err := Analyze(source)
 	require.NoError(t, err)
 	require.Contains(t, diagnostics.Error(), "overlapping parameter namespaces")
-	partial, _, err := AnalyzePartial(source, Selection{}, true)
+	partial, _, err := AnalyzePartial(Source{Bytes: source}, Selection{}, true)
 	require.NoError(t, err)
 	require.Empty(t, partial.Document.Operations)
 }

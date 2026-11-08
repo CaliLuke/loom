@@ -406,3 +406,24 @@ Importer example membership: [final-graph phase](../../../../internal/openapiimp
 The [reusable-reference model](../../../../internal/openapiimport/tla/reusable_references/README.md)
 checks component identity, occurrence overlays, immutable definitions and bounded
 forward-reference/cycle admission across request bodies, responses and headers.
+
+The multi-document importer has bounded design models for these boundaries:
+
+- [Resolver identity](../../../../internal/openapiimport/tla/resolution_identity/README.md):
+  load-before-alias fixed points, byte-only sources, fragment identity, safe public
+  projection, typed syntax before library formatting, complete merge-collection
+  source roles, safe rejected-mapping reasons, final analysis/planner publication
+  and full occurrence origins.
+- [Blocked selection](../../../../internal/openapiimport/tla/blocked_selection/README.md):
+  component closure, unknown Path Item membership, authored operation addresses
+  and inherited/overridden security.
+- [Security projection](../../../../internal/openapiimport/tla/security_projection/README.md):
+  containing-document bases, alias scope union and regeneration identity.
+- [Bundle naming](../../../../internal/openapiimport/tla/bundle_naming/README.md):
+  complete authored reservations across type and variable namespaces, plus
+  canonical local/external target promotion independent of discovery order.
+- [Source contracts](../../../../internal/openapiimport/tla/source_contracts/README.md):
+  external dialect retention, actual Schema grammar roles, schema-bearing target admission and independent
+  selection. Direct tests also cover duplicate-key rejection before canonicalization.
+
+These remain opt-in design evidence; normal tests check implementation behavior.

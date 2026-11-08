@@ -1,0 +1,145 @@
+package main
+
+import (
+	"crypto/sha256"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
+
+	"github.com/daveshanley/vacuum/motor"
+	"github.com/daveshanley/vacuum/rulesets"
+	"github.com/pb33f/libopenapi/index"
+)
+
+type (
+	finding struct {
+		Rule     string
+		Severity string
+		Path     string
+		Message  string
+		Line     int
+		Column   int
+	}
+	resourceEvidence struct {
+		Role                 string
+		URI                  string
+		ContentSHA256        string
+		IndexedContentSHA256 string
+	}
+	report struct {
+		BinarySHA256 string
+		Rules        []string
+		Findings     []finding
+		Resources    []resourceEvidence
+		Errors       []string
+	}
+)
+
+func main() {
+	result := execute(os.Args[1:])
+	if err := json.NewEncoder(os.Stdout).Encode(result); err != nil {
+		os.Exit(2)
+	}
+	if len(result.Errors) > 0 {
+		os.Exit(1)
+	}
+	for _, row := range result.Findings {
+		if row.Severity == "error" {
+			os.Exit(1)
+		}
+	}
+}
+
+func execute(args []string) report {
+	result := report{}
+	binary, err := os.Executable()
+	if err != nil {
+		result.Errors = append(result.Errors, err.Error())
+		return result
+	}
+	data, err := os.ReadFile(binary)
+	if err != nil {
+		result.Errors = append(result.Errors, err.Error())
+		return result
+	}
+	result.BinarySHA256 = hash(data)
+	execution, resources, err := prepare(args)
+	if err != nil {
+		result.Errors = append(result.Errors, err.Error())
+		return result
+	}
+	for id := range execution.RuleSet.Rules {
+		result.Rules = append(result.Rules, id)
+	}
+	sort.Strings(result.Rules)
+	outcome := motor.ApplyRulesToRuleSet(execution)
+	defer outcome.Release()
+	for _, err := range outcome.Errors {
+		result.Errors = append(result.Errors, err.Error())
+	}
+	for _, row := range outcome.Results {
+		item := finding{Rule: row.RuleId, Severity: row.RuleSeverity, Path: row.Path, Message: row.Message}
+		if row.Rule != nil {
+			item.Rule = row.Rule.Id
+			item.Severity = row.Rule.Severity
+		}
+		if row.StartNode != nil {
+			item.Line = max(0, row.StartNode.Line-1)
+			item.Column = max(0, row.StartNode.Column-1)
+		}
+		result.Findings = append(result.Findings, item)
+	}
+	for _, pair := range []struct {
+		role string
+		root *index.SpecIndex
+	}{{"resolved", execution.IndexResolved}, {"unresolved", execution.IndexUnresolved}} {
+		evidence, err := resources.inspect(pair.role, pair.root)
+		if err != nil {
+			result.Errors = append(result.Errors, err.Error())
+		}
+		result.Resources = append(result.Resources, evidence...)
+	}
+	sort.Slice(result.Findings, func(i, j int) bool {
+		a, b := result.Findings[i], result.Findings[j]
+		return a.Rule+a.Path+a.Message < b.Rule+b.Path+b.Message
+	})
+	return result
+}
+
+func hash(data []byte) string {
+	return fmt.Sprintf("%x", sha256.Sum256(data))
+}
+
+func prepare(args []string) (*motor.RuleSetExecution, *resourceFS, error) {
+	if len(args) < 2 || len(args)%2 != 0 {
+		return nil, nil, fmt.Errorf("expected ruleset, entry and optional URI/file pairs")
+	}
+	rules, err := os.ReadFile(args[0])
+	if err != nil {
+		return nil, nil, err
+	}
+	entry, err := os.ReadFile(args[1])
+	if err != nil {
+		return nil, nil, err
+	}
+	resources, err := loadResources(args[2:])
+	if err != nil {
+		return nil, nil, err
+	}
+	supplied, err := rulesets.CreateRuleSetFromData(rules)
+	if err != nil {
+		return nil, nil, err
+	}
+	selected := rulesets.BuildDefaultRuleSets().GenerateRuleSetFromSuppliedRuleSet(supplied)
+	if err := selected.LoadError(); err != nil {
+		return nil, nil, err
+	}
+	entryPath, err := filepath.Abs(args[1])
+	if err != nil {
+		return nil, nil, err
+	}
+	execution := &motor.RuleSetExecution{RuleSet: selected, Spec: entry, SpecFileName: entryPath, Base: filepath.Dir(entryPath), AllowLookup: true, RolodexFS: resources, SilenceLogs: true}
+	return execution, resources, nil
+}

@@ -49,6 +49,11 @@ func (a *analyzer) mediaExamples(media *v3.MediaType, schema *Schema, path strin
 }
 
 func (a *analyzer) componentExample(name string, source *base.Example, path string) (Example, bool) {
+	if a.bundle != nil {
+		if _, blocked := a.bundle.blocked[path]; blocked {
+			return Example{ComponentName: name, unresolved: true, source: exampleSource{path: path}}, true
+		}
+	}
 	if source == nil {
 		a.unsupported("examples", path, "component example is nil")
 		return Example{}, false

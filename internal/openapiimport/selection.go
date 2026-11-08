@@ -4,6 +4,7 @@ import (
 	"encoding/json/jsontext"
 	"fmt"
 	pathpkg "path"
+	"slices"
 	"sort"
 	"strings"
 
@@ -39,19 +40,27 @@ type (
 		Tags []TagSummary
 		// UnclaimedPaths lists paths that do not use a requested tag.
 		UnclaimedPaths []string
+		// UnresolvedPaths lists Path Items whose operation and tag membership is unknown.
+		UnresolvedPaths []string
 	}
 
 	componentClosure struct {
-		schemas       map[string]struct{}
-		parameters    map[string]struct{}
-		requestBodies map[string]struct{}
-		responses     map[string]struct{}
-		headers       map[string]struct{}
-		tags          map[string]struct{}
+		namingError     error
+		examples        map[string]struct{}
+		securitySchemes map[string]struct{}
+		schemas         map[string]struct{}
+		parameters      map[string]struct{}
+		requestBodies   map[string]struct{}
+		responses       map[string]struct{}
+		headers         map[string]struct{}
+		tags            map[string]struct{}
 	}
 
 	componentPruner struct {
+		// closure owns retained identity; bodies owns normalized bodies already
+		// walked, keyed by component kind and name.
 		closure       componentClosure
+		bodies        map[string]struct{}
 		schemas       map[string]*Schema
 		parameters    map[string]Parameter
 		requestBodies map[string]RequestBody
@@ -60,8 +69,9 @@ type (
 	}
 
 	selectedOperation struct {
-		method    string
-		operation *v3.Operation
+		method     string
+		sourcePath string
+		operation  *v3.Operation
 	}
 )
 
@@ -122,37 +132,16 @@ func (a *analyzer) operations(paths *v3.Paths, components Components, declaredTa
 	tagOperations := make(map[string]int)
 	var unclaimedPaths []string
 	for path, item := range paths.PathItems.FromOldest() {
-		base := "#/paths/" + escapeJSONPointer(path)
-		var selected []selectedOperation
-		tagClaimed := false
-		for method, operation := range item.GetOperations().FromOldest() {
-			operationTags := make(map[string]struct{}, len(operation.Tags))
-			for _, tag := range operation.Tags {
-				if _, seen := operationTags[tag]; seen {
-					continue
-				}
-				operationTags[tag] = struct{}{}
-				tagOperations[tag]++
-				if tagPaths[tag] == nil {
-					tagPaths[tag] = make(map[string]struct{})
-				}
-				tagPaths[tag][path] = struct{}{}
-			}
-			if a.selection.matchesTag(operation.Tags) {
-				tagClaimed = true
-			}
-			if a.selection.matches(path, operation.Tags) {
-				selected = append(selected, selectedOperation{method: method, operation: operation})
-			}
+		if a.bundle != nil && slices.Contains(a.bundle.unresolvedPaths, path) {
+			continue
 		}
+		base := "#/paths/" + escapeJSONPointer(path)
+		selected, tagClaimed := a.selectPathOperations(path, item, tagPaths, tagOperations)
 		if len(a.selection.Tags) > 0 && !tagClaimed {
 			unclaimedPaths = append(unclaimedPaths, path)
 		}
 		if len(selected) == 0 {
 			continue
-		}
-		if item.Reference != "" {
-			a.unsupported("path-reference", base, "path item references are not in the strict import subset")
 		}
 		if item.Summary != "" || item.Description != "" {
 			a.unsupported("path-metadata", base, "path item summaries and descriptions are not in the strict import subset")
@@ -167,7 +156,7 @@ func (a *analyzer) operations(paths *v3.Paths, components Components, declaredTa
 				path,
 				item.Parameters,
 				selectedOperation.operation,
-				base+"/"+selectedOperation.method,
+				selectedOperation.sourcePath,
 				base+"/parameters",
 				components,
 			))
@@ -175,6 +164,36 @@ func (a *analyzer) operations(paths *v3.Paths, components Components, declaredTa
 	}
 	a.report = newSelectionReport(tagOperations, tagPaths, declaredTags, unclaimedPaths)
 	return operations
+}
+
+func (a *analyzer) selectPathOperations(path string, item *v3.PathItem, tagPaths map[string]map[string]struct{}, tagOperations map[string]int) ([]selectedOperation, bool) {
+	var selected []selectedOperation
+	tagClaimed := false
+	for method, operation := range item.GetOperations().FromOldest() {
+		operationTags := make(map[string]struct{}, len(operation.Tags))
+		for _, tag := range operation.Tags {
+			if _, seen := operationTags[tag]; seen {
+				continue
+			}
+			operationTags[tag] = struct{}{}
+			tagOperations[tag]++
+			if tagPaths[tag] == nil {
+				tagPaths[tag] = make(map[string]struct{})
+			}
+			tagPaths[tag][path] = struct{}{}
+		}
+		if a.selection.matchesTag(operation.Tags) {
+			tagClaimed = true
+		}
+		if a.selection.matches(path, operation.Tags) {
+			sourcePath := "#/paths/" + escapeJSONPointer(path) + "/" + escapeJSONPointer(method)
+			if item.AdditionalOperations != nil && item.AdditionalOperations.GetOrZero(method) == operation {
+				sourcePath = "#/paths/" + escapeJSONPointer(path) + "/additionalOperations/" + escapeJSONPointer(method)
+			}
+			selected = append(selected, selectedOperation{method: method, sourcePath: sourcePath, operation: operation})
+		}
+	}
+	return selected, tagClaimed
 }
 
 func newSelectionReport(
@@ -210,16 +229,35 @@ func newSelectionReport(
 
 func pruneComponents(document *Document) componentClosure {
 	pruner := newComponentPruner(document.Components)
+	inheritsSecurity := false
 	for _, operation := range document.Operations {
+		inheritsSecurity = inheritsSecurity || !operation.SecurityDefined
 		pruner.visitOperation(operation)
+		if document.bundle != nil {
+			pruner.visitSourceOperation(document.bundle, operation)
+		}
+		if operation.SecurityDefined {
+			pruner.visitSecurity(operation.Security)
+		} else if document.SecurityDefined {
+			pruner.visitSecurity(document.Security)
+			if document.bundle != nil {
+				pruner.visitSourcePrefix(document.bundle, "#/security", make(map[string]bool))
+			}
+		}
+	}
+	if !inheritsSecurity {
+		document.Security, document.SecurityDefined = nil, false
 	}
 	pruner.retain(document)
+	document.retainedClosure = &pruner.closure
 	return pruner.closure
 }
 
 func newComponentPruner(components Components) *componentPruner {
 	pruner := &componentPruner{
+		bodies: make(map[string]struct{}),
 		closure: componentClosure{
+			examples: make(map[string]struct{}), securitySchemes: make(map[string]struct{}),
 			schemas:       make(map[string]struct{}),
 			parameters:    make(map[string]struct{}),
 			requestBodies: make(map[string]struct{}),
@@ -266,12 +304,9 @@ func (p *componentPruner) visitSchema(schema *Schema) {
 	if schema == nil {
 		return
 	}
+	p.visitExamples(schema.Examples)
 	if name, ok := componentReferenceName(schema.Ref, "#/components/schemas/"); ok {
-		if _, seen := p.closure.schemas[name]; seen {
-			return
-		}
-		p.closure.schemas[name] = struct{}{}
-		p.visitSchema(p.schemas[name])
+		p.retainComponent("schemas", name)
 		return
 	}
 	for _, base := range schema.Bases {
@@ -291,23 +326,16 @@ func (p *componentPruner) visitSchema(schema *Schema) {
 
 func (p *componentPruner) visitParameter(parameter Parameter) {
 	if name, ok := componentReferenceName(parameter.Ref, "#/components/parameters/"); ok {
-		if _, seen := p.closure.parameters[name]; seen {
-			return
-		}
-		p.closure.parameters[name] = struct{}{}
-		p.visitParameter(p.parameters[name])
+		p.retainComponent("parameters", name)
 		return
 	}
 	p.visitSchema(parameter.Schema)
 }
 
 func (p *componentPruner) visitRequestBody(body RequestBody) {
+	p.visitExamples(body.Examples)
 	if name, ok := componentReferenceName(body.Ref, "#/components/requestBodies/"); ok {
-		if _, seen := p.closure.requestBodies[name]; seen {
-			return
-		}
-		p.closure.requestBodies[name] = struct{}{}
-		p.visitRequestBody(p.requestBodies[name])
+		p.retainComponent("requestBodies", name)
 		return
 	}
 	p.visitSchema(body.Schema)
@@ -315,23 +343,16 @@ func (p *componentPruner) visitRequestBody(body RequestBody) {
 
 func (p *componentPruner) visitHeader(header Header) {
 	if name, ok := componentReferenceName(header.Ref, "#/components/headers/"); ok {
-		if _, seen := p.closure.headers[name]; seen {
-			return
-		}
-		p.closure.headers[name] = struct{}{}
-		p.visitHeader(p.headers[name])
+		p.retainComponent("headers", name)
 		return
 	}
 	p.visitSchema(header.Schema)
 }
 
 func (p *componentPruner) visitResponse(response Response) {
+	p.visitExamples(response.Examples)
 	if name, ok := componentReferenceName(response.Ref, "#/components/responses/"); ok {
-		if _, seen := p.closure.responses[name]; seen {
-			return
-		}
-		p.closure.responses[name] = struct{}{}
-		p.visitResponse(p.responses[name])
+		p.retainComponent("responses", name)
 		return
 	}
 	p.visitSchema(response.Schema)
@@ -340,9 +361,58 @@ func (p *componentPruner) visitResponse(response Response) {
 	}
 }
 
+// retainComponent records a reusable component's retained identity and walks
+// its normalized body once. Normalized and source-only grammar references both
+// retain through it: analysis can add normalized-only edges, such as promoted
+// declarations, so retention never stands in for that walk. It reports whether
+// kind is a retained component kind.
+func (p *componentPruner) retainComponent(kind, name string) bool {
+	var retained map[string]struct{}
+	var body func()
+	switch kind {
+	case "schemas":
+		retained, body = p.closure.schemas, func() {
+			p.visitSchema(p.schemas[name])
+		}
+	case "parameters":
+		retained, body = p.closure.parameters, func() {
+			p.visitParameter(p.parameters[name])
+		}
+	case "requestBodies":
+		retained, body = p.closure.requestBodies, func() {
+			p.visitRequestBody(p.requestBodies[name])
+		}
+	case "responses":
+		retained, body = p.closure.responses, func() {
+			p.visitResponse(p.responses[name])
+		}
+	case "headers":
+		retained, body = p.closure.headers, func() {
+			p.visitHeader(p.headers[name])
+		}
+	case "examples":
+		retained = p.closure.examples
+	case "securitySchemes":
+		retained = p.closure.securitySchemes
+	default:
+		return false
+	}
+	retained[name] = struct{}{}
+	key := kind + "/" + name
+	if _, walked := p.bodies[key]; body == nil || walked {
+		return true
+	}
+	p.bodies[key] = struct{}{}
+	body()
+	return true
+}
+
 func (p *componentPruner) retain(document *Document) {
 	document.Components.Schemas = retainNamedSchemas(document.Components.Schemas, p.closure.schemas)
-	assignSchemaNames(document.Components.Schemas)
+	document.Components.SecuritySchemes = slices.DeleteFunc(slices.Clone(document.Components.SecuritySchemes), func(scheme SecurityScheme) bool {
+		_, retained := p.closure.securitySchemes[scheme.Name]
+		return !retained
+	})
 	document.Components.Parameters = retainNamedParameters(document.Components.Parameters, p.closure.parameters)
 	document.Components.RequestBodies = retainNamedRequestBodies(document.Components.RequestBodies, p.closure.requestBodies)
 	document.Components.Responses = retainNamedResponses(document.Components.Responses, p.closure.responses)
@@ -357,6 +427,9 @@ func (p *componentPruner) retain(document *Document) {
 	document.Tags = retainStrings(document.Tags, usedTags)
 	document.TagMetadata = retainTags(document.TagMetadata, usedTags)
 	p.closure.tags = usedTags
+	// A subset may still be unrenderable. Carry the naming error with its
+	// closure so diagnostic filtering reports it after source admission causes.
+	p.closure.namingError = allocateDesignNames(document)
 }
 
 func tagParentClosure(retained map[string]struct{}, metadata []Tag) map[string]struct{} {
@@ -407,13 +480,20 @@ func filterSelectionDiagnostics(diagnostics Diagnostics, closure componentClosur
 		if diagnostic.Path == "#/components" || diagnostic.Path == "#/components/securitySchemes" {
 			continue
 		}
-		if componentDiagnosticRetained(diagnostic.Path, "#/components/schemas/", closure.schemas) &&
+		if componentDiagnosticRetained(diagnostic.Path, "#/components/examples/", closure.examples) &&
+			componentDiagnosticRetained(diagnostic.Path, "#/components/securitySchemes/", closure.securitySchemes) &&
+			componentDiagnosticRetained(diagnostic.Path, "#/components/schemas/", closure.schemas) &&
 			componentDiagnosticRetained(diagnostic.Path, "#/components/parameters/", closure.parameters) &&
 			componentDiagnosticRetained(diagnostic.Path, "#/components/requestBodies/", closure.requestBodies) &&
 			componentDiagnosticRetained(diagnostic.Path, "#/components/responses/", closure.responses) &&
 			componentDiagnosticRetained(diagnostic.Path, "#/components/headers/", closure.headers) &&
 			componentDiagnosticRetained(diagnostic.Path, "#/tags/", closure.tags) {
 			filtered = append(filtered, diagnostic)
+		}
+	}
+	if closure.namingError != nil {
+		if fatal, _ := filtered.Classify(true); len(fatal) == 0 {
+			filtered = append(filtered, designNameDiagnostics(closure.namingError)...)
 		}
 	}
 	return filtered

@@ -3,13 +3,36 @@ package openapiimport
 import (
 	"fmt"
 
-	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/internal/openapiref"
 )
 
 // indexErrors completes declaration planning after operation names are final.
 // Component identity comes from the admitted index shared with the renderer.
 func (r *renderer) indexErrors() error {
+	for operationIndex := range r.operations {
+		operation := r.document.Operations[operationIndex]
+		for responseIndex := range r.operations[operationIndex].failures {
+			response := &r.operations[operationIndex].failures[responseIndex]
+			if len(response.headers) > 0 {
+				continue
+			}
+			if err := r.markErrorSchema(response.response.Schema); err != nil {
+				return err
+			}
+			identity := cloneIdentity{operation.Method, operation.Path, response.status}
+			names, ok := r.document.names.clones[identity]
+			response.cloneErrorType = ok
+			if ok {
+				response.cloneErrorTypeName, response.cloneErrorGoName = names.typeName, names.variable
+			}
+		}
+	}
+	return nil
+}
+
+// classifyErrorClones is shared by the declaration inventory and final plans.
+// It consumes normalized failures, including synthetic media-range headers.
+func (r *renderer) classifyErrorClones() error {
 	errorNames := make(map[string]map[string]struct{})
 	for operationIndex := range r.operations {
 		for responseIndex := range r.operations[operationIndex].failures {
@@ -50,29 +73,7 @@ func (r *renderer) indexErrors() error {
 			response.cloneErrorType = len(errorNames[name]) > 1 && object
 		}
 	}
-	r.assignErrorCloneNames()
 	return nil
-}
-
-func (r *renderer) assignErrorCloneNames() {
-	typeNames := codegen.NewNameScope()
-	used := make(map[string]int, len(r.schemas)+len(r.document.Components.SecuritySchemes))
-	for _, schema := range r.document.Components.Schemas {
-		typeNames.Unique(schema.GoName)
-		uniqueName("Imported"+schema.GoName, used)
-	}
-	for _, scheme := range r.document.Components.SecuritySchemes {
-		uniqueName(scheme.GoName, used)
-	}
-	for operationIndex := range r.operations {
-		for responseIndex := range r.operations[operationIndex].failures {
-			response := &r.operations[operationIndex].failures[responseIndex]
-			if response.cloneErrorType {
-				response.cloneErrorTypeName = typeNames.Unique(codegen.Goify(response.errorName, true))
-				response.cloneErrorGoName = uniqueName("Imported"+response.cloneErrorTypeName+"Error", used)
-			}
-		}
-	}
 }
 
 func (r *renderer) errorSchemaRendersAsObject(name string, visited map[string]struct{}) (bool, error) {

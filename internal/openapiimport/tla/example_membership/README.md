@@ -59,3 +59,14 @@ not identify that domain. Scalar values only: recursion through child values,
 and closed-union evaluated-member coverage are checked by Go tests. Closure is
 held to the existing source-oracle closure profiles
 (`singletonClosureProfiles`, `oneOfClosureProfiles`), not proved here.
+
+## External references and decoded values
+
+Membership classifies decoded values, including authored JSON null. A blocked
+external example is explicitly `Example.unresolved`, not a nil-valued sample.
+The completed-graph filter retains that component edge without classifying it;
+the existing bundle diagnostic and selected closure remain authoritative. Copies
+retain the unresolved state while rebinding the authored occurrence owner/path.
+`TestExampleUnresolvedValueState`, `TestExampleUnresolvedSelectionProvenance`, and
+`TestBlockedOccurrenceSelection` cover this boundary. This is outside the model's
+decoded-value domain and does not change its membership algorithm.

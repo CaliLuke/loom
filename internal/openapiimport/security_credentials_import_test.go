@@ -97,7 +97,7 @@ func TestSecurityCredentialUnknownScopePartialImport(t *testing.T) {
 	source, err = json.Marshal(input, json.Deterministic(true))
 	require.NoError(t, err)
 	for _, lossy := range []bool{false, true} {
-		partial, _, err := AnalyzePartial(source, Selection{}, lossy)
+		partial, _, err := AnalyzePartial(Source{Bytes: source}, Selection{}, lossy)
 		require.NoError(t, err)
 		require.Len(t, partial.Skipped, 1)
 		require.Equal(t, "/bad", partial.Skipped[0].Path)

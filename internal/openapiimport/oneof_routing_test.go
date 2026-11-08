@@ -34,7 +34,7 @@ func TestOneOfDiagnosticOwnerRouting(t *testing.T) {
 	for _, tc := range []struct {
 		owner, operation, code, path, wording string
 	}{
-		{"#970 query content codec", `"parameters":[{"name":"value","in":"query","content":{"text/plain":{"schema":` + union + `}}}],"responses":{"204":{"description":"ok"}}`, "parameter-serialization", "#/operations/0/parameters/0", `field media type "text/plain" has no equivalent query codec`},
+		{"#970 query content codec", `"parameters":[{"name":"value","in":"query","content":{"text/plain":{"schema":` + union + `}}}],"responses":{"204":{"description":"ok"}}`, "parameter-serialization", "#/paths/~1value/post/parameters/0", `field media type "text/plain" has no equivalent query codec`},
 		{"#970 header content location", `"parameters":[{"name":"value","in":"header","content":{"application/json":{"schema":` + union + `}}}],"responses":{"204":{"description":"ok"}}`, "parameter-content", "#/paths/~1value/post/parameters/0/content", "only for named JSON query objects"},
 		{"#972 item schema", `"responses":{"200":{"description":"ok","content":{"application/json-seq":{"schema":{"type":"string","format":"binary"},"itemSchema":` + union + `}}}}`, "media-item-schema", "#/paths/~1value/post/responses/200/content/application~1json-seq/itemSchema", "item schemas are not in the strict import subset"},
 		{"#973 positional encoding", `"requestBody":{"content":{"multipart/form-data":{"schema":{"type":"object","properties":{"value":` + union + `}},"encoding":{"value":{"contentType":"application/json"}},"prefixEncoding":[]}}},"responses":{"204":{"description":"ok"}}`, "media-prefix-encoding", "#/paths/~1value/post/requestBody/content/multipart~1form-data/prefixEncoding", "prefixEncoding is not in the strict import subset"},

@@ -68,7 +68,8 @@ func TestImportedNameConsumers(t *testing.T) {
 	})
 	t.Run("security declarations", func(t *testing.T) {
 		schemes := []SecurityScheme{{Name: "Auth"}, {Name: "auth"}}
-		assignSecuritySchemeNames(schemes, []NamedSchema{{GoName: "AuthSecurity2"}})
+		document := &Document{Components: Components{SecuritySchemes: schemes, Schemas: []NamedSchema{{Name: "AuthSecurity2", Schema: &Schema{Type: "string"}}}}}
+		require.NoError(t, allocateDesignNames(document))
 		require.Equal(t, "ImportedAuthSecurity", schemes[0].GoName)
 		require.Equal(t, "ImportedAuthSecurity3", schemes[1].GoName)
 	})
@@ -115,14 +116,16 @@ func TestImportedNameConsumers(t *testing.T) {
 		require.Equal(t, "body2", response.headers[1].name)
 	})
 	t.Run("cloned error declarations", func(t *testing.T) {
-		r := renderer{document: &Document{Components: Components{Schemas: []NamedSchema{
-			{GoName: "Status400Error"}, {GoName: "Status400Error2"},
-		}}}, operations: []operationPlan{{failures: []renderedResponse{
-			{cloneErrorType: true, errorName: "Status400"},
-		}}}}
-		r.assignErrorCloneNames()
-		require.Equal(t, "ImportedStatus400Error3", r.operations[0].failures[0].cloneErrorGoName)
-		require.Equal(t, "Status400", r.operations[0].failures[0].cloneErrorTypeName)
+		document := nameInventoryErrors()
+		document.Operations[0].Responses[1].Status = "400"
+		document.Components.Schemas = append(document.Components.Schemas,
+			NamedSchema{Name: "Status400Error", Schema: &Schema{Type: "string"}},
+			NamedSchema{Name: "Status400Error2", Schema: &Schema{Type: "string"}},
+		)
+		require.NoError(t, allocateDesignNames(document))
+		names := document.names.clones[cloneIdentity{"GET", "/items", "400"}]
+		require.Equal(t, "ImportedStatus400Error3", names.variable)
+		require.Equal(t, "Status400", names.typeName)
 	})
 }
 

@@ -39,7 +39,11 @@ type (
 
 // AnalyzePartial returns the largest operation subset that can be rendered.
 // Lossy diagnostics are warnings only when allowLossy is true.
-func AnalyzePartial(source []byte, selection Selection, allowLossy bool) (*PartialAnalysis, SelectionReport, error) {
+func AnalyzePartial(source Source, selection Selection, allowLossy bool) (analysis *PartialAnalysis, report SelectionReport, err error) {
+	defer func() {
+		analysis.projectPublicDiagnostics()
+		err = RedactSourceError(err)
+	}()
 	document, rawDiagnostics, report, err := analyzeSelectedDocument(source, selection)
 	if err != nil {
 		return nil, report, err
@@ -47,16 +51,26 @@ func AnalyzePartial(source []byte, selection Selection, allowLossy bool) (*Parti
 	if document == nil {
 		return &PartialAnalysis{Blocked: rawDiagnostics.sorted()}, report, nil
 	}
-	analysis := &PartialAnalysis{
+	analysis = &PartialAnalysis{
 		TotalOperations: len(document.Operations),
 		TotalSchemas:    len(document.Components.Schemas),
+	}
+	for _, path := range report.UnresolvedPaths {
+		var diagnostics Diagnostics
+		for _, diagnostic := range rawDiagnostics {
+			if diagnostic.Path == "#/paths/"+escapeJSONPointer(path) && diagnostic.Code == "path-reference" {
+				diagnostics = append(diagnostics, diagnostic)
+			}
+		}
+		analysis.Skipped = append(analysis.Skipped, SkippedOperation{Path: path, Diagnostics: diagnostics})
+		analysis.Blocked = append(analysis.Blocked, diagnostics...)
 	}
 	rawDiagnostics, analysis.Omitted = splitDocumentOmissions(rawDiagnostics)
 	retained := make([]Operation, 0, len(document.Operations))
 	for _, operation := range document.Operations {
 		candidate := documentForOperations(document, []Operation{operation})
 		closure := pruneComponents(candidate)
-		diagnostics := filterOperationDiagnostics(rawDiagnostics, operation, closure)
+		diagnostics := filterSecurityFailures(candidate, filterOperationDiagnostics(rawDiagnostics, operation, closure))
 		diagnostics, omitted := splitOperationOmissions(diagnostics, operation)
 		if len(omitted) > 0 {
 			analysis.OperationOmissions = append(analysis.OperationOmissions, SkippedOperation{
@@ -91,7 +105,7 @@ func AnalyzePartial(source []byte, selection Selection, allowLossy bool) (*Parti
 }
 
 func splitOperationOmissions(diagnostics Diagnostics, operation Operation) (retained, omitted Diagnostics) {
-	methodBase := "#/paths/" + escapeJSONPointer(operation.Path) + "/" + strings.ToLower(operation.Method)
+	methodBase := operation.sourcePath
 	for _, diagnostic := range diagnostics {
 		if diagnostic.Code == "security" && diagnostic.Path == methodBase+"/security" {
 			omitted = append(omitted, diagnostic)
@@ -123,8 +137,8 @@ func isDocumentOmission(diagnostic Diagnostic) bool {
 		return diagnostic.Path == "#/security"
 	case "external-docs":
 		return diagnostic.Path == "#/externalDocs"
-	case "document-identity":
-		return diagnostic.Path == "#"
+	case "json-schema-dialect":
+		return diagnostic.Path == "#/jsonSchemaDialect"
 	case "webhooks":
 		return diagnostic.Path == "#/webhooks"
 	case "security-schemes":
@@ -141,6 +155,8 @@ func isDocumentOmission(diagnostic Diagnostic) bool {
 
 func documentForOperations(document *Document, operations []Operation) *Document {
 	result := *document
+	result.unresolvedPaths = nil
+	result.retainedClosure = nil
 	result.Components = document.Components
 	result.Operations = append([]Operation(nil), operations...)
 	result.Tags = append([]string(nil), document.Tags...)
@@ -163,12 +179,12 @@ func filterOperationDiagnostics(diagnostics Diagnostics, operation Operation, cl
 	diagnostics = filterSelectionDiagnostics(diagnostics, closure)
 	filtered := make(Diagnostics, 0, len(diagnostics))
 	operationBase := "#/paths/" + escapeJSONPointer(operation.Path)
-	methodBase := operationBase + "/" + strings.ToLower(operation.Method)
+	methodBase := operation.sourcePath
 	for _, diagnostic := range diagnostics {
 		if !strings.HasPrefix(diagnostic.Path, "#/paths/") ||
 			diagnostic.Path == operationBase ||
 			strings.HasPrefix(diagnostic.Path, operationBase+"/parameters") ||
-			strings.HasPrefix(diagnostic.Path, methodBase) {
+			(diagnostic.Path == methodBase || strings.HasPrefix(diagnostic.Path, methodBase+"/")) {
 			filtered = append(filtered, diagnostic)
 		}
 	}

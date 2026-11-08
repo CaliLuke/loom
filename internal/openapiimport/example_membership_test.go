@@ -492,7 +492,7 @@ components:
     Other: {$ref: '#/components/schemas/Code', examples: [y]}
     Code: {type: string, minLength: 3}
 `)
-	_, diagnostics, _, err := AnalyzeSelected(source, Selection{Paths: []string{"/selected"}})
+	_, diagnostics, _, err := AnalyzeSelected(Source{Bytes: source}, Selection{Paths: []string{"/selected"}})
 	require.NoError(t, err)
 	require.Equal(t, Diagnostics{{
 		Code: "examples", Path: "#/components/schemas/Selected/examples/0", Message: "example value is not compatible with its schema",

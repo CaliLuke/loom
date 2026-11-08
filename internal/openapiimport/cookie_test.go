@@ -31,7 +31,7 @@ func TestImportCookieShapes(t *testing.T) {
 					require.NoError(t, err)
 					if !test.accepted {
 						require.Contains(t, diagnostics.Error(), "parameter-serialization")
-						require.Contains(t, diagnostics.Error(), "#/operations/0/parameters/0")
+						require.Contains(t, diagnostics.Error(), "#/paths/~1items/get/parameters/0")
 						fatal, _ := diagnostics.Classify(true)
 						require.NotEmpty(t, fatal)
 						_, err = Render(document, Options{PackageName: "design"})

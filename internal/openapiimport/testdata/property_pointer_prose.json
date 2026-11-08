@@ -1,0 +1,32 @@
+{
+  "openapi": "3.2.0",
+  "info": {
+    "title": "Pointer display probe",
+    "version": "1"
+  },
+  "paths": {
+    "/items": {
+      "get": {
+        "operationId": "getItems",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "https://host.example is unavailable; contact user@example.test": {
+                      "type": "string",
+                      "format": "madeUp"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

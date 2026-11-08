@@ -2,7 +2,6 @@ package openapiimport
 
 import (
 	"encoding/json/jsontext"
-	"errors"
 	"fmt"
 	"regexp"
 	"sort"
@@ -11,83 +10,13 @@ import (
 	"github.com/CaliLuke/loom/internal/httpencoding"
 
 	"github.com/pb33f/go-yaml"
-	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
 )
 
-// ErrUnsupportedVersion indicates that the input is not an OpenAPI 3.0, 3.1, or 3.2
-// document.
-var ErrUnsupportedVersion = errors.New("unsupported OpenAPI version")
-
-// Analyze parses source without writing to the filesystem and returns a
-// normalized model plus every unsupported-feature diagnostic it can discover.
-// Syntax, model-building, and version failures are returned as errors.
-func Analyze(source []byte) (*Document, Diagnostics, error) {
-	document, diagnostics, _, err := AnalyzeSelected(source, Selection{})
-	return document, diagnostics, err
-}
-
-// AnalyzeSelected parses source and retains operations that match selection.
-// It returns tag counts and paths that do not match the requested tags.
-func AnalyzeSelected(source []byte, selection Selection) (*Document, Diagnostics, SelectionReport, error) {
-	document, diagnostics, report, err := analyzeSelectedDocument(source, selection)
-	if err != nil || document == nil {
-		return document, diagnostics, report, err
-	}
-	diagnostics = append(diagnostics, planDocument(document).diagnostics...)
-	return document, diagnostics.sorted(), report, nil
-}
-
-func analyzeSelectedDocument(source []byte, selection Selection) (*Document, Diagnostics, SelectionReport, error) {
-	if err := selection.Validate(); err != nil {
-		return nil, nil, SelectionReport{}, err
-	}
-	parsed, err := libopenapi.NewDocument(source)
-	if err != nil {
-		return nil, nil, SelectionReport{}, fmt.Errorf("parse OpenAPI document: %w", err)
-	}
-	version := parsed.GetVersion()
-	if !renderableVersion(version) {
-		return nil, nil, SelectionReport{}, fmt.Errorf("%w %q; expected 3.0.x, 3.1.x, or 3.2.x", ErrUnsupportedVersion, version)
-	}
-
-	diagnostics, err := externalReferenceDiagnostics(source)
-	if err != nil {
-		return nil, nil, SelectionReport{}, fmt.Errorf("inspect OpenAPI references: %w", err)
-	}
-	if len(diagnostics) > 0 {
-		return nil, diagnostics.sorted(), SelectionReport{}, nil
-	}
-
-	numbers, err := numericSources(source)
-	if err != nil {
-		return nil, nil, SelectionReport{}, fmt.Errorf("inspect numeric source: %w", err)
-	}
-	positions := numericSourcePositions(parsed.GetSpecInfo().RootNode, numbers)
-	model, err := parsed.BuildV3Model()
-	if err != nil {
-		return nil, nil, SelectionReport{}, fmt.Errorf("build OpenAPI %s model: %w", version, err)
-	}
-	analyzer := analyzer{
-		diagnostics:      diagnostics,
-		selection:        selection,
-		examples:         make(map[string]Example),
-		schemas:          make(map[string]*Schema),
-		version:          version,
-		numbers:          numbers,
-		numericPositions: positions,
-	}
-	document := analyzer.document(&model.Model)
-	if selection.Active() {
-		closure := pruneComponents(document)
-		analyzer.diagnostics = filterSelectionDiagnostics(analyzer.diagnostics, closure)
-	}
-	return document, analyzer.diagnostics.sorted(), analyzer.report, nil
-}
-
 type analyzer struct {
+	bundle           *bundledDescription
 	diagnostics      Diagnostics
 	selection        Selection
 	report           SelectionReport
@@ -110,46 +39,12 @@ func (a *analyzer) openAPI32() bool {
 	return strings.HasPrefix(a.version, "3.2.")
 }
 
-func externalReferenceDiagnostics(source []byte) (Diagnostics, error) {
-	var root yaml.Node
-	if err := yaml.Unmarshal(source, &root); err != nil {
-		return nil, err
-	}
-	var diagnostics Diagnostics
-	walkReferences(&root, "#", &diagnostics)
-	return diagnostics, nil
-}
-
-func walkReferences(node *yaml.Node, path string, diagnostics *Diagnostics) {
-	if node == nil {
-		return
-	}
-	if node.Kind == yaml.DocumentNode && len(node.Content) > 0 {
-		walkReferences(node.Content[0], path, diagnostics)
-		return
-	}
-	if node.Kind == yaml.MappingNode {
-		for i := 0; i+1 < len(node.Content); i += 2 {
-			key, value := node.Content[i], node.Content[i+1]
-			childPath := path + "/" + escapeJSONPointer(key.Value)
-			if key.Value == "$ref" && value.Kind == yaml.ScalarNode && !strings.HasPrefix(value.Value, "#") {
-				diagnostics.add("external-reference", childPath, fmt.Sprintf("external reference %q is not supported", value.Value))
-			}
-			walkReferences(value, childPath, diagnostics)
-		}
-		return
-	}
-	for i, child := range node.Content {
-		walkReferences(child, fmt.Sprintf("%s/%d", path, i), diagnostics)
-	}
-}
-
 func escapeJSONPointer(value string) string {
 	return string(jsontext.Pointer("").AppendToken(value))[1:]
 }
 
 func (a *analyzer) document(source *v3.Document) *Document {
-	document := &Document{OpenAPIVersion: source.Version}
+	document := &Document{OpenAPIVersion: source.Version, bundle: a.bundle}
 	if source.Info != nil {
 		document.Title = source.Info.Title
 		document.Description = source.Info.Description
@@ -165,8 +60,21 @@ func (a *analyzer) document(source *v3.Document) *Document {
 	if source.ExternalDocs != nil {
 		a.unsupported("external-docs", "#/externalDocs", "external documentation is not in the strict import subset")
 	}
-	if source.JsonSchemaDialect != "" || source.Self != "" {
-		a.unsupported("document-identity", "#", "$self and jsonSchemaDialect are not in the strict import subset")
+	if source.JsonSchemaDialect != "" {
+		a.unsupported("json-schema-dialect", "#/jsonSchemaDialect", "custom JSON Schema dialects are not in the strict import subset")
+	}
+	hasSelf := source.Self != ""
+	if a.bundle != nil {
+		_, err := descriptionNode(a.bundle.graph.registry.docs["entry"].root, "/$self")
+		hasSelf = err == nil
+	}
+	if hasSelf {
+		if a.openAPI32() {
+			self := source.Self
+			document.Self = &self
+		} else {
+			a.unsupported("versioned-field", "#/$self", "$self requires OpenAPI 3.2")
+		}
 	}
 	document.Tags, document.TagMetadata = a.tags(source.Tags)
 	if orderedmap.Len(source.Webhooks) > 0 {
@@ -176,13 +84,19 @@ func (a *analyzer) document(source *v3.Document) *Document {
 	document.Components = a.components(source.Components)
 	document.SecurityDefined = source.GoLow() != nil && !source.GoLow().Security.IsEmpty()
 	if document.SecurityDefined {
-		document.Security = a.securityRequirements(source.Security, "#/security", document.Components)
+		document.Security = a.projectSecurityKeys(source.Security, "#/security", document.Components)
 	}
 	document.Operations = a.operations(source.Paths, document.Components, document.Tags)
+	a.validateOperationIdentities(document.Operations)
 	assignOperationNames(document.Operations)
 	a.prepareObjectConstructors(document)
-	assignSchemaNames(document.Components.Schemas)
-	assignSecuritySchemeNames(document.Components.SecuritySchemes, document.Components.Schemas)
+	if err := allocateDesignNames(document); err != nil {
+		// Admission diagnostics already explain invalid source constructs. Only
+		// expose an additional planning failure when no fatal cause was found.
+		if fatal, _ := a.diagnostics.Classify(true); len(fatal) == 0 {
+			a.diagnostics = append(a.diagnostics, designNameDiagnostics(err)...)
+		}
+	}
 	a.retainMemberExamples(document)
 	return document
 }
@@ -198,15 +112,17 @@ func (a *analyzer) components(source *v3.Components) Components {
 		}
 	}
 	result.Schemas = a.componentSchemas(source)
-	assignSchemaNames(result.Schemas)
 	securityDescriptions := a.securitySchemeDescriptions(source.SecuritySchemes)
 	for name, scheme := range source.SecuritySchemes.FromOldest() {
 		path := "#/components/securitySchemes/" + escapeJSONPointer(name)
 		if normalized, ok := a.securityScheme(name, scheme, path, securityDescriptions[name]); ok {
+			normalized.origin = a.bundle.declarationOrigin(path)
+			if a.bundle != nil {
+				normalized.URI = a.bundle.securityURIs[name]
+			}
 			result.SecuritySchemes = append(result.SecuritySchemes, normalized)
 		}
 	}
-	assignSecuritySchemeNames(result.SecuritySchemes, result.Schemas)
 	for name, parameter := range source.Parameters.FromOldest() {
 		result.Parameters = append(result.Parameters, NamedParameter{
 			Name:      name,
@@ -242,22 +158,25 @@ func (a *analyzer) components(source *v3.Components) Components {
 func (a *analyzer) componentSchemas(source *v3.Components) []NamedSchema {
 	result := make([]NamedSchema, 0, orderedmap.Len(source.Schemas))
 	for name, schema := range source.Schemas.FromOldest() {
-		a.schemas[name] = a.schema(schema, "#/components/schemas/"+escapeJSONPointer(name))
-		result = append(result, NamedSchema{Name: name, Schema: a.schemas[name]})
+		path := "#/components/schemas/" + escapeJSONPointer(name)
+		a.schemas[name] = a.schema(schema, path)
+		result = append(result, NamedSchema{Name: name, Schema: a.schemas[name], origin: a.bundle.declarationOrigin(path)})
 	}
 	return result
 }
 
 func (a *analyzer) operation(method, path string, inherited []*v3.Parameter, source *v3.Operation, pointer, inheritedPath string, components Components) Operation {
 	operation := Operation{
-		Method: method, Path: path, OperationID: source.OperationId, Summary: source.Summary,
+		sourcePath: pointer,
+		origin:     a.bundle.declarationOrigin(pointer),
+		Method:     method, Path: path, OperationID: source.OperationId, Summary: source.Summary,
 		Description: source.Description, Tags: append([]string(nil), source.Tags...),
 		Deprecated: source.Deprecated != nil && *source.Deprecated,
 		Extensions: a.extensions(pointer, source.Extensions),
 	}
 	if source.Security != nil {
 		operation.SecurityDefined = true
-		operation.Security = a.securityRequirements(source.Security, pointer+"/security", components)
+		operation.Security = a.projectSecurityKeys(source.Security, pointer+"/security", components)
 	}
 	operation.Parameters = a.mergeParameters(inherited, source.Parameters, inheritedPath, pointer+"/parameters", components)
 	if source.RequestBody != nil {

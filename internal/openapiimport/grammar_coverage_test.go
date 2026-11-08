@@ -473,7 +473,8 @@ func openAPIGrammarCoverage() []grammarObjectCoverage {
 			model: v3.Document{},
 			groups: []grammarFieldGroup{
 				group(grammarPreserved, "analyzer.document and TestAnalyzeJSONYAMLParity", "Version", "Info", "Paths", "Components", "Security", "Tags", "Extensions"),
-				group(grammarRejected, "analyzer.document diagnostics", "Servers", "JsonSchemaDialect", "Self", "Webhooks"),
+				group(grammarRejected, "analyzer.document diagnostics", "Servers", "JsonSchemaDialect", "Webhooks"),
+				group(grammarPreserved, "TestSelfProjection", "Self"),
 				group(grammarLossy, "external-docs diagnostic", "ExternalDocs"),
 				group(grammarLibrary, "libopenapi parser state", "Index", "Rolodex"),
 			},
@@ -515,7 +516,8 @@ func openAPIGrammarCoverage() []grammarObjectCoverage {
 			groups: []grammarFieldGroup{
 				group(grammarPreserved, "analyzer.operations", "Get", "Put", "Post", "Delete", "Options", "Head", "Patch", "Trace", "Query", "AdditionalOperations", "Parameters"),
 				group(grammarLossy, "path-metadata diagnostic", "Description", "Summary"),
-				group(grammarRejected, "path-reference, servers, and extension diagnostics", "Reference", "Servers", "Extensions"),
+				group(grammarConditional, "TestResolvePathItems", "Reference"),
+				group(grammarRejected, "servers and extension diagnostics", "Servers", "Extensions"),
 			},
 		},
 		{

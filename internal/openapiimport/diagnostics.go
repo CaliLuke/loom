@@ -11,8 +11,10 @@ import (
 type Diagnostic struct {
 	// Code identifies the importer limit class, for example "media-type".
 	Code string
-	// Path is the JSON Pointer of the offending construct in the source document.
+	// Path is the offending JSON Pointer, with rejected URI userinfo redacted.
 	Path string
+	// Origin identifies a transplanted or inlined occurrence in its original document.
+	Origin *SourceLocation
 	// Message explains why the construct cannot be imported faithfully.
 	Message string
 }
@@ -36,7 +38,7 @@ var lossyDiagnosticCodes = map[string]struct{}{
 // Error formats all diagnostics as a single error-style message.
 func (d Diagnostics) Error() string {
 	parts := make([]string, 0, len(d))
-	for _, diagnostic := range d {
+	for _, diagnostic := range publicDiagnostics(d, nil) {
 		parts = append(parts, fmt.Sprintf("%s: %s (%s)", diagnostic.Path, diagnostic.Message, diagnostic.Code))
 	}
 	return strings.Join(parts, "\n")

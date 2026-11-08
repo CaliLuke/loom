@@ -56,6 +56,76 @@ keywords and constrained or annotated null alternatives remain fatal errors,
 even with `--allow-lossy`. Re-import and regenerate designs affected by these
 previously rejected forms or by an aliased `false` schema that escaped rejection.
 
+## External references
+
+Import accepts multi-file descriptions and preserves OpenAPI 3.2 `$self`
+verbatim. Relative references use the containing document's base. Supply remote
+URI identities explicitly; the importer never fetches URLs or performs DNS:
+
+```sh
+loom import openapi api.yaml --document https://example.com/models.yaml=models.yaml -o design
+loom import openapi api.yaml --document https://example.com/shared/=shared --reference-root contracts -o design
+```
+
+Repeat `--document URI=PATH` for exact files or URI prefixes ending in `/`.
+Exact mappings take precedence over prefixes; the longest matching prefix wins.
+File references stay within `--reference-root`, which defaults to the entry
+file's real directory. Prefix mappings stay within their supplied directory.
+Traversal, symlink escapes, unsupported URI forms and identity conflicts fail.
+The resolver allows at most 256 non-entry documents, 16 MiB per document,
+64 MiB total, and a dependency depth of 64 recursive reference groups. Mutually
+recursive targets count as one group; a chain of 65 groups is rejected. Path
+Item expansion separately allows at most 64 objects and rejects cycles.
+
+Duplicate explicit JSON or YAML mapping keys are rejected before references are
+bundled. Legal YAML merge precedence and local overrides are retained. An
+external OpenAPI document declaring `jsonSchemaDialect` cannot supply a schema
+or a component containing schemas: the affected reference receives a
+`json-schema-dialect` blocker. Schema-free examples and security schemes remain
+usable, and selecting unrelated operations does not inherit that blocker.
+
+References into OpenAPI documents may target actual Schema positions, including
+inline alternatives, object properties and response-content schemas. A property
+dictionary, a `required` array, an operation or schema-like example/default data
+is not a schema target. The same rule applies to URI mapping resolution.
+
+Resolved components receive deterministic names; entry declarations keep their
+names. Path Item references are bundled inline. A local and referenced Path Item
+may contribute disjoint fields, but overlapping fields and reference cycles are
+rejected. Regeneration emits one bundled document, not the original file tree.
+`--report` includes source provenance for transplanted declarations and rewritten
+references. Literal data in examples, defaults and extensions is not traversed.
+
+Diagnostics retain source locations for locally inlined Path Items as well as
+external documents. URI userinfo is rejected and redacted from public diagnostic
+fields, provenance, reports and argument errors, including malformed URI input.
+Analyzed operation diagnostics use their actual source pointers, including the
+exact key under `additionalOperations`, rather than synthetic operation indexes.
+
+An unresolved occurrence remains a blocker wherever the selected operation's
+component closure reaches it. `--allow-lossy` cannot discard that blocker.
+`--skip-unrenderable` reports and skips affected operations. An unresolved Path
+Item has unknown operations and tags: tag filters retain its blocker, exact path
+selection can exclude it, and `--list-tags` reports that counts are lower bounds.
+
+OpenAPI 3.2 security requirement keys may name entry schemes or use supplied URI
+targets. Aliases of one scheme in a single requirement merge their scope or role
+sets by union; separate requirement objects remain alternatives. A single URI
+spelling is retained when it resolves identically after regeneration. Otherwise,
+external URI keys become canonical absolute keys; file targets and entry schemes
+use bundled local names. URI keys are rejected in OpenAPI 3.0 and 3.1.
+
+Additional Operations use the same security resolution and selection rules as
+standard methods. An explicit operation `security: []` overrides inherited root
+security, including an unresolved root requirement. An unresolved requirement
+that the operation actually inherits or declares remains blocking in strict and
+partial import; it cannot produce an unprotected operation.
+
+Re-import and regenerate documents previously rejected with `external-reference`,
+`document-identity` or `path-reference` when they now satisfy these rules. Schema
+resource identifiers and anchors remain unsupported. Discriminator mappings have
+resolution evidence but remain subject to discriminator import admission.
+
 ## Object coverage
 
 Imported schema and operation declarations, security credentials, and HTTP
@@ -86,11 +156,11 @@ reads. Specification extensions are patterns, not fixed fields.
 
 | Object | Preserved or conditional | Lossy | Rejected |
 |---|---|---|---|
-| OpenAPI | `openapi`, `info`, `paths`, supported `components`, `security`, `tags`, supported `x-*` | `externalDocs` | `servers`, `jsonSchemaDialect`, `$self`, `webhooks` |
+| OpenAPI | `openapi`, `info`, `paths`, supported `components`, `security`, `tags`, `$self` (3.2), supported `x-*` | `externalDocs` | `servers`, `jsonSchemaDialect`, `webhooks` |
 | Info | `title`, `description`, `version`, supported `x-*` | `summary`, `termsOfService`, `contact`, `license` | None |
 | Tag | `name`, `summary`, `description`, `parent`, `kind`, supported `externalDocs`, and `x-*` | None | Extensions inside `externalDocs` |
 | Paths | Path entries | None | `x-*` |
-| Path Item | Standard methods, `QUERY`, additional methods, `parameters` | `summary`, `description` | `$ref`, `servers`, `x-*` |
+| Path Item | Standard methods, `QUERY`, additional methods, `parameters`, `$ref` (conditionally bundled inline) | `summary`, `description` | `servers`, `x-*` |
 | Operation | `tags`, `summary`, `description`, `operationId`, `parameters`, `requestBody`, `responses`, `deprecated`, `security`, supported `x-*` | `externalDocs` | `callbacks`, `servers` |
 | Components | Supported schemas, parameters, request bodies, responses, headers, security schemes, and examples | None | Links, callbacks, path items, media types, and `x-*` component entries |
 | Parameter | Identity, location, requiredness, schema, description, supported style and `explode` combinations, `allowReserved`, named query-map JSON `content`, and supported `x-*` | `deprecated`, unsupported examples | Incompatible serialization or content |

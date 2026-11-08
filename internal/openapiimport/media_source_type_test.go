@@ -19,7 +19,7 @@ func TestEncodingSourceTypeSurvivesNormalization(t *testing.T) {
 		{"object union", `{"type":"object","oneOf":[{"type":"object","properties":{"x":{"type":"string"}}},{"type":"object","properties":{"y":{"type":"integer"}}}]}`, "object"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			document, diagnostics, _, err := analyzeSelectedDocument(schemaAdmissionSource("3.1.1", tc.schema, "component"), Selection{})
+			document, diagnostics, _, err := analyzeSelectedDocument(Source{Bytes: schemaAdmissionSource("3.1.1", tc.schema, "component")}, Selection{})
 			require.NoError(t, err)
 			require.Empty(t, diagnostics)
 			require.Equal(t, tc.want, document.Components.Schemas[0].Schema.sourceType)
@@ -37,7 +37,7 @@ components:
     B: {allOf: [{$ref: '#/components/schemas/C'}]}
     C: {type: array, items: {type: string}}
 `)
-	document, diagnostics, _, err := analyzeSelectedDocument(source, Selection{})
+	document, diagnostics, _, err := analyzeSelectedDocument(Source{Bytes: source}, Selection{})
 	require.NoError(t, err)
 	require.Empty(t, diagnostics)
 	for _, named := range document.Components.Schemas {

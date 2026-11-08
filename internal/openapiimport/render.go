@@ -158,6 +158,9 @@ func (r *renderer) api() error {
 		r.line("Version(%q)", r.document.APIVersion)
 	}
 	r.line("Meta(%q, %q)", "openapi:example", "false")
+	if r.document.Self != nil && strings.HasPrefix(r.document.OpenAPIVersion, "3.2.") {
+		r.line("Meta(%q, %q)", "openapi:self", *r.document.Self)
+	}
 	if err := r.emitExtensions("document", r.document.Extensions); err != nil {
 		return err
 	}

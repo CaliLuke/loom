@@ -24,7 +24,7 @@ func TestSecurityCredentialRootScopePartialImport(t *testing.T) {
 			_, err = Render(document, Options{})
 			require.ErrorContains(t, err, "not defined by scheme")
 
-			partial, _, err := AnalyzePartial(source, Selection{}, lossy)
+			partial, _, err := AnalyzePartial(Source{Bytes: source}, Selection{}, lossy)
 			if err != nil {
 				t.Errorf("paths=%v lossy=%v: %v", paths, lossy, err)
 				continue
@@ -56,7 +56,7 @@ func TestSecurityCredentialRootScopePartialImport(t *testing.T) {
 
 func TestImportedPartialSecurityCredentialsGenerated(t *testing.T) {
 	source := partialCredentialSource(t, []string{"/public", "/oauth_roles"})
-	partial, _, err := AnalyzePartial(source, Selection{}, false)
+	partial, _, err := AnalyzePartial(Source{Bytes: source}, Selection{}, false)
 	require.NoError(t, err)
 	rendered, err := Render(partial.Document, Options{PackageName: "design"})
 	require.NoError(t, err)

@@ -1486,6 +1486,49 @@ filter, and serialization rules belong here.
 
 ## OpenAPI Importer Invariants
 
+- `descriptionResolver` owns document loading, URI identities and typed grammar
+  edges. Internal document keys are separate from URI bases; load a supplied
+  source before resolving an alias so conflicting identities cannot disappear.
+  `descriptionBundler` alone assigns raw component keys, relocates numeric source
+  tokens and provenance, and records blocked occurrences. Selection follows that
+  grammar graph as well as normalized references, including examples and schemes.
+  `allocateDesignNames` reserves the complete authored inventory before introduced
+  declarations (including local nested promotions) across types, schema/scheme variables and error clones. Rendering
+  consumes that inventory without mutating its input. Keep discriminator edge
+  outcomes available for #1005 and description-graph extensions for #962; resolving
+  an edge does not grant admission to an otherwise unsupported construct.
+  Reference depth counts strongly connected groups on the target-containment
+  graph. Keep the iterative SCC and topological passes bounded by that graph;
+  never enumerate simple paths inside cycles. Path Item cycles remain rejected.
+  Source syntax admission rejects duplicate explicit mapping keys before merge
+  canonicalization. Retain external document dialects until the grammar owner
+  determines whether a target contains schemas; attach a blocker to that
+  occurrence instead of discarding the dialect or rejecting schema-free targets.
+  Preserve legal merge overrides and keep literal example data outside grammar
+  traversal.
+  Schema target admission uses that same grammar's actual Schema positions,
+  including nested alternatives/properties and inline response schemas, for both
+  ordinary references and mapping edges. Both use canonical component promotion
+  for non-component targets, including local ones; preserve the authored source
+  identity and do not invent implicit mapping names. Do not admit dictionaries or literal
+  data by their object shape. Retain `Operation.sourcePath` at discovery;
+  source closure, security and diagnostic filtering never derive it from a wire
+  method. Selected and partial candidates share effective security relevance.
+  Project detached public diagnostics, provenance and source errors only after
+  exact internal lookup; never use redacted keys for matching. Origin attachment
+  compares full document/pointer identity, including locally moved Path Items,
+  after all planner diagnostics have joined the final collection. Pointer tokens,
+  typed URI values and prose have separate boundaries before one userinfo
+  redaction primitive. Never infer URI type from a scheme-looking quoted prefix.
+  Generic keys/tokens remain text; grammar-owned URI keys and authored URI metadata
+  provide whole-value context. Validate source syntax/version before external
+  loading and before library formatting; retain raw key identity through alias
+  and merge classification. Grammar collections and canonicalization share ordered
+  effective YAML members; do not traverse only raw collection children. Rejected
+  `--document` composites return a safe reason without echoing the argument. Preserve
+  literal local paths and unrelated nonsecret segments and trailing text.
+  Keep the resolver models and direct/generated regressions aligned.
+
 - `analyzer.schemaValueDomain` owns type/nullability/membership intersection
   before defaults and rendering. Preserve authored enum presence, including an
   empty list, and retain blocking domain diagnostics in Schema for the shared

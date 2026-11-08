@@ -47,7 +47,7 @@ components:
   examples:
     Sample: {value: red}
 `)
-	document, diagnostics, _, err := AnalyzeSelected(source, Selection{Paths: []string{"/value"}})
+	document, diagnostics, _, err := AnalyzeSelected(Source{Bytes: source}, Selection{Paths: []string{"/value"}})
 	require.NoError(t, err)
 	require.Empty(t, diagnostics)
 	require.Len(t, document.Components.Schemas, 1)

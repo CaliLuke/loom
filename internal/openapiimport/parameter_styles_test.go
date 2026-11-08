@@ -56,7 +56,7 @@ func TestImportParameterStylesRejected(t *testing.T) {
 			require.Contains(t, fatal.Error(), reasons[filepath.Base(file)])
 			_, err = Render(doc, Options{})
 			require.Error(t, err)
-			partial, _, err := AnalyzePartial(source, Selection{}, true)
+			partial, _, err := AnalyzePartial(Source{Bytes: source}, Selection{}, true)
 			require.NoError(t, err)
 			require.Empty(t, partial.Document.Operations)
 		})

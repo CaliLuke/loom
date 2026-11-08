@@ -11,8 +11,15 @@ import (
 // Document is the normalized subset of an OpenAPI document understood by the
 // importer.
 type Document struct {
+	// bundle retains resolver identity and provenance independently of the DSL.
+	bundle          *bundledDescription
+	names           designNames
+	retainedClosure *componentClosure
+	unresolvedPaths []string
 	// OpenAPIVersion is the exact supported 3.x version declared by the input.
 	OpenAPIVersion string
+	// Self is the authored OpenAPI 3.2 description URI, including relative spellings.
+	Self *string
 	// Title is the API title.
 	Title string
 	// Description is the API description.
@@ -73,10 +80,13 @@ type Components struct {
 
 // SecurityScheme is a supported reusable OpenAPI security scheme.
 type SecurityScheme struct {
+	origin declarationOrigin
 	// Name is the authored component key.
 	Name string
 	// GoName is the deterministic collision-safe variable identifier.
 	GoName string
+	// URI is the scheme-wide OpenAPI 3.2 requirement URI, when externally addressed.
+	URI string
 	// Type is the OpenAPI security scheme type.
 	Type string
 	// Scheme is the HTTP authentication scheme for type http.
@@ -141,6 +151,7 @@ type SecurityRequirementScheme struct {
 
 // NamedSchema is a reusable schema and its deterministic Go identifier.
 type NamedSchema struct {
+	origin declarationOrigin
 	// Name is the authored OpenAPI component key.
 	Name string
 	// GoName is the deterministic collision-safe Go identifier.
@@ -183,6 +194,10 @@ type NamedHeader struct {
 
 // Operation is a normalized HTTP operation.
 type Operation struct {
+	// sourcePath is the exact operation occurrence in the bundled description.
+	// It is independent of the HTTP method and original document provenance.
+	sourcePath string
+	origin     declarationOrigin
 	// Method is the uppercase HTTP method.
 	Method string
 	// Path is the authored OpenAPI path template.
@@ -441,6 +456,9 @@ type Example struct {
 	SerializedValue string
 	// Value is the decoded example value.
 	Value any
+	// unresolved distinguishes a blocked external value from decoded JSON null.
+	// The bundle retains its resolution diagnostic; selection follows ComponentName.
+	unresolved bool
 	// source binds the example to its authored owner and source location.
 	source exampleSource
 }

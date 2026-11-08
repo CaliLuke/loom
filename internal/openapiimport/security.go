@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/pb33f/go-yaml"
-	"github.com/pb33f/libopenapi/datamodel/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
 
@@ -243,35 +242,6 @@ func (a *analyzer) validOAuthFlow(kind string, flow *v3.OAuthFlow, path string) 
 	return true
 }
 
-func (a *analyzer) securityRequirements(source []*base.SecurityRequirement, path string, components Components) SecurityRequirements {
-	requirements := make(SecurityRequirements, 0, len(source))
-	for index, sourceRequirement := range source {
-		requirementPath := fmt.Sprintf("%s/%d", path, index)
-		if sourceRequirement == nil {
-			a.unsupported("security-requirement", requirementPath, "security requirement is nil")
-			continue
-		}
-		requirement := SecurityRequirement{}
-		for name, scopes := range sourceRequirement.Requirements.FromOldest() {
-			schemePath := requirementPath + "/" + escapeJSONPointer(name)
-			scheme := securitySchemeByName(components.SecuritySchemes, name)
-			if scheme == nil {
-				a.unsupported("security-requirement", schemePath, fmt.Sprintf("security scheme %q is not a supported component", name))
-				continue
-			}
-
-			normalizedScopes := append([]string(nil), scopes...)
-			sort.Strings(normalizedScopes)
-			requirement.Schemes = append(requirement.Schemes, SecurityRequirementScheme{
-				Name:   name,
-				Scopes: normalizedScopes,
-			})
-		}
-		requirements = append(requirements, requirement)
-	}
-	return requirements
-}
-
 func securityScopeDefined(scheme SecurityScheme, name string) bool {
 	for _, flow := range scheme.OAuthFlows {
 		for _, scope := range flow.Scopes {
@@ -310,6 +280,9 @@ func (r *renderer) securityScheme(scheme SecurityScheme) error {
 		return fmt.Errorf("render OpenAPI design: security scheme %q has unsupported type %q and scheme %q", scheme.Name, scheme.Type, scheme.Scheme)
 	}
 	r.open("var %s = %s(%q, func()", scheme.GoName, constructor, scheme.Name)
+	if scheme.URI != "" {
+		r.line("Meta(%q, %q)", "openapi:security:uri", scheme.URI)
+	}
 	if scheme.Description != "" {
 		r.line("Description(%q)", scheme.Description)
 	}

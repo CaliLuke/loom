@@ -1,0 +1,11 @@
+openapi: 3.2.0
+$self: https://e.test/api/openapi.yaml
+info: {title: Identity symmetry, version: '1'}
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      security:
+        - https://auth.test/security.yaml#/components/securitySchemes/ApiKey: [reader]
+      responses:
+        '204': {description: Done}

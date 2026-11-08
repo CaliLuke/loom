@@ -3,6 +3,7 @@ package openapiimport
 import (
 	"testing"
 
+	"github.com/pb33f/go-yaml"
 	"github.com/stretchr/testify/require"
 )
 
@@ -138,4 +139,29 @@ components:
 	require.Empty(t, diagnostics)
 	require.Equal(t, "5", document.Components.Schemas[0].Schema.Minimum.String())
 	require.Equal(t, "10", document.Components.Schemas[0].Schema.Maximum.String())
+}
+
+func TestCanonicalMappingMergeOrder(t *testing.T) {
+	root, _, err := parseDescriptionTree([]byte(`first: &first {a: first, z: first, shared: first}
+second: &second {b: second, shared: second}
+sources: &sources [*first, *second]
+value:
+  before: explicit
+  <<: *sources
+  shared: explicit
+  after: explicit
+inherited:
+  <<: [*first, *second]
+`))
+	require.NoError(t, err)
+	for _, tc := range []struct{ pointer, want string }{
+		{"/value", "before: explicit\nshared: explicit\nafter: explicit\na: first\nb: second\nz: first\n"},
+		{"/inherited", "a: first\nb: second\nshared: first\nz: first\n"},
+	} {
+		node, err := descriptionNode(root, tc.pointer)
+		require.NoError(t, err)
+		wire, err := yaml.Marshal(node)
+		require.NoError(t, err)
+		require.Equal(t, tc.want, string(wire))
+	}
 }

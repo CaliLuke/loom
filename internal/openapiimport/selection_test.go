@@ -96,7 +96,7 @@ components:
         - {type: integer}
 `)
 
-	document, diagnostics, report, err := AnalyzeSelected(source, Selection{Tags: []string{"Face"}})
+	document, diagnostics, report, err := AnalyzeSelected(Source{Bytes: source}, Selection{Tags: []string{"Face"}})
 	require.NoError(t, err)
 	require.Empty(t, diagnostics)
 	require.Len(t, document.Operations, 1)
@@ -143,7 +143,7 @@ paths:
 		{Tags: []string{"featured"}},
 		{Paths: []string{"/products"}},
 	} {
-		document, diagnostics, _, err := AnalyzeSelected(source, selection)
+		document, diagnostics, _, err := AnalyzeSelected(Source{Bytes: source}, selection)
 		require.NoError(t, err)
 		require.Empty(t, diagnostics)
 		require.Len(t, document.Operations, 1)
@@ -176,7 +176,7 @@ paths:
       responses: {"204": {description: done}}
 `)
 
-	analysis, _, err := AnalyzePartial(source, Selection{PathPrefixes: []string{"/"}}, false)
+	analysis, _, err := AnalyzePartial(Source{Bytes: source}, Selection{PathPrefixes: []string{"/"}}, false)
 	require.NoError(t, err)
 	require.Len(t, analysis.Document.Operations, 1)
 	require.Len(t, analysis.Skipped, 1)
@@ -222,7 +222,7 @@ components:
     pet_id: {type: string}
 `)
 
-	document, diagnostics, _, err := AnalyzeSelected(source, Selection{Tags: []string{"Selected"}})
+	document, diagnostics, _, err := AnalyzeSelected(Source{Bytes: source}, Selection{Tags: []string{"Selected"}})
 	require.NoError(t, err)
 	require.Empty(t, diagnostics)
 	require.Len(t, document.Components.Schemas, 1)

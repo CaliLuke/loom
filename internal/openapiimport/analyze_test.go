@@ -24,7 +24,13 @@ func TestAnalyzeJSONYAMLParity(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, jsonDiagnostics)
 
-	require.Equal(t, yamlDocument, jsonDocument)
+	// Provenance retains source-specific YAML/JSON tokens; normalized contracts
+	// remain equal independently of that source evidence.
+	require.NotNil(t, yamlDocument.bundle)
+	require.NotNil(t, jsonDocument.bundle)
+	yamlContract, jsonContract := *yamlDocument, *jsonDocument
+	yamlContract.bundle, jsonContract.bundle = nil, nil
+	require.Equal(t, yamlContract, jsonContract)
 	require.Equal(t, "3.1.1", yamlDocument.OpenAPIVersion)
 	require.Equal(t, "Pet API", yamlDocument.Title)
 	require.Len(t, yamlDocument.Components.Schemas, 4)
@@ -587,7 +593,7 @@ components:
 	_, diagnostics, err := Analyze(source)
 	require.NoError(t, err)
 	requireDiagnosticCode(t, diagnostics, "duplicate-parameter")
-	requireDiagnosticCode(t, diagnostics, "parameter-reference")
+	requireDiagnosticCode(t, diagnostics, "external-reference")
 	for _, diagnostic := range diagnostics {
 		require.NotContains(t, []string{"request-body-reference", "response-reference", "header-reference"}, diagnostic.Code)
 	}
@@ -662,7 +668,7 @@ func TestLocalComponentReferenceNameDecodesJSONPointerEscapes(t *testing.T) {
 	}
 }
 
-func TestAnalyzeRejectsExternalReferencesWithoutWriting(t *testing.T) {
+func TestAnalyzeByteOnlyExternalReferencesBlockWithoutWriting(t *testing.T) {
 	temp := t.TempDir()
 	t.Chdir(temp)
 	source := []byte(`openapi: 3.1.1
@@ -683,9 +689,13 @@ components:
 
 	document, diagnostics, err := Analyze(source)
 	require.NoError(t, err)
-	require.Nil(t, document)
+	require.NotNil(t, document)
 	require.Len(t, diagnostics, 2)
 	requireDiagnosticCode(t, diagnostics, "external-reference")
+	require.Contains(t, diagnostics.Error(), "no base URI")
+	require.Contains(t, diagnostics.Error(), "not supplied")
+	_, renderErr := Render(document, Options{})
+	require.ErrorContains(t, renderErr, "external-reference")
 	entries, err := os.ReadDir(temp)
 	require.NoError(t, err)
 	require.Empty(t, entries)

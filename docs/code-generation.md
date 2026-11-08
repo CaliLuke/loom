@@ -196,6 +196,11 @@ loom import openapi <input.json-or-yaml> [-o <design.go-or-directory>] [--allow-
 ```
 
 Run `loom import openapi --help` for the importer-specific flag reference.
+Use repeatable `--document URI=PATH` to supply exact remote document identities
+or URI-prefix directories. `--reference-root DIR` confines file references;
+its default is the entry file's directory. Import never fetches remote documents.
+See [external references](openapi-import-coverage.md#external-references) for
+identity, selection, provenance and bundled regeneration behavior.
 
 Use operation filters to import one service boundary from a large contract:
 

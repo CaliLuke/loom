@@ -207,7 +207,7 @@ func runOpenAPIImportHelp() int {
 }
 
 func runOpenAPITagList(arguments openAPIImportArgs) int {
-	tags, err := listOpenAPITags(arguments.input)
+	tags, err := listOpenAPITags(arguments.source())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return 1
@@ -218,7 +218,7 @@ func runOpenAPITagList(arguments openAPIImportArgs) int {
 
 func runOpenAPIReport(arguments openAPIImportArgs) int {
 	analysis, _, err := analyzePartialOpenAPI(
-		arguments.input,
+		arguments.source(),
 		arguments.allowLossy,
 		arguments.selection,
 	)
@@ -230,12 +230,16 @@ func runOpenAPIReport(arguments openAPIImportArgs) int {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return 1
 	}
+	if err := writeProvenance(os.Stdout, analysis.Document); err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		return 1
+	}
 	return partialImportExitCode(analysis)
 }
 
 func runOpenAPIPartialImport(arguments openAPIImportArgs) int {
 	target, analysis, report, err := importPartialOpenAPI(
-		arguments.input,
+		arguments.source(),
 		arguments.output,
 		arguments.allowLossy,
 		arguments.selection,
@@ -257,7 +261,7 @@ func runOpenAPIPartialImport(arguments openAPIImportArgs) int {
 
 func runOpenAPISelectedImport(arguments openAPIImportArgs) int {
 	target, warnings, report, err := importSelectedOpenAPI(
-		arguments.input,
+		arguments.source(),
 		arguments.output,
 		arguments.allowLossy,
 		arguments.selection,
@@ -273,7 +277,7 @@ func runOpenAPISelectedImport(arguments openAPIImportArgs) int {
 }
 
 func runOpenAPIStrictImport(arguments openAPIImportArgs) int {
-	target, warnings, err := importOpenAPI(arguments.input, arguments.output, arguments.allowLossy)
+	target, warnings, err := importOpenAPI(arguments.source(), arguments.output, arguments.allowLossy)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return 1
@@ -287,15 +291,21 @@ func partialImportExitCode(analysis *openapiimport.PartialAnalysis) int {
 	if analysis == nil || analysis.Document == nil || len(analysis.Document.Operations) == 0 {
 		return 2
 	}
-	if len(analysis.Document.Operations) < analysis.TotalOperations {
+	if len(analysis.Skipped) > 0 || len(analysis.Document.Operations) < analysis.TotalOperations {
 		return 3
 	}
 	return 0
 }
 
-func printOpenAPITags(tags []openapiimport.TagSummary) {
+func printOpenAPITags(report openapiimport.SelectionReport) {
+	if len(report.UnresolvedPaths) > 0 {
+		fmt.Println("Tag counts are lower bounds; unresolved Path Items may contain more operations.")
+	}
+	for _, path := range report.UnresolvedPaths {
+		fmt.Printf("unresolved path: %s\n", path)
+	}
 	fmt.Println("TAG\tOPERATIONS\tPATHS")
-	for _, tag := range tags {
+	for _, tag := range report.Tags {
 		fmt.Printf("%s\t%d\t%d\n", tag.Name, tag.Operations, tag.Paths)
 	}
 }

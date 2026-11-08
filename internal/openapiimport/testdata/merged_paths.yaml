@@ -1,0 +1,11 @@
+openapi: 3.2.0
+info: {title: Merge privacy, version: '1'}
+x-paths: &paths
+  /value:
+    get:
+      security:
+        - "https://review-user:review-secret with-space@auth.test/key": []
+          "https://review-user:review-secret with-space@auth.test/key": []
+      responses: {'204': {description: OK}}
+paths:
+  <<: *paths

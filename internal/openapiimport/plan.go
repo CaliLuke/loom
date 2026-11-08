@@ -3,6 +3,7 @@ package openapiimport
 import (
 	"fmt"
 	"go/token"
+	"slices"
 	"strings"
 
 	"github.com/CaliLuke/loom/internal/openapiref"
@@ -33,7 +34,15 @@ func planDocument(document *Document) documentPlan {
 	if document == nil {
 		return documentPlan{diagnostics: Diagnostics{{Code: "document", Path: "#", Message: "document is nil"}}}
 	}
-	resolved, diagnostics := resolveReusableDocument(document)
+	if diagnostics := blockedDocumentDiagnostics(document); len(diagnostics) > 0 {
+		return documentPlan{diagnostics: diagnostics}
+	}
+	// Preserve the source reference graph for name inventory; the resolved
+	// occurrence model has already consumed reusable reference identities.
+	nameSource := *document
+	nameSource.Components.Schemas = slices.Clone(document.Components.Schemas)
+	nameSource.Components.SecuritySchemes = slices.Clone(document.Components.SecuritySchemes)
+	resolved, diagnostics := resolveReusableDocument(&nameSource)
 	document = resolved
 	planner := documentPlanner{
 		diagnostics: diagnostics,
@@ -54,9 +63,13 @@ func planDocument(document *Document) documentPlan {
 	for index := range document.Operations {
 		op := &document.Operations[index]
 		if op.SecurityDefined {
-			planner.securityRequirements(op.Security, "#/paths/"+escapeJSONPointer(op.Path)+"/"+strings.ToLower(op.Method)+"/security")
+			planner.securityRequirements(op.Security, op.sourcePath+"/security")
 		}
-		planner.operation(&document.Operations[index], fmt.Sprintf("#/operations/%d", index))
+		path := op.sourcePath
+		if path == "" {
+			path = fmt.Sprintf("#/operations/%d", index)
+		}
+		planner.operation(op, path)
 	}
 	for _, named := range document.Components.Parameters {
 		path := "#/components/parameters/" + escapeJSONPointer(named.Name)
@@ -69,6 +82,16 @@ func planDocument(document *Document) documentPlan {
 	}
 	if len(planner.diagnostics) > 0 {
 		return documentPlan{diagnostics: planner.diagnostics.sorted()}
+	}
+	if err := allocateDesignNames(&nameSource); err != nil {
+		return documentPlan{diagnostics: designNameDiagnostics(err)}
+	}
+	document.Components.Schemas = nameSource.Components.Schemas
+	document.Components.SecuritySchemes = nameSource.Components.SecuritySchemes
+	document.names = nameSource.names
+	// Rebuild the schema index with the single allocator's final names.
+	for _, named := range document.Components.Schemas {
+		planner.schemas[named.Name] = named
 	}
 	return planner.renderPlan()
 }

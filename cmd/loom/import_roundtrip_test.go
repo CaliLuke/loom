@@ -136,6 +136,9 @@ func TestOpenAPIImportExporterSymmetryRoundTrip(t *testing.T) {
 	loomBin := filepath.Join(t.TempDir(), "loom")
 	output, err := testingx.RunCmd(repoRoot, "go", "build", "-o", loomBin, "./cmd/loom")
 	require.NoError(t, err, output)
+	t.Run("identity", func(t *testing.T) {
+		testOpenAPIIdentityRoundTrip(t, repoRoot, loomBin)
+	})
 	source, err := os.ReadFile(filepath.Join(repoRoot, "internal", "openapiimport", "testdata", "symmetry.yaml"))
 	require.NoError(t, err)
 	sourceDocument := analyzeOpenAPIContract(t, source)
@@ -206,6 +209,83 @@ func TestOpenAPIImportParameterStylesRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	regeneratedDocument := analyzeOpenAPIContract(t, regenerated)
 	require.NoError(t, compareOpenAPIContracts(sourceDocument, regeneratedDocument))
+}
+
+func TestOpenAPIImportExternalReferencesRoundTrip(t *testing.T) {
+	if os.Getenv("LOOM_OPENAPI_CONTRACT") == "" {
+		t.Skip("set LOOM_OPENAPI_CONTRACT=1 to run the OpenAPI import contract")
+	}
+	root := testingx.RepoRoot()
+	fixtures := filepath.Join(root, "internal", "openapiimport", "testdata", "external")
+	moduleDir := t.TempDir()
+	modulePath := "example.com/external-references"
+	writeRoundTripModule(t, moduleDir, modulePath, root)
+	loomBin := filepath.Join(t.TempDir(), "loom")
+	output, err := testingx.RunCmd(root, "go", "build", "-o", loomBin, "./cmd/loom")
+	require.NoError(t, err, output)
+	input, mappings := externalMappedInput(t, fixtures, moduleDir)
+	output, err = testingx.RunCmd(moduleDir, loomBin, append([]string{"import", "openapi", input, "-o", "design"}, mappings...)...)
+	require.NoError(t, err, output)
+	regenerated := generateExternalContract(t, moduleDir, modulePath, loomBin)
+	copyRegeneratedSpec(t, moduleDir, "external_references")
+	expected, err := os.ReadFile(filepath.Join(fixtures, "bundled.yaml"))
+	require.NoError(t, err)
+	document := analyzeOpenAPIContract(t, expected)
+	regenerated, err = prepareGeneratedOpenAPIContract(regenerated, document.Title)
+	require.NoError(t, err)
+	require.NoError(t, compareOpenAPIContracts(document, analyzeOpenAPIContract(t, regenerated)))
+}
+
+func testOpenAPIIdentityRoundTrip(t *testing.T, root, loomBin string) {
+	fixtures := filepath.Join(root, "internal", "openapiimport", "testdata", "external")
+	moduleDir := t.TempDir()
+	modulePath := "example.com/identity-symmetry"
+	writeRoundTripModule(t, moduleDir, modulePath, root)
+	mapping := "https://auth.test/security.yaml=" + filepath.Join(fixtures, "remote", "security.yaml")
+	output, err := testingx.RunCmd(moduleDir, loomBin, "import", "openapi", filepath.Join(fixtures, "symmetry_identity.yaml"), "--document", mapping, "-o", "design")
+	require.NoError(t, err, output)
+	regenerated := generateExternalContract(t, moduleDir, modulePath, loomBin)
+	copyRegeneratedSpec(t, moduleDir, "symmetry_identity")
+	var document struct {
+		Self  string `json:"$self"`
+		Paths map[string]map[string]struct {
+			Security []map[string][]string `json:"security"`
+		} `json:"paths"`
+	}
+	require.NoError(t, json.Unmarshal(regenerated, &document))
+	require.Equal(t, "https://e.test/api/openapi.yaml", document.Self)
+	require.Equal(t, []map[string][]string{{"https://auth.test/security.yaml#/components/securitySchemes/ApiKey": {"reader"}}}, document.Paths["/pets"]["get"].Security)
+	regenerated, err = prepareGeneratedOpenAPIContract(regenerated, "Identity symmetry")
+	require.NoError(t, err)
+	parsed, diagnostics, _, err := openapiimport.AnalyzeSelected(openapiimport.Source{Bytes: regenerated, Documents: []openapiimport.DocumentMapping{{URI: "https://auth.test/security.yaml", Path: filepath.Join(fixtures, "remote", "security.yaml")}}}, openapiimport.Selection{})
+	require.NoError(t, err)
+	require.Empty(t, diagnostics)
+	require.NotNil(t, parsed)
+}
+
+func generateExternalContract(t *testing.T, moduleDir, modulePath, loomBin string) []byte {
+	t.Helper()
+	for _, command := range [][]string{{"go", "mod", "tidy"}, {loomBin, "gen", modulePath + "/design", "-o", "."}, {"go", "mod", "tidy"}, {"go", "test", "./..."}} {
+		output, err := testingx.RunCmd(moduleDir, command[0], command[1:]...)
+		require.NoError(t, err, output)
+	}
+	regenerated, err := os.ReadFile(filepath.Join(moduleDir, "gen", "http", "openapi.json"))
+	require.NoError(t, err)
+	return regenerated
+}
+
+func copyRegeneratedSpec(t *testing.T, moduleDir, name string) {
+	t.Helper()
+	out := os.Getenv("LOOM_EXTERNAL_SPEC_OUT")
+	if out == "" {
+		return
+	}
+	info, err := os.Stat(out)
+	require.NoError(t, err)
+	require.True(t, info.IsDir())
+	data, err := os.ReadFile(filepath.Join(moduleDir, "gen", "http", "openapi.json"))
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(out, name+".json"), data, 0o600))
 }
 
 func TestCompareOpenAPIContractsRejectsLoss(t *testing.T) {

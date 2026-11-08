@@ -119,9 +119,15 @@ func (g *exampleGraph) schema(schema *Schema) {
 func (g *exampleGraph) retain(examples []Example, rendering *Schema) []Example {
 	var retained []Example
 	for index, example := range examples {
-		owned, _ := g.member(example.source.owner, example.Value, make(map[string]struct{}))
-		rendered, _ := g.member(rendering, example.Value, make(map[string]struct{}))
-		if owned && rendered {
+		// A blocked external reference has no decoded value to classify. Retain
+		// its component edge so selection preserves the resolution diagnostic.
+		valid := example.unresolved
+		if !valid {
+			owned, _ := g.member(example.source.owner, example.Value, make(map[string]struct{}))
+			rendered, _ := g.member(rendering, example.Value, make(map[string]struct{}))
+			valid = owned && rendered
+		}
+		if valid {
 			if retained != nil {
 				retained = append(retained, example)
 			}

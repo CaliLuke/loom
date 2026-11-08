@@ -496,7 +496,18 @@ or exclude the endpoint with `Meta("openapi:generate", "false")` and document it
 separately; the HTTP transport mappings remain supported.
 
 To bootstrap a design from an existing OpenAPI 3.0, 3.1, or 3.2 JSON/YAML contract,
-run `loom import openapi <input> -o design`. Import supports a strict subset:
+run `loom import openapi <input> -o design`. Multi-file input supports repeatable
+`--document URI=PATH` exact-file or URI-prefix mappings and `--reference-root DIR`
+for file confinement. No network fetching occurs. Unresolved occurrences block
+operations that reach them; partial import reports and skips those operations.
+Regeneration produces a bundled document and preserves OpenAPI 3.2 `$self`.
+Reference depth is limited to 64 mutually recursive groups on a dependency path;
+a recursive group counts once. Path Item chains have a separate 64-object limit
+and cannot cycle. Duplicate explicit JSON/YAML keys are rejected; legal YAML
+merge overrides remain supported. External `jsonSchemaDialect` declarations
+block references to schemas or schema-containing components, without blocking
+unrelated operations or schema-free examples and security schemes.
+Import supports a strict subset:
 it reports every unsupported construct it finds, writes no partial design or
 TODO placeholders, and never overwrites an existing target. Schema `title`,
 `default`, `example`, `examples`, `deprecated`, `readOnly`, and `writeOnly`

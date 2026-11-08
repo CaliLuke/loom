@@ -38,7 +38,7 @@ components:
         - {type: integer}
 `)
 
-	analysis, _, err := AnalyzePartial(source, Selection{}, false)
+	analysis, _, err := AnalyzePartial(Source{Bytes: source}, Selection{}, false)
 	require.NoError(t, err)
 	require.Equal(t, 2, analysis.TotalOperations)
 	require.Equal(t, 2, analysis.TotalSchemas)
@@ -81,7 +81,7 @@ paths:
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			analysis, _, err := AnalyzePartial(source, Selection{}, test.allowLossy)
+			analysis, _, err := AnalyzePartial(Source{Bytes: source}, Selection{}, test.allowLossy)
 			require.NoError(t, err)
 			require.Len(t, analysis.Document.Operations, test.wantOperations)
 			require.Len(t, analysis.Skipped, test.wantSkipped)
@@ -118,7 +118,7 @@ paths:
                       error: {type: string}
 `)
 
-	analysis, _, err := AnalyzePartial(source, Selection{}, false)
+	analysis, _, err := AnalyzePartial(Source{Bytes: source}, Selection{}, false)
 	require.NoError(t, err)
 	require.Equal(t, 1, analysis.TotalOperations)
 	require.Equal(t, 2, analysis.TotalSchemas)
@@ -158,7 +158,7 @@ components:
       name: X-API-Key
 `)
 
-	analysis, _, err := AnalyzePartial(source, Selection{}, false)
+	analysis, _, err := AnalyzePartial(Source{Bytes: source}, Selection{}, false)
 	require.NoError(t, err)
 	require.Len(t, analysis.Document.Operations, 1)
 	require.Empty(t, analysis.Skipped)
@@ -191,7 +191,7 @@ components:
     apiKey: {type: apiKey, in: header, name: X-API-Key}
 `)
 
-	analysis, _, err := AnalyzePartial(source, Selection{}, false)
+	analysis, _, err := AnalyzePartial(Source{Bytes: source}, Selection{}, false)
 	require.NoError(t, err)
 	require.Len(t, analysis.Document.Operations, 2)
 	require.Empty(t, analysis.Skipped)
