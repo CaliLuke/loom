@@ -252,6 +252,13 @@ func (b *valuePlanBuilder) nodeAssociated(
 		unionClosed:   target.attribute.UnionClosed(),
 		schemaUnknown: target.attribute.ObjectOpenness().AdmitsUndeclared(),
 	}
+	if target.publishedDefault != nil {
+		published := *target.publishedDefault
+		if target.constraints != nil {
+			published.declaration = target.constraints.DefaultSource()
+		}
+		node.publishedDefault = &published
+	}
 	if !b.enumConstant {
 		node.additionalRequired = append([]string(nil), target.additionalRequired...)
 	}

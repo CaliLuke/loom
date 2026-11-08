@@ -109,3 +109,82 @@ func TestSchemaAnnotationsOpaqueBoundaryPreservesKnownFailures(t *testing.T) {
 		}
 	}
 }
+
+func TestSchemaAnnotationsPublishedDefaultCapture(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		published bool
+		local     bool
+	}{
+		{name: "published inherited", published: true},
+		{name: "unpublished inherited"},
+		{name: "equal local override", published: true, local: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			base := &AttributeExpr{Type: Int}
+			base.SetDefault(7)
+			local := &AttributeExpr{Type: Int, Validation: &ValidationExpr{Minimum: boundForTest(1)}}
+			if test.local {
+				local.SetDefault(7)
+			}
+			attribute := &AttributeExpr{Type: Int, constraintLocal: local, constraintParents: []*AttributeExpr{base}}
+			constraints, err := EffectiveConstraintsFor(attribute)
+			require.NoError(t, err)
+			if test.published {
+				applyEffectiveDefault(attribute, constraints)
+			}
+			context := NewValueContext()
+			occurrence, err := context.NewOccurrence(attribute)
+			require.NoError(t, err)
+			owner := occurrence.EffectiveConstraints().defaultOwner
+			require.Equal(t, test.local, owner != defaultValueOwner(base))
+			attribute.SetDefault(9)
+			base.SetDefault(10)
+			local.SetDefault(11)
+			plan, err := context.NewValuePlan(occurrence, ValuePlanRequest{TargetOccurrence: occurrence, Codec: ValueCodecJSON, Use: ValuePlanDocumentation})
+			require.NoError(t, err)
+			annotations, err := context.PrepareJSONSchemaAnnotations(occurrence, plan)
+			require.NoError(t, err)
+			require.Equal(t, test.published, annotations.HasDefault)
+			if test.published {
+				require.Equal(t, 7, annotations.Default.DeclaredValue())
+				require.True(t, owner == annotations.Default.DefaultOwner())
+			}
+		})
+	}
+}
+
+func TestSchemaAnnotationsTargetDefaultOwner(t *testing.T) {
+	attribute := &AttributeExpr{Type: Int}
+	attribute.SetDefault(7)
+	context := NewValueContext()
+	occurrence, err := context.NewOccurrence(attribute)
+	require.NoError(t, err)
+	target := DupAtt(attribute)
+	target.SetDefault(8)
+	owner := defaultValueOwner(target)
+	plan, err := context.NewValuePlan(occurrence, ValuePlanRequest{Target: target, Codec: ValueCodecJSON, Use: ValuePlanDocumentation})
+	require.NoError(t, err)
+	target.SetDefault(9)
+	annotations, err := context.PrepareJSONSchemaAnnotations(occurrence, plan)
+	require.NoError(t, err)
+	require.True(t, annotations.HasDefault)
+	require.Equal(t, 8, annotations.Default.DeclaredValue())
+	require.True(t, owner == annotations.Default.DefaultOwner(), "publication belongs to the captured target assignment, not the source default")
+	require.False(t, defaultValueOwner(attribute) == annotations.Default.DefaultOwner())
+}
+
+func TestSchemaAnnotationsPublishedDefaultPreservesInheritedConflict(t *testing.T) {
+	first := &AttributeExpr{Type: Int}
+	first.SetDefault(7)
+	second := &AttributeExpr{Type: Int}
+	second.SetDefault(8)
+	local := &AttributeExpr{Type: Int}
+	attribute := &AttributeExpr{
+		Type: Int, DefaultValue: 7, defaultOwner: defaultValueOwner(first),
+		constraintLocal: local, constraintParents: []*AttributeExpr{first, second},
+	}
+	_, err := NewValueContext().NewOccurrence(attribute)
+	require.ErrorContains(t, err, "conflicting inherited defaults")
+	require.Nil(t, local.DefaultValue, "a published annotation cannot become an authored local choice")
+}

@@ -271,10 +271,7 @@ func TestComposedTemplateDefaultOwner(t *testing.T) {
 				return annotation.Default.DefaultOwner()
 			}
 			baseOwner := owner(base.Attribute().Find("v"))
-			derivedOwner := baseOwner
-			if local {
-				derivedOwner = owner(derived.Attribute().Find("v"))
-			}
+			derivedOwner := owner(derived.Attribute().Find("v"))
 			body := root.API.HTTP.Service("probe").Endpoint("run").Body.Find("v")
 			require.True(t, owner(body) == derivedOwner, "template publication retains the composition-selected default owner")
 			require.True(t, owner(expr.DupAtt(body)) == derivedOwner)

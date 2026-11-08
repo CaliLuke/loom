@@ -52,15 +52,15 @@ func (c *ValueContext) PrepareJSONSchemaAnnotations(occurrence ValueOccurrence, 
 		plan.root == nil || !plan.root.documentary || plan.source.node != occurrence.node || len(plan.selection) != 0 {
 		return annotations, fmt.Errorf("schema annotations require their captured documentation occurrence and plan")
 	}
-	if raw := plan.root.attribute.DefaultValue; raw != nil {
-		result := resolveConstraintValue(c, occurrence.graph, occurrence.node, snapshotValueSource(raw), nil, false)
+	if published := plan.root.publishedDefault; published != nil {
+		result := resolveConstraintValue(c, occurrence.graph, occurrence.node, published.value, nil, false)
 		result.role = ValueRoleDefault
 		value, err := c.schemaAnnotationValue(result, plan)
 		if err != nil {
-			return annotations, fmt.Errorf("default declared by %q: %w", effectiveLayerName(occurrence.node), err)
+			return annotations, fmt.Errorf("default declared by %q: %w", published.declaration.Declaration, err)
 		}
-		value.declaration = occurrence.EffectiveConstraints().DefaultSource()
-		value.owner = occurrence.EffectiveConstraints().defaultOwner
+		value.declaration = published.declaration
+		value.owner = published.owner
 		annotations.Default, annotations.HasDefault = value, true
 	}
 	if plan.root.validation == nil {

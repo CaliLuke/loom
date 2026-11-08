@@ -101,6 +101,7 @@ type (
 		source              *valueOccurrenceNode
 		targetDeclarationID string
 		attribute           *AttributeExpr
+		publishedDefault    *valuePublishedDefault
 		validation          *ValidationExpr
 		kind                Kind
 		members             []valuePlanMember

@@ -90,6 +90,12 @@ checks retained semantic input, policy-origin correspondence, representation
 admission and capture work under reordered traversal. It does not prove Go plan
 validation or custom materialization; recorded hashes and effect controls do.
 
+The [published default capture model](../../../../expr/tla/default_publication/README.md)
+checks immutable target publication separately from local constraint authorship.
+Local-only capture, source-owner substitution, local promotion and mutable rereads
+are negative controls. Go tests cover actual composed owners, detached capture,
+conflicting inheritance and generated body-template schema preparation.
+
 The [canonical acquisition model](../../../../http/codegen/openapi/internal/ir/tla/canonical_acquisition/README.md)
 checks recursive reference reservation before candidate traversal and completed
 baseline comparison before accepting a canonical claim. Expression fingerprint

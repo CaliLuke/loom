@@ -36,12 +36,15 @@ type (
 		origin        *AttributeExpr
 		// semanticOrigin is normalized during capture. origin remains an exact
 		// location token for emitter policies, never a live provenance query.
-		semanticOrigin    *AttributeExpr
-		sourceBound       bool
-		attribute         *AttributeExpr
-		declaration       *valueDeclarationNode
-		examples          []valueOccurrenceExample
-		defaultValue      *valueSourceSnapshot
+		semanticOrigin *AttributeExpr
+		sourceBound    bool
+		attribute      *AttributeExpr
+		declaration    *valueDeclarationNode
+		examples       []valueOccurrenceExample
+		defaultValue   *valueSourceSnapshot
+		// publishedDefault records the finalized annotation separately from the
+		// local default used to select and validate inherited constraints.
+		publishedDefault  *valuePublishedDefault
 		enumValues        []valueSourceSnapshot
 		enumClauses       [][]valueSourceSnapshot
 		constraints       *EffectiveConstraints
@@ -52,6 +55,14 @@ type (
 		additional          *valueOccurrenceNode
 		additionalRequired  []string
 		additionalForbidden []string
+	}
+
+	// valuePublishedDefault is an immutable publication snapshot. A nil pointer
+	// means this occurrence publishes no default, even if its type inherits one.
+	valuePublishedDefault struct {
+		value       valueSourceSnapshot
+		owner       DefaultValueOwner
+		declaration EffectiveConstraintSource
 	}
 
 	valueOccurrenceExample struct {
@@ -239,6 +250,11 @@ func (b *valueOccurrenceBuilder) occurrence(source *AttributeExpr) (*valueOccurr
 			return nil, err
 		}
 		b.captureOccurrenceConstraints(node, contract, attribute)
+		if source.DefaultValue != nil {
+			node.publishedDefault = &valuePublishedDefault{
+				value: snapshotValueSource(source.DefaultValue), owner: defaultValueOwner(source),
+			}
+		}
 	}
 	declaration, err := b.declaration(source.Type)
 	if err != nil {
