@@ -219,12 +219,10 @@ func TestBodyTypeIdentityPreservesOpenAPIExample(t *testing.T) {
 	spec := renderOpenAPIJSON(t, openapiv3.Files, root)
 	parseOpenAPIV3Document(t, spec)
 	media := postRequestMediaTypeFromSpec(t, spec, "/", "application/json")
-	examples, ok := media["examples"].(map[string]any)
+	// One authored callback produces one unstructured media example.
+	require.NotContains(t, media, "examples", "method customization must not duplicate the authored example")
+	example, ok := media["example"].(map[string]any)
 	require.True(t, ok, "body identity must not suppress the authored example")
-	defaultExample, ok := examples["default"].(map[string]any)
-	require.True(t, ok)
-	example, ok := defaultExample["value"].(map[string]any)
-	require.True(t, ok)
 	prepared, err := representation.PrepareService(root.API.HTTP.Services[0], nil, nil)
 	require.NoError(t, err)
 	require.NoError(t, representation.PrepareServiceExamples(

@@ -120,7 +120,8 @@ paths:
                         method: GET
                     response:
                         contentType: text/event-stream
-                        status: 200
+                        statuses:
+                            - "200"
                 messages:
                     outbound:
                         contentType: application/json
@@ -243,7 +244,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Et rem maxime saepe aut.
+                        example: Perspiciatis et maiores quia corrupti enim.
                     example:
                         - alice
                         - bob

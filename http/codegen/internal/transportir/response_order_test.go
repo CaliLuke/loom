@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	testcodegen "github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
 )
@@ -23,13 +24,27 @@ func TestResponseSelectionOrder(t *testing.T) {
 			for _, response := range plan.Responses {
 				require.True(t, response.Selector.IsExact())
 				codes = append(codes, response.Selector.Code)
-				require.Equal(t, "message", response.BodyOrigin)
-				require.Len(t, response.Headers, 3)
+				if endpoint.Name() == "bodyless" {
+					require.Empty(t, response.BodyOrigin)
+					require.Empty(t, response.Headers)
+					require.NotNil(t, response.Body)
+					require.Equal(t, expr.Empty, response.Body.Type)
+				} else {
+					require.Equal(t, "message", response.BodyOrigin)
+					require.Len(t, response.Headers, 3)
+				}
 			}
-			require.Equal(t, []int{201, 202, 200}, codes)
-			require.Equal(t, "first", plan.Responses[0].Tag.Key)
-			require.Equal(t, "second", plan.Responses[1].Tag.Key)
-			require.Nil(t, plan.Responses[2].Tag)
+			if endpoint.Name() == "bodyless" {
+				require.Equal(t, []int{202, 200}, codes)
+				require.Equal(t, "kind", plan.Responses[0].Tag.Key)
+				require.Equal(t, "accepted", plan.Responses[0].Tag.Value)
+				require.Nil(t, plan.Responses[1].Tag)
+			} else {
+				require.Equal(t, []int{201, 202, 200}, codes)
+				require.Equal(t, "first", plan.Responses[0].Tag.Key)
+				require.Equal(t, "second", plan.Responses[1].Tag.Key)
+				require.Nil(t, plan.Responses[2].Tag)
+			}
 			for i, response := range endpoint.Responses {
 				require.Equal(t, authored[i], response.Status.Code, "analysis must not mutate the authored expression")
 			}

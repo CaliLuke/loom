@@ -23,7 +23,7 @@ paths:
                                 example:
                                     int: 1
                                     string: ""
-                                $ref: '#/components/schemas/TestEndpointDefaultResponseBody'
+                                $ref: '#/components/schemas/JSON_d366c2282411fe40'
                             example:
                                 int: 1
                                 string: ""
@@ -86,18 +86,7 @@ paths:
             security: []
 components:
     schemas:
-        TestEndpointCustomizedResponseBodyTiny:
-            type: object
-            properties:
-                string:
-                    type: string
-                    example: ""
-            description: TestEndpointCustomizedResponseBody result type (tiny view)
-            example:
-                string: ""
-            required:
-                - string
-        TestEndpointDefaultResponseBody:
+        JSON_d366c2282411fe40:
             type: object
             properties:
                 int:
@@ -107,10 +96,21 @@ components:
                 string:
                     type: string
                     example: ""
-            description: TestEndpointDefaultResponseBody result type (default view)
+            description: Result result type (default view)
             example:
                 int: 1
                 string: ""
+        TestEndpointCustomizedResponseBodyTiny:
+            type: object
+            properties:
+                string:
+                    type: string
+                    example: ""
+            description: Result_testEndpointCustomized_Result result type (tiny view)
+            example:
+                string: ""
+            required:
+                - string
         TestEndpointOverriddenResponseBodyOverridden:
             type: object
             properties:
@@ -121,7 +121,7 @@ components:
                 string:
                     type: string
                     example: ""
-            description: TestEndpointOverriddenResponseBody result type (overridden view)
+            description: Result_testEndpointOverridden_Result result type (overridden view)
             example:
                 int: 1
                 string: ""
@@ -133,7 +133,7 @@ components:
                 string:
                     type: string
                     example: ""
-            description: TestEndpointTinyResponseBody result type (tiny view)
+            description: Result result type (tiny view)
             example:
                 string: ""
 tags:

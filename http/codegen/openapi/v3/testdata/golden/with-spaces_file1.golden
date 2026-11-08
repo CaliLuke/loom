@@ -37,7 +37,7 @@ paths:
                                         - string: ""
                                         - string: ""
                                     foo: ""
-                                $ref: '#/components/schemas/LoomFoobar'
+                                $ref: '#/components/schemas/LoomFoobar_9a10bfe0ca223c98'
                             example:
                                 bar:
                                     - string: ""
@@ -55,7 +55,7 @@ components:
                     example: ""
             example:
                 string: ""
-        LoomFoobar:
+        LoomFoobar_9a10bfe0ca223c98:
             type: object
             properties:
                 bar:
@@ -63,7 +63,6 @@ components:
                     items:
                         $ref: '#/components/schemas/Bar'
                     example:
-                        - string: ""
                         - string: ""
                         - string: ""
                 foo:

@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -82,10 +83,12 @@ func TestMappedPayloadReferencesOpenAPI(t *testing.T) {
 	assert.Equal(t, map[string]string{"id": "path", "tok": "header", "X-Version": "header", "q": "query", "sid": "cookie"}, params)
 	bodyRef := send.Post.RequestBody.Content.GetOrZero("application/json").Schema
 	require.True(t, bodyRef.IsReference())
-	require.Equal(t, "#/components/schemas/SendRequestBody", bodyRef.GetReference())
+	bodyName, local := strings.CutPrefix(bodyRef.GetReference(), "#/components/schemas/")
+	require.True(t, local)
+	require.NotEmpty(t, bodyName)
 	require.NotNil(t, doc.Components)
 	require.NotNil(t, doc.Components.Schemas)
-	bodyComponent := doc.Components.Schemas.GetOrZero("SendRequestBody")
+	bodyComponent := doc.Components.Schemas.GetOrZero(bodyName)
 	require.NotNil(t, bodyComponent)
 	body := bodyComponent.Schema()
 	require.NotNil(t, body)

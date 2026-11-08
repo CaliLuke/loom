@@ -1,24 +1,8 @@
 {
   "components": {
     "schemas": {
-      "TestEndpointCustomizedResponseBodyTiny": {
-        "description": "TestEndpointCustomizedResponseBody result type (tiny view)",
-        "example": {
-          "string": ""
-        },
-        "properties": {
-          "string": {
-            "example": "",
-            "type": "string"
-          }
-        },
-        "required": [
-          "string"
-        ],
-        "type": "object"
-      },
-      "TestEndpointDefaultResponseBody": {
-        "description": "TestEndpointDefaultResponseBody result type (default view)",
+      "JSON_d366c2282411fe40": {
+        "description": "Result result type (default view)",
         "example": {
           "int": 1,
           "string": ""
@@ -36,8 +20,24 @@
         },
         "type": "object"
       },
+      "TestEndpointCustomizedResponseBodyTiny": {
+        "description": "Result_testEndpointCustomized_Result result type (tiny view)",
+        "example": {
+          "string": ""
+        },
+        "properties": {
+          "string": {
+            "example": "",
+            "type": "string"
+          }
+        },
+        "required": [
+          "string"
+        ],
+        "type": "object"
+      },
       "TestEndpointOverriddenResponseBodyOverridden": {
-        "description": "TestEndpointOverriddenResponseBody result type (overridden view)",
+        "description": "Result_testEndpointOverridden_Result result type (overridden view)",
         "example": {
           "int": 1,
           "string": ""
@@ -59,7 +59,7 @@
         "type": "object"
       },
       "TestEndpointTinyResponseBodyTiny": {
-        "description": "TestEndpointTinyResponseBody result type (tiny view)",
+        "description": "Result result type (tiny view)",
         "example": {
           "string": ""
         },
@@ -92,7 +92,7 @@
                   "string": ""
                 },
                 "schema": {
-                  "$ref": "#/components/schemas/TestEndpointDefaultResponseBody",
+                  "$ref": "#/components/schemas/JSON_d366c2282411fe40",
                   "example": {
                     "int": 1,
                     "string": ""

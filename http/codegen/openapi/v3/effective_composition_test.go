@@ -31,10 +31,20 @@ func TestRecursiveEffectiveCompositionOpenAPI(t *testing.T) {
 	spec := decodeOpenAPIJSON(t, artifacts.JSON)
 	for _, name := range []string{"RecursiveNode", "ReverseNode"} {
 		schema := requireComponentSchema(t, spec, name)
-		properties := requireMap(t, schema["properties"], "properties")
-		require.Contains(t, properties, "n")
-		next := requireMap(t, properties["next"], "next")
-		require.Equal(t, "#/components/schemas/"+name, next["$ref"])
+		seen := make(map[string]bool)
+		for {
+			properties := requireMap(t, schema["properties"], "properties")
+			require.ElementsMatch(t, []string{"n", "next"}, typedPropertyNames(schema))
+			require.Equal(t, "integer", requireMap(t, properties["n"], "n")["type"])
+			next := requireMap(t, properties["next"], "next")
+			ref, ok := next["$ref"].(string)
+			require.True(t, ok, "recursive composition must retain a reference")
+			if seen[ref] {
+				break
+			}
+			seen[ref] = true
+			schema = resolveRefMap(t, spec, ref)
+		}
 	}
 	lintEffectiveCompositionArtifacts(t, artifacts)
 }

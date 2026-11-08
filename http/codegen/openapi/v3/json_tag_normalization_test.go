@@ -28,7 +28,7 @@ func TestAuthoredJSONTagExamples(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var spec map[string]any
 			require.NoError(t, yaml.Unmarshal(tc.data, &spec))
-			schema := requireComponentSchema(t, spec, "TagRecord")
+			schema := requireComponentSchema(t, spec, occurrenceSchemaName(spec, "/tagged"))
 			require.Equal(t, map[string]any{"plain": "", "items": []any{}, "omitted": "", "empty": "", "names": []any{}, "labels": map[string]any{}, "flag": false, "count": 0, "text": ""}, schema["example"])
 			operation := requireOperation(t, spec, "/tagged", "post")
 			responses := requireMap(t, operation["responses"], "responses")

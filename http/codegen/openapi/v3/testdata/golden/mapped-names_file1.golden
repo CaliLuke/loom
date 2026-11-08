@@ -88,7 +88,7 @@ paths:
                                     type: String
                                     value: Harum ab saepe et saepe sed.
                                 r: 2607863942139009485
-                            $ref: '#/components/schemas/Envelope'
+                            $ref: '#/components/schemas/Envelope_d75d1da451d4be00'
                         example:
                             ch:
                                 type: leaf_branch
@@ -209,7 +209,7 @@ paths:
                                 example:
                                     c: 1108211225206235084
                                     i: Deserunt omnis nihil ab assumenda quia.
-                                $ref: '#/components/schemas/InlineRequestBody'
+                                $ref: '#/components/schemas/InlineRequestBody_2476bc0dc6e54e7f'
                             example:
                                 c: 1108211225206235084
                                 i: Deserunt omnis nihil ab assumenda quia.
@@ -351,7 +351,7 @@ components:
                     type: object
                     example:
                         type: text
-                        value: Similique perferendis sequi.
+                        value: Omnis dignissimos nulla iusto.
                     oneOf:
                         - $ref: '#/components/schemas/ChoiceLeafBranchEnvelope'
                         - $ref: '#/components/schemas/ChoiceTextEnvelope'
@@ -363,36 +363,41 @@ components:
                 d:
                     type: integer
                     default: 3
-                    example: 6967402427047375804
+                    example: 5944817827154964147
                     format: int64
                 ix:
                     type: object
                     example:
-                        Excepturi voluptatum modi.:
-                            c: 1742484224522507071
-                            l: Sapiente soluta consequuntur quis tempora amet.
+                        Et eius animi saepe sed adipisci neque.:
+                            c: 2838486742568929676
+                            l: Reiciendis sint aut et neque aperiam dolores.
+                        Nulla est.:
+                            c: 2838486742568929676
+                            l: Reiciendis sint aut et neque aperiam dolores.
+                        Quas accusantium accusantium velit laboriosam ea pariatur.:
+                            c: 2838486742568929676
+                            l: Reiciendis sint aut et neque aperiam dolores.
                     additionalProperties:
                         $ref: '#/components/schemas/Leaf'
                 ls:
                     type: array
                     items:
                         type: string
-                        example: Vitae praesentium cum perferendis commodi omnis.
+                        example: Voluptatem itaque.
                     example:
-                        - Quo esse explicabo.
-                        - Aspernatur aliquam.
-                        - Quae repellat nesciunt amet ut ad.
+                        - Eum minus.
+                        - Et officiis.
                 m:
                     type: string
-                    example: oa
+                    example: di
                     minLength: 2
                 o:
                     $ref: '#/components/schemas/Leaf'
                 p:
                     type: object
                     example:
-                        type: String
-                        value: Ducimus esse ut eum eveniet commodi perspiciatis.
+                        type: Int
+                        value: 4990356674750892081
                     oneOf:
                         - $ref: '#/components/schemas/IntOrStringIntEnvelope'
                         - $ref: '#/components/schemas/IntOrStringStringEnvelope'
@@ -403,36 +408,124 @@ components:
                             String: '#/components/schemas/IntOrStringStringEnvelope'
                 r:
                     type: integer
-                    example: 7730541778797190074
+                    example: 2909347950194411150
                     format: int64
             example:
                 ch:
                     type: leaf_branch
                     value:
-                        c: 6295762694528571497
-                        l: Culpa nobis sunt.
-                d: 2977120627422250525
+                        c: 2185127696269261974
+                        l: Voluptatem tempora voluptatem est nemo doloribus.
+                d: 3531106220653876679
                 ix:
-                    Delectus optio velit.:
-                        c: 6295762694528571497
-                        l: Culpa nobis sunt.
-                    Est distinctio tenetur minus.:
-                        c: 6295762694528571497
-                        l: Culpa nobis sunt.
-                    Soluta mollitia illo autem.:
-                        c: 6295762694528571497
-                        l: Culpa nobis sunt.
+                    Temporibus aut in tempore iure sunt quod.:
+                        c: 2185127696269261974
+                        l: Voluptatem tempora voluptatem est nemo doloribus.
+                    Velit temporibus et magni dolores aut.:
+                        c: 2185127696269261974
+                        l: Voluptatem tempora voluptatem est nemo doloribus.
                 ls:
-                    - Facilis illum.
-                    - Cumque quisquam et voluptatum tenetur occaecati natus.
-                m: jg
+                    - Provident facere quis voluptas et voluptatum repellendus.
+                    - Nihil sunt voluptas.
+                    - Quia veniam officia quia.
+                    - Culpa nulla voluptas culpa exercitationem aut rerum.
+                m: xj5
                 o:
-                    c: 6295762694528571497
-                    l: Culpa nobis sunt.
+                    c: 2185127696269261974
+                    l: Voluptatem tempora voluptatem est nemo doloribus.
                 p:
-                    type: Int
-                    value: 5250452256650380191
-                r: 5834335217562232202
+                    type: String
+                    value: Cum in sit blanditiis saepe.
+                r: 3489298692158739364
+            required:
+                - r
+                - p
+                - o
+        Envelope_d75d1da451d4be00:
+            type: object
+            properties:
+                ch:
+                    type: object
+                    example:
+                        type: leaf_branch
+                        value:
+                            c: 8177873505143758871
+                            l: Consectetur sunt quod.
+                    oneOf:
+                        - $ref: '#/components/schemas/ChoiceLeafBranchEnvelope'
+                        - $ref: '#/components/schemas/ChoiceTextEnvelope'
+                    discriminator:
+                        propertyName: type
+                        mapping:
+                            leaf_branch: '#/components/schemas/ChoiceLeafBranchEnvelope'
+                            text: '#/components/schemas/ChoiceTextEnvelope'
+                d:
+                    type: integer
+                    default: 3
+                    example: 1673322225767508906
+                    format: int64
+                ix:
+                    type: object
+                    example:
+                        Doloremque et sint iusto.:
+                            c: 7584179485882958303
+                            l: Reprehenderit vel minima ab voluptas.
+                        Voluptas sit doloribus.:
+                            c: 7584179485882958303
+                            l: Reprehenderit vel minima ab voluptas.
+                    additionalProperties:
+                        $ref: '#/components/schemas/Leaf'
+                ls:
+                    type: array
+                    items:
+                        type: string
+                        example: Ipsa blanditiis nemo molestiae.
+                    example:
+                        - Ab vel omnis incidunt enim aut.
+                        - Labore autem.
+                m:
+                    type: string
+                    example: r77
+                    minLength: 2
+                o:
+                    $ref: '#/components/schemas/Leaf'
+                p:
+                    type: object
+                    example:
+                        type: String
+                        value: Corrupti enim dolorum ut deserunt.
+                    oneOf:
+                        - $ref: '#/components/schemas/IntOrStringIntEnvelope'
+                        - $ref: '#/components/schemas/IntOrStringStringEnvelope'
+                    discriminator:
+                        propertyName: type
+                        mapping:
+                            Int: '#/components/schemas/IntOrStringIntEnvelope'
+                            String: '#/components/schemas/IntOrStringStringEnvelope'
+                r:
+                    type: integer
+                    example: 7766957342749654606
+                    format: int64
+            example:
+                ch:
+                    type: text
+                    value: Ipsum aut aut incidunt et.
+                d: 2800179313072651603
+                ix:
+                    Dolorum alias quia totam qui sed.:
+                        c: 6748548767573560296
+                        l: Dicta eveniet.
+                ls:
+                    - Qui quisquam.
+                    - Voluptatibus vel.
+                m: 6m
+                o:
+                    c: 6748548767573560296
+                    l: Dicta eveniet.
+                p:
+                    type: String
+                    value: Perspiciatis tempore fugiat sit corrupti autem.
+                r: 1824696424600187008
             required:
                 - r
                 - p
@@ -460,6 +553,21 @@ components:
             example:
                 c: 4502184350639594714
                 i: Fugiat ut.
+            required:
+                - i
+        InlineRequestBody_2476bc0dc6e54e7f:
+            type: object
+            properties:
+                c:
+                    type: integer
+                    example: 6901687998946747546
+                    format: int64
+                i:
+                    type: string
+                    example: Dolore et aspernatur.
+            example:
+                c: 4940225402057387877
+                i: Quia ad quo quasi illo.
             required:
                 - i
         IntOrStringIntEnvelope:

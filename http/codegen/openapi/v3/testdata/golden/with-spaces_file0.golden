@@ -13,7 +13,7 @@
         },
         "type": "object"
       },
-      "LoomFoobar": {
+      "LoomFoobar_9a10bfe0ca223c98": {
         "example": {
           "bar": [
             {
@@ -31,9 +31,6 @@
         "properties": {
           "bar": {
             "example": [
-              {
-                "string": ""
-              },
               {
                 "string": ""
               },
@@ -103,7 +100,7 @@
                   "foo": ""
                 },
                 "schema": {
-                  "$ref": "#/components/schemas/LoomFoobar",
+                  "$ref": "#/components/schemas/LoomFoobar_9a10bfe0ca223c98",
                   "example": {
                     "bar": [
                       {

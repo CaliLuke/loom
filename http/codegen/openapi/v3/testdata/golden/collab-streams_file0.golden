@@ -111,7 +111,7 @@
               "bob"
             ],
             "items": {
-              "example": "Et rem maxime saepe aut.",
+              "example": "Perspiciatis et maiores quia corrupti enim.",
               "type": "string"
             },
             "type": "array"
@@ -349,7 +349,9 @@
             },
             "response": {
               "contentType": "text/event-stream",
-              "status": 200
+              "statuses": [
+                "200"
+              ]
             }
           },
           "messages": {

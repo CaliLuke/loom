@@ -31,11 +31,30 @@ paths:
                                         type: string
                                         contentMediaType: application/json
                                         contentSchema:
+                                            type: object
+                                            properties:
+                                                data:
+                                                    type: object
+                                                    properties:
+                                                        meal_plan_id:
+                                                            type: string
+                                                            example: plan_12
+                                                    example:
+                                                        meal_plan_id: plan_12
+                                                    required:
+                                                        - meal_plan_id
+                                                    additionalProperties: false
+                                                event:
+                                                    type: string
+                                                    example: plan.updated
                                             example:
                                                 data:
                                                     meal_plan_id: plan_12
                                                 event: plan.updated
-                                            $ref: '#/components/schemas/WatchPlannerEventsResponseBody'
+                                            required:
+                                                - event
+                                                - data
+                                            additionalProperties: false
                                 required:
                                     - data
                                 additionalProperties: false
@@ -54,7 +73,8 @@ paths:
                         method: GET
                     response:
                         contentType: text/event-stream
-                        status: 200
+                        statuses:
+                            - "200"
                 messages:
                     outbound:
                         contentType: application/json
@@ -563,6 +583,9 @@ components:
                     - day: monday
                       recipe_id: recipe_42
                       slot: dinner
+                    - day: monday
+                      recipe_id: recipe_42
+                      slot: dinner
                 week_start: "2026-03-16"
             required:
                 - week_start
@@ -647,7 +670,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Consectetur quas sunt.
+                        example: Perspiciatis voluptatum tempore.
                     example:
                         - gnocchi
                         - tomatoes
@@ -661,7 +684,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Est quae debitis quae.
+                        example: Itaque quas rerum ullam eaque ut.
                     example:
                         - weeknight
                         - vegetarian
@@ -918,31 +941,6 @@ components:
                 recipe_id: recipe_42
             required:
                 - recipe_id
-            additionalProperties: false
-        WatchPlannerEventsResponseBody:
-            type: object
-            properties:
-                data:
-                    type: object
-                    properties:
-                        meal_plan_id:
-                            type: string
-                            example: plan_12
-                    example:
-                        meal_plan_id: plan_12
-                    required:
-                        - meal_plan_id
-                    additionalProperties: false
-                event:
-                    type: string
-                    example: plan.updated
-            example:
-                data:
-                    meal_plan_id: plan_12
-                event: plan.updated
-            required:
-                - event
-                - data
             additionalProperties: false
     parameters:
         PathWeekStart:

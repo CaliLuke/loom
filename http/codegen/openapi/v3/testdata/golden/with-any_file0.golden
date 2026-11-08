@@ -36,6 +36,43 @@
           }
         },
         "type": "object"
+      },
+      "TestEndpointRequestBody_c9dc1636c2fd3c43": {
+        "example": {
+          "any": "",
+          "any_array": [
+            "",
+            ""
+          ],
+          "any_map": {
+            "": ""
+          }
+        },
+        "properties": {
+          "any": {
+            "example": ""
+          },
+          "any_array": {
+            "example": [
+              "",
+              "",
+              "",
+              ""
+            ],
+            "items": {
+              "example": ""
+            },
+            "type": "array"
+          },
+          "any_map": {
+            "additionalProperties": true,
+            "example": {
+              "": ""
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
       }
     }
   },
@@ -99,7 +136,7 @@
                   }
                 },
                 "schema": {
-                  "$ref": "#/components/schemas/TestEndpointRequestBody",
+                  "$ref": "#/components/schemas/TestEndpointRequestBody_c9dc1636c2fd3c43",
                   "example": {
                     "any": "",
                     "any_array": [

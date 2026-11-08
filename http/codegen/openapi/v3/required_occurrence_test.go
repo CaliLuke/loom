@@ -30,15 +30,26 @@ func TestRequiredOccurrenceSchemaIsolation(t *testing.T) {
 			requireTypedWire(t, spec, occurrenceSchemaName(spec, "/right"), []typedWireCase{
 				{`{"id":"","right":""}`, true}, {`{"id":"","left":""}`, false},
 			})
-			fields := schemas["Occurrences"].(map[string]any)["properties"].(map[string]any)
+			occurrences := requireComponentSchema(t, spec, occurrenceSchemaName(spec, "/occurrences"))
+			fields := requireMap(t, occurrences["properties"], "occurrence properties")
 			require.Equal(t, []any{"left"}, fields["direct"].(map[string]any)["required"])
 			require.Equal(t, []any{"right"}, fields["list"].(map[string]any)["items"].(map[string]any)["required"])
 			require.Equal(t, []any{"left"}, fields["index"].(map[string]any)["additionalProperties"].(map[string]any)["required"])
-			deferred := schemas["Deferred"].(map[string]any)
-			require.NotContains(t, deferred, "required")
-			child := deferred["properties"].(map[string]any)["child"].(map[string]any)
-			require.Equal(t, []any{"name"}, child["required"])
-			require.Equal(t, "#/components/schemas/Deferred", child["$ref"])
+			deferred := requireComponentSchema(t, spec, "Deferred")
+			seen := make(map[string]bool)
+			for {
+				require.NotContains(t, deferred, "required")
+				require.ElementsMatch(t, []string{"name", "child", "tail"}, typedPropertyNames(deferred))
+				child := requireMap(t, requireMap(t, deferred["properties"], "deferred properties")["child"], "child")
+				require.Equal(t, []any{"name"}, child["required"])
+				ref, ok := child["$ref"].(string)
+				require.True(t, ok, "the deferred child must retain its recursive reference")
+				if seen[ref] {
+					break
+				}
+				seen[ref] = true
+				deferred = resolveRefMap(t, spec, ref)
+			}
 			requireTypedExamplesValid(t, spec)
 		})
 	}

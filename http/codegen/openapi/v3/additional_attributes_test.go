@@ -131,7 +131,10 @@ func TestAdditionalAttributesTypedPolicies(t *testing.T) {
 		}, func(t *testing.T, spec map[string]any) {
 			derived := typedComponents(spec)["Derived"].(map[string]any)
 			allOf := derived["allOf"].([]any)
-			require.Equal(t, map[string]any{"$ref": "#/components/schemas/Base"}, allOf[0])
+			base := requireMap(t, allOf[0], "base reference")
+			require.Equal(t, "#/components/schemas/Base", base["$ref"])
+			// Reference-local annotations do not change the inherited policy.
+			require.NotContains(t, base, "additionalProperties")
 			requireTypedWire(t, spec, "Derived", []typedWireCase{
 				{`{"id":"a","count":1,"total":2}`, true},
 				{`{"id":"a","count":1,"total":2,"other":3}`, true},

@@ -192,6 +192,11 @@
               "day": "monday",
               "recipe_id": "recipe_42",
               "slot": "dinner"
+            },
+            {
+              "day": "monday",
+              "recipe_id": "recipe_42",
+              "slot": "dinner"
             }
           ],
           "week_start": "2026-03-16"
@@ -361,7 +366,7 @@
               "spinach"
             ],
             "items": {
-              "example": "Consectetur quas sunt.",
+              "example": "Perspiciatis voluptatum tempore.",
               "type": "string"
             },
             "type": "array"
@@ -378,7 +383,7 @@
               "vegetarian"
             ],
             "items": {
-              "example": "Est quae debitis quae.",
+              "example": "Itaque quas rerum ullam eaque ut.",
               "type": "string"
             },
             "type": "array"
@@ -709,42 +714,6 @@
           "recipe_id"
         ],
         "type": "object"
-      },
-      "WatchPlannerEventsResponseBody": {
-        "additionalProperties": false,
-        "example": {
-          "data": {
-            "meal_plan_id": "plan_12"
-          },
-          "event": "plan.updated"
-        },
-        "properties": {
-          "data": {
-            "additionalProperties": false,
-            "example": {
-              "meal_plan_id": "plan_12"
-            },
-            "properties": {
-              "meal_plan_id": {
-                "example": "plan_12",
-                "type": "string"
-              }
-            },
-            "required": [
-              "meal_plan_id"
-            ],
-            "type": "object"
-          },
-          "event": {
-            "example": "plan.updated",
-            "type": "string"
-          }
-        },
-        "required": [
-          "event",
-          "data"
-        ],
-        "type": "object"
       }
     },
     "securitySchemes": {
@@ -792,13 +761,40 @@
                     "data": {
                       "contentMediaType": "application/json",
                       "contentSchema": {
-                        "$ref": "#/components/schemas/WatchPlannerEventsResponseBody",
+                        "additionalProperties": false,
                         "example": {
                           "data": {
                             "meal_plan_id": "plan_12"
                           },
                           "event": "plan.updated"
-                        }
+                        },
+                        "properties": {
+                          "data": {
+                            "additionalProperties": false,
+                            "example": {
+                              "meal_plan_id": "plan_12"
+                            },
+                            "properties": {
+                              "meal_plan_id": {
+                                "example": "plan_12",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "meal_plan_id"
+                            ],
+                            "type": "object"
+                          },
+                          "event": {
+                            "example": "plan.updated",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "event",
+                          "data"
+                        ],
+                        "type": "object"
                       },
                       "type": "string"
                     }
@@ -831,7 +827,9 @@
             },
             "response": {
               "contentType": "text/event-stream",
-              "status": 200
+              "statuses": [
+                "200"
+              ]
             }
           },
           "messages": {

@@ -52,7 +52,7 @@ paths:
                                         - ""
                                     any_map:
                                         "": ""
-                                $ref: '#/components/schemas/TestEndpointRequestBody'
+                                $ref: '#/components/schemas/TestEndpointRequestBody_c9dc1636c2fd3c43'
                             example:
                                 any: ""
                                 any_array:
@@ -84,6 +84,32 @@ components:
                 any: ""
                 any_array:
                     - ""
+                    - ""
+                    - ""
+                any_map:
+                    "": ""
+        TestEndpointRequestBody_c9dc1636c2fd3c43:
+            type: object
+            properties:
+                any:
+                    example: ""
+                any_array:
+                    type: array
+                    items:
+                        example: ""
+                    example:
+                        - ""
+                        - ""
+                        - ""
+                        - ""
+                any_map:
+                    type: object
+                    example:
+                        "": ""
+                    additionalProperties: true
+            example:
+                any: ""
+                any_array:
                     - ""
                     - ""
                 any_map:

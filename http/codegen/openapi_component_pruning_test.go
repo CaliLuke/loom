@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"encoding/json/v2"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -17,8 +18,24 @@ func TestOpenAPIPrunesUnusedComponentSchemas(t *testing.T) {
 	parseOpenAPIV3Document(t, spec)
 
 	schemas := componentSchemasFromSpec(t, spec)
-	require.Contains(t, schemas, "ReachablePayload")
+	media := postRequestMediaTypeFromSpec(t, spec, "/components", "application/json")
+	body, ok := media["schema"].(map[string]any)
+	require.True(t, ok)
+	ref, ok := body["$ref"].(string)
+	require.True(t, ok)
+	name, local := strings.CutPrefix(ref, "#/components/schemas/")
+	require.True(t, local)
+	payload, ok := schemas[name].(map[string]any)
+	require.True(t, ok, "the operation's allocated payload must remain reachable")
+	require.Equal(t, []any{"nested"}, payload["required"])
+	properties, ok := payload["properties"].(map[string]any)
+	require.True(t, ok)
+	require.Len(t, properties, 1)
+	nested, ok := properties["nested"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "#/components/schemas/ReachableNested", nested["$ref"])
 	require.Contains(t, schemas, "ReachableNested")
+	require.Len(t, schemas, 2, "only the operation payload and its nested declaration are reachable")
 	require.NotContains(t, schemas, "UnusedPayload")
 	require.NotContains(t, schemas, "UnusedResult")
 }
