@@ -31,14 +31,14 @@ func TestComputeHandlerArgsJSONRPCOrdering(t *testing.T) {
 	mcpMethod := &expr.MethodExpr{Name: "ListTools", Meta: expr.MetaExpr{"jsonrpc": {}}}
 	jsonrpcOrchestrator := &expr.HTTPServiceExpr{
 		ServiceExpr:   &expr.ServiceExpr{Name: "orchestrator", Methods: []*expr.MethodExpr{method, rpcMethod}},
-		HTTPEndpoints: []*expr.HTTPEndpointExpr{{MethodExpr: rpcMethod}},
+		HTTPEndpoints: []*expr.HTTPEndpointExpr{{MethodExpr: rpcMethod, Meta: expr.MetaExpr{"jsonrpc": {}}}},
 	}
 	jsonrpcMCPAssistant := &expr.HTTPServiceExpr{
 		ServiceExpr: &expr.ServiceExpr{
 			Name:    "mcp_assistant",
 			Methods: []*expr.MethodExpr{mcpMethod},
 		},
-		HTTPEndpoints: []*expr.HTTPEndpointExpr{{MethodExpr: mcpMethod}},
+		HTTPEndpoints: []*expr.HTTPEndpointExpr{{MethodExpr: mcpMethod, Meta: expr.MetaExpr{"jsonrpc": {}}}},
 	}
 	root := &expr.RootExpr{
 		API: &expr.APIExpr{
@@ -89,7 +89,7 @@ func TestComputeHandlerArgsSkipsJSONRPCServicesOutsideServer(t *testing.T) {
 	rpcMethod := &expr.MethodExpr{Name: "Echo", Meta: expr.MetaExpr{"jsonrpc": {}}}
 	rpcSvc := &expr.HTTPServiceExpr{
 		ServiceExpr:   &expr.ServiceExpr{Name: "rpc", Methods: []*expr.MethodExpr{rpcMethod}},
-		HTTPEndpoints: []*expr.HTTPEndpointExpr{{MethodExpr: rpcMethod}},
+		HTTPEndpoints: []*expr.HTTPEndpointExpr{{MethodExpr: rpcMethod, Meta: expr.MetaExpr{"jsonrpc": {}}}},
 	}
 	root := &expr.RootExpr{
 		API: &expr.APIExpr{
@@ -158,8 +158,8 @@ func TestServerDataHostedTransports(t *testing.T) {
 				{ServiceExpr: web}, {ServiceExpr: dual}, {ServiceExpr: both},
 			}},
 			JSONRPC: &expr.JSONRPCExpr{HTTPExpr: expr.HTTPExpr{Services: []*expr.HTTPServiceExpr{
-				{ServiceExpr: rpc, HTTPEndpoints: []*expr.HTTPEndpointExpr{{MethodExpr: rpcMethod}}},
-				{ServiceExpr: both, HTTPEndpoints: []*expr.HTTPEndpointExpr{{MethodExpr: rpcMethod}}},
+				{ServiceExpr: rpc, HTTPEndpoints: []*expr.HTTPEndpointExpr{{MethodExpr: rpcMethod, Meta: expr.MetaExpr{"jsonrpc": {}}}}},
+				{ServiceExpr: both, HTTPEndpoints: []*expr.HTTPEndpointExpr{{MethodExpr: rpcMethod, Meta: expr.MetaExpr{"jsonrpc": {}}}}},
 				{ServiceExpr: emptyRPC},
 			}}},
 			GRPC: &expr.GRPCExpr{Services: []*expr.GRPCServiceExpr{
