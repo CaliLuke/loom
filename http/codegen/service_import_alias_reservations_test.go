@@ -23,6 +23,25 @@ func TestTransportImportAliasReservationsCoverGeneratedImports(t *testing.T) {
 	}
 }
 
+func TestTransportServiceImportAliasForMIME(t *testing.T) {
+	root := RunHTTPDSL(t, func() {
+		localNameDSL("mime", "ordinary")
+	})
+	services := CreateHTTPServices(root)
+	require.NotEqual(t, "mime", services.Get("mime").Service.PkgName)
+	require.Equal(t, "ordinary", services.Get("ordinary").Service.PkgName)
+}
+
+func TestTransportMIMEServiceGeneratedModule(t *testing.T) {
+	for _, name := range []string{"mime", "ordinary"} {
+		t.Run(name, func(t *testing.T) {
+			dir := renderLocalNameModule(t, "example.com/mimenames", localNameDSL, name)
+			runGoCommand(t, dir, "mod", "tidy")
+			runGoCommand(t, dir, "vet", "./...")
+		})
+	}
+}
+
 func TestMissingImportReservations(t *testing.T) {
 	for _, tc := range []struct {
 		name     string

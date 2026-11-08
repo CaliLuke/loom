@@ -25,6 +25,7 @@ var transportGeneratedImportNames = []string{
 	"loomhttpcli",
 	"loomtransport",
 	"middleware",
+	"mime",
 	"multipart",
 	"os",
 	"path",
