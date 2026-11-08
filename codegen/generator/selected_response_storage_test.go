@@ -227,24 +227,30 @@ func TestMountedJSONRPC(t *testing.T) {
 				reflect.ValueOf(endpoints).Elem().FieldByName(name).Set(reflect.ValueOf(endpoint))
 				mux := loomhttp.NewMuxer()
 				var projectionError error
+				projectionReports := 0
 				rpcserver.Mount(mux, rpcserver.New(endpoints, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, func(_ context.Context, _ http.ResponseWriter, err error) {
 					projectionError = err
+					projectionReports++
 				}))
 				response := httptest.NewRecorder()
 				request := httptest.NewRequest("POST", "/rpc", strings.NewReader("{\"jsonrpc\":\"2.0\",\"id\":\"probe\",\"method\":\""+tc.name+"\"}"))
 				request.Header.Set("Content-Type", "application/json")
 				mux.ServeHTTP(response, request)
+				require.NoError(t, projectionError)
+				require.Zero(t, projectionReports)
+				require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+				var envelope map[string]jsontext.Value
+				require.NoError(t, json.Unmarshal(response.Body.Bytes(), &envelope))
+				require.JSONEq(t, "\"2.0\"", string(envelope["jsonrpc"]))
+				require.JSONEq(t, "\"probe\"", string(envelope["id"]))
 				if wire == "absent" {
-					require.ErrorContains(t, projectionError, "selected response value is absent")
-					require.Empty(t, response.Body.String())
+					require.JSONEq(t, "{\"code\":-32603,\"message\":\"internal server error\"}", string(envelope["error"]))
+					require.NotContains(t, envelope, "result")
+					require.NotContains(t, envelope, "loom_view")
+					require.NotContains(t, response.Header(), "Loom-View")
 					require.Equal(t, 1, calls)
 					return
 				}
-				require.NoError(t, projectionError)
-				require.Equal(t, 200, response.Code, response.Body.String())
-				var envelope map[string]jsontext.Value
-				require.NoError(t, json.Unmarshal(response.Body.Bytes(), &envelope))
-				require.JSONEq(t, "\"probe\"", string(envelope["id"]))
 				expected := wire
 				if tc.name == "whole" {
 					expected = "{\"value\":" + wire + "}"
