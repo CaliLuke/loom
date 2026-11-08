@@ -2,6 +2,7 @@ package ir
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/openapi"
@@ -10,6 +11,7 @@ import (
 
 func applySchemaValidation(s *Schema, attr *expr.AttributeExpr, val *expr.ValidationExpr, enums [][]any) error {
 	applySchemaEnums(s, enums)
+	applySchemaRequired(s, attr, schemaRequiredNames(attr))
 	if val == nil {
 		return nil
 	}
@@ -21,8 +23,34 @@ func applySchemaValidation(s *Schema, attr *expr.AttributeExpr, val *expr.Valida
 	s.ExclusiveMaximum = val.ExclusiveMaximum
 	s.Maximum = val.Maximum
 	applySchemaLengths(s, attr, val)
-	applySchemaRequired(s, attr, val.Required)
 	return nil
+}
+
+// schemaRequiredNames keeps reference-local requirements on named occurrences,
+// while a physical object publishes the effective requirements of its retained
+// members. Composition snapshots can carry only local Validation; transport
+// projections can also remove members that their constraint parents still own.
+// Read the shared requiredness owner without recapturing descendant value graphs;
+// typed additional keys remain valid requirements.
+func schemaRequiredNames(attr *expr.AttributeExpr) []string {
+	if _, object := attr.Type.(*expr.Object); !object {
+		if attr.Validation == nil {
+			return nil
+		}
+		return attr.Validation.Required
+	}
+	required := attr.AllRequired()
+	typed := attr.TypedObjectDeclaration() != nil
+	names := make([]string, 0, len(required))
+	for _, name := range required {
+		if slices.Contains(attr.Meta[usageOmittedAttributesMeta], name) {
+			continue
+		}
+		if attr.Find(name) != nil || typed {
+			names = append(names, name)
+		}
+	}
+	return names
 }
 
 func applySchemaEnums(s *Schema, enums [][]any) {

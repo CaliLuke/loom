@@ -246,6 +246,13 @@ consumer validation.
   [additional projection model](../../../expr/tla/additional_projection/README.md)
   aligned; do not repair byte schemas separately from value projection.
 
+- OpenAPI object requirements and their fingerprints consume shared requiredness
+  with retained physical members and typed additional keys after projection. Detached composition copies may retain only
+  local Validation; named reference overlays keep those local requirements. Usage
+  pruning retains removed declared keys separately from forbidden wire names. Keep
+  `http/codegen/openapi/internal/ir/tla/required_projection` and the nested
+  composition/multipart contract regressions aligned.
+
 - `Required` belongs to its authored occurrence. DSL evaluation and deferred
   reference completion must not write local requirements into a shared named
   declaration. Method customization explicitly owns a new declaration and

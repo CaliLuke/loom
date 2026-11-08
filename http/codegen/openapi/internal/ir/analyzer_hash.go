@@ -311,6 +311,7 @@ func (e *canonicalSchemaEncoder) writeUnion(att *expr.AttributeExpr, closeObject
 
 func (e *canonicalSchemaEncoder) writeValidation(att *expr.AttributeExpr, input schemaFingerprintInput) {
 	validation := att.Validation
+	required := schemaRequiredNames(att)
 	var enums [][]any
 	if e.checked != nil {
 		enums = e.checked.annotations(input)
@@ -321,8 +322,7 @@ func (e *canonicalSchemaEncoder) writeValidation(att *expr.AttributeExpr, input 
 	}
 	// Allocating or lowering predicate-free rules does not change a schema.
 	// Use the same identity for absent rules and an empty validation record.
-	if len(enums) == 0 && (validation == nil ||
-		validation.HasRequiredOnly() && len(validation.Required) == 0) {
+	if len(enums) == 0 && len(required) == 0 && (validation == nil || validation.HasRequiredOnly()) {
 		e.writeString("no-validation")
 		return
 	}
@@ -338,7 +338,7 @@ func (e *canonicalSchemaEncoder) writeValidation(att *expr.AttributeExpr, input 
 	e.writeOptionalBound(validation.ExclusiveMaximum)
 	e.writeOptionalInt(validation.MinLength)
 	e.writeOptionalInt(validation.MaxLength)
-	e.writeValidationRequired(att, validation.Required)
+	e.writeValidationRequired(att, required)
 }
 
 func (e *canonicalSchemaEncoder) writeValidationEnums(enums [][]any) {

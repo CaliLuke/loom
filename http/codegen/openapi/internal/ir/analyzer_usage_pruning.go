@@ -12,7 +12,13 @@ import (
 // usage pruning removed from an object. The analyzer records it on the pruned
 // copy of the object attribute so that schemas, fingerprints and examples of
 // the pruned object can tell an omitted member from an undeclared one.
-const usageOmittedMembersMeta = "openapi:usage:omitted"
+const (
+	usageOmittedMembersMeta = "openapi:usage:omitted"
+	// usageOmittedAttributesMeta retains declared field identity separately from
+	// wire names, so inherited requirements cannot revive a pruned member or
+	// mistake it for a required literal additional key.
+	usageOmittedAttributesMeta = "openapi:usage:omitted-attributes"
+)
 
 func attributeForSchemaUsage(attr *expr.AttributeExpr, usage schemaUsage) *expr.AttributeExpr {
 	if attr == nil || attr.Type == expr.Empty || usage == schemaUsageNeutral {
@@ -72,13 +78,15 @@ func pruneObjectForSchemaUsage(attr *expr.AttributeExpr, object *expr.Object, us
 		return false
 	}
 	var (
-		changed  bool
-		filtered expr.Object
-		omitted  []string
+		changed           bool
+		filtered          expr.Object
+		omitted           []string
+		omittedAttributes []string
 	)
 	for _, named := range *object {
 		if shouldOmitAttributeForSchemaUsage(named.Attribute, usage) {
 			changed = true
+			omittedAttributes = append(omittedAttributes, named.Name)
 			if name := expr.JSONFieldName(expr.ElementName(named.Name), named.Attribute); name != "-" && openapi.MustGenerate(named.Attribute.Meta) {
 				omitted = append(omitted, name)
 			}
@@ -93,29 +101,35 @@ func pruneObjectForSchemaUsage(attr *expr.AttributeExpr, object *expr.Object, us
 		return false
 	}
 	attr.Type = &filtered
-	recordUsageOmittedMembers(attr, omitted)
+	recordUsageOmittedMembers(attr, omitted, omittedAttributes)
 	synchronizeRequiredAttributes(attr, object, attr)
 	clearAttributeExamples(attr)
 	return true
 }
 
-// recordUsageOmittedMembers adds the JSON names of omitted members to the
-// pruned object attribute.
-func recordUsageOmittedMembers(attr *expr.AttributeExpr, omitted []string) {
-	if len(omitted) == 0 {
-		return
-	}
-	if attr.Meta == nil {
-		attr.Meta = expr.MetaExpr{}
-	}
-	names := attr.Meta[usageOmittedMembersMeta]
-	for _, name := range omitted {
-		if !slices.Contains(names, name) {
-			names = append(names, name)
+// recordUsageOmittedMembers retains both wire names and declared field keys on
+// the pruned object. The former forbid removed wire properties; the latter
+// remove inherited requirements without conflating literal additional keys.
+func recordUsageOmittedMembers(attr *expr.AttributeExpr, omitted, attributes []string) {
+	for _, entry := range []struct {
+		key    string
+		values []string
+	}{{usageOmittedMembersMeta, omitted}, {usageOmittedAttributesMeta, attributes}} {
+		if len(entry.values) == 0 {
+			continue
 		}
+		if attr.Meta == nil {
+			attr.Meta = expr.MetaExpr{}
+		}
+		names := attr.Meta[entry.key]
+		for _, name := range entry.values {
+			if !slices.Contains(names, name) {
+				names = append(names, name)
+			}
+		}
+		slices.Sort(names)
+		attr.Meta[entry.key] = names
 	}
-	slices.Sort(names)
-	attr.Meta[usageOmittedMembersMeta] = names
 }
 
 // usageOmittedMembers returns the sorted JSON names of the members that usage
