@@ -112,7 +112,11 @@ func oneOfAttribute(name string, args ...any) {
 }
 
 func applyOneOfAttributeMeta(name string) {
-	attr := currentOneOfAttribute(name)
+	applyOneOfMetadata(currentOneOfAttribute(name))
+}
+
+// applyOneOfMetadata completes the retained union before its owner publishes copies.
+func applyOneOfMetadata(attr *expr.AttributeExpr) {
 	if attr == nil || attr.Meta == nil {
 		return
 	}

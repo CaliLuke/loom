@@ -97,7 +97,7 @@ func renderStyledDecode(element *Element, location string) string {
 	}
 	code.WriteString("if parameterError != nil {\nreturn loom.DecodePayloadError(parameterError.Error())\n}\nif parameterValue.Present {\nif parameterError := func() error {\n")
 	code.WriteString(renderParameterAssignment(element.attribute, element.attribute, element.context, "parameterValue", element.VarName, element.HTTPName, element.Pointer))
-	code.WriteString("return nil\n}(); parameterError != nil {\nreturn loom.DecodePayloadError(parameterError.Error())\n}\n")
+	code.WriteString("return nil\n}(); parameterError != nil {\nreturn loomhttp.NormalizeParamDecodeError(parameterError)\n}\n")
 	if element.Validate != "" {
 		code.WriteString(renderParameterValidation(element, "parameterValue.Text"))
 	}
@@ -105,7 +105,7 @@ func renderStyledDecode(element *Element, location string) string {
 		fmt.Fprintf(&code, "} else {\nreturn loom.MissingFieldError(%q, %q)\n", element.Name, location)
 	} else if element.DefaultValue != nil {
 		code.WriteString("} else {\n")
-		code.WriteString(renderParameterDefault(element.attribute, element.context, element.DefaultValue, element.VarName, element.HTTPName, element.Pointer))
+		code.WriteString(renderElementDefault(element))
 		code.WriteString(renderParameterValidation(element, fmt.Sprintf("%q", element.DefaultValue)))
 	}
 	code.WriteString("}\nreturn nil\n")

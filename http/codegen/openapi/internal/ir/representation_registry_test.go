@@ -18,7 +18,7 @@ func TestRepresentationRegistryReservesPublicNames(t *testing.T) {
 	a.schemas["raw"] = &Schema{Type: "string", Format: "binary"}
 	a.schemaNames["json"] = representationComponentName{desired: "Blob", logical: "blob", explicit: true, json: true}
 	a.schemaNames["raw"] = representationComponentName{desired: "Blob", logical: "blob", explicit: true}
-	reserved := "Blob_" + completeSchemaFingerprints(a.schemas)["raw"][:16]
+	reserved := "Blob_" + completeSchemaFingerprints(a.schemas, nil)["raw"][:16]
 	a.schemas[reserved] = &Schema{Type: "integer"}
 	a.schemaNames[reserved] = representationComponentName{desired: reserved, logical: "authored", explicit: true}
 	jsonRoot, rawRoot := &Schema{Ref: toRef("json")}, &Schema{Ref: toRef("raw")}

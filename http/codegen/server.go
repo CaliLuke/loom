@@ -244,6 +244,7 @@ func serverEncodeDecodeSections(svc *expr.HTTPServiceExpr, services *ServicesDat
 		fm["requestErrorReturn"] = func(expression string) string {
 			return "return payload, " + expression
 		}
+		fm["defaultErrorReturn"] = fm["requestErrorReturn"]
 		sections = append(sections, codegen.NewTextTemplateSection("request-decoder", requestDecoderSource, fm, e))
 	}
 	if e.MultipartRequestDecoder != nil {
@@ -251,6 +252,7 @@ func serverEncodeDecodeSections(svc *expr.HTTPServiceExpr, services *ServicesDat
 		fm["requestErrorReturn"] = func(expression string) string {
 			return "return " + expression
 		}
+		fm["defaultErrorReturn"] = fm["requestErrorReturn"]
 		sections = append(sections, codegen.NewTextTemplateSection("multipart-request-decoder", multipartRequestDecoderSource, fm, e.MultipartRequestDecoder))
 	}
 	if len(e.Errors) > 0 {
@@ -304,6 +306,7 @@ func transTmplFuncs(s *expr.HTTPServiceExpr, services *ServicesData) map[string]
 		"hasStyledQuery":               hasStyledQuery,
 		"hasOrdinaryQuery":             hasOrdinaryQuery,
 		"renderStyledDecode":           renderStyledDecode,
+		"renderElementDefault":         renderElementDefault,
 		"transportFieldReference":      transportFieldReference,
 		"transportScalarValue":         transportScalarValue,
 		"printValue":                   printValue,

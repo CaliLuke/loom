@@ -102,7 +102,11 @@ func (p *referencePlanner) schema(schema *Schema, owner, path, constructor strin
 		return
 	}
 	for index, branch := range schema.OneOf {
-		p.schema(branch, owner, fmt.Sprintf("%s/oneOf/%d", path, index), "OneOf", delayed)
+		if schema.Discriminator != nil && schema.Discriminator.Tagged != nil {
+			p.schema(schema.Discriminator.Tagged.Branches[index].Payload, owner, fmt.Sprintf("%s/oneOf/%d/properties/%s", path, index, escapeJSONPointer(schema.Discriminator.Tagged.ValueName)), "OneOf", delayed)
+		} else {
+			p.schema(branch, owner, fmt.Sprintf("%s/oneOf/%d", path, index), "OneOf", delayed)
+		}
 	}
 	if schema.Items != nil {
 		p.schema(schema.Items, owner, path+"/items", "ArrayOf", delayed)

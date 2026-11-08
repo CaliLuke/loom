@@ -1,0 +1,24 @@
+openapi: 3.2.0
+info: {title: Partial parent, version: '1'}
+paths:
+  /parents:
+    get:
+      operationId: parents.get
+      responses:
+        '200':
+          description: Parent
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Parent'}
+components:
+  schemas:
+    Parent:
+      type: object
+      properties: {kind: {type: string}}
+      required: [kind]
+      discriminator: {propertyName: kind}
+    UnsupportedChild:
+      allOf:
+        - {$ref: '#/components/schemas/Parent'}
+        - {type: object, properties: {name: {type: string}}}
+        - {type: object, properties: {other: {type: string}}}

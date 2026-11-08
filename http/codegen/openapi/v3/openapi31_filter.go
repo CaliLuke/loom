@@ -249,7 +249,7 @@ func filterSchemaCompatibility(schema *openapi.Schema, seen map[*openapi.Schema]
 	}
 	seen[schema] = struct{}{}
 	if schema.Discriminator != nil {
-		if schema.Discriminator.Optional && !slices.Contains(schema.Required, schema.Discriminator.PropertyName) {
+		if schema.Discriminator.Optional && !schema.Discriminator.Untagged && !schema.Discriminator.Object && !slices.Contains(schema.Required, schema.Discriminator.PropertyName) {
 			schema.Required = append(schema.Required, schema.Discriminator.PropertyName)
 		}
 		schema.Discriminator.DefaultMapping = ""

@@ -898,13 +898,10 @@ bundled tree: uri-form values that resolve become "#/components/schemas/<key>";
 - implicit mapping
 - the closure edges that keep mapped components selected
 
-Until #1005 lands, the analyzer keeps rejecting discriminators
-(`analyze_schema_grammar.go:71`). That rejection is unchanged.
-
-**Interaction with #1005's current draft.** That draft rejects external mapping
-URIs because "branches must be local". That premise no longer holds, because
-bundled branches are local components. The parent should reconcile #1005 with
-these edge outcomes. This design does not edit #1005.
+#1005 admits discriminators from these outcomes. Bundled branches are local
+components, so a mapping URI to a loaded alternative binds to that branch. The
+admission rules are in
+[Discriminators](../docs/openapi-import-coverage.md#discriminators).
 
 ### 6. Failure representation and selection
 
@@ -1444,8 +1441,7 @@ the Go implementation.
   `components.pathItems` declarations, and adds reusable Path Item output.
   Until then, references are inlined.
 - **#1005 (discriminator import).** #1005 consumes the `discriminatorMapping`
-  edges (§5) and owns admission and closure. Its draft's "external mapping URI"
-  rejection should be reconciled with bundled outcomes.
+  edges (§5) and owns admission and closure.
 - **#1022 and #1021 (schema resources and dialects).** These tickets register
   schema-resource identities in the same registry and lift `schema-resource`
   and dialect rejections. #957 fails closed on them.

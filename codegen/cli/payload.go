@@ -119,17 +119,24 @@ func FieldLoadCode(f *FlagData, argName, argTypeName, validate string, defaultVa
 	if validate != "" {
 		// Infallible conversions do not declare err, but validation needs it.
 		declErr = declErr || !checkErr
-		validate = stripNilGuardValidation(validate, argName)
-		code.Line().Add(codegen.Expr(validate)).Line()
-		code.If(jen.Err().Op("!=").Nil()).Block(
-			jen.Var().Id("zero").Add(codegen.TypeRef(payloadRef)),
-			jen.Return(jen.Id("zero"), jen.Err()),
-		)
+		appendValidationReturn(code, stripNilGuardValidation(validate, argName), payloadRef)
 	}
-	if !f.Required && defaultValue == nil {
-		return jen.If(codegen.Expr(f.FullName).Op("!=").Lit("")).Block(code), declErr
+	return guardOptionalFlag(f, defaultValue, code), declErr
+}
+
+// CarrierFieldLoadCode returns the code that decodes the JSON flag f into the
+// detached carrier variable carrier of type carrierTypeRef, validates it and
+// runs convert, which assigns the payload field argument argName. Errors name
+// argName like FieldLoadCode. The code requires an "err" variable.
+func CarrierFieldLoadCode(f *FlagData, argName, carrier, carrierTypeRef, validate, convert string, defaultValue any, payloadRef string) *jen.Statement {
+	code := jen.Var().Id(carrier).Add(codegen.TypeRef(carrierTypeRef)).Line()
+	parse, _, _ := conversionCode(f.FullName, carrier, carrierTypeRef, f.Unmarshal, false)
+	code.Add(parse).Line().If(jen.Err().Op("!=").Nil()).Block(buildFieldLoadConversionError(f, argName, carrierTypeRef, payloadRef))
+	if validate != "" {
+		appendValidationReturn(code, validate, payloadRef)
 	}
-	return code, declErr
+	code.Line().Add(codegen.Expr(convert))
+	return guardOptionalFlag(f, defaultValue, code)
 }
 
 // appendPayloadInitCode appends the payload initialization code of init and
@@ -189,6 +196,25 @@ func fieldLoadStringPrefix(f *FlagData, defaultValue any) string {
 		return ""
 	}
 	return "&"
+}
+
+// guardOptionalFlag runs code only when the optional flag f without a default
+// is set.
+func guardOptionalFlag(f *FlagData, defaultValue any, code *jen.Statement) *jen.Statement {
+	if !f.Required && defaultValue == nil {
+		return jen.If(codegen.Expr(f.FullName).Op("!=").Lit("")).Block(code)
+	}
+	return code
+}
+
+// appendValidationReturn appends validate to code and returns the zero value
+// of payloadRef with the validation error.
+func appendValidationReturn(code *jen.Statement, validate, payloadRef string) {
+	code.Line().Add(codegen.Expr(validate)).Line()
+	code.If(jen.Err().Op("!=").Nil()).Block(
+		jen.Var().Id("zero").Add(codegen.TypeRef(payloadRef)),
+		jen.Return(jen.Id("zero"), jen.Err()),
+	)
 }
 
 func buildFieldLoadConversionError(f *FlagData, argName, argTypeName, payloadRef string) *jen.Statement {

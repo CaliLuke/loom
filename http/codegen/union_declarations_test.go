@@ -32,7 +32,7 @@ func TestHTTPUnionDeclarationsCoverAllocatedNames(t *testing.T) {
 				seen := make(map[string]struct{})
 				for range 2 {
 					for _, index := range collection {
-						collectHTTPUnionTypes(types[index], scope, declarations, seen, false, declarations)
+						collectHTTPUnionTypes(types[index], scope, bodyCodecContext(scope, false), declarations, seen, false, declarations)
 					}
 				}
 				byName := make(map[string]*uniongen.Type)
@@ -81,13 +81,16 @@ func TestHTTPNullableUnionDeclarationIdentity(t *testing.T) {
 				scope := cg.NewNameScope()
 				allocated := make(map[string]*uniongen.Type)
 				client, server := make(map[string]*uniongen.Type), make(map[string]*uniongen.Type)
-				collectHTTPUnionTypes(first, scope, client, make(map[string]struct{}), closedObjects, allocated)
-				collectHTTPUnionTypes(second, scope, server, make(map[string]struct{}), closedObjects, allocated)
+				collectHTTPUnionTypes(first, scope, bodyCodecContext(scope, false), client, make(map[string]struct{}), closedObjects, allocated)
+				collectHTTPUnionTypes(second, scope, bodyCodecContext(scope, false), server, make(map[string]struct{}), closedObjects, allocated)
 				name := scope.GoValueTypeName(first)
 				require.Len(t, allocated, 1)
 				require.Contains(t, allocated, name)
-				require.Same(t, allocated[name], client[name])
-				require.Same(t, allocated[name], server[name])
+				require.Equal(t, allocated[name].Name, client[name].Name)
+				require.Equal(t, allocated[name].KindName, client[name].KindName)
+				require.Equal(t, allocated[name].Name, server[name].Name)
+				require.Equal(t, allocated[name].KindName, server[name].KindName)
+				require.NotSame(t, client[name], server[name])
 				require.Equal(t, name, allocated[name].Name)
 				require.Equal(t, "loom.Nullable[Named]", scope.GoTypeRef(first))
 				require.True(t, named.Nullable)
@@ -95,5 +98,35 @@ func TestHTTPNullableUnionDeclarationIdentity(t *testing.T) {
 				require.Equal(t, !nullableFirst, second.Nullable)
 			})
 		}
+	}
+}
+
+func TestHTTPUnionFormBindingsBelongToPhysicalPackage(t *testing.T) {
+	for _, order := range [][]bool{{true, false}, {false, true}} {
+		scope := cg.NewNameScope()
+		child := &expr.UserTypeExpr{TypeName: "Record", UID: "record", AttributeExpr: &expr.AttributeExpr{Type: &expr.Object{
+			{Name: "value", Attribute: &expr.AttributeExpr{Type: expr.String}},
+		}}}
+		union := &expr.Union{TypeName: "Choice", Values: []*expr.NamedAttributeExpr{{Name: "Record", Attribute: &expr.AttributeExpr{Type: child}}}}
+		attribute := &expr.AttributeExpr{Type: union}
+		allocated := make(map[string]*uniongen.Type)
+		published := make(map[bool]*uniongen.Type)
+		for _, presence := range order {
+			context := bodyCodecContext(scope, false)
+			context.JSONPresence = presence
+			context.JSONPresenceTypes = map[string]bool{child.Hash(): presence}
+			context.PresencePointerTypes = map[string]bool{child.Hash(): !presence}
+			context.PresenceUseDefaultTypes = map[string]bool{child.Hash(): presence}
+			members := make(map[string]*uniongen.Type)
+			collectHTTPUnionTypes(attribute, scope, context, members, make(map[string]struct{}), false, allocated)
+			published[presence] = members[scope.GoTypeName(attribute)]
+		}
+		require.Len(t, allocated, 1)
+		require.Equal(t, published[true].Name, published[false].Name)
+		require.Equal(t, published[true].KindName, published[false].KindName)
+		require.Equal(t, published[true].Fields[0].FieldType, published[false].Fields[0].FieldType)
+		require.Equal(t, "value.Value.Present()", published[true].Fields[0].FormFields[0].Presence)
+		require.Empty(t, published[false].Fields[0].FormFields[0].Presence)
+		require.NotSame(t, published[true].Fields[0], published[false].Fields[0])
 	}
 }

@@ -15,9 +15,15 @@ import (
 )
 
 type representationComponentName struct {
-	desired  string
-	logical  string
-	baseline string
+	desired string
+	// hint is the original schema naming metadata, independent of reservation suffixes.
+	hint string
+	// annotationName retains acquired sampling independently of the public family.
+	annotationName string
+	logical        string
+	baseline       string
+	// semantic is the pre-acquisition shape used for stable public naming.
+	semantic string
 	explicit bool
 	json     bool
 }
@@ -66,7 +72,9 @@ func (a *Analyzer) analyzeSchemaPositions(
 	if constructing || !plan.Valid() {
 		return baseline
 	}
-	return a.projectBaseline(baseline, attr, plan)
+	result = a.projectBaseline(baseline, attr, plan)
+	a.publishRecordedChildren()
+	return result
 }
 
 func (a *Analyzer) analyzeUnderlyingSchema(attr *expr.AttributeExpr, context string, noRef ...bool) *Schema {
@@ -89,7 +97,7 @@ func (a *Analyzer) byteProjection(attr *expr.AttributeExpr, plan expr.ValuePlanN
 	if a.constructingBaseline {
 		return ""
 	}
-	return byteProjectionIdentity(attr, plan)
+	return a.representationIdentity(attr, plan)
 }
 
 func componentPublicName(attr *expr.AttributeExpr, typ expr.UserType) string {
@@ -193,6 +201,16 @@ func (a *Analyzer) logicalDeclaration(typ expr.UserType) string {
 // component reuse. Only effective schema changes enter this identity; raw and
 // custom descendants keep their existing schema and naming identity.
 func byteProjectionIdentity(attribute *expr.AttributeExpr, node expr.ValuePlanNode) string {
+	return projectionIdentity(attribute, node, nil)
+}
+
+// projectionIdentity is byteProjectionIdentity extended by context, which
+// identifies what an occurrence attribute in a JSON codec context publishes
+// outside the occurrence's physical graph. It is consulted at every visited
+// JSON node because the declaration a node denotes is owned by its plan, not
+// by the attribute's physical type: HTTP body copies, renamed nested copies,
+// flattened unions and inline composed attributes all carry their own context.
+func projectionIdentity(attribute *expr.AttributeExpr, node expr.ValuePlanNode, context func(*expr.AttributeExpr, expr.ValuePlanNode) string) string {
 	active := make(map[expr.ValuePlanNode]bool)
 	var visit func(*expr.AttributeExpr, expr.ValuePlanNode, string) string
 	visit = func(attribute *expr.AttributeExpr, node expr.ValuePlanNode, path string) string {
@@ -210,6 +228,11 @@ func byteProjectionIdentity(attribute *expr.AttributeExpr, node expr.ValuePlanNo
 			return string(encoded)
 		}
 		var parts []string
+		if context != nil && node.Codec() == expr.ValueCodecJSON {
+			if value := context(attribute, node); value != "" {
+				parts = append(parts, "context:"+value)
+			}
+		}
 		add := func(key string, child *expr.AttributeExpr, target expr.ValuePlanNode) {
 			if value := visit(child, target, path+"/"+key); value != "" {
 				parts = append(parts, key+":"+value)

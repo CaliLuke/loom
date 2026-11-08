@@ -18,14 +18,27 @@ type representationGraphNode struct {
 	encoded []byte
 	edges   []string
 	paths   []string
+	// dependencies are the components published with this one, such as the
+	// implicit children of a discriminator parent.
+	dependencies []string
 }
 
 // completeSchemaFingerprints compares finite, labeled reference graphs. It
 // preserves every serialized non-reference keyword and annotation; it does not
 // decide general JSON Schema equivalence. Refinement only splits classes, and
 // quotient traversal makes an extra unfolding of a recursive node immaterial.
-func completeSchemaFingerprints(schemas map[string]*Schema) map[string]string {
+// Publication dependencies take part in the comparison: equal bodies that
+// publish different dependency representations are distinct components.
+func completeSchemaFingerprints(schemas map[string]*Schema, dependencies map[string][]string) map[string]string {
 	graph := captureRepresentationGraph(schemas)
+	for name, node := range graph {
+		for _, dependency := range dependencies[name] {
+			if schemas[dependency] != nil {
+				node.dependencies = append(node.dependencies, dependency)
+			}
+		}
+		graph[name] = node
+	}
 	signatures := make(map[string]string, len(graph))
 	for name, node := range graph {
 		signatures[name] = node.label
@@ -40,6 +53,18 @@ func completeSchemaFingerprints(schemas map[string]*Schema) map[string]string {
 			for _, edge := range node.edges {
 				signature.WriteByte(':')
 				signature.WriteString(strconv.Itoa(classes[edge]))
+			}
+			if len(node.dependencies) > 0 {
+				dependencyClasses := make([]int, 0, len(node.dependencies))
+				for _, dependency := range node.dependencies {
+					dependencyClasses = append(dependencyClasses, classes[dependency])
+				}
+				slices.Sort(dependencyClasses)
+				signature.WriteByte('|')
+				for _, class := range slices.Compact(dependencyClasses) {
+					signature.WriteByte(':')
+					signature.WriteString(strconv.Itoa(class))
+				}
 			}
 			signatures[name] = signature.String()
 		}
@@ -118,8 +143,17 @@ func fingerprintRepresentationQuotient(graph map[string]representationGraphNode,
 		for index, edge := range node.edges {
 			references[node.paths[index]] = "schema:" + expand(classes[edge], active)
 		}
+		var dependencies []string
+		for _, dependency := range node.dependencies {
+			dependencies = append(dependencies, expand(classes[dependency], active))
+		}
 		delete(active, class)
-		return fingerprintString(rewriteCapturedReferences(node.encoded, references))
+		encoded := rewriteCapturedReferences(node.encoded, references)
+		if len(dependencies) > 0 {
+			slices.Sort(dependencies)
+			encoded += "\x00dependencies:" + strings.Join(slices.Compact(dependencies), ",")
+		}
+		return fingerprintString(encoded)
 	}
 	fingerprints := make(map[int]string, len(quotient))
 	for class := range quotient {

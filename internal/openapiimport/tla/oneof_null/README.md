@@ -54,8 +54,8 @@ Assumptions and limits:
   `expr/untagged_validation.go`.
 - Implementation regressions: `TestOneOfNormalizedFacts`,
   `TestOneOfImportBehaviorTable` and `TestOneOfImportedDesignGenerates` check
-  import, evaluation and runtime null matching for each
-  null row of the #1014 design, including `[{}, string]`, `[{}, string, null]`
+  import, evaluation and runtime null matching for the null normalization
+  cases, including `[{}, string]`, `[{}, string, null]`
   (rejected) and the nested local-null case.
 
 This is opt-in design evidence. It is not a build, CI or release gate.

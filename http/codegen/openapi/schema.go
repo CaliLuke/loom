@@ -106,6 +106,12 @@ type (
 		Mapping map[string]string `json:"mapping,omitzero,omitempty" yaml:"mapping,omitempty"`
 		// DefaultMapping identifies the fallback schema reference.
 		DefaultMapping string `json:"defaultMapping,omitzero" yaml:"defaultMapping,omitempty"`
+		// Extensions retains Discriminator Object extension properties.
+		Extensions map[string]any `json:"-" yaml:"-"`
+		// Untagged distinguishes a validation-neutral union hint from a tagged codec.
+		Untagged bool `json:"-" yaml:"-"`
+		// Object distinguishes a parent-object hint.
+		Object bool `json:"-" yaml:"-"`
 		// Optional records that the discriminator property may be omitted in OpenAPI 3.2.
 		Optional bool `json:"-" yaml:"-"`
 	}

@@ -1,6 +1,9 @@
 package expr
 
-import "maps"
+import (
+	"maps"
+	"slices"
+)
 
 // copyValueOccurrenceAttribute copies local contract state without traversing
 // declarations. The graph builder supplies owned type and source edges.
@@ -12,6 +15,7 @@ func copyValueOccurrenceAttribute(source *AttributeExpr) *AttributeExpr {
 	copy.valueSourceOrigin = valueCopiedSourceOrigin(source)
 	copy.Type, copy.Bases, copy.References = nil, nil, nil
 	copy.constraintParents, copy.constraintLocal = nil, nil
+	copy.bodyProjection = nil
 	copy.DefaultValue, copy.UserExamples = nil, nil
 	copy.Meta = copyValueMeta(source.Meta)
 	copy.removedMeta = maps.Clone(source.removedMeta)
@@ -126,6 +130,9 @@ func copyValueAttribute(source *AttributeExpr) *AttributeExpr {
 	copy.Type = source.Type
 	copy.constraintParents = append([]*AttributeExpr(nil), source.constraintParents...)
 	copy.constraintLocal = source.constraintLocal
+	if source.bodyProjection != nil {
+		copy.bodyProjection = &HTTPBodyProjection{Source: source.bodyProjection.Source, Excluded: slices.Clone(source.bodyProjection.Excluded)}
+	}
 	copy.Bases = append([]DataType(nil), source.Bases...)
 	copy.References = append([]DataType(nil), source.References...)
 	if source.DefaultValue != nil {

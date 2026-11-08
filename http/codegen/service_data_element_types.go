@@ -62,6 +62,12 @@ type (
 		location  string
 		// wireNameExpr supplies a dynamic form-map key; empty uses HTTPName.
 		wireNameExpr string
+		// jsonInput decodes the CLI flag of a JSON query value through the
+		// server's physical carrier. It is nil for an opaque custom codec.
+		jsonInput *jsonBodyInput
+		// nonNullJSONFlag rejects a null CLI flag value, as the server decoder
+		// rejects a null JSON query value instead of treating it as absent.
+		nonNullJSONFlag bool
 		// Codec is the resolved wire grammar.
 		Codec httpencoding.Codec
 		// Namespace retains sibling claims and the fixed binding's owned keys.
@@ -102,12 +108,25 @@ type (
 	// parameter).
 	ParamData struct {
 		*Element
+		// jsonCarrier is the physical JSON graph of a query value. It is nil
+		// for an opaque custom codec, which decodes the native value itself.
+		jsonCarrier *expr.AttributeExpr
 		// JSONField selects one JSON document for a named query value.
 		JSONField bool
 		// JSONDecodeType is the existing JSON physical carrier for the field.
 		JSONDecodeType string
+		// JSONValidateCode validates the decoded JSON carrier before its
+		// conversion. It is empty when the carrier has no constraints.
+		JSONValidateCode string
 		// JSONDecodeCode converts the JSON carrier to the native parameter.
 		JSONDecodeCode string
+		// JSONDecodeFailure is the error a decoder returns when JSONDecodeCode
+		// records a failure in transformErr. It is empty for an infallible
+		// conversion, which needs no transformErr.
+		JSONDecodeFailure string
+		// JSONDefaultCode assigns the authored default to the native parameter
+		// when the query key is absent. It is empty without an optional default.
+		JSONDefaultCode string
 		// MapStringSlice is true if the param type is a map of string
 		// slice.
 		MapStringSlice bool

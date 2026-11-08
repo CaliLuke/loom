@@ -17,7 +17,7 @@ func FormJSONShape(source *expr.AttributeExpr, contract *expr.HTTPFormEncoding, 
 		return nil, fmt.Errorf("form schema requires an occurrence, captured encoding and context")
 	}
 	target := TargetGraph(source)
-	normalizeFormTarget(target, contract)
+	normalizeFormTarget(target, contract, nil)
 	return formJSONShape(source, target, context)
 }
 
@@ -29,7 +29,7 @@ func FormFieldJSONShape(source *expr.AttributeExpr, codec httpencoding.Codec, co
 		return nil, fmt.Errorf("form field schema requires an occurrence and context")
 	}
 	target := TargetGraph(source)
-	normalizeFormFieldTarget(target, codec)
+	normalizeFormFieldTarget(target, codec, nil)
 	return formJSONShape(source, target, context)
 }
 

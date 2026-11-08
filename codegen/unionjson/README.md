@@ -8,8 +8,9 @@ codecs and the same independent schema/decoder selection core.
 This contract extends [#350](https://github.com/CaliLuke/loom/issues/350) with the
 branch grammar and location support in
 [#1014](https://github.com/CaliLuke/loom/issues/1014). Parameter serialization is
-owned by [#968](https://github.com/CaliLuke/loom/issues/968); discriminator import
-is separate work in [#1005](https://github.com/CaliLuke/loom/issues/1005).
+owned by [#968](https://github.com/CaliLuke/loom/issues/968). Imported
+[discriminator](../../docs/openapi-import-coverage.md#discriminators) hints never
+route these matchers.
 
 ## Authoring and admission
 

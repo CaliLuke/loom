@@ -25,7 +25,8 @@ func TestHTTPUnionNullAdmission(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			union := &expr.Union{TypeName: "Selection", Values: []*expr.NamedAttributeExpr{{Name: "branch", Attribute: tc.attribute}}}
-			data := buildHTTPUnionTypeData(union, cg.NewNameScope(), false)
+			scope := cg.NewNameScope()
+			data := buildHTTPUnionTypeData(union, scope, bodyCodecContext(scope, false), false)
 			body := uniongen.UnmarshalJSONBody(data)
 			require.Contains(t, body, "len(raw.Value) == 0")
 			require.Equal(t, !tc.nullable, strings.Contains(body, `|| string(raw.Value) == "null"`), body)

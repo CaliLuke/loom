@@ -1,7 +1,9 @@
 # Request body analysis
 
 For value source selection, representation phases and cache ownership, see the
-child [value projection model](value_projection/README.md). Its bounded pipeline
+child [value projection model](value_projection/README.md). For the composition
+identity of flattened HTTP bodies, see the
+[HTTP body projection model](http_body_projection/README.md). Its bounded pipeline
 checks complement the separate [Lean semantic foundation](../lean/value_projection/README.md);
 neither establishes correctness of generated Go. The repository-wide
 [formal model index](../../.agents/skills/loom-framework/references/formal-models.md)

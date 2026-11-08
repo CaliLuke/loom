@@ -481,6 +481,10 @@ func makeFlagField(e *EndpointData, arg *InitArgData, f *cli.FlagData) (*cli.Fie
 	var code *jen.Statement
 	var chek bool
 	switch {
+	case arg.parameter != nil && arg.parameter.jsonInput != nil:
+		input := arg.parameter.jsonInput
+		code = cli.CarrierFieldLoadCode(f, arg.VarName, "decoded", input.carrier, input.validate, input.convert, arg.DefaultValue, e.Payload.Ref)
+		chek = true
 	case isTextUnionArg(arg):
 		code = textUnionFieldLoadCode(f, arg, e.Payload.Ref)
 	case arg.IsTextUnmarshaler:
@@ -493,7 +497,7 @@ func makeFlagField(e *EndpointData, arg *InitArgData, f *cli.FlagData) (*cli.Fie
 		// Anonymous service fields retain their pointer carrier so an
 		// omitted flag remains absent. JSON decoding allocates that pointer.
 		// Named values and body roots use the existing conversion carrier.
-		if _, inline := arg.Type.(*expr.Object); (!inline || arg.FieldName == "") && arg.nativeContext == nil {
+		if _, inline := arg.Type.(*expr.Object); (!inline || arg.FieldName == "") && (arg.nativeContext == nil || expr.AsUnion(arg.Type) == nil) {
 			tn = arg.TypeName
 		}
 	}
@@ -519,6 +523,8 @@ func makeFlagData(e *EndpointData, arg *InitArgData, jsonDecoder string) *cli.Fl
 	case id != nil && id.Argument == arg && flag.Type == "JSON" && !id.AllowsNull:
 		flag.Unmarshal = strings.TrimSuffix(jsonDecoder, ".UnmarshalJSON") + ".UnmarshalNonNullableJSON"
 	case e.Payload.Request.cliInput != nil && e.Payload.Request.cliInput.argument == arg && flag.Type == "JSON" && !e.Payload.Request.BodyAllowsNull:
+		flag.Unmarshal = strings.TrimSuffix(jsonDecoder, ".UnmarshalJSON") + ".UnmarshalNonNullableJSON"
+	case arg.parameter != nil && arg.parameter.nonNullJSONFlag && flag.Type == "JSON":
 		flag.Unmarshal = strings.TrimSuffix(jsonDecoder, ".UnmarshalJSON") + ".UnmarshalNonNullableJSON"
 	case !arg.IsTextUnmarshaler && containsBooleanMapKeys(arg.Type):
 		flag.Unmarshal = jsonDecoder

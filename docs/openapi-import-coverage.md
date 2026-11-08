@@ -123,8 +123,39 @@ partial import; it cannot produce an unprotected operation.
 
 Re-import and regenerate documents previously rejected with `external-reference`,
 `document-identity` or `path-reference` when they now satisfy these rules. Schema
-resource identifiers and anchors remain unsupported. Discriminator mappings have
-resolution evidence but remain subject to discriminator import admission.
+resource identifiers and anchors remain unsupported. Discriminator mappings use the same source resolver and canonical target
+identities as ordinary schema references; their admission is described below.
+
+## Discriminators
+
+Import preserves explicit mappings, aliases, shadowing keys, duplicate oneOf
+alternatives and discriminator `x-*` extensions. Mapping keys are exact strings;
+inline alternatives gain no implicit keys from generated component names. URI
+mappings and `defaultMapping` use the shared source resolver, including supplied
+external documents and its retrieval-base rules.
+
+Each mapping value must resolve to a listed oneOf alternative or, for the
+parent-object form, to a direct allOf child. A value that resolves elsewhere, to
+an unsupplied external URI, or not at all blocks with `schema-discriminator`, as
+does a parent discriminator without direct allOf children. `defaultMapping` may
+name an entry or bundled component. An unsupplied non-file absolute URI is kept
+as its canonical absolute URI and is never fetched; an unresolved target, such as
+an unloaded file, blocks.
+
+An exact tag/value envelope can become a native tagged union only when all its
+occurrences use an equivalent JSON codec. Default JSON-valued form or multipart
+fields qualify; a native flat form root or styled field does not. Other admitted
+oneOf objects remain full-object untagged unions with validation-neutral hints.
+The parent-object discriminator form retains a named parent and its explicit
+allOf children. Requiredness, closure, branch constraints and source identity
+remain independent of representation selection.
+
+OpenAPI 3.0 requires the discriminating property and has no discriminator
+extensions/defaultMapping. OpenAPI 3.1 admits optional discriminating properties
+without inventing a fallback. OpenAPI 3.2 requires a fallback when that property
+is optional. Re-export to 3.1 omits defaultMapping and preserves the original
+accepted domain. Unsupported anyOf discriminators and unsupported composition
+assertions remain blocking; hints never justify dropping a constraint.
 
 ## Object coverage
 
@@ -419,8 +450,7 @@ The following constructs are conditional:
   contract remains owned by [#968](https://github.com/CaliLuke/loom/issues/968).
   Form roots admit supported object/map alternatives; multipart union roots
   require objects. Text cannot encode nullable values; JSON-valued fields can.
-  Discriminator-driven import remains separate work in
-  [#1005](https://github.com/CaliLuke/loom/issues/1005).
+  Discriminator import is described in [Discriminators](#discriminators).
 - `unevaluatedProperties: false` beside a supported union closes the selected
   value after unique schema/decoder selection. It cannot make overlapping
   alternatives unambiguous by removing unknown properties first. Closure uses
@@ -477,7 +507,7 @@ Loom rejects other composition and structural keywords, including unsupported
 conditional schemas, dependent schemas, pattern properties, unevaluated
 constraints other than the union closure described above, property-count constraints, `multipleOf`,
 `uniqueItems`, content annotations, XML, schema external documentation,
-discriminators, schema dialect controls, anchors, dynamic references, and
+schema dialect controls, anchors, dynamic references, and
 local definitions.
 
 Structured `const` values and schemas that combine `const` with `enum` are also

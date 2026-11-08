@@ -21,11 +21,13 @@ func BuildBodyTypes(api *expr.APIExpr, types []expr.UserType, resultTypes []*exp
 		locations: make(map[*expr.AttributeExpr]*Schema),
 	}
 
+	a.initializeDiscriminatorHints(api, types, resultTypes)
 	analyzeComponentTypes(a, types, resultTypes)
 	if a.Err() != nil {
 		bodies.Err = a.Err()
 		return bodies
 	}
+	a.recordDiscriminatorChildren(types, resultTypes)
 	analyzeServiceBodies(a, api, bodies)
 	if a.Err() != nil {
 		bodies.Err = a.Err()
@@ -43,6 +45,7 @@ func BuildBodyTypes(api *expr.APIExpr, types []expr.UserType, resultTypes []*exp
 
 	bodies.Err = a.Err()
 	bodies.Components = a.schemas
+	bodies.DiscriminatorChildren = a.discriminatorChildren
 	for _, endpoints := range bodies.Services {
 		for _, endpoint := range endpoints {
 			endpoint.asyncComponents = a.schemas
@@ -58,7 +61,7 @@ func analyzeComponentTypes(a *Analyzer, types []expr.UserType, resultTypes []*ex
 		}
 		attribute := &expr.AttributeExpr{Type: t}
 		schema := a.analyzeStandaloneSchema(attribute, exampleContext("component-type", t.ID()))
-		if a.Err() != nil {
+		if a.err != nil {
 			return
 		}
 		a.declarationRoots[t.ID()] = schema
@@ -70,7 +73,7 @@ func analyzeComponentTypes(a *Analyzer, types []expr.UserType, resultTypes []*ex
 		}
 		attribute := &expr.AttributeExpr{Type: t}
 		schema := a.analyzeStandaloneSchema(attribute, exampleContext("component-result-type", t.ID()))
-		if a.Err() != nil {
+		if a.err != nil {
 			return
 		}
 		a.declarationRoots[t.ID()] = schema
@@ -165,7 +168,7 @@ func analyzeRequestBody(a *Analyzer, endpoint *transportir.Endpoint) *Schema {
 	}
 	var req *Schema
 	if len(endpoint.Request.DocumentValues) == 0 {
-		req = a.analyzePreparedOccurrence(requestAttr, requestContext, target)
+		req = a.analyzeFormOccurrence(requestAttr, requestContext, target, endpoint.Request.Form)
 	}
 	if endpoint.Request.StreamingBody == nil {
 		return req

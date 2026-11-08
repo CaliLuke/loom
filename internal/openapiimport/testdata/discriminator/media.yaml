@@ -1,0 +1,122 @@
+openapi: 3.2.0
+info: {title: Discriminator media, version: '1'}
+paths:
+  /json:
+    post:
+      operationId: json.post
+      requestBody:
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Event'}
+      responses: {'204': {description: done}}
+  /form:
+    post:
+      operationId: form.post
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema: {type: object, properties: {event: {$ref: '#/components/schemas/Event'}, details: {$ref: '#/components/schemas/Pet'}}}
+            encoding:
+              event: {contentType: application/json}
+              details: {style: deepObject, explode: true}
+      responses: {'204': {description: done}}
+  /multipart:
+    post:
+      operationId: multipart.post
+      requestBody:
+        content:
+          multipart/form-data:
+            schema: {type: object, properties: {event: {$ref: '#/components/schemas/Event'}}}
+            encoding:
+              event: {contentType: application/json}
+      responses: {'204': {description: done}}
+  /root:
+    post:
+      operationId: root.post
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema: {$ref: '#/components/schemas/Pet'}
+      responses: {'204': {description: done}}
+  /query:
+    get:
+      operationId: query.get
+      parameters:
+        - name: pet
+          in: query
+          style: form
+          explode: true
+          schema: {$ref: '#/components/schemas/Pet'}
+      responses: {'204': {description: done}}
+  /query-json:
+    get:
+      operationId: queryJSON.get
+      parameters:
+        - name: event
+          in: query
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/QueryEvent'}
+        - name: pet
+          in: query
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Pet'}
+        - name: plain
+          in: query
+          content:
+            application/json:
+              schema: {oneOf: [{$ref: '#/components/schemas/Cat'}, {$ref: '#/components/schemas/Dog'}]}
+      responses: {'204': {description: done}}
+components:
+  schemas:
+    Created:
+      type: object
+      properties:
+        kind: {type: string, enum: [created]}
+        data: {$ref: '#/components/schemas/EventData'}
+      required: [kind, data]
+    Deleted:
+      type: object
+      properties:
+        kind: {type: string, enum: [deleted]}
+        data: {type: integer}
+      required: [kind, data]
+    EventData:
+      type: object
+      properties:
+        child: {$ref: '#/components/schemas/ChildData'}
+      required: [child]
+    ChildData:
+      type: object
+      properties: {name: {type: string}}
+      required: [name]
+    Event:
+      type: object
+      oneOf: [{$ref: '#/components/schemas/Created'}, {$ref: '#/components/schemas/Deleted'}]
+      discriminator:
+        propertyName: kind
+        mapping: {created: Created, deleted: Deleted}
+        defaultMapping: Created
+    Cat:
+      type: object
+      properties: {kind: {type: string, enum: [cat]}, name: {type: string}}
+      required: [kind, name]
+    Dog:
+      type: object
+      properties: {kind: {type: string, enum: [dog]}, age: {type: integer}}
+      required: [kind, age]
+    Pet:
+      type: object
+      oneOf: [{$ref: '#/components/schemas/Cat'}, {$ref: '#/components/schemas/Dog'}]
+      discriminator:
+        propertyName: kind
+        mapping: {cat: Cat, kitty: Cat, dog: Dog}
+    QueryEvent:
+      oneOf:
+        - {type: object, properties: {kind: {type: string, enum: [created]}, data: {type: string}}, required: [kind, data]}
+        - {type: object, properties: {kind: {type: string, enum: [deleted]}, data: {type: integer}}, required: [kind, data]}
+      unevaluatedProperties: false
+      discriminator:
+        propertyName: kind
+        mapping: {created: '#/components/schemas/QueryEvent/oneOf/0', deleted: '#/components/schemas/QueryEvent/oneOf/1'}

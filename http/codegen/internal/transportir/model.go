@@ -1,6 +1,7 @@
 package transportir
 
 import (
+	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/internal/httpencoding"
@@ -22,6 +23,10 @@ type (
 		// SSEDataField identifies the physical field passed to EncodeSSEData.
 		// Its codec is derived from the emitted type and presence layout.
 		SSEDataField string
+		// ProjectionContext is the captured body layout used to build Plan.
+		// Its policy maps are detached from mutable generation registries.
+		// Consumers treat the snapshot as read-only; rebuilding replaces it.
+		ProjectionContext *codegen.AttributeContext
 		// Plan is populated only after actual emitter policies are available.
 		Plan expr.ValuePlan
 		// AnchorPlan projects values owned by Anchor through this target.

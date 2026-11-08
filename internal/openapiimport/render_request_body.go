@@ -90,7 +90,7 @@ func (r *renderer) operationRequestBodyHTTP(body *renderedBody, path string) err
 	if body.envelope {
 		r.line("Body(%q)", body.field)
 	}
-	if body.mode == requestBodyForm && !body.body.Required && !body.envelope {
+	if (body.mode == requestBodyForm || body.mode == requestBodyMultipart) && !body.body.Required && !body.envelope {
 		r.line("OptionalRequestBody()")
 	}
 	return nil

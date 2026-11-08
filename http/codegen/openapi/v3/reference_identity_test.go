@@ -25,7 +25,7 @@ func TestEscapedComponentReachabilityWitness(t *testing.T) {
 				}}},
 			}
 			schemas := map[string]*openapi.Schema{tc.name: {Type: openapi.String}}
-			pruned := pruneUnusedComponentSchemas(paths, schemas, reusableComponents{})
+			pruned := pruneUnusedComponentSchemas(paths, schemas, reusableComponents{}, nil)
 			require.Contains(t, pruned, tc.name, "reachable component must survive pruning")
 		})
 	}
@@ -43,7 +43,7 @@ func TestEncodedAliasReferenceIdentity(t *testing.T) {
 	}}}}
 	collapseSchemaAliases(paths, schemas, reusableComponents{})
 	require.Equal(t, "#/components/schemas/Target", schema.Ref)
-	require.Equal(t, map[string]*openapi.Schema{"Target": {Type: openapi.String}}, pruneUnusedComponentSchemas(paths, schemas, reusableComponents{}))
+	require.Equal(t, map[string]*openapi.Schema{"Target": {Type: openapi.String}}, pruneUnusedComponentSchemas(paths, schemas, reusableComponents{}, nil))
 }
 
 func TestEncodedSchemaPropertyIdentity(t *testing.T) {

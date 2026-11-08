@@ -260,10 +260,16 @@ func (s *httpAttributeScope) Name(att *expr.AttributeExpr, pkg string, layout *c
 }
 
 // inlineConversionCode adapts an owned conversion plan inside an existing
-// decoder whose result is (value, error). Its caller supplies the lexical scope.
-func inlineConversionCode(plan codegen.TransformPlan) string {
+// function whose results are (value, error). A conversion error returns the
+// zero value of resultRef, or nil when resultRef is empty. Its caller supplies
+// the lexical scope.
+func inlineConversionCode(plan codegen.TransformPlan, resultRef string) string {
 	if !plan.ErrorAware {
 		return plan.Code
 	}
-	return "transformErr := new(error)\n" + plan.Code + "\nif *transformErr != nil {\nreturn nil, *transformErr\n}"
+	code := "transformErr := new(error)\n" + plan.Code + "\nif *transformErr != nil {\n"
+	if resultRef == "" {
+		return code + "return nil, *transformErr\n}"
+	}
+	return code + "var zero " + resultRef + "\nreturn zero, *transformErr\n}"
 }

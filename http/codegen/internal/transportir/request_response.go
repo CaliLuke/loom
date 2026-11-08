@@ -393,14 +393,8 @@ func normalizeHTTPAttributeRecursive(
 		_, result := actual.(*expr.ResultTypeExpr)
 		flattened := !result && !expr.IsObject(actual) && !hasCanonicalOpenAPITypeName(attr, actual)
 		if flattened {
-			// Source schema kind controls field encoding application. Retain its
-			// occurrence-first value before removing the named declaration.
-			if source, ok := expr.HTTPMediaMetadata(attr)["http:encoding:sourceType"]; ok {
-				if attr.Meta == nil {
-					attr.Meta = expr.MetaExpr{}
-				}
-				attr.Meta["http:encoding:sourceType"] = source
-			}
+			// Capture the contract owned by the removed edge before flattening.
+			attr.Meta = expr.HTTPBodyProjectionMetadata(attr)
 			// Preserve inherited nullability before removing the named type.
 			attr.Nullable = expr.IsNullable(attr)
 			attr.Type = actual.Attribute().Type

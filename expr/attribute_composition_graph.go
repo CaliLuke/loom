@@ -29,7 +29,7 @@ func (g *compositionGraph) attribute(attribute *AttributeExpr, path string) {
 		return
 	}
 	g.seen[attribute] = true
-	if err := attribute.resolveTypeRef(); err != nil {
+	if err := attribute.ResolveTypeReference(); err != nil {
 		compositionError(attribute, "%s: %v", path, err)
 		return
 	}

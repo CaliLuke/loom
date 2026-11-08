@@ -25,31 +25,60 @@ type (
 	Analyzer struct {
 		semantic                *service.SemanticData
 		schemaDepth             int
-		canonicalComparisons    []canonicalComparison
+		canonicalComparisons    []*canonicalComparison
 		err                     error
 		discriminatorReferences []discriminatorReference
+		discriminatorHints      *discriminatorHintContext
 		declarationRoots        map[string]*Schema
-		asyncAcquisition        *asyncBaselineAcquisition
-		componentAnnotations    map[componentAnnotationIdentity]map[componentAnnotationPosition]componentExamples
-		annotationOwner         map[componentAnnotationPosition]componentExamples
-		occurrences             []schemaOccurrenceAnalysis
-		registrations           []*Schema
-		plan                    expr.ValuePlanNode
-		examplePlan             expr.ValuePlanNode
-		constructingBaseline    bool
-		constructions           map[*Schema]schemaConstruction
-		projectedSchemas        map[schemaProjectionKey]*Schema
-		projectedComponents     map[schemaProjectionKey]string
-		schemaNames             map[string]representationComponentName
-		schemas                 map[string]*Schema
-		schemaFingerprints      map[string]string
-		schemaTypeIDs           map[string]string
-		schemasByFingerprint    map[string][]schemaRef
-		unionBranchSchemas      map[string]string
-		closeObjects            bool
-		rand                    *expr.ExampleGenerator
-		preparedExamples        *transportir.ValueTarget
-		parameterSources        map[expr.ValuePlanNode]*expr.AttributeExpr
+		discriminatorChildren   map[string][]string
+		// discriminatorFamilies holds the direct child declarations of each
+		// hinted parent root component.
+		discriminatorFamilies      map[string][]expr.UserType
+		declarationTypes           map[string]expr.UserType
+		declarationRepresentations map[string]representationContext
+		publicationContexts        map[string]string
+		// declarationNeighborCache, publicationDependencyCache and
+		// constructionContexts memoize immutable facts read during projection,
+		// after declarations and discriminator families are recorded and before
+		// representation allocation renames components, like publicationContexts.
+		declarationNeighborCache   map[string][]expr.UserType
+		publicationDependencyCache map[string][]expr.UserType
+		constructionContexts       map[schemaPosition]string
+		// contributors memoizes declarations projected into HTTP body wire
+		// contexts by content identity; projectionWire is the context whose
+		// contributors are being analyzed.
+		contributors          map[string]*projectedContributor
+		componentAcquisitions map[string]*componentAcquisition
+		contributorRoot       *projectedContributor
+		contributorRootDepth  int
+		projectionWire        *representation.WireContext
+		// projectedChildren lists, per hinted root component of a projection,
+		// the children its representations publish; publishedChildren records
+		// the representations already given them.
+		projectedChildren    map[string][]*projectedContributor
+		publishedChildren    map[[2]string]bool
+		asyncAcquisition     *asyncBaselineAcquisition
+		componentAnnotations map[componentAnnotationIdentity]map[componentAnnotationPosition]componentExamples
+		annotationOwner      map[componentAnnotationPosition]componentExamples
+		occurrences          []schemaOccurrenceAnalysis
+		registrations        []*Schema
+		plan                 expr.ValuePlanNode
+		examplePlan          expr.ValuePlanNode
+		constructingBaseline bool
+		constructions        map[*Schema]schemaConstruction
+		projectionPlans      map[schemaProjectionKey]*schemaProjection
+		projectionComponents map[schemaProjectionKey]*componentProjection
+		projectionMappings   map[*Discriminator]map[string]*projectedContributor
+		schemaNames          map[string]representationComponentName
+		schemas              map[string]*Schema
+		schemaFingerprints   map[string]string
+		schemaTypeIDs        map[string]string
+		schemasByFingerprint map[string][]schemaRef
+		unionBranchSchemas   map[string]string
+		closeObjects         bool
+		rand                 *expr.ExampleGenerator
+		preparedExamples     *transportir.ValueTarget
+		parameterSources     map[expr.ValuePlanNode]*expr.AttributeExpr
 
 		exampleValue         func(*expr.AttributeExpr, any) (any, bool)
 		customExampleValue   bool
@@ -58,8 +87,10 @@ type (
 	}
 
 	schemaRef struct {
-		ref          string
-		explicitName string
+		ref            string
+		explicitName   string
+		canonicalClaim string
+		binding        preparedComponentBinding
 	}
 )
 
@@ -106,17 +137,30 @@ func WithExampleGenerator(generator *expr.ExampleGenerator) AnalyzerOption {
 // explicit custom projection or retained declared values.
 func NewAnalyzer(rand *expr.ExampleGenerator, closeObjects bool, options ...AnalyzerOption) *Analyzer {
 	a := &Analyzer{
-		declarationRoots:     make(map[string]*Schema),
-		constructions:        make(map[*Schema]schemaConstruction),
-		projectedSchemas:     make(map[schemaProjectionKey]*Schema),
-		projectedComponents:  make(map[schemaProjectionKey]string),
-		schemaNames:          make(map[string]representationComponentName),
-		schemas:              make(map[string]*Schema),
-		schemaFingerprints:   make(map[string]string),
-		schemaTypeIDs:        make(map[string]string),
-		schemasByFingerprint: make(map[string][]schemaRef),
-		unionBranchSchemas:   make(map[string]string),
-		closeObjects:         closeObjects,
+		declarationRoots:           make(map[string]*Schema),
+		discriminatorFamilies:      make(map[string][]expr.UserType),
+		declarationTypes:           make(map[string]expr.UserType),
+		declarationRepresentations: make(map[string]representationContext),
+		publicationContexts:        make(map[string]string),
+		declarationNeighborCache:   make(map[string][]expr.UserType),
+		publicationDependencyCache: make(map[string][]expr.UserType),
+		constructionContexts:       make(map[schemaPosition]string),
+		contributors:               make(map[string]*projectedContributor),
+		componentAcquisitions:      make(map[string]*componentAcquisition),
+		projectedChildren:          make(map[string][]*projectedContributor),
+		publishedChildren:          make(map[[2]string]bool),
+		discriminatorHints:         &discriminatorHintContext{types: make(map[string]expr.UserType)},
+		constructions:              make(map[*Schema]schemaConstruction),
+		projectionPlans:            make(map[schemaProjectionKey]*schemaProjection),
+		projectionComponents:       make(map[schemaProjectionKey]*componentProjection),
+		projectionMappings:         make(map[*Discriminator]map[string]*projectedContributor),
+		schemaNames:                make(map[string]representationComponentName),
+		schemas:                    make(map[string]*Schema),
+		schemaFingerprints:         make(map[string]string),
+		schemaTypeIDs:              make(map[string]string),
+		schemasByFingerprint:       make(map[string][]schemaRef),
+		unionBranchSchemas:         make(map[string]string),
+		closeObjects:               closeObjects,
 
 		rand:         rand,
 		exampleValue: OpenAPIExampleValue,
@@ -206,9 +250,9 @@ func (a *Analyzer) analyzeSchema(attr *expr.AttributeExpr, context string, noref
 			// The inline consumer owns named shape, annotation overrides and
 			// null policy before ordinary result-view and occurrence handling.
 			// Its original plan remains intact for byte-only projection.
-			return a.analyzeUnderlyingSchema(componentAttribute(attr, t), context, true)
+			return a.analyzeNamedUnderlyingSchema(componentAttribute(attr, t), t, context, true)
 		}
-		s := a.analyzeUserType(attr, t, context, len(noref) > 0)
+		s := a.analyzeUserType(attr, t, context, len(noref) > 0, a.takeContributorBinding())
 		// A named occurrence's refinement constrains its non-null domain;
 		// inherited nullability must surround that complete refinement too.
 		if expr.IsNullable(attr) && (!expr.IsNullable(t.Attribute()) ||
@@ -507,7 +551,7 @@ func (a *Analyzer) applySchemaAnnotations(s *Schema, attr *expr.AttributeExpr, n
 		openapi.ExtensionsFromExpr(attr.Meta),
 		openapi.ScopedExtensionsFromExpr(attr.Meta, "schema"),
 	)
-	a.applyDiscriminatorMetadata(s, attr.Meta, context)
+	a.applyDiscriminatorMetadata(s, attr, context)
 	applySchemaOpenAPIMetadata(s, attr.Meta)
 }
 
@@ -595,72 +639,6 @@ func metaBoolValue(value string) bool {
 	default:
 		return true
 	}
-}
-
-func (a *Analyzer) ensureUnionBranchSchema(union *expr.Union, val *expr.NamedAttributeExpr) string {
-	// Synthetic envelopes retain component annotation authority. Their payloads
-	// are not inline positions in the enclosing message's acquisition scope.
-	acquisition := a.asyncAcquisition
-	a.asyncAcquisition = nil
-	defer func() {
-		a.asyncAcquisition = acquisition
-	}()
-	logical := a.unionBranchSchemaKey(union, val)
-	projection := a.byteProjection(val.Attribute, valuePlanBranchNode(a.plan, expr.UnionVariantTag(val)))
-	key := logical + projection
-	if name, ok := a.unionBranchSchemas[key]; ok {
-		return toRef(name)
-	}
-
-	desired := deterministicUnionBranchSchemaName(union, val)
-	name := desired
-	fingerprint := fingerprintString(key)
-	name = a.Uniquify(name, fingerprint)
-	a.unionBranchSchemas[key] = name
-	a.schemaNames[name] = representationComponentName{desired: desired, logical: logical, baseline: logical, json: projection != ""}
-
-	restore := a.componentAnnotationScope(logical, logical, exampleContext("component", desired))
-	defer restore()
-	branchSchema := &Schema{
-		Type:        string(openapi.Object),
-		Description: syntheticUnionBranchSchemaDescription(val),
-		Properties: map[string]*Schema{
-			union.GetTypeKey(): {
-				Type: string(openapi.String),
-				Enum: []any{expr.UnionVariantTag(val)},
-			},
-			union.GetValueKey(): a.analyzeSchemaPositions(
-				val.Attribute,
-				childExampleContext(exampleContext("component", desired), "property", union.GetValueKey()),
-				valuePlanBranchNode(a.plan, expr.UnionVariantTag(val)),
-				valuePlanBranchNode(a.examplePlan, expr.UnionVariantTag(val)),
-			),
-		},
-		Required: []string{union.GetTypeKey(), union.GetValueKey()},
-	}
-	a.constructions[branchSchema] = schemaConstruction{slots: []schemaSlot{{location: schemaProperty, name: union.GetValueKey()}}}
-	a.schemaFingerprints[name] = fingerprint
-	a.schemas[name] = branchSchema
-	return toRef(name)
-}
-
-func (a *Analyzer) unionBranchSchemaKey(union *expr.Union, val *expr.NamedAttributeExpr) string {
-	fingerprint := a.FingerprintAttribute(val.Attribute)
-	return strings.Join([]string{
-		union.GetTypeKey(),
-		union.GetValueKey(),
-		expr.UnionVariantTag(val),
-		fingerprint,
-	}, ":")
-}
-
-func (a *Analyzer) registerSchemaRef(fingerprint, ref, explicitName string) {
-	for _, existing := range a.schemasByFingerprint[fingerprint] {
-		if existing.ref == ref && existing.explicitName == explicitName {
-			return
-		}
-	}
-	a.schemasByFingerprint[fingerprint] = append(a.schemasByFingerprint[fingerprint], schemaRef{ref: ref, explicitName: explicitName})
 }
 
 func toRef(name string) string {

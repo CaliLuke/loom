@@ -52,12 +52,12 @@ func TestRepresentationGraphCapturesReferencePaths(t *testing.T) {
 	}
 	first, second := makeGraph(false), makeGraph(true)
 	require.Equal(t, captureRepresentationGraph(first), captureRepresentationGraph(second))
-	require.Equal(t, completeSchemaFingerprints(first), completeSchemaFingerprints(second))
+	require.Equal(t, completeSchemaFingerprints(first, nil), completeSchemaFingerprints(second, nil))
 	second["root"].Properties["first"], second["root"].Properties["second"] = second["root"].Properties["second"], second["root"].Properties["first"]
-	require.NotEqual(t, completeSchemaFingerprints(first)["root"], completeSchemaFingerprints(second)["root"], "reference paths are part of the contract")
+	require.NotEqual(t, completeSchemaFingerprints(first, nil)["root"], completeSchemaFingerprints(second, nil)["root"], "reference paths are part of the contract")
 	first["root"] = &Schema{OneOf: []*Schema{{Ref: toRef("text")}, {Ref: toRef("number")}}}
 	second["root"] = &Schema{OneOf: []*Schema{{Ref: toRef("number")}, {Ref: toRef("text")}}}
-	require.NotEqual(t, completeSchemaFingerprints(first)["root"], completeSchemaFingerprints(second)["root"], "reference list order must survive capture")
+	require.NotEqual(t, completeSchemaFingerprints(first, nil)["root"], completeSchemaFingerprints(second, nil)["root"], "reference list order must survive capture")
 }
 
 func TestRepresentationGraphSnapshotsAnnotationsOnce(t *testing.T) {
@@ -67,7 +67,7 @@ func TestRepresentationGraphSnapshotsAnnotationsOnce(t *testing.T) {
 		"second": {Type: "object", Properties: map[string]*Schema{"next": {Ref: toRef("third")}}},
 		"third":  {Type: "object", Properties: map[string]*Schema{"next": {Ref: toRef("third")}}},
 	}
-	fingerprints := completeSchemaFingerprints(schemas)
+	fingerprints := completeSchemaFingerprints(schemas, nil)
 	require.Len(t, fingerprints, 3)
 	require.Equal(t, 1, calls, "refinement and quotient traversal must not re-run annotation codecs")
 	require.NotEqual(t, fingerprints["first"], fingerprints["second"])
@@ -89,7 +89,7 @@ func TestRepresentationEquivalencePreservesAcyclicNames(t *testing.T) {
 	a.occurrences = []schemaOccurrenceAnalysis{{first, a}, {second, a}}
 	// These hashes are the prior exact acyclic serialization, with each local
 	// reference replaced by "schema:" plus its child's complete fingerprint.
-	fingerprints := completeSchemaFingerprints(a.schemas)
+	fingerprints := completeSchemaFingerprints(a.schemas, nil)
 	require.Equal(t, "0fff809809bc720d6e2657c74ab6755413e71365a3d3a1bfbf4488bbf8fdfcd2", fingerprints["first"])
 	require.Equal(t, "178fe49349f583acdb9b450c85923fa0b647f36046f505efe82c6f0e9441f038", fingerprints["second"])
 	a.finalizeRepresentations()
@@ -144,4 +144,25 @@ func TestRepresentationGraphReferenceSlotsPreserveAnnotations(t *testing.T) {
 	require.Equal(t, string(expectedJSON), rewriteCapturedReferences(node.encoded, references))
 	require.Contains(t, string(expectedJSON), `9007199254740993`)
 	require.Contains(t, string(expectedJSON), `"Ref":"#/components/schemas/target"`, "annotation lookalikes stay literal")
+}
+
+// TestRepresentationEquivalenceComparesDependencies keeps equal bodies apart
+// when they publish dependencies in different representations, and merges
+// them when the published dependencies are equivalent.
+func TestRepresentationEquivalenceComparesDependencies(t *testing.T) {
+	schemas := map[string]*Schema{
+		"Parent":      {Type: "object"},
+		"ParentJSON":  {Type: "object"},
+		"ParentAgain": {Type: "object"},
+		"Child":       {Type: "string", Format: "binary"},
+		"ChildJSON":   {Type: "string", ContentEncoding: "base64"},
+		"ChildAgain":  {Type: "string", ContentEncoding: "base64"},
+	}
+	dependencies := map[string][]string{"Parent": {"Child"}, "ParentJSON": {"ChildJSON"}, "ParentAgain": {"ChildAgain"}}
+	fingerprints := completeSchemaFingerprints(schemas, dependencies)
+	require.NotEqual(t, fingerprints["Parent"], fingerprints["ParentJSON"])
+	require.Equal(t, fingerprints["ParentJSON"], fingerprints["ParentAgain"])
+	bodies := completeSchemaFingerprints(schemas, nil)
+	require.Equal(t, bodies["Parent"], bodies["ParentJSON"], "bodies alone are equal")
+	require.Equal(t, bodies["Child"], fingerprints["Child"], "components without dependencies keep their fingerprint")
 }

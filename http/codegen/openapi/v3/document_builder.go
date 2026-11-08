@@ -45,7 +45,7 @@ func buildDocument(root *expr.RootExpr, options ...Option) (*OpenAPI, error) {
 		OpenAPI:           OpenAPIVersion,
 		Info:              buildInfo(root.API),
 		JSONSchemaDialect: JSONSchemaDialect,
-		Components:        buildComponents(doc.Components.SecuritySchemes, pruneUnusedComponentSchemas(paths, schemas, reusable), reusable),
+		Components:        buildComponents(doc.Components.SecuritySchemes, pruneUnusedComponentSchemas(paths, schemas, reusable, doc.Components.DiscriminatorChildren), reusable),
 		Paths:             paths,
 		Servers:           buildServers(root.API.Servers),
 		Security:          cloneOperationSecurity(doc.Security),

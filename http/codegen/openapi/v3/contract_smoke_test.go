@@ -69,6 +69,15 @@ func TestRenderedSpecsPassContractLint(t *testing.T) {
 			},
 		},
 		{
+			name: "discriminator-hints",
+			dsl:  testdata.DiscriminatorHintDSL,
+		},
+		{
+			name:   "discriminator-hints-31",
+			target: "3.1",
+			dsl:    testdata.DiscriminatorHintDSL,
+		},
+		{
 			name: "parameter-styles",
 			dsl:  testdata.ParameterStylesDSL,
 		},
@@ -297,6 +306,8 @@ func TestRepresentativeSpecsPassVacuumLintAndConsumerSmoke(t *testing.T) {
 		target string
 		dsl    func()
 	}{
+		{name: "discriminator-hints", dsl: testdata.DiscriminatorHintDSL},
+		{name: "discriminator-hints-31", target: "3.1", dsl: testdata.DiscriminatorHintDSL},
 		{name: "untagged-roots", dsl: testdata.UntaggedRootsDSL},
 		{name: "untagged-locations", dsl: testdata.UntaggedLocationsDSL},
 		{name: "untagged-roots-31", target: "3.1", dsl: testdata.UntaggedRootsDSL},

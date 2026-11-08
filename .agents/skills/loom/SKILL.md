@@ -437,6 +437,17 @@ Keep these markers when editing imported designs to avoid merging the groups.
 Synthesized tagged-union examples retain every nested envelope, including when
 branches share the same shape. Configured discriminator/value keys and branch
 tags apply at each level; authored examples keep their existing interpretation.
+OpenAPI discriminator hints on full-object untagged unions or named `allOf`
+parents are documentation only: they do not route decoding or relax validation.
+Put `openapi:discriminator:propertyName` on the enclosing Type/Attribute, explicit
+mapping aliases on branch Attributes, and parent mappings in `key=Type` form.
+Keep imported keys and source-ownership metadata intact. See the
+[DSL reference](../../../docs/dsl-reference.md) for optional/fallback version rules.
+Native tagged form roots flatten object branches but retain JSON for nested
+complex fields. Selected empty scalar arrays decode to nonnil empty slices;
+nullable JSON map fields retain null. Regenerate transports and OpenAPI after
+upgrading; see the [HTTP guide](../../../docs/http-guide.md).
+
 
 For built-in JSON, `Bytes` schemas describe padded base64 strings, while
 `MinLength` and `MaxLength` count decoded bytes. Generated constraints enforce
@@ -582,8 +593,9 @@ without an envelope. Encoding and decoding require exactly one schema match and
 one valid Go decoder with the same branch identity. Overlap is legal to declare;
 ambiguous values still fail, even if numeric widths distinguish the Go decoders.
 Text locations and form/multipart fields require an admitted codec for each
-alternative. Importing discriminator-driven selection is separate work in
-[#1005](https://github.com/CaliLuke/loom/issues/1005).
+alternative. See
+[discriminator import](../../../docs/openapi-import-coverage.md#discriminators)
+for imported discriminators.
 
 `unevaluatedProperties: false` beside a supported union imports as occurrence
 closure after unique selection. Closure cannot disambiguate overlapping branches
@@ -1157,6 +1169,12 @@ clients and servers after upgrading to adopt typed Tag binding.
   explicit text serialization with `Meta("openapi:style", "deepObject")` or
   `Meta("openapi:explode", "false")` on a parameter occurrence. For form fields,
   use `openapi:encoding:<field>:style` and related keys on the body occurrence.
+  A JSON query value's default applies only when the key is absent. Servers and
+  generated CLI flags reject a `null` document and, for generated maps and
+  unions, `null` members; omit the key or flag to request the default.
+  `struct:field:type` on a whole map does not replace the generated map, which
+  keeps these checks; custom element types keep their text codec. Regenerate
+  clients and servers to adopt this.
   Any authored form encoding flag overrides the implicit JSON content encoding.
 - Paths support simple/label/matrix; query and form fields support
   form/spaceDelimited/pipeDelimited/deepObject; request and response headers
@@ -1264,7 +1282,11 @@ clients and servers after upgrading to adopt typed Tag binding.
   validation, defaults and gRPC conversion. A defined Go string works without
   codecs; opaque storage needs `fmt.Stringer` for semantic text and
   `encoding.TextUnmarshaler` for materialization. Identical physical copies do
-  not require codecs. Invalid defaults return errors rather than panicking.
+  not require codecs. Invalid defaults return errors rather than panicking; on
+  a server, a query, header, cookie or styled parameter default that cannot be
+  parsed is a 500 `fault`, not a client error, and occurs only when the default
+  is needed. A generated client reports such a response header or cookie
+  default as a `validation_error` caused by the fault.
   Regenerate services and transports together; constructors and ConvertTo /
   CreateFrom helpers gain an error result only when their selected conversion
   can fail. See `docs/dsl-reference.md` for the complete capability contract.

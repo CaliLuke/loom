@@ -119,3 +119,112 @@ func TestNamedUnionRejectsInlineBranchCycles(t *testing.T) {
 		})
 	}
 }
+
+func TestFunctionUnionKeepsPendingBranches(t *testing.T) {
+	for _, tagged := range []bool{true, false} {
+		root := expr.RunDSL(t, func() {
+			event := Type("Event", OneOf(func() {
+				if !tagged {
+					Untagged()
+				}
+				Attribute("created", "EventData", func() {
+					Meta("openapi:discriminator:mapping", "created", "alias")
+					Required("id")
+				})
+				Attribute("deleted", String)
+			}))
+			Type("EventData", func() {
+				Attribute("id", String)
+				Attribute("child", event)
+			})
+			Service("events", func() {
+				Method("Create", func() {
+					Payload(func() {
+						Attribute("body", event)
+					})
+					Result(event)
+					HTTP(func() {
+						POST("/events")
+						Body("body", func() {
+							Meta("openapi:typename", "Event")
+						})
+						Response(StatusOK, func() {
+							OpenAPIBody(event)
+						})
+					})
+				})
+			})
+		})
+		branch := expr.AsUnion(root.UserType("Event")).Values[0].Attribute
+		require.Equal(t, "EventData", branch.Type.Name())
+		require.Equal(t, []string{"created", "alias"}, branch.Meta["openapi:discriminator:mapping"])
+		require.True(t, branch.IsRequired("id"))
+		require.NotNil(t, expr.AsObject(branch.Type).Attribute("child"))
+	}
+}
+
+func TestFunctionUnionReportsMissingBranch(t *testing.T) {
+	err := expr.RunInvalidDSL(t, func() {
+		Type("Choice", OneOf(func() {
+			Attribute("missing", "Missing", func() {
+				Description("retained branch annotation")
+			})
+		}))
+	})
+	require.ErrorContains(t, err, `unknown type reference "Missing"`)
+	require.NotContains(t, err.Error(), "panic")
+}
+
+func TestFunctionUnionRefinementOwnership(t *testing.T) {
+	for _, hints := range []bool{false, true} {
+		calls := 0
+		root := expr.RunDSL(t, func() {
+			constructor := OneOf(func() {
+				Attribute("record", "Record", func() {
+					calls++
+					Required("id")
+					if hints {
+						Meta("openapi:discriminator:mapping", "record", "alias")
+					}
+				})
+				Attribute("text", String)
+			})
+			first := Type("First", constructor)
+			second := Type("Second", constructor)
+			Type("Record", func() {
+				Attribute("id", String)
+				Attribute("first", first)
+				Attribute("second", second)
+			})
+			Service("records", func() {
+				Method("Create", func() {
+					Payload(first, func() {
+						Description("local payload occurrence")
+					})
+					Result(second)
+					HTTP(func() {
+						POST("/records")
+						Response(StatusOK)
+					})
+				})
+			})
+		})
+		require.Equal(t, 2, calls, "each copied pending occurrence refines exactly once")
+		first := expr.AsUnion(root.UserType("First")).Values[0].Attribute
+		second := expr.AsUnion(root.UserType("Second")).Values[0].Attribute
+		for _, branch := range []*expr.AttributeExpr{first, second} {
+			require.NoError(t, branch.ResolveTypeReference())
+			require.True(t, branch.IsRequired("id"))
+			require.NotNil(t, branch.Find("first"))
+			require.NotNil(t, branch.Find("second"))
+		}
+		require.Equal(t, 2, calls, "repeated completion cannot replay a refinement")
+		require.False(t, root.UserType("Record").Attribute().IsRequired("id"))
+		first.Validation.Required = append(first.Validation.Required, "first")
+		require.False(t, second.IsRequired("first"), "copied occurrence constraints stay detached")
+		if hints {
+			first.Meta["openapi:discriminator:mapping"][0] = "changed"
+			require.Equal(t, "record", second.Meta["openapi:discriminator:mapping"][0])
+		}
+	}
+}

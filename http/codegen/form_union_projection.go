@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/CaliLuke/loom/internal/formgen"
+
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/unionjson"
 	"github.com/CaliLuke/loom/expr"
@@ -46,7 +48,7 @@ func renderFormRootProjection(out *strings.Builder, body *TypeData, contract *ex
 
 func renderFormFieldProjection(out *strings.Builder, attribute *expr.AttributeExpr, codec httpencoding.Codec, data *FormFieldData, name string, context *codegen.AttributeContext) {
 	if codec.Style == httpencoding.JSON {
-		fmt.Fprintf(out, "return loomhttp.FormJSONValue(parameterFormPairs, %s, %s)\n", name, formApplicationLiteral(codec.Application))
+		fmt.Fprintf(out, "return loomhttp.FormJSONValue(parameterFormPairs, %s, %s)\n", name, formgen.Application(codec.Application))
 		return
 	}
 	element := &Element{attribute: attribute, Codec: codec, context: context}
@@ -73,7 +75,7 @@ func formValueUnion(out *strings.Builder, attribute *expr.AttributeExpr, element
 		branchElement := textUnionBranchElement(element, codecs[index])
 		out.WriteString("{View: func() (jsontext.Value, bool, error) {\n")
 		if branchElement.Codec.Style == httpencoding.JSON {
-			fmt.Fprintf(out, "return loomhttp.FormJSONValue(parameterFormPairs, %s, %s)\n", name, formApplicationLiteral(branchElement.Codec.Application))
+			fmt.Fprintf(out, "return loomhttp.FormJSONValue(parameterFormPairs, %s, %s)\n", name, formgen.Application(branchElement.Codec.Application))
 		} else if nested := expr.AsUnion(branch.Attribute.Type); nested != nil {
 			formValueUnion(out, branch.Attribute, branchElement, nested, codecs[index].Inner, name)
 		} else {

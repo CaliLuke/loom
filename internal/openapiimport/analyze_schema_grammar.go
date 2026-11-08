@@ -68,7 +68,7 @@ func (a *analyzer) schemaUnsupportedKeywords(
 		len(source.AnyOf) > 0 && !supportedNullableComposition || source.Not != nil {
 		schema.unsupportedComposition = true
 	}
-	if source.Discriminator != nil || len(source.PrefixItems) > 0 || source.Contains != nil ||
+	if len(source.PrefixItems) > 0 || source.Contains != nil ||
 		source.MinContains != nil || source.MaxContains != nil ||
 		source.If != nil || source.Then != nil || source.Else != nil ||
 		orderedmap.Len(source.DependentSchemas) > 0 || orderedmap.Len(source.DependentRequired) > 0 ||

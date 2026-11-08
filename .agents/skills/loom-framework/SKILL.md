@@ -104,6 +104,15 @@ consumer validation.
   a detached metadata copy to wire names. Form names stay at the form root;
   nested JSON fields keep their own tags. Keep the
   [form-tag model](../../../internal/encodingmeta/tla/form_tags/README.md) aligned.
+- `expr.HTTPBodyProjection` owns the authored source and the excluded members
+  of a flattened HTTP body. `projectHTTPBody` and `removeAttribute` are its only
+  writers; explicit Body clones record their own source. OpenAPI derives body
+  composition, hint binding and child publication from that record. Contributors
+  come from `expr.ProjectHTTPBodyContributor` and `representation.ProjectContributor`,
+  which reuse the shared normalization with the body's captured contract rebound
+  by authored field identity. Do not restore original bases, slice contributors
+  from the child body, or copy raw encoding metadata. Keep the
+  [HTTP body projection model](../../../expr/tla/http_body_projection/README.md) aligned.
   Form field generation consumes captured codecs for ordinary and styled
   properties. Keep null admission separate from structural shape and pass it
   explicitly to JSON field decoding. Outgoing field presence follows the
@@ -118,6 +127,18 @@ consumer validation.
   set; optional forms skip decoding only when raw input is empty. Preserve
   selected-object nil absence, field validation and body-limit errors. Keep the
   untagged-presence model and maintained ordinary-form generated controls aligned.
+
+- OpenAPI component acquisition uses ordered structural fingerprint registrations;
+  contributor preparation keys route to selected handles, not another identity
+  policy. Visiting handles stay outside completed schemas. Suffixed canonical
+  claims retain the actual prepared target/example-node binding; canonical
+  metadata alone does not authorize reuse between occurrences. Bind contributor
+  roots before traversal and retain their final reference-local result cells and
+  walk-stable discriminator records. One held scope plans from complete logical
+  edges, installs mapping slots, materializes projections, then compares live
+  canonical bodies. Root and nested projection use the same owner. Keep the
+  [projected acquisition models](../../../http/codegen/openapi/internal/ir/tla/projected_acquisition/README.md)
+  and canonical, nullable, annotation and parameter-order regressions aligned.
 
 - Distinct HTTP media mappings belong to endpoint/response occurrences, not to
   reusable service unions. Transport IR retains each branch's schema, examples,
@@ -1278,6 +1299,28 @@ There is one DSL parser, one shared semantic IR, and one renderer.
   mutation. Validate local fallbacks before representation allocation; include
   fallback references in identity, rewriting and pruning. Keep version projection
   in the existing router. See `ir/lean/discriminator_metadata` for the bounded model.
+- Discriminator hints are annotation-only: FullObject retains exact-one matching
+  and ParentHint retains declaration/inheritance identity. Preserve explicit keys
+  exactly; derive requiredness through declared and required additional members.
+  Type completion applies union keys before copies; pending constructor references
+  use one idempotent occurrence lifecycle without changing ordinary declaration
+  scheduling. HTTP edge removal captures only inherited discriminator/sourceType
+  metadata, occurrence-first and detached. Do not broaden unrelated inheritance.
+- `internal/formgen` owns generated captured JSON/native leaf calls and physical
+  presence guards. Ordinary fields, Content alternatives and tagged members
+  consume the same codec/Application/nullability facts. Pass actual declaration
+  contexts/layout maps from HTTP registries and service/view builders; never
+  infer authored policy from Go wrappers or delegate flattened object policy to
+  generic reflection. Selected repeated arrays can have zero value keys; the
+  discriminator proves branch presence but does not distinguish nil from empty.
+- Native tagged form roots use separate captured `TaggedBranches`, never the
+  untagged dispatch list. Their object fields flatten; nested complex members use
+  JSON field codecs. Feed the same capture to layout, union descriptors and the
+  per-occurrence OpenAPI projection, including examples. Selected repeated arrays
+  normalize nil/empty wire to nonnil empty before constraints; captured JSON value
+  fields retain nullability. Unsupported occurrence admission must not reject
+  reusable JSON-only declarations. Keep hint/no-hint generated wire controls and
+  the linked pending-completion, form-selection and tagged-projection models.
 - `ir.projectPattern` owns the portable Go-to-ECMA pattern boundary. Project
   before schema reuse and rendering; carry unsupported projections through
   `Analyzer.Err` and `BodyTypes.Err` to the document generator. Runtime Go

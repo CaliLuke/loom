@@ -3,6 +3,7 @@ package dsl
 import (
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/CaliLuke/loom/eval"
 	"github.com/CaliLuke/loom/expr"
@@ -161,11 +162,7 @@ func Attribute(name string, args ...any) {
 				Description: description,
 			}
 		}
-		if fn != nil {
-			attr.SetDSLSource(fn)
-			localizeAttribute(attr, parent)
-			eval.Execute(fn, attr)
-		}
+		refineAttribute(attr, parent, fn)
 		if attr.DSLSource() == nil {
 			attr.SetDSLSource(parent.DSLSource())
 		}
@@ -195,6 +192,25 @@ func assignAttributeType(attribute *expr.AttributeExpr, typ expr.DataType, args 
 		return
 	}
 	attribute.SetAuthoredType(typ)
+}
+
+func refineAttribute(attr, parent *expr.AttributeExpr, fn func()) {
+	if fn == nil {
+		return
+	}
+	attr.SetDSLSource(fn)
+	if named, ok := attr.Type.(*expr.UserTypeExpr); ok && strings.HasPrefix(named.UID, "$type-ref:") {
+		// Resolve before refining the actual retained occurrence. Copies retain
+		// this callback without capturing the original attribute pointer.
+		attr.DSLFunc = func() {
+			local := currentAttribute()
+			localizeAttribute(local, nil)
+			fn()
+		}
+		return
+	}
+	localizeAttribute(attr, parent)
+	eval.Execute(fn, attr)
 }
 
 func attributeTemplate(parent *expr.AttributeExpr, name string) *expr.AttributeExpr {
@@ -453,7 +469,15 @@ func parseAttributeArgs(baseAttr *expr.AttributeExpr, args ...any) (expr.DataTyp
 
 	parseDataType := func(expected string, index int) {
 		if name, ok2 := args[index].(string); ok2 {
-			// Lookup type by name
+			// A function constructor evaluates before later Type declarations,
+			// just like the compact constructor. Both retain the same reference
+			// until the root's ordinary type-reference preparation resolves it.
+			if parent := currentOneOfParent(); parent != nil {
+				if _, union := parent.Type.(*expr.Union); union {
+					dataType = resolveOneOfVariantType(name)
+					return
+				}
+			}
 			if dataType = expr.Root.UserType(name); dataType == nil {
 				eval.InvalidArgError(expected, args[index])
 			}

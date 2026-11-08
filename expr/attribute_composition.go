@@ -124,7 +124,7 @@ func (c *designComposer) walk(attribute *AttributeExpr, path string) {
 	defer func() {
 		c.owner = previousOwner
 	}()
-	if err := attribute.resolveTypeRef(); err != nil {
+	if err := attribute.ResolveTypeReference(); err != nil {
 		compositionError(attribute, "%s: %v", path, err)
 		return
 	}

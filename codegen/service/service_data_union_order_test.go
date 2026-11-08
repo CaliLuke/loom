@@ -183,10 +183,10 @@ func TestBuildUnionTypeDataAllowsEmptyOptionalObjectBranches(t *testing.T) {
 
 	require.Len(t, data.Fields, 2)
 	require.True(t, data.Fields[0].FlatFormObject)
-	require.True(t, data.Fields[0].FlatFormObjectAllowsEmpty)
+	require.True(t, data.Fields[0].FormBranchAllowsEmpty)
 	require.Contains(t, data.Fields[0].EmptyValueExpr, "{}")
 	require.True(t, data.Fields[1].FlatFormObject)
-	require.False(t, data.Fields[1].FlatFormObjectAllowsEmpty)
+	require.False(t, data.Fields[1].FormBranchAllowsEmpty)
 }
 
 func TestBuildViewUnionTypeDataAllowsEmptyOptionalObjectBranches(t *testing.T) {
@@ -198,9 +198,9 @@ func TestBuildViewUnionTypeDataAllowsEmptyOptionalObjectBranches(t *testing.T) {
 	data := buildViewUnionTypeData(makeOptionalObjectUnionForFormTest(), scope, loc)
 
 	require.Len(t, data.Fields, 2)
-	require.True(t, data.Fields[0].FlatFormObjectAllowsEmpty)
+	require.True(t, data.Fields[0].FormBranchAllowsEmpty)
 	require.Contains(t, data.Fields[0].EmptyValueExpr, "{}")
-	require.False(t, data.Fields[1].FlatFormObjectAllowsEmpty)
+	require.False(t, data.Fields[1].FormBranchAllowsEmpty)
 }
 
 func TestRenderUnionUnmarshalJSONReturnsStructuredErrors(t *testing.T) {

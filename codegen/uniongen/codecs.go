@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/internal/formgen"
 )
 
 // ValidateBody renders the body of the union Validate method.
@@ -56,12 +57,26 @@ func MarshalFormBody(data *Type) string {
 	b.WriteString("switch u.kind {\n")
 	for _, field := range data.Fields {
 		fmt.Fprintf(&b, "\tcase %s:\n", field.KindConst)
-		if field.FlatFormObject {
-			fmt.Fprintf(&b, "\t\t_, err := loomhttp.EncodeFormValue(values, prefix, u.%s)\n", field.FieldName)
-		} else {
-			fmt.Fprintf(&b, "\t\t_, err := loomhttp.EncodeFormValue(values, loomhttp.FormChildKey(prefix, %q), u.%s)\n", data.ValueKey, field.FieldName)
+		if field.FormError != "" {
+			fmt.Fprintf(&b, "return fmt.Errorf(%q)\n", field.FormError)
+			continue
 		}
-		b.WriteString("\t\treturn err\n")
+		if field.FlatFormObject {
+			if strings.HasPrefix(field.FieldType, "*") {
+				fmt.Fprintf(&b, "if u.%s == nil {\nreturn nil\n}\n", field.FieldName)
+			}
+			for _, member := range field.FormFields {
+				value := "u." + field.FieldName
+				b.WriteString(member.Encode(formgen.Access{
+					Values: "values", Name: fmt.Sprintf("loomhttp.FormChildKey(prefix, %q)", member.Name),
+					Value: value + "." + member.Selector, Presence: strings.ReplaceAll(member.Presence, "value.", value+"."),
+					Required: member.Required, Label: member.Name,
+				}))
+			}
+			b.WriteString("return nil\n")
+		} else {
+			fmt.Fprintf(&b, "_, err := %s\nreturn err\n", field.FormValue.EncodeCall("values", fmt.Sprintf("loomhttp.FormChildKey(prefix, %q)", data.ValueKey), "u."+field.FieldName))
+		}
 	}
 	fmt.Fprintf(&b, "\tdefault:\n\t\treturn fmt.Errorf(\"unexpected %s discriminant %%q\", u.kind)\n\t}", data.Name)
 	return b.String()
@@ -79,15 +94,23 @@ func UnmarshalFormBody(data *Type) string {
 	fmt.Fprintf(&b, "\treturn loom.MissingFieldError(%q, \"body\")\n}\n", data.TypeKey)
 	b.WriteString("switch rawType {\n")
 	for _, field := range data.Fields {
-		fmt.Fprintf(&b, "\tcase string(%s):\n\t\tvar v %s\n", field.KindConst, field.FieldType)
+		fmt.Fprintf(&b, "\tcase string(%s):\n", field.KindConst)
+		if field.FormError != "" {
+			fmt.Fprintf(&b, "return fmt.Errorf(%q)\n", field.FormError)
+			continue
+		}
+		fmt.Fprintf(&b, "var v %s\n", field.FieldType)
 		if field.FlatFormObject {
-			b.WriteString("\t\tseen, err := loomhttp.DecodeFormValue(values, prefix, &v)\n")
+			fmt.Fprintf(&b, "v = %s\nseen := false\nvar err error\n", field.EmptyValueExpr)
+			for _, member := range field.FormFields {
+				fmt.Fprintf(&b, "if present, fieldError := %s; fieldError != nil {\nreturn fieldError\n} else {\nseen = seen || present\n}\n", member.DecodeCall("values", fmt.Sprintf("loomhttp.FormChildKey(prefix, %q)", member.Name), "v."+member.Selector))
+			}
 		} else {
-			b.WriteString("\t\tseen, err := loomhttp.DecodeFormValue(values, valueKey, &v)\n")
+			fmt.Fprintf(&b, "seen, err := %s\n", field.FormValue.DecodeCall("values", "valueKey", "v"))
 		}
 		b.WriteString("\t\tif err != nil {\n\t\t\treturn err\n\t\t}\n")
 		b.WriteString("\t\tif !seen {\n")
-		if field.FlatFormObjectAllowsEmpty {
+		if field.FormBranchAllowsEmpty {
 			fmt.Fprintf(&b, "\t\t\tv = %s\n", field.EmptyValueExpr)
 		} else {
 			fmt.Fprintf(&b, "\t\t\treturn loom.MissingFieldError(%q, \"body\")\n", data.ValueKey)

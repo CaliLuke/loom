@@ -110,16 +110,46 @@ func (r *renderer) singleRequestBody(body RequestBody, mode requestBodyMode, pat
 			return &renderedBody{body: body, mode: requestBodyRaw, mapPayload: true}, nil
 		}
 		if !mapPayload && mode == requestBodyForm && !body.Required {
-			resolved, resolveErr := r.resolveSchemaReference(body.Schema, path+"/schema")
-			if resolveErr != nil {
-				return nil, resolveErr
+			required, requiredErr := r.formBodyHasRequiredMembers(body.Schema, path+"/schema", make(map[*Schema]bool))
+			if requiredErr != nil {
+				return nil, requiredErr
 			}
-			if len(resolved.Required) > 0 {
+			if required {
 				return &renderedBody{body: body, mode: requestBodyRaw}, nil
 			}
 		}
 	}
 	return &renderedBody{body: body, field: "body", mode: mode, mapPayload: mapPayload}, nil
+}
+
+// formBodyHasRequiredMembers reads root requirements through conjunctive
+// references and bases. Requirements inside properties or alternatives do not
+// make the containing object require a member. Authored layers remain detached.
+func (r *renderer) formBodyHasRequiredMembers(schema *Schema, path string, seen map[*Schema]bool) (bool, error) {
+	if schema == nil || seen[schema] {
+		return false, nil
+	}
+	seen[schema] = true
+	if schema.Ref != "" {
+		resolved, err := r.resolveSchemaReference(schema, path)
+		if err != nil {
+			return false, err
+		}
+		required, err := r.formBodyHasRequiredMembers(resolved, path, seen)
+		if err != nil || required {
+			return required, err
+		}
+	}
+	if len(schema.Required) > 0 {
+		return true, nil
+	}
+	for index, base := range schema.Bases {
+		required, err := r.formBodyHasRequiredMembers(base, fmt.Sprintf("%s/allOf/%d", path, index), seen)
+		if err != nil || required {
+			return required, err
+		}
+	}
+	return false, nil
 }
 
 func (r *renderer) formBodyRequiresRaw(schema *Schema, path string, seen map[string]struct{}) (bool, error) {

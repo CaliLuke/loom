@@ -19,18 +19,28 @@ const (
 
 // documentPlan is the render-ready result of applying the importer subset.
 type documentPlan struct {
-	document     *Document
-	operations   []operationPlan
-	diagnostics  Diagnostics
-	schemas      map[string]NamedSchema
-	errorSchemas map[string]struct{}
-	references   *schemaReferencePlan
+	document        *Document
+	operations      []operationPlan
+	diagnostics     Diagnostics
+	schemas         map[string]NamedSchema
+	errorSchemas    map[string]struct{}
+	references      *schemaReferencePlan
+	projectionHints []NamedSchema
 }
 
 // planDocument applies the importer subset once for both Analyze and Render.
 // Rendering retains defensive errors for manually-constructed Documents, but
 // source documents are admitted only when this planner reports no diagnostics.
 func planDocument(document *Document) documentPlan {
+	plan := planDocumentGraph(document)
+	plan.diagnostics = append(plan.diagnostics, parentHintProjectionDiagnostics(plan.projectionHints)...).sorted()
+	return plan
+}
+
+// planDocumentGraph retains unresolved hint projection as typed obligations.
+// Declaration qualification discharges them against its complete viable graph;
+// ordinary Analyze and Render materialize every remaining obligation as a diagnostic.
+func planDocumentGraph(document *Document) documentPlan {
 	if document == nil {
 		return documentPlan{diagnostics: Diagnostics{{Code: "document", Path: "#", Message: "document is nil"}}}
 	}
@@ -44,47 +54,19 @@ func planDocument(document *Document) documentPlan {
 	nameSource.Components.SecuritySchemes = slices.Clone(document.Components.SecuritySchemes)
 	resolved, diagnostics := resolveReusableDocument(&nameSource)
 	document = resolved
+	projectionHints := unprojectableParentHints(document)
 	planner := documentPlanner{
 		diagnostics: diagnostics,
 		document:    document,
 		schemas:     make(map[string]NamedSchema, len(document.Components.Schemas)),
 		used:        make(map[string]struct{}),
 	}
-	planner.index()
-	if document.SecurityDefined {
-		planner.securityRequirements(document.Security, "#/security")
-	}
-	if !renderableVersion(document.OpenAPIVersion) {
-		planner.unsupported("openapi-version", "#", "only OpenAPI 3.0, 3.1, and 3.2 documents are renderable")
-	}
-	for _, named := range document.Components.Schemas {
-		planner.schema(named.Schema, "#/components/schemas/"+escapeJSONPointer(named.Name), objectDeclaration)
-	}
-	for index := range document.Operations {
-		op := &document.Operations[index]
-		if op.SecurityDefined {
-			planner.securityRequirements(op.Security, op.sourcePath+"/security")
-		}
-		path := op.sourcePath
-		if path == "" {
-			path = fmt.Sprintf("#/operations/%d", index)
-		}
-		planner.operation(op, path)
-	}
-	for _, named := range document.Components.Parameters {
-		path := "#/components/parameters/" + escapeJSONPointer(named.Name)
-		if !renderableComponentParameterName(named.Name) {
-			planner.unsupported("component-parameter-name", path, "component parameter names containing '~' or '/' are not renderable")
-		}
-		if _, ok := planner.used[named.Name]; !ok {
-			planner.unsupported("unused-component-parameter", path, "unreferenced parameter components cannot be rendered faithfully")
-		}
-	}
+	planner.admit()
 	if len(planner.diagnostics) > 0 {
-		return documentPlan{diagnostics: planner.diagnostics.sorted()}
+		return documentPlan{diagnostics: planner.diagnostics.sorted(), projectionHints: projectionHints}
 	}
 	if err := allocateDesignNames(&nameSource); err != nil {
-		return documentPlan{diagnostics: designNameDiagnostics(err)}
+		return documentPlan{diagnostics: designNameDiagnostics(err), projectionHints: projectionHints}
 	}
 	document.Components.Schemas = nameSource.Components.Schemas
 	document.Components.SecuritySchemes = nameSource.Components.SecuritySchemes
@@ -93,7 +75,44 @@ func planDocument(document *Document) documentPlan {
 	for _, named := range document.Components.Schemas {
 		planner.schemas[named.Name] = named
 	}
-	return planner.renderPlan()
+	plan := planner.renderPlan()
+	plan.projectionHints = projectionHints
+	return plan
+}
+
+// admit validates source declarations and operations before names and reference
+// choices are frozen for rendering.
+func (p *documentPlanner) admit() {
+	p.index()
+	if p.document.SecurityDefined {
+		p.securityRequirements(p.document.Security, "#/security")
+	}
+	if !renderableVersion(p.document.OpenAPIVersion) {
+		p.unsupported("openapi-version", "#", "only OpenAPI 3.0, 3.1, and 3.2 documents are renderable")
+	}
+	for _, named := range p.document.Components.Schemas {
+		p.schema(named.Schema, "#/components/schemas/"+escapeJSONPointer(named.Name), objectDeclaration)
+	}
+	for index := range p.document.Operations {
+		op := &p.document.Operations[index]
+		if op.SecurityDefined {
+			p.securityRequirements(op.Security, op.sourcePath+"/security")
+		}
+		path := op.sourcePath
+		if path == "" {
+			path = fmt.Sprintf("#/operations/%d", index)
+		}
+		p.operation(op, path)
+	}
+	for _, named := range p.document.Components.Parameters {
+		path := "#/components/parameters/" + escapeJSONPointer(named.Name)
+		if !renderableComponentParameterName(named.Name) {
+			p.unsupported("component-parameter-name", path, "component parameter names containing '~' or '/' are not renderable")
+		}
+		if _, ok := p.used[named.Name]; !ok {
+			p.unsupported("unused-component-parameter", path, "unreferenced parameter components cannot be rendered faithfully")
+		}
+	}
 }
 
 // renderPlan freezes names and reference decisions after subset admission.

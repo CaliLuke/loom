@@ -41,5 +41,5 @@ components:
 	require.NotNil(t, byPath[base+"missing"].failure)
 	_, diagnostics, _, err = AnalyzeSelected(source, Selection{})
 	require.NoError(t, err)
-	requireDiagnosticCode(t, diagnostics, "advanced-schema")
+	requireDiagnosticCode(t, diagnostics, "schema-discriminator")
 }

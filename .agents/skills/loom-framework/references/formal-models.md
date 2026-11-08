@@ -134,6 +134,7 @@ and emitted-signature tests complement generated HTTP/JSON-RPC compilation.
 | Value source precedence, phase ordering, representation and cache ownership | [Value pipeline TLA model](../../../../expr/tla/value_projection/README.md); bounded ownership checks, not arbitrary value or generated-program correctness |
 | Intrinsic result nullability, occurrence ownership and selected-view declaration reuse | [Projected nullability](../../../../expr/tla/project_nullability/README.md); declaration-loss, occurrence-promotion, view-conflation and source-mutation counterexamples paired with semantic JSON and actual DSL tests; physical generated carriers remain a separate obligation |
 | Source/target pairing, declaration identity, baseline acquisition and annotation paths | [Schema ownership models](../../../../expr/tla/schema_declaration/README.md); bounded checks reject incompatible baseline reuse, added samples and erased annotations; actual extraction, recursion, naming and projection remain Go test obligations |
+| Recursive OpenAPI contributor acquisition, captured annotation binding and held projection completion | [Projected acquisition models](../../../../http/codegen/openapi/internal/ir/tla/projected_acquisition/README.md); repeated-reservation, wrong-binding, early-copy/cache, stale-comparison and reverse-role counterexamples; paired with root-binding, nullable mapping, canonical Body and parameter-order regressions |
 | Request-body analysis, method type ownership, inherited/default result views | [Expression lifecycle models](../../../../expr/tla/README.md); local README maps them to expression and generated transport tests |
 | Extend composition before validation, detached occurrence ownership and authored overlays | [Effective design composition](../../../../expr/tla/effective_design/README.md); bounded overwrite/order/aliasing counterexamples paired with direct and generated refinement tests |
 | Function-form Body template capture and effective publication | [Body templates](../../../../expr/tla/body_template/README.md); callback-created declaration, stale snapshot, overwritten intent, whole-source and aliasing counterexamples; paired with nested/property/capture and generated transport tests |
@@ -151,6 +152,7 @@ and emitted-signature tests complement generated HTTP/JSON-RPC compilation.
 | --- | --- |
 | Nearest authentication scope, session lowering and contradictory declarations | [Authentication scope ownership](../../../../expr/tla/authentication_scope/README.md) |
 | Effective HTTP request/response/error bindings, credential framing and inherited mapping ownership | [HTTP wire bindings](../../../../expr/tla/http_wire_bindings/README.md); bounded collisions and valid disjoint auth alternatives |
+| Composition identity of projected HTTP bodies: own-contract contributors, partial and empty selections, hint binding, wire context and occurrence isolation | [HTTP body projection](../../../../expr/tla/http_body_projection/README.md); current-loss, naive-restore, child-derived, subset, shared-key, wire and hint counterexamples, paired with `TestHTTPBodyCompositionProjection*` regressions |
 | Recursive view selection, excluded-field preservation and semantic conversion helper identity | [Recursive selected-view ownership](../../../../codegen/service/tla/recursive_projection/README.md); bounded selection/order models paired with generated unary and streaming wire regressions |
 | HTTP streaming body selection and omitted mapped SSE data | [Selected-view stream bodies](../../../../http/codegen/tla/sse_view_body/README.md); first-body and absent-field counterexamples with generated SSE/WebSocket controls; assumes sequential view selection |
 | Service package declarations, error factories, method members and method-derived helpers | [Package symbol ownership](../../../../codegen/service/tla/package_symbols/README.md); missing reservations, shared-method-scope, unowned-helper and uncached error-factory counterexamples, with generated HTTP/gRPC/JSON-RPC controls |
@@ -427,3 +429,30 @@ The multi-document importer has bounded design models for these boundaries:
   selection. Direct tests also cover duplicate-key rejection before canonicalization.
 
 These remain opt-in design evidence; normal tests check implementation behavior.
+
+Discriminator implementation correspondence adds these opt-in bounded models:
+
+- [Metadata edge removal](../../../../expr/tla/type_copy/README.md): narrow inherited
+  hint/sourceType capture, overrides and detached source identity.
+- [Pending constructor completion](../../../../dsl/tla/constructor_reference/README.md):
+  refinement/publication order and owned occurrence scope; ordinary declaration
+  scheduling and structural back-reference identity remain regression obligations.
+- [Native tagged form layout](../../../../internal/httpcodec/tla/media_contracts/README.md):
+  captured native branches versus independently retained nested JSON layout.
+- [Captured form fields](../../../../internal/formgen/tla/captured_fields/README.md):
+  value/item application, nullable members and declaration-owned physical presence.
+- [Selected form presence](../../../../codegen/uniongen/tla/form_selection/README.md):
+  empty repeated arrays, missing keys and captured JSON nullability.
+- [Tagged form projection](../../../../http/codegen/openapi/internal/ir/tla/tagged_form/README.md):
+  closure/count pullback, collision and nullable flattened-object preconditions.
+- [Discriminator import](../../../../internal/openapiimport/tla/discriminator_import/README.md):
+  representation eligibility, mapping provenance and shared deferred-normalization
+  carriers. These are design tools; no model execution enters normal gates.
+
+- [Named discriminator overlays](../../../../http/codegen/openapi/internal/ir/tla/discriminator_overlay/README.md):
+  complete component ownership, reference-local annotations, occurrence overrides
+  and source isolation.
+
+- [Physical union validation binding](../../../../http/codegen/tla/union_validation_binding/README.md):
+  declaration layout, native root storage and detached JSON/form publication
+  across HTTP packages and allocation order.

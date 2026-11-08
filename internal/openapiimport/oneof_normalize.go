@@ -57,8 +57,8 @@ func (a *analyzer) schemaUntaggedOneOf(schema *Schema, source *base.Schema, path
 		removeOccurrenceNull(branches[selected])
 	}
 	nullable := bare == 1 && matches == 0
-	if len(branches) == 1 {
-		*schema = *branches[0]
+	if len(branches) == 1 && source.Discriminator == nil {
+		a.copyNormalizedSchema(schema, branches[0])
 	}
 	schema.Nullable = schema.Nullable || nullable
 	if source.UnevaluatedProperties != nil && source.UnevaluatedProperties.IsB() && !source.UnevaluatedProperties.B {
@@ -107,7 +107,9 @@ func normalizedNullKind(schema *Schema) nullMembership {
 
 func removeOccurrenceNull(schema *Schema) {
 	schema.Nullable = false
-	schema.TypeUnion = slices.DeleteFunc(slices.Clone(schema.TypeUnion), func(value string) bool { return value == "null" })
+	schema.TypeUnion = slices.DeleteFunc(slices.Clone(schema.TypeUnion), func(value string) bool {
+		return value == "null"
+	})
 	if len(schema.TypeUnion) == 1 {
 		schema.TypeUnion = nil
 	}
@@ -171,4 +173,16 @@ func sourceAdmitsNull(proxy *base.SchemaProxy, active map[*base.Schema]bool) boo
 		}
 	}
 	return true
+}
+
+// copyNormalizedSchema transfers pending source checks to the surviving value.
+// Deferred discriminator hints share their carrier; sibling diagnostics retain
+// the original source path while updating the schema that planning will visit.
+func (a *analyzer) copyNormalizedSchema(target, source *Schema) {
+	*target = *source
+	for i := range a.unionSiblings {
+		if a.unionSiblings[i].schema == source {
+			a.unionSiblings[i].schema = target
+		}
+	}
 }

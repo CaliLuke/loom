@@ -148,6 +148,9 @@ func renderDiscriminator(discriminator *Discriminator) *openapi.Discriminator {
 		PropertyName:   discriminator.PropertyName,
 		DefaultMapping: discriminator.DefaultMapping,
 		Optional:       discriminator.Optional,
+		Untagged:       discriminator.Untagged,
+		Object:         discriminator.Object,
+		Extensions:     discriminator.Extensions,
 	}
 	if len(discriminator.Mapping) > 0 {
 		out.Mapping = cloneMap(discriminator.Mapping)

@@ -57,8 +57,10 @@ type (
 	}
 
 	componentPruner struct {
-		// closure owns retained identity; bodies owns normalized bodies already
-		// walked, keyed by component kind and name.
+		weakChildren      map[*Discriminator][]string
+		schemaOccurrences map[*Schema]struct{}
+		// closure owns retained identity; bodies records components whose
+		// normalized body and raw source were walked, keyed by kind and name.
 		closure       componentClosure
 		bodies        map[string]struct{}
 		schemas       map[string]*Schema
@@ -66,6 +68,10 @@ type (
 		requestBodies map[string]RequestBody
 		responses     map[string]Response
 		headers       map[string]Header
+		// bundle supplies raw source references and their finalized component
+		// index; sources records the source prefixes this pruner walked.
+		bundle  *bundledDescription
+		sources map[string]bool
 	}
 
 	selectedOperation struct {
@@ -227,11 +233,26 @@ func newSelectionReport(
 	return SelectionReport{Tags: tags, UnclaimedPaths: unclaimedPaths}
 }
 
+// pruneComponents retains the closure of the walk that weak-child projection
+// converged on; the selected roots are not walked a second time.
 func pruneComponents(document *Document) componentClosure {
-	pruner := newComponentPruner(document.Components)
-	inheritsSecurity := false
+	pruner := projectWeakChildren(document)
+	if !slices.ContainsFunc(document.Operations, func(operation Operation) bool {
+		return !operation.SecurityDefined
+	}) {
+		document.Security, document.SecurityDefined = nil, false
+	}
+	pruner.retain(document)
+	document.retainedClosure = &pruner.closure
+	return pruner.closure
+}
+
+// walkSelectedRoots visits every selected operation, its source-only grammar
+// dependencies and effective security under the supplied weak ParentHint edges.
+func walkSelectedRoots(document *Document, weakChildren map[*Discriminator][]string) *componentPruner {
+	pruner := newDocumentPruner(document)
+	pruner.weakChildren = weakChildren
 	for _, operation := range document.Operations {
-		inheritsSecurity = inheritsSecurity || !operation.SecurityDefined
 		pruner.visitOperation(operation)
 		if document.bundle != nil {
 			pruner.visitSourceOperation(document.bundle, operation)
@@ -241,21 +262,18 @@ func pruneComponents(document *Document) componentClosure {
 		} else if document.SecurityDefined {
 			pruner.visitSecurity(document.Security)
 			if document.bundle != nil {
-				pruner.visitSourcePrefix(document.bundle, "#/security", make(map[string]bool))
+				pruner.visitSourcePrefix(document.bundle, "#/security", pruner.sources)
 			}
 		}
 	}
-	if !inheritsSecurity {
-		document.Security, document.SecurityDefined = nil, false
-	}
-	pruner.retain(document)
-	document.retainedClosure = &pruner.closure
-	return pruner.closure
+	return pruner
 }
 
 func newComponentPruner(components Components) *componentPruner {
 	pruner := &componentPruner{
-		bodies: make(map[string]struct{}),
+		schemaOccurrences: make(map[*Schema]struct{}),
+		bodies:            make(map[string]struct{}),
+		sources:           make(map[string]bool),
 		closure: componentClosure{
 			examples: make(map[string]struct{}), securitySchemes: make(map[string]struct{}),
 			schemas:       make(map[string]struct{}),
@@ -288,6 +306,40 @@ func newComponentPruner(components Components) *componentPruner {
 	return pruner
 }
 
+// newDocumentPruner walks a document's components together with its bundled raw
+// source. Selection, child qualification and occurrence inventories all use it,
+// so every retained component contributes both closures.
+func newDocumentPruner(document *Document) *componentPruner {
+	pruner := newComponentPruner(document.Components)
+	pruner.bundle = document.bundle
+	return pruner
+}
+
+// documentSchemaOccurrences inventories retained schemas through the same walk
+// used for component closure, including inline schemas, shared edges and cycles.
+func documentSchemaOccurrences(document *Document) map[*Schema]struct{} {
+	p := newDocumentPruner(document)
+	for _, named := range document.Components.Schemas {
+		p.visitSchema(named.Schema)
+	}
+	for _, named := range document.Components.Parameters {
+		p.visitParameter(named.Parameter)
+	}
+	for _, named := range document.Components.RequestBodies {
+		p.visitRequestBody(named.RequestBody)
+	}
+	for _, named := range document.Components.Responses {
+		p.visitResponse(named.Response)
+	}
+	for _, named := range document.Components.Headers {
+		p.visitHeader(named.Header)
+	}
+	for _, operation := range document.Operations {
+		p.visitOperation(operation)
+	}
+	return p.schemaOccurrences
+}
+
 func (p *componentPruner) visitOperation(operation Operation) {
 	for _, parameter := range operation.Parameters {
 		p.visitParameter(parameter)
@@ -304,7 +356,29 @@ func (p *componentPruner) visitSchema(schema *Schema) {
 	if schema == nil {
 		return
 	}
+	if _, visited := p.schemaOccurrences[schema]; visited {
+		return
+	}
+	p.schemaOccurrences[schema] = struct{}{}
 	p.visitExamples(schema.Examples)
+	if hint := schema.Discriminator; hint != nil {
+		if hint.DefaultMapping != "" {
+			p.visitSchema(&Schema{Ref: hint.DefaultMapping})
+		}
+		if hint.Parent {
+			for _, name := range p.weakChildren[hint] {
+				p.visitSchema(&Schema{Ref: componentDeclaration(name)})
+			}
+			for _, entry := range hint.Explicit {
+				for name, target := range p.schemas {
+					if target == entry.Target {
+						p.visitSchema(&Schema{Ref: componentDeclaration(name)})
+						break
+					}
+				}
+			}
+		}
+	}
 	if name, ok := componentReferenceName(schema.Ref, "#/components/schemas/"); ok {
 		p.retainComponent("schemas", name)
 		return
@@ -361,11 +435,12 @@ func (p *componentPruner) visitResponse(response Response) {
 	}
 }
 
-// retainComponent records a reusable component's retained identity and walks
-// its normalized body once. Normalized and source-only grammar references both
-// retain through it: analysis can add normalized-only edges, such as promoted
-// declarations, so retention never stands in for that walk. It reports whether
-// kind is a retained component kind.
+// retainComponent records a reusable component's retained identity. On first
+// retention it walks the component's normalized body and, when the pruner has a
+// bundle, its raw source. Analysis adds normalized-only edges such as promoted
+// declarations and discriminator children, while normalization can drop a raw
+// reference, so retention follows the closure over both inventories and neither
+// stands in for the other. It reports whether kind is a retained component kind.
 func (p *componentPruner) retainComponent(kind, name string) bool {
 	var retained map[string]struct{}
 	var body func()
@@ -399,11 +474,16 @@ func (p *componentPruner) retainComponent(kind, name string) bool {
 	}
 	retained[name] = struct{}{}
 	key := kind + "/" + name
-	if _, walked := p.bodies[key]; body == nil || walked {
+	if _, walked := p.bodies[key]; walked {
 		return true
 	}
 	p.bodies[key] = struct{}{}
-	body()
+	if body != nil {
+		body()
+	}
+	if p.bundle != nil {
+		p.visitSourcePrefix(p.bundle, componentSource(kind, name), p.sources)
+	}
 	return true
 }
 

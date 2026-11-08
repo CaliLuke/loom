@@ -54,7 +54,7 @@ func TestAsyncSchemaReferenceLifecycle(t *testing.T) {
 				if shared {
 					require.Equal(t, root.Ref, op.RequestBody.Value.Content["application/json"].Schema.Ref)
 				}
-				retained := pruneUnusedComponentSchemas(paths, schemas, reusableComponents{})
+				retained := pruneUnusedComponentSchemas(paths, schemas, reusableComponents{}, nil)
 				require.Len(t, retained, 2)
 				require.Contains(t, retained, "Message")
 				require.Contains(t, retained, "Forbidden")

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/openapi"
 )
 
 type (
@@ -131,7 +132,24 @@ func componentMappingName(name string) bool {
 	return true
 }
 
-func (a *Analyzer) applyDiscriminatorMetadata(s *Schema, meta expr.MetaExpr, context string) {
+func (a *Analyzer) applyDiscriminatorMetadata(s *Schema, attribute *expr.AttributeExpr, context string) {
+	meta := attribute.Meta
+	if err := a.applyDiscriminatorHint(s, attribute, context); err != nil {
+		if a.err == nil {
+			a.err = fmt.Errorf("%s: %w", context, err)
+		}
+		return
+	}
+	extensions := openapi.ScopedExtensionsFromExpr(meta, "discriminator")
+	if len(extensions) > 0 {
+		if s.Discriminator == nil {
+			if a.err == nil {
+				a.err = fmt.Errorf("%s: OpenAPI discriminator extensions require a discriminator", context)
+			}
+			return
+		}
+		s.Discriminator.Extensions = extensions
+	}
 	decoded, err := decodeDiscriminatorMetadata(meta, s.Discriminator != nil)
 	if err != nil {
 		if a.err == nil {
@@ -139,11 +157,24 @@ func (a *Analyzer) applyDiscriminatorMetadata(s *Schema, meta expr.MetaExpr, con
 		}
 		return
 	}
+	if decoded != nil {
+		s.Discriminator.DefaultMapping = decoded.fallback
+		if !s.Discriminator.Untagged && !s.Discriminator.Object {
+			s.Discriminator.Optional = decoded.optional
+		}
+	}
+	if s.Discriminator == nil {
+		return
+	}
+	if (s.Discriminator.Untagged || s.Discriminator.Object) && s.Discriminator.Optional && s.Discriminator.DefaultMapping == "" && !a.discriminatorHints.compatibility {
+		if a.err == nil {
+			a.err = fmt.Errorf("%s: OpenAPI 3.2 optional discriminator hint requires an explicit defaultMapping", context)
+		}
+		return
+	}
 	if decoded == nil {
 		return
 	}
-	s.Discriminator.DefaultMapping = decoded.fallback
-	s.Discriminator.Optional = decoded.optional
 	if decoded.optional {
 		s.Required = slices.DeleteFunc(s.Required, func(name string) bool {
 			return name == s.Discriminator.PropertyName

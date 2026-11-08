@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/formgen"
 	"github.com/CaliLuke/loom/internal/httpencoding"
 )
 
@@ -69,11 +69,8 @@ func renderStyledFormDecode(request *RequestData) string {
 func renderFormFieldsDecode(body *TypeData, ordinary, styled []*FormFieldData, target string) string {
 	var code strings.Builder
 	for _, field := range ordinary {
-		if field.Codec.Style == httpencoding.JSON {
-			fmt.Fprintf(&code, "if _, parameterError := loomhttp.DecodeJSONField(parameterForm, %q, &%s.%s, %t, %s); parameterError != nil {\nreturn parameterError\n}\n", field.HTTPName, target, field.FieldName, expr.AllowsNull(field.Attribute), formApplicationLiteral(field.Codec.Application))
-		} else {
-			fmt.Fprintf(&code, "if _, parameterError := loomhttp.DecodeFormValue(parameterForm, %q, &%s.%s); parameterError != nil {\nreturn parameterError\n}\n", field.HTTPName, target, field.FieldName)
-		}
+		captured := formgen.Field{Codec: field.Codec, AllowsNull: expr.AllowsNull(field.Attribute)}
+		fmt.Fprintf(&code, "if _, parameterError := %s; parameterError != nil {\nreturn parameterError\n}\n", captured.DecodeCall("parameterForm", fmt.Sprintf("%q", field.HTTPName), target+"."+field.FieldName))
 	}
 	for _, field := range styled {
 		if expr.AsUnion(field.Attribute.Type) != nil {
@@ -132,37 +129,15 @@ func renderMediaFormDecode(variant *MediaVariantData, context, target string) st
 	return fmt.Sprintf("loomhttp.WithMediaFormCodec(%s, loomhttp.MediaFormCodec{Decode: func(parameterFormPairs loomhttp.RawPairs, parameterForm map[string][]string) error {\nbody := new(%s)\n%s = body\n%s}})", context, variant.formBody.Name, target, renderFormFieldsDecode(variant.formBody, variant.OrdinaryFormFields, variant.StyledFormFields, "body"))
 }
 
-func formApplicationLiteral(application httpencoding.Application) string {
-	if application == httpencoding.Items {
-		return "loomhttp.FieldItems"
-	}
-	return "loomhttp.FieldValue"
-}
-
 func renderJSONFormFieldEncode(body *TypeData, field *FormFieldData, target string) string {
-	var code strings.Builder
 	key, physical := body.attribute.FindAttribute(field.AttributeName)
-	presence := ""
-	if body.context.FieldPresence(expr.NewObjectFields(body.attribute), key, physical) != codegen.NativePresence {
-		presence = target + "." + field.FieldName + ".Present()"
-	} else if expr.AsUnion(physical.Type) != nil && expr.HasNativeJSONPresence(physical) {
-		presence = target + "." + field.FieldName + ".Kind() != \"\""
-	}
-	if presence != "" {
-		fmt.Fprintf(&code, "if %s {\n", presence)
-	}
-	if field.Required && field.Codec.Application == httpencoding.Items {
-		fmt.Fprintf(&code, "if parameterPresent, parameterError := loomhttp.EncodeJSONField(parameterForm, %q, %s.%s, %s); parameterError != nil {\nreturn \"\", parameterError\n} else if !parameterPresent {\nreturn \"\", fmt.Errorf(%q)\n}\n", field.HTTPName, target, field.FieldName, formApplicationLiteral(field.Codec.Application), "required form field "+field.HTTPName+" has no encoded items")
-	} else {
-		fmt.Fprintf(&code, "if _, parameterError := loomhttp.EncodeJSONField(parameterForm, %q, %s.%s, %s); parameterError != nil {\nreturn \"\", parameterError\n}\n", field.HTTPName, target, field.FieldName, formApplicationLiteral(field.Codec.Application))
-	}
-	if presence != "" {
-		if field.Required {
-			fmt.Fprintf(&code, "} else {\nreturn \"\", fmt.Errorf(%q)\n", "required form field "+field.HTTPName+" is absent")
-		}
-		code.WriteString("}\n")
-	}
-	return code.String()
+	value := target + "." + field.FieldName
+	captured := formgen.Field{Codec: field.Codec, AllowsNull: expr.AllowsNull(field.Attribute)}
+	return captured.Encode(formgen.Access{
+		Values: "parameterForm", Name: fmt.Sprintf("%q", field.HTTPName), Value: value,
+		Presence: formgen.Presence(body.context, body.attribute, key, physical, value),
+		Required: field.Required, ErrorPrefix: "\"\", ", Label: field.HTTPName,
+	})
 }
 
 func formFieldsNeedValues(ordinary, styled []*FormFieldData) bool {

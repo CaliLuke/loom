@@ -43,7 +43,7 @@ func (a *analyzer) schemaNullableAnyOf(schema *Schema, source *base.Schema, path
 	if value == nil || value.Type == "" && value.Ref == "" && !value.Unconstrained && len(value.OneOf) == 0 {
 		return false
 	}
-	*schema = *value
+	a.copyNormalizedSchema(schema, value)
 	// An unconstrained schema already accepts null, so its explicit null branch
 	// is semantically redundant and does not need a separate nullable wrapper.
 	schema.Nullable = !schema.Unconstrained

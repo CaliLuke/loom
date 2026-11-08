@@ -125,15 +125,22 @@ func configureStyledCarrier(element *Element, ctx *codegen.AttributeContext) {
 	if !element.Styled || !expr.IsObject(element.Type) && expr.AsUnion(element.Type) == nil {
 		return
 	}
+	bindServiceCarrier(element, ctx)
+}
+
+// bindServiceCarrier makes the service declaration the native parameter value,
+// so constructors copy it instead of converting a transport-local declaration.
+// The native context records that physical layout for constructor arguments.
+func bindServiceCarrier(element *Element, ctx *codegen.AttributeContext) {
 	att := *element.attribute
 	att.Type = element.FieldType
 	element.attribute = &att
 	element.context = ctx
+	element.nativeContext = ctx
 	element.Type = att.Type
 	element.TypeName = ctx.Scope.Name(&att, ctx.Pkg(&att), ctx)
 	element.TypeRef = ctx.Scope.Ref(&att, ctx.Pkg(&att))
 	if expr.AsUnion(att.Type) != nil {
-		element.nativeContext = ctx
 		element.Pointer = true
 	}
 	if _, inline := att.Type.(*expr.Object); inline {

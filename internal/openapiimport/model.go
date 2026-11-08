@@ -15,6 +15,9 @@ type Document struct {
 	bundle          *bundledDescription
 	names           designNames
 	retainedClosure *componentClosure
+	// parentHintPlans retains immutable base-qualified child plans; each pruner
+	// owns weak-edge eligibility for its operation projection.
+	parentHintPlans map[string]parentHintPlan
 	unresolvedPaths []string
 	// OpenAPIVersion is the exact supported 3.x version declared by the input.
 	OpenAPIVersion string
@@ -346,6 +349,10 @@ type Header struct {
 // phase. Ref may be accompanied by supported assertions and annotations
 // authored beside $ref or a single-reference allOf wrapper.
 type Schema struct {
+	// Discriminator retains a validated hint without changing schema validation.
+	Discriminator       *Discriminator
+	sourcePath          string
+	synthesizedEnvelope bool
 	// Ref is the authored local schema component reference.
 	Ref string
 	// Boolean retains an authored boolean schema. False has no DSL representation;

@@ -72,8 +72,9 @@ func TestBuildBodyTypesNamesInlineResultBodySelections(t *testing.T) {
 
 // TestBuildBodyTypesKeepsInlineBodyNameAndReuse checks that an inline
 // response Body keeps a name declared on the Body itself, and that an inline
-// Body that selects every attribute of the result type still reuses its
-// component.
+// Body that selects every attribute keeps its compatible component family.
+// Distinct retained method examples require a complete-schema variant. Equal
+// authored or suppressed annotations are covered by TestInlineBodyCompatibleNameHint.
 func TestBuildBodyTypesKeepsInlineBodyNameAndReuse(t *testing.T) {
 	cases := []struct {
 		name     string
@@ -100,7 +101,7 @@ func TestBuildBodyTypesKeepsInlineBodyNameAndReuse(t *testing.T) {
 					dsl.Attribute("b")
 				})
 			},
-			wantName: "RT",
+			wantName: "RT_ae6637d9035e5495",
 			want:     []string{"a", "b"},
 		},
 	}
@@ -241,6 +242,59 @@ func TestBuildBodyTypesReusesTypeOfDeclaredBody(t *testing.T) {
 			})
 		}
 	}
+}
+
+// TestDeclaredBodyCanonicalAcrossMethods keeps one canonical declaration claim
+// without replacing the independently prepared examples of either method.
+func TestDeclaredBodyCanonicalAcrossMethods(t *testing.T) {
+	root := codegen.RunDSL(t, func() {
+		result := dsl.Type("RT", func() {
+			dsl.Attribute("a", dsl.String)
+			dsl.Attribute("b", dsl.String)
+			dsl.Required("a")
+		})
+		dsl.Service("Svc", func() {
+			for _, name := range []string{"first", "second"} {
+				dsl.Method(name, func() {
+					dsl.Result(result)
+					dsl.HTTP(func() {
+						dsl.GET("/" + name)
+						dsl.Response(dsl.StatusOK, func() {
+							dsl.Body(result)
+						})
+					})
+				})
+			}
+		})
+	})
+	bodies := BuildBodyTypes(root.API, root.Types, root.ResultTypes)
+	require.NoError(t, bodies.Err)
+	examples := make(map[string]any)
+	for _, name := range []string{"first", "second"} {
+		t.Run(name, func(t *testing.T) {
+			endpoint := bodies.Services["Svc"][name]
+			require.NotNil(t, endpoint)
+			assert.Equal(t, toRef("RT"), endpoint.ResponseBodies[200][0].Ref)
+			response := endpoint.prepared.Response.Responses[0]
+			target := response.DocumentValues["application/json"]
+			require.NotNil(t, target)
+			require.NotNil(t, target.Representative)
+			expected, present := preparedOpenAPIExampleValue(*target.Representative)
+			require.True(t, present)
+			source, present := target.Source.Example.DeclaredJSONValue()
+			require.True(t, present)
+			assert.Equal(t, source, expected, "the complete response keeps its method source example")
+			rendered, err := buildResponses(endpoint.prepared, endpoint, root.API.ExampleGenerator, false)
+			require.NoError(t, err)
+			media := rendered["200"].Content["application/json"]
+			require.NotNil(t, media)
+			assert.Equal(t, toRef("RT"), media.Schema.Ref)
+			assert.Equal(t, expected, media.Example, "component reuse must not substitute another method's example")
+			examples[name] = media.Example
+		})
+	}
+	require.Len(t, examples, 2)
+	assert.NotEqual(t, examples["first"], examples["second"], "the fixture must exercise independently synthesized method values")
 }
 
 // declaredBodyTypeFunc declares a user type with the given name and DSL.

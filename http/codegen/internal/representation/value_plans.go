@@ -11,14 +11,23 @@ import (
 )
 
 type httpValuePlanBuilder struct {
-	request  expr.ValuePlanRequest
-	seen     map[*expr.AttributeExpr]bool
-	boundary string
+	request         expr.ValuePlanRequest
+	seen            map[*expr.AttributeExpr]bool
+	boundary        string
+	projectedRoot   *expr.AttributeExpr
+	projectedFields map[string]contributorField
 }
 
 // BuildValuePlan runs at the actual body declaration owner, after layout
 // and view selection. Its policies consume the same tags used by the emitter.
 func BuildValuePlan(value *transportir.ValueTarget, target *expr.AttributeExpr, context *codegen.AttributeContext, use expr.ValuePlanUse) *transportir.ValueTarget {
+	return buildValuePlan(value, target, context, use, nil)
+}
+
+// buildValuePlan builds the plan of target. A projected contributor supplies
+// its parameter contract and the selected body's common-field wire policies;
+// ordinary targets capture their contract and derive policies normally.
+func buildValuePlan(value *transportir.ValueTarget, target *expr.AttributeExpr, context *codegen.AttributeContext, use expr.ValuePlanUse, contract *contributorContract) *transportir.ValueTarget {
 	if value == nil {
 		return nil
 	}
@@ -35,16 +44,25 @@ func BuildValuePlan(value *transportir.ValueTarget, target *expr.AttributeExpr, 
 	result.ExampleSets = nil
 	result.Annotations = nil
 	target = TargetGraph(target)
-	normalizeParameterTarget(target, value.Codec)
+	var parameter *parameterContract
+	if contract != nil {
+		parameter = &contract.parameter
+	}
+	boundaries := normalizeParameterTarget(target, value.Codec, parameter)
 	if value.Codec == expr.ValueCodecText {
 		local := *context
 		local.JSONPresence = false
 		local.CollectionElementPresence = false
 		context = &local
 	}
+	result.ProjectionContext = captureProjectionContext(context, target)
 	builder := httpValuePlanBuilder{
 		request: expr.ValuePlanRequest{Target: target, Selection: append([]string(nil), value.Selection...), Codec: value.Codec, Use: use},
 		seen:    make(map[*expr.AttributeExpr]bool),
+	}
+	if contract != nil {
+		builder.projectedRoot = contributorObject(target)
+		builder.projectedFields = contract.fields
 	}
 	if value.SSEDataField != "" {
 		builder.request.Codecs = mappedSSECodecs(target, context, value.SSEDataField)
@@ -56,6 +74,7 @@ func BuildValuePlan(value *transportir.ValueTarget, target *expr.AttributeExpr, 
 		result.Error = err
 		return &result
 	}
+	builder.request.Codecs = appendJSONContentCodecs(builder.request.Codecs, boundaries)
 	if builder.boundary != "" {
 		result.Boundary = builder.boundary
 	}
@@ -101,6 +120,24 @@ func buildDocumentationPlans(result *transportir.ValueTarget, target *expr.Attri
 		}
 	}
 	return nil
+}
+
+// appendJSONContentCodecs binds each JSON content boundary of a form or
+// multipart target to the JSON codec. One policy owns an exact target: a
+// target that already has a custom or SSE policy keeps it, and a custom codec
+// below a boundary still overrides the JSON codec its descendants inherit.
+func appendJSONContentCodecs(codecs []expr.ValueCodecPolicy, boundaries []*expr.AttributeExpr) []expr.ValueCodecPolicy {
+	owned := make(map[*expr.AttributeExpr]bool, len(codecs)+len(boundaries))
+	for _, policy := range codecs {
+		owned[policy.Target] = true
+	}
+	for _, target := range boundaries {
+		if !owned[target] {
+			owned[target] = true
+			codecs = append(codecs, expr.ValueCodecPolicy{Target: target, Codec: expr.ValueCodecJSON})
+		}
+	}
+	return codecs
 }
 
 func (b *httpValuePlanBuilder) walk(attribute *expr.AttributeExpr, context *codegen.AttributeContext, untaggedBranch, reachable bool) error {
@@ -215,6 +252,11 @@ func (b *httpValuePlanBuilder) object(attribute *expr.AttributeExpr, actual *exp
 		policy, err := emittedHTTPFieldPolicy(attribute, mapped, field, context)
 		if err != nil {
 			return err
+		}
+		if attribute == b.projectedRoot {
+			if physical, found := b.projectedFields[field.Name]; found {
+				policy.WireName, policy.Visible, policy.Presence = physical.WireName, physical.Visible, physical.Presence
+			}
 		}
 		if !visited {
 			b.request.Fields = append(b.request.Fields, policy)

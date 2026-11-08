@@ -170,9 +170,7 @@ func httpBodyOnly(a *HTTPEndpointExpr) bool {
 }
 
 func objectHTTPBody(a *HTTPEndpointExpr, payload *AttributeExpr) *MappedAttributeExpr {
-	body := NewMappedAttributeExpr(payload)
-	RemovePkgPath(body.AttributeExpr)
-	inheritBodyReferences(body)
+	body := projectHTTPBody(payload)
 	removeAttributes(body, a.Headers)
 	removeAttributes(body, a.Cookies)
 	removeAttributes(body, a.Params)
@@ -317,9 +315,7 @@ func buildHTTPResponseBody(name string, attr *AttributeExpr, resp *HTTPResponseE
 // responseBodyObject returns the attributes of the object attr that the body
 // of the response resp holds: those that resp maps to no header or cookie.
 func responseBodyObject(attr *AttributeExpr, resp *HTTPResponseExpr) *MappedAttributeExpr {
-	body := NewMappedAttributeExpr(attr)
-	RemovePkgPath(body.AttributeExpr)
-	inheritBodyReferences(body)
+	body := projectHTTPBody(attr)
 	removeAttributes(body, resp.Headers)
 	removeResponseCookieAttributes(body, resp.Cookies)
 	if resp.ErrorNameFromStatus {
@@ -443,6 +439,7 @@ func cloneExplicitHTTPBody(body *AttributeExpr, name, suffix, uid string) *Attri
 	preserveCanonicalOpenAPITypeName(cloned)
 	renameType(cloned, name, suffix)
 	setHTTPBodyUID(cloned.Type, uid)
+	recordHTTPBodyProjection(cloned, body)
 	return cloned
 }
 
@@ -547,6 +544,9 @@ func removeResponseCookieAttributes(attr *MappedAttributeExpr, cookies []*HTTPRe
 }
 
 func removeAttribute(attr *MappedAttributeExpr, name string) {
+	if attr.bodyProjection != nil && AsObject(attr.Type).Attribute(name) != nil {
+		attr.bodyProjection.Excluded = append(attr.bodyProjection.Excluded, name)
+	}
 	attr.omitMember(name)
 	attr.Delete(name)
 	if attr.Validation != nil {

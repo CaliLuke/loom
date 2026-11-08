@@ -20,7 +20,7 @@ paths:
                   example: Nesciunt qui officiis libero et excepturi.
             responses:
                 "200":
-                    $ref: '#/components/responses/TickTockEventTextEventStreamStatus200Response'
+                    $ref: '#/components/responses/TickTockEvent_8e14d5882b475fa6TextEventStreamStatus200Response'
                 "401":
                     description: 'unauthorized: Unauthorized response.'
                     content:
@@ -76,7 +76,7 @@ paths:
             operationId: clock.tick
             responses:
                 "200":
-                    $ref: '#/components/responses/TickTockEventTextEventStreamStatus200Response'
+                    $ref: '#/components/responses/TickTockEvent_8e14d5882b475fa6TextEventStreamStatus200Response'
             summary: Tick clock
             tags:
                 - clock
@@ -115,7 +115,7 @@ paths:
             operationId: clock.tock
             responses:
                 "200":
-                    $ref: '#/components/responses/TickTockEventTextEventStreamStatus200Response'
+                    $ref: '#/components/responses/TickTockEvent_8e14d5882b475fa6TextEventStreamStatus200Response'
             summary: Tock clock
             tags:
                 - clock
@@ -217,23 +217,19 @@ components:
                 - timeout
                 - temporary
                 - fault
-        TickTockEvent:
+        TickTockEvent_8e14d5882b475fa6:
             type: object
             properties:
                 data:
                     type: string
-                    example: Nulla eius porro ratione.
                 event:
                     type: string
-                    example: Et minima fugit voluptas.
-            example:
-                data: Voluptatem placeat dolor voluptatibus et.
-                event: Quis incidunt necessitatibus eius amet.
+                    example: Rem recusandae quas.
             required:
                 - event
                 - data
     responses:
-        TickTockEventTextEventStreamStatus200Response:
+        TickTockEvent_8e14d5882b475fa6TextEventStreamStatus200Response:
             description: OK response.
             content:
                 text/event-stream:
@@ -244,7 +240,7 @@ components:
                                 type: string
                                 contentMediaType: application/json
                                 contentSchema:
-                                    $ref: '#/components/schemas/TickTockEvent'
+                                    $ref: '#/components/schemas/TickTockEvent_8e14d5882b475fa6'
                         required:
                             - data
                         additionalProperties: false

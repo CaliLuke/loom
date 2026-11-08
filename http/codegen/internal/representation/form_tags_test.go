@@ -16,8 +16,8 @@ func TestFormTagProjectionIsOccurrenceLocal(t *testing.T) {
 	source := &expr.AttributeExpr{Type: &expr.UserTypeExpr{TypeName: "Outer", AttributeExpr: &expr.AttributeExpr{Type: &expr.Object{{Name: "value", Attribute: field}}}}}
 	for _, codec := range []expr.ValueCodec{expr.ValueCodecForm, expr.ValueCodecMultipart} {
 		form, json := TargetGraph(source), TargetGraph(source)
-		normalizeParameterTarget(form, codec)
-		normalizeParameterTarget(json, expr.ValueCodecJSON)
+		normalizeParameterTarget(form, codec, nil)
+		normalizeParameterTarget(json, expr.ValueCodecJSON, nil)
 		formField := expr.AsObject(form.Type).Attribute("value")
 		jsonField := expr.AsObject(json.Type).Attribute("value")
 		formName, _, err := FieldWireNames(formField, "value")

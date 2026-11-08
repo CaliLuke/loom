@@ -92,9 +92,7 @@ func normalizedOpenAPINamePart(raw string) string {
 
 func syntheticUnionBranchSchemaDescription(val *expr.NamedAttributeExpr) string {
 	if explicit, ok := val.Attribute.Meta.Last("openapi:description:unionEnvelope"); ok {
-		if explicit = strings.TrimSpace(explicit); explicit != "" {
-			return explicit
-		}
+		return explicit
 	}
 	tag := strings.TrimSpace(expr.UnionVariantTag(val))
 	if tag == "" {
@@ -103,25 +101,24 @@ func syntheticUnionBranchSchemaDescription(val *expr.NamedAttributeExpr) string 
 	return fmt.Sprintf(`Synthetic wrapper for union variant %q.`, tag)
 }
 
-func findMatchingSchemaRef(refs []schemaRef, explicitName string, canonical bool) string {
+func findMatchingSchemaRef(refs []schemaRef, explicitName string, canonical bool, binding preparedComponentBinding) string {
 	for _, ref := range refs {
-		if explicitName != "" {
-			if canonical {
-				if ref.ref == toRef(explicitName) {
-					return ref.ref
-				}
-				continue
-			}
-			if ref.explicitName == explicitName {
-				return ref.ref
-			}
-			continue
-		}
-		if ref.explicitName == "" {
+		if compatibleSchemaName(ref, explicitName, canonical) ||
+			canonical && explicitName != "" && ref.canonicalClaim == explicitName &&
+				binding.target != nil && binding.position.Valid() && ref.binding == binding {
 			return ref.ref
 		}
 	}
 	return ""
+}
+
+// compatibleSchemaName keeps the same public name-hint rule at provisional
+// lookup and final-name preference. It does not establish schema equivalence.
+func compatibleSchemaName(ref schemaRef, explicitName string, canonical bool) bool {
+	if explicitName != "" && canonical {
+		return ref.ref == toRef(explicitName)
+	}
+	return ref.explicitName == explicitName
 }
 
 func hasCanonicalOpenAPITypeName(meta expr.MetaExpr) bool {

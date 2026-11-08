@@ -10,6 +10,7 @@ import (
 	"github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/internal/representation"
+	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
 )
 
@@ -44,12 +45,33 @@ func TestComponentAnnotationsSurviveRepresentationRegistration(t *testing.T) {
 				return OpenAPIExampleValue(attribute, value)
 			}))
 			analyzeComponentTypes(a, root.Types, root.ResultTypes)
-			before := a.schemas["Data"].Example
-			initialCalls := calls
+			original := a.schemas["Data"]
+			before := copyComponentAnnotation(original.Example)
+			initialOwners := snapshotAnnotationOwners(a)
+			bodies := analyzeEndpointBodies(a, service.Endpoints[0])
+			acquiredOwners := snapshotAnnotationOwners(a)
+			firstCalls := calls
 			analyzeEndpointBodies(a, service.Endpoints[0])
+			require.Equal(t, firstCalls, calls, "exact acquired positions must not invoke the projector twice")
 			a.finalizeRepresentations()
-			require.Equal(t, before, a.schemas["Data"].Example, "a representation must preserve the existing component annotation authority")
-			require.Equal(t, initialCalls, calls, "neither present nor omitted component annotations may be resampled")
+			// Final public-name allocation may choose another complete variant;
+			// the acquired original schema and its annotation owner stay intact.
+			require.Equal(t, before, original.Example, "a representation must preserve the acquired component annotation authority")
+			require.Equal(t, firstCalls, calls, "final allocation must not invoke the projector")
+			require.Equal(t, acquiredOwners, snapshotAnnotationOwners(a), "all acquired annotation positions remain unchanged")
+			for owner, positions := range initialOwners {
+				require.Equal(t, positions, snapshotAnnotationOwners(a)[owner], "the original standalone owner is preserved")
+			}
+			request := annotationObject(t, bodies.RequestBody, a.schemas)
+			if omitted {
+				require.Nil(t, request.Example)
+			} else {
+				require.Equal(t, map[string]any{"bytes": "aGk="}, request.Example, "the authored request value has its own annotation authority")
+				require.NotEmpty(t, request.Examples)
+				for _, example := range request.Examples {
+					require.Equal(t, map[string]any{"bytes": "aGk="}, example)
+				}
+			}
 			require.Equal(t, "base64", a.schemas["Data"].Properties["bytes"].ContentEncoding)
 		})
 	}
@@ -110,6 +132,7 @@ func TestComponentAnnotationCachesSuppression(t *testing.T) {
 
 func TestComponentAnnotationStreamingDeclarationAuthority(t *testing.T) {
 	root := codegen.RunDSL(t, testdata.TypeIdentityDSL)
+	ordinaryRef, acquired := streamingAnnotationBinding(t, root)
 	document, err := BuildDocument(root.API, root.Types, root.ResultTypes)
 	require.NoError(t, err)
 	contract := document.Paths["/stream"].Operations["GET"].Extensions[asyncContractExtensionName].(map[string]any)
@@ -121,16 +144,89 @@ func TestComponentAnnotationStreamingDeclarationAuthority(t *testing.T) {
 	actual := materializeAsyncSchema(&asyncSchema{schema: document.Components.Schemas[name]}, document.Components.Schemas).schema
 	expected := materializeAsyncSchema(&asyncSchema{schema: document.Components.Schemas["Other"]}, document.Components.Schemas).schema
 	require.Equal(t, expected, actual, "controlled streaming wrappers retain the original declaration's component and sample context")
-	// The parent IR already allocates this ordinary streaming-body component.
-	// The async retained cut still binds Other; public pruning removes unused
-	// components later. Preserve each allocation's independent sample context.
 	require.Equal(t, "Other", name)
-	allocated := document.Components.Schemas["Other_e59b0fbb558592ed"]
-	require.NotNil(t, allocated)
-	require.NotNil(t, allocated.Example, "the retained streaming declaration owns its representative")
-	require.NotNil(t, allocated.Properties["count"].Example,
+	// Follow the actual ordinary body's acquired reference through final naming.
+	// It has its own prepared root/child samples; its private suffix is not a contract.
+	published := annotationObject(t, &Schema{Ref: ordinaryRef}, document.Components.Schemas)
+	require.Equal(t, acquired, published, "the exact ordinary binding remains reachable through its renamed wrapper")
+	require.NotNil(t, published.Example, "the retained streaming declaration owns its representative")
+	require.NotNil(t, published.Properties["count"].Example,
 		"the retained child occurrence owns its representative independently")
-	require.Equal(t, toRef("Other_e59b0fbb558592ed"), document.Components.Schemas["OtherStreamingBody"].Ref)
+	t.Logf("async declaration %s; ordinary acquired body %s", schema.Ref, ordinaryRef)
+}
+
+func streamingAnnotationBinding(t *testing.T, root *expr.RootExpr) (string, *Schema) {
+	t.Helper()
+	a := NewAnalyzer(root.API.ExampleGenerator, false)
+	a.initializeDiscriminatorHints(root.API, root.Types, root.ResultTypes)
+	analyzeComponentTypes(a, root.Types, root.ResultTypes)
+	a.recordDiscriminatorChildren(root.Types, root.ResultTypes)
+	bodies := &BodyTypes{
+		Services:  make(map[string]map[string]*EndpointBodies),
+		prepared:  make(map[string]*transportir.Service),
+		locations: make(map[*expr.AttributeExpr]*Schema),
+	}
+	analyzeServiceBodies(a, root.API, bodies)
+	require.NoError(t, a.Err())
+	stream := bodies.Services["streamcollision"]["other"]
+	require.NotNil(t, stream)
+	binding := stream.RequestBody
+	require.NotNil(t, binding)
+	owned := annotationObject(t, binding, a.schemas)
+	var localName string
+	for name, component := range a.schemas {
+		if component == owned {
+			localName = name
+			break
+		}
+	}
+	require.NotEmpty(t, localName)
+	naming := a.schemaNames[localName]
+	var owner componentAnnotationIdentity
+	matches := 0
+	for identity := range a.componentAnnotations {
+		if identity.declaration == naming.logical && identity.baseline == naming.baseline && identity.context == exampleContext("component", naming.annotationName) {
+			owner = identity
+			matches++
+		}
+	}
+	require.Equal(t, 1, matches, "the actual acquired component identifies one annotation owner")
+	objectNode := owner.examplePlan.Underlying()
+	target := stream.prepared.Request.StreamingValue
+	require.NotNil(t, target)
+	rootSet := target.ExampleSets[objectNode]
+	require.NotNil(t, rootSet, "the owner must refer to this exact prepared streaming target")
+	require.NotNil(t, rootSet.Representative)
+	rootValue, ok := preparedOpenAPIExampleValue(*rootSet.Representative)
+	require.True(t, ok)
+	require.Equal(t, rootValue, owned.Example)
+	var countNode expr.ValuePlanNode
+	for _, member := range objectNode.Members() {
+		if member.WireName == "count" {
+			countNode = member.Node
+		}
+	}
+	require.True(t, countNode.Valid())
+	childSet := target.ExampleSets[countNode]
+	require.NotNil(t, childSet)
+	require.NotNil(t, childSet.Representative)
+	childValue, ok := preparedOpenAPIExampleValue(*childSet.Representative)
+	require.True(t, ok)
+	require.Equal(t, childValue, owned.Properties["count"].Example)
+	beforeRoot, beforeChild := copyComponentAnnotation(owned.Example), copyComponentAnnotation(owned.Properties["count"].Example)
+	for _, service := range orderedStringKeys(bodies.Services) {
+		for _, method := range orderedStringKeys(bodies.Services[service]) {
+			analyzeAsyncSchemas(a, bodies.Services[service][method].prepared)
+		}
+	}
+	owners := snapshotAnnotationOwners(a)
+	a.finalizeRepresentations()
+	require.NoError(t, a.Err())
+	require.Equal(t, owners, snapshotAnnotationOwners(a), "final naming cannot replace acquired annotation positions")
+	published := annotationObject(t, binding, a.schemas)
+	require.Equal(t, beforeRoot, published.Example)
+	require.Equal(t, beforeChild, published.Properties["count"].Example)
+	return binding.Ref, published
 }
 
 func TestComponentAnnotationControlledWrapperReuse(t *testing.T) {
@@ -208,4 +304,17 @@ func TestComponentAnnotationControlledWrapperReuse(t *testing.T) {
 			})
 		}
 	}
+}
+
+// snapshotAnnotationOwners records detached samples at exact acquired positions.
+func snapshotAnnotationOwners(a *Analyzer) map[componentAnnotationIdentity]map[componentAnnotationPosition]componentExamples {
+	owners := make(map[componentAnnotationIdentity]map[componentAnnotationPosition]componentExamples, len(a.componentAnnotations))
+	for identity, positions := range a.componentAnnotations {
+		owner := make(map[componentAnnotationPosition]componentExamples, len(positions))
+		for position, samples := range positions {
+			owner[position] = samples.snapshot()
+		}
+		owners[identity] = owner
+	}
+	return owners
 }

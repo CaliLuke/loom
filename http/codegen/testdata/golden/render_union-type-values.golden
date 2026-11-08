@@ -123,11 +123,21 @@ func (u MethodFormBodyUnionValuesJSON) MarshalFormValues(values url.Values, pref
 	values.Set(loomhttp.FormChildKey(prefix, "type"), string(u.kind))
 	switch u.kind {
 	case MethodFormBodyUnionValuesJSONKindAuthorizationCode:
-		_, err := loomhttp.EncodeFormValue(values, prefix, u.AuthorizationCode)
-		return err
+		if u.AuthorizationCode == nil {
+			return nil
+		}
+		if _, parameterError := loomhttp.EncodeFormValue(values, loomhttp.FormChildKey(prefix, "code"), u.AuthorizationCode.Code); parameterError != nil {
+			return parameterError
+		}
+		return nil
 	case MethodFormBodyUnionValuesJSONKindRefreshToken:
-		_, err := loomhttp.EncodeFormValue(values, prefix, u.RefreshToken)
-		return err
+		if u.RefreshToken == nil {
+			return nil
+		}
+		if _, parameterError := loomhttp.EncodeFormValue(values, loomhttp.FormChildKey(prefix, "refresh_token"), u.RefreshToken.RefreshToken); parameterError != nil {
+			return parameterError
+		}
+		return nil
 	default:
 		return fmt.Errorf("unexpected MethodFormBodyUnionValuesJSON discriminant %q", u.kind)
 	}
@@ -146,7 +156,14 @@ func (u *MethodFormBodyUnionValuesJSON) UnmarshalFormValues(values url.Values, p
 	switch rawType {
 	case string(MethodFormBodyUnionValuesJSONKindAuthorizationCode):
 		var v *ValuesAuthorizationCodeRequestBody
-		seen, err := loomhttp.DecodeFormValue(values, prefix, &v)
+		v = &ValuesAuthorizationCodeRequestBody{}
+		seen := false
+		var err error
+		if present, fieldError := loomhttp.DecodeFormValue(values, loomhttp.FormChildKey(prefix, "code"), &v.Code); fieldError != nil {
+			return fieldError
+		} else {
+			seen = seen || present
+		}
 		if err != nil {
 			return err
 		}
@@ -157,7 +174,14 @@ func (u *MethodFormBodyUnionValuesJSON) UnmarshalFormValues(values url.Values, p
 		u.AuthorizationCode = v
 	case string(MethodFormBodyUnionValuesJSONKindRefreshToken):
 		var v *ValuesRefreshTokenRequestBody
-		seen, err := loomhttp.DecodeFormValue(values, prefix, &v)
+		v = &ValuesRefreshTokenRequestBody{}
+		seen := false
+		var err error
+		if present, fieldError := loomhttp.DecodeFormValue(values, loomhttp.FormChildKey(prefix, "refresh_token"), &v.RefreshToken); fieldError != nil {
+			return fieldError
+		} else {
+			seen = seen || present
+		}
 		if err != nil {
 			return err
 		}

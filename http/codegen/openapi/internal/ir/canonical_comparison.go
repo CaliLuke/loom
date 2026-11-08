@@ -20,41 +20,57 @@ type canonicalComparison struct {
 // analysis. Its returned closure must be deferred directly so it can preserve
 // an in-flight panic while removing provisional canonical registrations.
 func (a *Analyzer) schemaAnalysisScope() func() {
+	var rollback func()
+	if a.schemaDepth == 0 {
+		rollback = a.acquisitionRollback()
+	}
 	a.schemaDepth++
 	return func() {
-		a.schemaDepth--
-		if a.schemaDepth == 0 {
+		if a.schemaDepth != 1 {
+			a.schemaDepth--
+			return
+		}
+		defer func() {
+			a.schemaDepth--
 			if failure := recover(); failure != nil {
+				rollback()
 				a.finishCanonicalComparisons(false)
 				panic(failure)
 			}
-			a.finishCanonicalComparisons(true)
+		}()
+		if failure := recover(); failure != nil {
+			panic(failure)
 		}
+		if a.err != nil {
+			rollback()
+			a.finishCanonicalComparisons(false)
+			return
+		}
+		a.completeSchemaScope()
+		a.finishCanonicalComparisons(true)
 	}
 }
 
 // acquireCanonicalComparison reserves the candidate reference before traversing
 // its body. Recursive expression unfoldings can have different preliminary
 // fingerprints even when they render the same canonical component graph.
-func (a *Analyzer) acquireCanonicalComparison(schema *Schema, attr *expr.AttributeExpr, named expr.UserType, name, fingerprint, metaName string) bool {
+func (a *Analyzer) acquireCanonicalComparison(schema *Schema, attr *expr.AttributeExpr, named expr.UserType, name, fingerprint, metaName string, binding *projectedContributor) bool {
 	existing, found := a.schemaFingerprints[name]
 	if !found || existing == fingerprint {
 		return false
 	}
-	comparison := canonicalComparison{
+	comparison := &canonicalComparison{
 		name:         name,
 		fingerprint:  fingerprint,
-		registration: schemaRef{ref: toRef(name), explicitName: metaName},
+		registration: schemaRef{ref: toRef(name), explicitName: metaName, canonicalClaim: metaName},
 		candidate:    &Schema{},
 	}
 	comparison.added = !slices.Contains(a.schemasByFingerprint[fingerprint], comparison.registration)
 	a.canonicalComparisons = append(a.canonicalComparisons, comparison)
 	schema.Ref = toRef(name)
-	a.registerSchemaRef(fingerprint, schema.Ref, metaName)
-	candidate := a.analyzeUnderlyingSchema(componentAttribute(attr, named), exampleContext("component", name), true)
-	if candidate != nil {
-		*comparison.candidate = *candidate
-	}
+	a.registerComponentReference(fingerprint, schema.Ref, metaName, true)
+	a.bindContributor(binding, schema.Ref, fingerprint, metaName, true)
+	comparison.candidate = a.analyzeNamedUnderlyingSchema(componentAttribute(attr, named), named, exampleContext("component", name), true)
 	return true
 }
 

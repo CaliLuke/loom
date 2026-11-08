@@ -27,6 +27,8 @@ type analyzer struct {
 	numericPositions map[numericPosition]numericSource
 	unionPrepared    map[*Schema]bool
 	unionSiblings    []oneOfSiblingCheck
+	discriminators   []discriminatorCheck
+	schemaSources    map[*Schema]*base.Schema
 }
 
 var concreteHTTPStatus = regexp.MustCompile(`^[1-5][0-9]{2}$`)
@@ -89,7 +91,9 @@ func (a *analyzer) document(source *v3.Document) *Document {
 	document.Operations = a.operations(source.Paths, document.Components, document.Tags)
 	a.validateOperationIdentities(document.Operations)
 	assignOperationNames(document.Operations)
+	a.normalizeDiscriminators()
 	a.prepareObjectConstructors(document)
+	a.selectDiscriminatorEnvelopes(document)
 	if err := allocateDesignNames(document); err != nil {
 		// Admission diagnostics already explain invalid source constructs. Only
 		// expose an additional planning failure when no fatal cause was found.
@@ -98,6 +102,7 @@ func (a *analyzer) document(source *v3.Document) *Document {
 		}
 	}
 	a.retainMemberExamples(document)
+	a.prepareDiscriminatorChildren(document)
 	return document
 }
 
@@ -192,7 +197,9 @@ func (a *analyzer) operation(method, path string, inherited []*v3.Parameter, sou
 				Status: status, Response: a.response(response, pointer+"/responses/"+escapeJSONPointer(status)),
 			})
 		}
-		sort.Slice(operation.Responses, func(i, j int) bool { return operation.Responses[i].Status < operation.Responses[j].Status })
+		sort.Slice(operation.Responses, func(i, j int) bool {
+			return operation.Responses[i].Status < operation.Responses[j].Status
+		})
 		if source.Responses.Default != nil {
 			a.unsupported("default-response", pointer+"/responses/default", "default responses are not in the strict import subset")
 		}
@@ -367,7 +374,9 @@ func (a *analyzer) response(source *v3.Response, path string) Response {
 			Name: name, Header: a.header(header, path+"/headers/"+escapeJSONPointer(name)),
 		})
 	}
-	sort.Slice(response.Headers, func(i, j int) bool { return response.Headers[i].Name < response.Headers[j].Name })
+	sort.Slice(response.Headers, func(i, j int) bool {
+		return response.Headers[i].Name < response.Headers[j].Name
+	})
 	if orderedmap.Len(source.Links) > 0 {
 		a.unsupported("response-links", path+"/links", "response links are not in the strict import subset")
 	}
@@ -460,7 +469,9 @@ func (a *analyzer) schema(proxy *base.SchemaProxy, path string) *Schema {
 	}
 	a.schemaUnknownKeywordDiagnostics(proxy, path)
 	if proxy.IsReference() {
-		return a.schemaReference(proxy, path)
+		schema := a.schemaReference(proxy, path)
+		schema.sourcePath = path
+		return schema
 	}
 	if node := semanticSchemaNode(proxy); node != nil && node.Kind == yaml.ScalarNode && node.Tag == "!!bool" {
 		var value bool
@@ -505,6 +516,15 @@ func (a *analyzer) schemaSource(source *base.Schema, path string) *Schema {
 	schema.Unconstrained = isUnconstrainedSchema(schema)
 	a.schemaExamples(schema, source, path)
 	a.schemaAnnotations(schema, source, path)
+	schema.sourcePath = path
+	if a.schemaSources == nil {
+		a.schemaSources = make(map[*Schema]*base.Schema)
+	}
+	a.schemaSources[schema] = source
+	if source.Discriminator != nil {
+		schema.Discriminator = &Discriminator{}
+		a.discriminators = append(a.discriminators, discriminatorCheck{schema, source, path})
+	}
 	return schema
 }
 
@@ -550,7 +570,9 @@ func (a *analyzer) schemaTypeAndProperties(schema *Schema, source *base.Schema, 
 			Name: name, Schema: a.schema(property, path+"/properties/"+escapeJSONPointer(name)),
 		})
 	}
-	sort.Slice(schema.Properties, func(i, j int) bool { return schema.Properties[i].Name < schema.Properties[j].Name })
+	sort.Slice(schema.Properties, func(i, j int) bool {
+		return schema.Properties[i].Name < schema.Properties[j].Name
+	})
 	sort.Strings(schema.Required)
 }
 

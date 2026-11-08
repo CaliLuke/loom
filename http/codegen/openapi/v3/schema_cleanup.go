@@ -63,11 +63,14 @@ func aliasResolver(aliases map[string]string) func(string) string {
 	}
 }
 
-func pruneUnusedComponentSchemas(paths map[string]*PathItem, schemas map[string]*openapi.Schema, reusable reusableComponents) map[string]*openapi.Schema {
+// pruneUnusedComponentSchemas keeps the component schemas reachable from the
+// document. A reachable discriminator parent also reaches its children, which
+// its implicit mapping covers without referencing them.
+func pruneUnusedComponentSchemas(paths map[string]*PathItem, schemas map[string]*openapi.Schema, reusable reusableComponents, children map[string][]string) map[string]*openapi.Schema {
 	if len(schemas) == 0 {
 		return schemas
 	}
-	reachable := collectReachableComponentSchemas(paths, schemas, reusable)
+	reachable := collectReachableComponentSchemas(paths, schemas, reusable, children)
 	pruned := make(map[string]*openapi.Schema, len(reachable))
 	for name := range reachable {
 		if schema := schemas[name]; schema != nil {
@@ -77,7 +80,7 @@ func pruneUnusedComponentSchemas(paths map[string]*PathItem, schemas map[string]
 	return pruned
 }
 
-func collectReachableComponentSchemas(paths map[string]*PathItem, schemas map[string]*openapi.Schema, reusable reusableComponents) map[string]struct{} {
+func collectReachableComponentSchemas(paths map[string]*PathItem, schemas map[string]*openapi.Schema, reusable reusableComponents, children map[string][]string) map[string]struct{} {
 	reachable := make(map[string]struct{}, len(schemas))
 	queue := make([]string, 0, len(schemas))
 	enqueue := func(ref string) {
@@ -102,6 +105,9 @@ func collectReachableComponentSchemas(paths map[string]*PathItem, schemas map[st
 		queue = queue[1:]
 		if schema := schemas[name]; schema != nil {
 			collectSchemaRefs(schema, enqueue)
+		}
+		for _, child := range children[name] {
+			enqueue(toSchemaComponentRef(child))
 		}
 	}
 	return reachable

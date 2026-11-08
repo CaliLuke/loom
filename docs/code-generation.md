@@ -326,8 +326,8 @@ alternative. Form roots admit supported objects/maps; multipart union roots
 require objects. JSON-valued fields can carry nullable values; text cannot.
 See [import coverage](openapi-import-coverage.md) for location admission,
 `unevaluatedProperties: false` closure, normalization and remaining diagnostics.
-Discriminator import remains separate work in
-[#1005](https://github.com/CaliLuke/loom/issues/1005).
+Discriminator import is described in
+[Discriminators](openapi-import-coverage.md#discriminators).
 
 A scalar JSON Schema `const` without a sibling `enum` imports as an equivalent
 one-member enum. Regenerated OpenAPI emits `enum`. Structured constants and

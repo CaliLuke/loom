@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/CaliLuke/loom/internal/formgen"
+
 	"github.com/CaliLuke/loom/codegen/unionnames"
 
 	"github.com/CaliLuke/loom/expr"
@@ -45,10 +47,9 @@ func renderFormContentEncodingChoice(out *strings.Builder, element *Element, uni
 				out.WriteString("if v == nil {\nreturn fmt.Errorf(\"selected form content union branch is nil\")\n}\n")
 			}
 			renderFormContentEncodingChoice(out, element, nested, codec.Branches, "v")
-		} else if codec.Style == httpencoding.JSON {
-			fmt.Fprintf(out, "if _, contentError := loomhttp.EncodeJSONField(contentValues, %s, v, %s); contentError != nil {\nreturn contentError\n}\nreturn nil\n", parameterWireName(element), formApplicationLiteral(codec.Application))
 		} else {
-			fmt.Fprintf(out, "if _, contentError := loomhttp.EncodeFormValue(contentValues, %s, v); contentError != nil {\nreturn contentError\n}\nreturn nil\n", parameterWireName(element))
+			field := formgen.Field{Codec: codec, AllowsNull: expr.AllowsNull(branch.Attribute)}
+			fmt.Fprintf(out, "if _, contentError := %s; contentError != nil {\nreturn contentError\n}\nreturn nil\n", field.EncodeCall("contentValues", parameterWireName(element), "v"))
 		}
 		out.WriteString("}\n")
 	}

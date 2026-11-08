@@ -114,7 +114,9 @@ func formCarriers(endpoint *transportir.Endpoint) []formCarrier {
 
 func walkFormFieldCarriers(body *expr.AttributeExpr, contract *bodyCarrierPlan, visit func(*expr.AttributeExpr, string, bool)) {
 	walkFormBodies(body, contract, func(body *expr.AttributeExpr, contract *bodyCarrierPlan) {
-		if object := expr.AsObject(body.Type); object != nil {
+		if contract.value != nil {
+			walkFieldCarriers(body, *contract.value, "value", visit)
+		} else if object := expr.AsObject(body.Type); object != nil {
 			for _, field := range *object {
 				captured, visible := contract.fields[field.Name]
 				if visible {
@@ -156,9 +158,11 @@ func nameFormBodyRoots(body *expr.AttributeExpr, contract *bodyCarrierPlan, pref
 }
 
 // walkFieldCarriers visits the complete captured tree, including native leaves.
-// Naming replaces each boundary before descending into its detached graph.
+// Naming replaces each boundary before descending into its detached graph. An
+// emitted custom codec, as decided by the representation owner, ends the walk;
+// inert Go type metadata on a composite field keeps its carrier.
 func walkFieldCarriers(attribute *expr.AttributeExpr, role fieldCarrierRole, name string, visit func(*expr.AttributeExpr, string, bool)) {
-	if custom, _ := codegen.GetMetaType(attribute); custom != "" {
+	if representation.CustomCodec(attribute) != "" {
 		return
 	}
 	json := role.json
@@ -187,23 +191,73 @@ func walkFormBodies(body *expr.AttributeExpr, contract *bodyCarrierPlan, visit f
 	visit(body, contract)
 }
 
+// jsonQueryCarrier decodes a named JSON query value with the contract of a
+// server request JSON body. Server and CLI reject a null document. A value
+// whose emitted root is an effective custom codec, as decided by the
+// representation owner, then decodes the native value itself; inert Go type
+// metadata on a composite root selects no custom codec. Every other carrier is
+// decoded as its physical JSON layout, validated as a wire value before
+// conversion and converted into the service declaration, which is the native
+// parameter value; the CLI flag shares that carrier through its detached JSON
+// input. Only a carrier that declares types registers its graph as a
+// declaration root. Authored defaults are materialized in the native layout.
 func (b *payloadBuilder) jsonQueryCarrier(parameter *ParamData, attribute *expr.AttributeExpr) {
 	if !parameter.JSONField {
 		return
 	}
-	context := httpContext(b.sd.Scope, true, true)
-	context.JSONPresence, context.CollectionElementPresence = true, true
-	parameter.JSONDecodeType = goTypeDef(b.sd.Scope, attribute, &codegen.AttributeContext{Pointer: true, UseDefault: false, JSONPresence: true, CollectionElementPresence: true})
-	if custom, _ := codegen.GetMetaType(attribute); custom != "" {
-		// Opaque custom types own their JSON decoding and null policy.
+	parameter.nonNullJSONFlag = true
+	if representation.CustomCodec(attribute) != "" {
 		parameter.JSONDecodeType = parameter.TypeRef
 		parameter.JSONDecodeCode = parameter.VarName + " = decoded"
+		parameter.JSONDefaultCode = jsonQueryDefault(parameter)
 		return
 	}
-	plan, err := codegen.GoTransform(attribute, attribute, "decoded", parameter.VarName, context, serviceContext("", b.sd.Scope), "unmarshal", false)
+	context := httpContext(b.sd.Scope, true, true)
+	context.JSONPresence, context.CollectionElementPresence = true, true
+	// The detached carrier is declared in the transport package, like request
+	// body copies; only the native value keeps service placement.
+	representation.WalkUserTypes(attribute, func(userType expr.UserType) {
+		delete(userType.Attribute().Meta, "struct:pkg:path")
+	})
+	parameter.JSONDecodeType = goTypeDef(b.sd.Scope, attribute, context)
+	if declaresTypes(attribute) {
+		recordAttributeTypeLayouts(b.sd, attribute, true, true, context.Pointer, context.UseDefault)
+		b.sd.registerBodyRoot(attribute, b.endpointIR.Name, true, true, true)
+		applyUserTypeLayout(context, b.sd, attribute, true)
+	}
+	parameter.JSONValidateCode = codegen.AttributeValidationCode(attribute, nil, context, true, expr.IsAlias(attribute.Type), "decoded", parameter.Name)
+	bindServiceCarrier(parameter.Element, b.svcctx)
+	// As for request bodies, the wire validation covers the native value.
+	parameter.Validate = ""
+	parameter.jsonCarrier = attribute
+	plan, err := codegen.GoTransform(attribute, parameter.attribute, "decoded", parameter.VarName, context, b.svcctx, "unmarshal", false)
 	if err != nil {
 		panic(codegen.NewError(b.sds.Ctx, attribute, fmt.Errorf("JSON query carrier: %w", err)))
 	}
-	parameter.JSONDecodeCode = inlineConversionCode(plan)
+	// A wire-validated carrier fails conversion only when an authored member
+	// default cannot be materialized. The decoder section owns the return.
+	parameter.JSONDecodeCode = plan.Code
+	if plan.ErrorAware {
+		parameter.JSONDecodeFailure = parameterDefaultFault(parameter.HTTPName)
+	}
 	b.sd.ServerTransformHelpers = codegen.AppendHelpers(b.sd.ServerTransformHelpers, plan.Helpers)
+	parameter.JSONDefaultCode = jsonQueryDefault(parameter)
+}
+
+// jsonQueryDefault materializes the authored default of an optional JSON query
+// value in its native parameter layout. The decoder assigns it only when the
+// query key is absent; supplied values, including empty ones, are decoded.
+func jsonQueryDefault(parameter *ParamData) string {
+	if parameter.Required || parameter.DefaultValue == nil {
+		return ""
+	}
+	return renderElementDefault(parameter.Element)
+}
+
+func declaresTypes(attribute *expr.AttributeExpr) bool {
+	declares := false
+	representation.WalkUserTypes(attribute, func(expr.UserType) {
+		declares = true
+	})
+	return declares
 }

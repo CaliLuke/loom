@@ -42,9 +42,6 @@ var evaluations typeEvaluations
 // typeDSL returns the DSL of ut: fn, run at most once, either by the DSL
 // engine or earlier when an attribute DSL needs a complete copy of ut.
 func typeDSL(ut expr.UserType, fn func()) func() {
-	if fn == nil {
-		return nil
-	}
 	ev := &typeEvaluation{userType: ut, fn: fn}
 	evaluations.current().byType[ut.Attribute()] = ev
 	return func() {
@@ -52,7 +49,15 @@ func typeDSL(ut expr.UserType, fn func()) func() {
 			return
 		}
 		ev.running = true
-		ev.fn()
+		if ev.fn != nil {
+			ev.fn()
+		}
+		walkOwnedTypeAttributes(ev.userType.Attribute().Type, func(att *expr.AttributeExpr) {
+			if err := att.ResolveTypeReference(); err != nil {
+				eval.ReportError("%v", err)
+			}
+		})
+		applyOneOfMetadata(ev.userType.Attribute())
 		ev.running = false
 		ev.done = true
 		ev.completeKeptReferences()
@@ -94,14 +99,26 @@ func localizeAttribute(att, parent *expr.AttributeExpr) {
 // structural dependencies, whose self-references retain their enclosing owner.
 func localizedTypeRoots(typ expr.DataType) map[*expr.AttributeExpr]bool {
 	roots := make(map[*expr.AttributeExpr]bool)
+	walkOwnedTypeAttributes(typ, func(att *expr.AttributeExpr) {
+		roots[att] = true
+	})
+	return roots
+}
+
+// walkOwnedTypeAttributes visits inline occurrences in source order. Named
+// declarations own their own completion; traversing them here would reorder
+// ordinary DSL dependencies and break the kept-reference publication lifecycle.
+func walkOwnedTypeAttributes(typ expr.DataType, visit func(*expr.AttributeExpr)) {
+	attributes := make(map[*expr.AttributeExpr]bool)
 	seen := make(map[expr.DataType]bool)
 	var walk func(expr.DataType)
 	var attribute func(*expr.AttributeExpr)
 	attribute = func(att *expr.AttributeExpr) {
-		if att == nil || roots[att] {
+		if att == nil || attributes[att] {
 			return
 		}
-		roots[att] = true
+		attributes[att] = true
+		visit(att)
 		walk(att.Type)
 		attribute(att.AdditionalAttributes)
 	}
@@ -127,7 +144,6 @@ func localizedTypeRoots(typ expr.DataType) map[*expr.AttributeExpr]bool {
 		}
 	}
 	walk(typ)
-	return roots
 }
 
 // evaluateReferencedTypes returns the types declared with Type that dt
@@ -140,6 +156,12 @@ func evaluateReferencedTypes(dt expr.DataType, evaluate bool) []expr.UserType {
 	seen := make(map[expr.UserType]struct{})
 	var walk func(expr.DataType)
 	walkAttribute := func(att *expr.AttributeExpr) {
+		if evaluate {
+			if err := att.ResolveTypeReference(); err != nil {
+				eval.ReportError("%v", err)
+				return
+			}
+		}
 		walk(att.Type)
 		if att.AdditionalAttributes != nil {
 			walk(att.AdditionalAttributes.Type)

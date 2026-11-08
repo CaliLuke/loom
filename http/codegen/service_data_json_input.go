@@ -22,6 +22,11 @@ type jsonBodyInput struct {
 	types     []*TypeData
 	unions    []*uniongen.Type
 	helpers   []*codegen.TransformFunctionData
+	// carrier, validate and convert load a JSON query flag into its
+	// service-owned argument. Body inputs convert in their payload init.
+	carrier  string
+	validate string
+	convert  string
 }
 
 // cliBodyInputArgument retains the public --body or --p flag spelling while
@@ -98,7 +103,7 @@ func newJSONBodyInput(attribute *expr.AttributeExpr, endpoint string, sd *Servic
 		input.types = append(input.types, data)
 	})
 	unions := make(map[string]*uniongen.Type)
-	collectHTTPUnionTypes(attribute, sd.Scope, unions, make(map[string]struct{}), closed, allocated)
+	collectHTTPUnionTypes(attribute, sd.Scope, ctx, unions, make(map[string]struct{}), closed, allocated)
 	for _, union := range unions {
 		input.unions = append(input.unions, union)
 	}
@@ -165,6 +170,31 @@ func (sds *ServicesData) prepareCLIBodyInputs(sd *ServiceData, closed bool) {
 		request.cliInput = input
 		sd.cliBodyInputs = append(sd.cliBodyInputs, input)
 	}
+	// Query inputs claim names after every body input.
+	for _, endpoint := range sd.Endpoints {
+		for _, param := range endpoint.Payload.Request.QueryParams {
+			if param.jsonCarrier != nil {
+				sds.prepareCLIQueryInput(param, endpoint, sd, closed, names, allocated)
+			}
+		}
+	}
+}
+
+// prepareCLIQueryInput decodes a JSON query flag into the server's physical
+// carrier, validates it and converts it into the service-owned argument. A
+// carrier without declarations shares the same detached input owner.
+func (sds *ServicesData) prepareCLIQueryInput(param *ParamData, endpoint *EndpointData, sd *ServiceData, closed bool, names map[bodyTypeKey]string, allocated map[string]*uniongen.Type) {
+	input := newJSONBodyInput(param.jsonCarrier, endpoint.Method.Name, sd, closed, names, allocated)
+	plan, err := codegen.GoTransform(input.attribute, param.attribute, "decoded", param.VarName, input.context, param.context, "unmarshal", false)
+	if err != nil {
+		panic(codegen.NewError(sds.Ctx, param.jsonCarrier, fmt.Errorf("build CLI JSON query conversion: %w", err)))
+	}
+	input.helpers = plan.Helpers
+	input.carrier = goTypeDef(sd.Scope, input.attribute, input.context)
+	input.validate = codegen.AttributeValidationCode(input.attribute, nil, input.context, true, expr.IsAlias(input.attribute.Type), "decoded", param.Name)
+	input.convert = inlineConversionCode(plan, endpoint.Payload.Ref)
+	param.jsonInput = input
+	sd.cliBodyInputs = append(sd.cliBodyInputs, input)
 }
 
 func (r *RequestData) cliPayloadInit() *InitData {

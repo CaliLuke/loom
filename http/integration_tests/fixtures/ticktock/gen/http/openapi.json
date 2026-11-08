@@ -29,7 +29,7 @@
         ],
         "responses": {
           "200": {
-            "$ref": "#/components/responses/TickTockEventTextEventStreamStatus200Response"
+            "$ref": "#/components/responses/TickTockEvent_8e14d5882b475fa6TextEventStreamStatus200Response"
           },
           "401": {
             "description": "unauthorized: Unauthorized response.",
@@ -107,7 +107,7 @@
         "operationId": "clock.tick",
         "responses": {
           "200": {
-            "$ref": "#/components/responses/TickTockEventTextEventStreamStatus200Response"
+            "$ref": "#/components/responses/TickTockEvent_8e14d5882b475fa6TextEventStreamStatus200Response"
           }
         },
         "summary": "Tick clock",
@@ -163,7 +163,7 @@
         "operationId": "clock.tock",
         "responses": {
           "200": {
-            "$ref": "#/components/responses/TickTockEventTextEventStreamStatus200Response"
+            "$ref": "#/components/responses/TickTockEvent_8e14d5882b475fa6TextEventStreamStatus200Response"
           }
         },
         "summary": "Tock clock",
@@ -297,21 +297,16 @@
           "fault"
         ]
       },
-      "TickTockEvent": {
+      "TickTockEvent_8e14d5882b475fa6": {
         "type": "object",
         "properties": {
           "data": {
-            "type": "string",
-            "example": "Nulla eius porro ratione."
+            "type": "string"
           },
           "event": {
             "type": "string",
-            "example": "Et minima fugit voluptas."
+            "example": "Rem recusandae quas."
           }
-        },
-        "example": {
-          "data": "Voluptatem placeat dolor voluptatibus et.",
-          "event": "Quis incidunt necessitatibus eius amet."
         },
         "required": [
           "event",
@@ -320,7 +315,7 @@
       }
     },
     "responses": {
-      "TickTockEventTextEventStreamStatus200Response": {
+      "TickTockEvent_8e14d5882b475fa6TextEventStreamStatus200Response": {
         "description": "OK response.",
         "content": {
           "text/event-stream": {
@@ -331,7 +326,7 @@
                   "type": "string",
                   "contentMediaType": "application/json",
                   "contentSchema": {
-                    "$ref": "#/components/schemas/TickTockEvent"
+                    "$ref": "#/components/schemas/TickTockEvent_8e14d5882b475fa6"
                   }
                 }
               },

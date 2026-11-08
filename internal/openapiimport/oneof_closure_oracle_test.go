@@ -16,7 +16,7 @@ import (
 // exports from establishing their own expected answer.
 func evaluateOneOfClosureSchema(t *testing.T, document, schema map[string]any, value any) (bool, map[string]bool) {
 	t.Helper()
-	allowed := map[string]bool{"$ref": true, "type": true, "properties": true, "required": true, "additionalProperties": true, "oneOf": true, "anyOf": true, "allOf": true, "unevaluatedProperties": true, "enum": true, "const": true, "title": true, "description": true, "example": true, "examples": true, "format": true, "default": true, "items": true, "minItems": true, "readOnly": true, "writeOnly": true, "deprecated": true}
+	allowed := map[string]bool{"discriminator": true, "$ref": true, "type": true, "properties": true, "required": true, "additionalProperties": true, "oneOf": true, "anyOf": true, "allOf": true, "unevaluatedProperties": true, "enum": true, "const": true, "title": true, "description": true, "example": true, "examples": true, "format": true, "default": true, "items": true, "minItems": true, "readOnly": true, "writeOnly": true, "deprecated": true}
 	for keyword := range schema {
 		require.True(t, allowed[keyword] || strings.HasPrefix(keyword, "x-"), "closure oracle does not evaluate keyword %q", keyword)
 	}

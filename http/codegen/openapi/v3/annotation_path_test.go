@@ -22,24 +22,25 @@ func TestRenderedByteProjectionPreservesAnnotationPaths(t *testing.T) {
 			}
 			require.NoError(t, json.Unmarshal(artifacts.JSON, &document))
 			schemas := document.Components.Schemas
-			for name := range schemas {
-				require.False(t, strings.HasPrefix(name, "AuthorityAlias"), "no new observable alias component: %s", name)
-			}
-			var envelope struct {
-				Properties map[string]struct {
-					Items                jsontext.Value `json:"items"`
-					AdditionalProperties jsontext.Value `json:"additionalProperties"`
-				} `json:"properties"`
-			}
-			require.NoError(t, json.Unmarshal(schemas["AuthorityEnvelope"], &envelope))
+			envelope := resolveRenderedAnnotationRef(t, schemas, renderedAnnotationField(t, artifacts.JSON, "paths", "/ordinary", "post", "responses", "200", "content", "application/json", "schema"))
 			for _, test := range []struct {
-				name, component, blob string
-				count                 int64
+				name, blob string
+				count      int64
 			}{
-				{"base", "AuthorityBase", "SWQgZmFjaWxpcy4=", 1698367705951450038},
-				{"entries", "AuthorityBase_2977d6da5f160a78", "SXBzdW0gYXV0IGFkIHF1aWJ1c2RhbS4=", 7317769671929827049},
-				{"items", "AuthorityBase_2977d6da5f160a78_2", "TWFnbmkgZHVjaW11cyBhdXQgcmVwZWxsZW5kdXMgZG9sb3Iu", 4929712490902895459},
+				{"base", "SWQgZmFjaWxpcy4=", 1698367705951450038},
+				{"entries", "SXBzdW0gYXV0IGFkIHF1aWJ1c2RhbS4=", 7317769671929827049},
+				{"items", "TWFnbmkgZHVjaW11cyBhdXQgcmVwZWxsZW5kdXMgZG9sb3Iu", 4929712490902895459},
 			} {
+				slot := renderedAnnotationField(t, envelope, "properties", test.name)
+				if test.name == "entries" {
+					slot = renderedAnnotationField(t, slot, "additionalProperties")
+				}
+				if test.name == "items" {
+					slot = renderedAnnotationField(t, slot, "items")
+				}
+				var use map[string]jsontext.Value
+				require.NoError(t, json.Unmarshal(slot, &use))
+				require.Len(t, use, 1, "parent use has only a reference, no annotation or assertion layer")
 				var component struct {
 					Type    string `json:"type"`
 					Ref     string `json:"$ref"`
@@ -49,9 +50,9 @@ func TestRenderedByteProjectionPreservesAnnotationPaths(t *testing.T) {
 					} `json:"example"`
 					Properties map[string]jsontext.Value `json:"properties"`
 				}
-				require.NoError(t, json.Unmarshal(schemas[test.component], &component))
+				require.NoError(t, json.Unmarshal(resolveRenderedAnnotationRef(t, schemas, slot), &component))
 				require.Equal(t, "object", component.Type)
-				require.Empty(t, component.Ref, "canonical annotation owner remains an object, not an added alias layer")
+				require.Empty(t, component.Ref, "selected annotation owner remains an object, not an added alias layer")
 				require.Equal(t, test.blob, component.Example.Blob)
 				require.Equal(t, test.count, component.Example.Count)
 				var blob struct {
@@ -61,20 +62,30 @@ func TestRenderedByteProjectionPreservesAnnotationPaths(t *testing.T) {
 				require.NoError(t, json.Unmarshal(component.Properties["blob"], &blob))
 				require.Equal(t, "base64", blob.ContentEncoding)
 				require.NotEmpty(t, blob.Not)
-				if test.name == "base" {
-					continue
-				}
-				slot := envelope.Properties[test.name].Items
-				if test.name == "entries" {
-					slot = envelope.Properties[test.name].AdditionalProperties
-				}
-				var use map[string]jsontext.Value
-				require.NoError(t, json.Unmarshal(slot, &use))
-				require.Len(t, use, 1, "parent use has only a reference, no annotation or assertion layer")
-				var ref string
-				require.NoError(t, json.Unmarshal(use["$ref"], &ref))
-				require.Equal(t, "#/components/schemas/"+test.component, ref)
 			}
 		})
 	}
+}
+
+func renderedAnnotationField(t *testing.T, raw jsontext.Value, path ...string) jsontext.Value {
+	t.Helper()
+	for _, name := range path {
+		var object map[string]jsontext.Value
+		require.NoError(t, json.Unmarshal(raw, &object))
+		require.Contains(t, object, name)
+		raw = object[name]
+	}
+	return raw
+}
+
+func resolveRenderedAnnotationRef(t *testing.T, schemas map[string]jsontext.Value, use jsontext.Value) jsontext.Value {
+	t.Helper()
+	var ref string
+	require.NoError(t, json.Unmarshal(renderedAnnotationField(t, use, "$ref"), &ref))
+	require.True(t, strings.HasPrefix(ref, "#/components/schemas/"))
+	name := strings.TrimPrefix(ref, "#/components/schemas/")
+	require.NotContains(t, name, "/")
+	name = strings.ReplaceAll(strings.ReplaceAll(name, "~1", "/"), "~0", "~")
+	require.Contains(t, schemas, name, "the actual public reference must resolve")
+	return schemas[name]
 }

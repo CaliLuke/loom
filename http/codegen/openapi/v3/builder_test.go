@@ -437,7 +437,7 @@ func TestPruneUnusedComponentSchemasKeepsReachableNestedRefs(t *testing.T) {
 		},
 	}
 
-	pruned := pruneUnusedComponentSchemas(paths, schemas, reusableComponents{})
+	pruned := pruneUnusedComponentSchemas(paths, schemas, reusableComponents{}, nil)
 
 	if len(pruned) != 3 {
 		t.Fatalf("got %d schemas after pruning, want 3", len(pruned))

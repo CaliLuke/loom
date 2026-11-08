@@ -415,6 +415,44 @@ func TestFieldLoadCode(t *testing.T) {
 	}
 }
 
+func TestCarrierFieldLoadCode(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name            string
+		flag            *FlagData
+		validate        string
+		wantContains    []string
+		wantNotContains []string
+	}{
+		{
+			name:         "optional flag decodes, validates and converts only when set",
+			flag:         &FlagData{FullName: "choiceFlag", Type: "JSON", Example: "{}"},
+			validate:     "err = ValidateCLIChoice(decoded)",
+			wantContains: []string{"if choiceFlag != \"\" {", "var decoded CLIChoice", "json.Unmarshal([]byte(choiceFlag), &decoded)", "invalid JSON for choice", "err = ValidateCLIChoice(decoded)", "var zero *Payload", "choice = convert(decoded)"},
+		},
+		{
+			name:            "required flag without validation converts directly",
+			flag:            &FlagData{FullName: "choiceFlag", Type: "JSON", Required: true},
+			wantContains:    []string{"json.Unmarshal([]byte(choiceFlag), &decoded)", "choice = convert(decoded)"},
+			wantNotContains: []string{"if choiceFlag != \"\"", "return zero, err\n"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			stmt := CarrierFieldLoadCode(tc.flag, "choice", "decoded", "CLIChoice", tc.validate, "choice = convert(decoded)", nil, "*Payload")
+			rendered := renderStatement(t, stmt)
+			for _, want := range tc.wantContains {
+				require.Contains(t, rendered, want)
+			}
+			for _, want := range tc.wantNotContains {
+				require.NotContains(t, rendered, want)
+			}
+		})
+	}
+}
+
 func TestFlagsCodeStatementBranches(t *testing.T) {
 	t.Parallel()
 

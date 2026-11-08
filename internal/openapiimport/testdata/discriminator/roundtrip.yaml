@@ -1,0 +1,191 @@
+openapi: 3.2.0
+info: {title: Discriminator roundtrip, version: '1'}
+paths:
+  /events:
+    post:
+      operationId: events.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Event'}
+      responses:
+        '200':
+          description: Event
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Event'}
+  /pets:
+    post:
+      operationId: pets.post
+      requestBody:
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Pet'}
+      responses:
+        '200':
+          description: Pet
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Pet'}
+  /duplicates:
+    post:
+      operationId: duplicates.post
+      requestBody:
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/DuplicatePet'}
+      responses: {'204': {description: done}}
+  /parents:
+    get:
+      operationId: parents.get
+      responses:
+        '200':
+          description: Parent
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Parent'}
+  /implicit-parent:
+    get:
+      operationId: implicitParent.get
+      responses:
+        '200':
+          description: Implicit parent
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ImplicitParent'}
+  /children:
+    get:
+      operationId: children.get
+      responses:
+        '200':
+          description: Child
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Child'}
+  /inline:
+    post:
+      operationId: inline.post
+      requestBody:
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/InlinePet'}
+      responses: {'204': {description: done}}
+  /implicit:
+    post:
+      operationId: implicit.post
+      requestBody:
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ImplicitPet'}
+      responses: {'204': {description: done}}
+  /query-json:
+    get:
+      operationId: queryJSON.get
+      parameters:
+        - name: event
+          in: query
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/QueryEvent'}
+        - name: pet
+          in: query
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Pet'}
+        - name: plain
+          in: query
+          content:
+            application/json:
+              schema: {oneOf: [{$ref: '#/components/schemas/Cat'}, {$ref: '#/components/schemas/Dog'}]}
+      responses: {'204': {description: done}}
+components:
+  schemas:
+    Created:
+      type: object
+      description: Created wire envelope.
+      properties:
+        kind: {type: string, enum: [created]}
+        data: {$ref: '#/components/schemas/EventData'}
+      required: [kind, data]
+    Deleted:
+      type: object
+      properties:
+        kind: {type: string, enum: [deleted]}
+        data: {type: integer}
+      required: [kind, data]
+    EventData:
+      type: object
+      properties: {name: {type: string}, child: {$ref: '#/components/schemas/Event'}}
+      required: [name]
+    Event:
+      type: object
+      oneOf: [{$ref: '#/components/schemas/Created'}, {$ref: '#/components/schemas/Deleted'}]
+      unevaluatedProperties: false
+      discriminator:
+        propertyName: kind
+        mapping: {created: Created, made: Created, deleted: Deleted}
+        defaultMapping: EventData
+        x-audit: {z: 1, a: true}
+    Cat:
+      type: object
+      properties: {kind: {type: string, enum: [cat]}, name: {type: string}}
+      required: [kind, name]
+      additionalProperties: false
+    Dog:
+      type: object
+      properties: {kind: {type: string, enum: [dog]}, age: {type: integer}}
+      required: [age]
+    Pet:
+      oneOf: [{$ref: '#/components/schemas/Cat'}, {$ref: '#/components/schemas/Dog'}]
+      discriminator:
+        propertyName: kind
+        mapping: {cat: Cat, kitty: Cat, Cat: Dog, '': Cat, 'cat=old': Cat, ' cat ': Cat}
+        defaultMapping: 'https://example.test/fallback#/Other'
+        x-audit: {z: 1, a: true}
+    DuplicatePet:
+      oneOf: [{$ref: '#/components/schemas/Cat'}, {$ref: '#/components/schemas/Cat'}, {$ref: '#/components/schemas/Dog'}]
+      discriminator:
+        propertyName: kind
+        mapping: {cat: Cat}
+        defaultMapping: Dog
+    Parent:
+      type: object
+      properties: {kind: {type: string}}
+      required: [kind]
+      discriminator:
+        propertyName: kind
+        mapping: {child: Child, '': Child, 'child=old': Child, ' child ': Child}
+    Child:
+      allOf:
+        - {$ref: '#/components/schemas/Parent'}
+        - {type: object, properties: {name: {type: string}}, required: [name]}
+    InlinePet:
+      oneOf:
+        - {type: object, properties: {kind: {type: string}, code: {type: integer}}, required: [kind, code]}
+        - {type: object, properties: {kind: {type: string}, code: {type: integer}}, required: [kind, code]}
+      discriminator:
+        propertyName: kind
+        mapping: {first: '#/components/schemas/InlinePet/oneOf/0', second: '#/components/schemas/InlinePet/oneOf/1'}
+    ImplicitPet:
+      oneOf:
+        - {type: object, properties: {kind: {type: string}, name: {type: string}}, required: [kind, name]}
+        - {type: object, properties: {kind: {type: string}, age: {type: integer}}, required: [kind, age]}
+      discriminator: {propertyName: kind}
+    QueryEvent:
+      oneOf:
+        - {type: object, properties: {kind: {type: string, enum: [created]}, data: {type: string}}, required: [kind, data]}
+        - {type: object, properties: {kind: {type: string, enum: [deleted]}, data: {type: integer}}, required: [kind, data]}
+      unevaluatedProperties: false
+      discriminator:
+        propertyName: kind
+        mapping: {created: '#/components/schemas/QueryEvent/oneOf/0', deleted: '#/components/schemas/QueryEvent/oneOf/1'}
+    ImplicitParent:
+      type: object
+      properties: {kind: {type: string}}
+      required: [kind]
+      discriminator: {propertyName: kind}
+    ImplicitChild:
+      allOf:
+        - {$ref: '#/components/schemas/ImplicitParent'}
+        - {type: object, properties: {name: {type: string}}}

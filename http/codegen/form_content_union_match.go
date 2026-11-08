@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/CaliLuke/loom/internal/formgen"
+
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/unionjson"
 	"github.com/CaliLuke/loom/expr"
@@ -59,11 +61,8 @@ func renderFormContentBranches(out *strings.Builder, element *Element, union *ex
 		renderFormFieldProjection(out, branch.Attribute, codec, nil, parameterWireName(element), context)
 		out.WriteString("}()\n")
 		fmt.Fprintf(out, "branch%s := loomhttp.TextUnionBranch{Schema: func() (bool, error) {\nif contentError%s != nil || !contentMatch%s {\nreturn false, contentError%s\n}\nreturn contentSchema%s.Match(contentView%s)\n}, Decode: func() (bool, error) {\nvar v %s\nif err := func() (err error) {\n", id, id, id, id, id, id, ref)
-		if codec.Style == httpencoding.JSON {
-			fmt.Fprintf(out, "if _, decodeError := loomhttp.DecodeJSONField(parameterForm, %s, &v, false, %s); decodeError != nil {\nreturn decodeError\n}\n", parameterWireName(element), formApplicationLiteral(codec.Application))
-		} else {
-			fmt.Fprintf(out, "if _, decodeError := loomhttp.DecodeFormValue(parameterForm, %s, &v); decodeError != nil {\nreturn decodeError\n}\n", parameterWireName(element))
-		}
+		field := formgen.Field{Codec: codec, AllowsNull: expr.AllowsNull(branch.Attribute)}
+		fmt.Fprintf(out, "if _, decodeError := %s; decodeError != nil {\nreturn decodeError\n}\n", field.DecodeCall("parameterForm", parameterWireName(element), "v"))
 		out.WriteString(codegen.AttributeValidationCode(branch.Attribute, nil, validation, true, expr.IsAlias(branch.Attribute.Type), "v", element.HTTPName))
 		fmt.Fprintf(out, "\nreturn\n}(); err != nil {\nreturn false, nil\n}\ncandidate%s = v\nreturn true, nil\n}, Annotations: func() (loomhttp.TextUnionAnnotations, error) {\nreturn loomhttp.TextUnionAnnotations{}, nil\n}}\n", id)
 	}

@@ -205,7 +205,7 @@ func (sds *ServicesData) buildClientPathArgs(endpointIR *transportir.Endpoint, s
 			if err != nil {
 				panic(codegen.NewError(sds.Ctx, source, fmt.Errorf("build HTTP path argument transform for %s: %w", endpointIR.MethodName, err)))
 			}
-			arg.TransformCode = inlineConversionCode(plan)
+			arg.TransformCode = inlineConversionCode(plan, "")
 		}
 		args = append(args, arg)
 	}

@@ -144,7 +144,7 @@ func TestCanonicalComparisonPreservesFirstErrorAndPriorReferences(t *testing.T) 
 	acquired := schemaRef{ref: toRef("Candidate"), explicitName: "Candidate"}
 	later := schemaRef{ref: toRef("Later"), explicitName: "Later"}
 	analyzer.schemasByFingerprint["shared"] = []schemaRef{prior, acquired, later}
-	analyzer.canonicalComparisons = []canonicalComparison{{name: "Candidate", fingerprint: "shared", registration: acquired, added: true, candidate: &Schema{Type: "integer"}}}
+	analyzer.canonicalComparisons = []*canonicalComparison{{name: "Candidate", fingerprint: "shared", registration: acquired, added: true, candidate: &Schema{Type: "integer"}}}
 	analyzer.finishCanonicalComparisons(true)
 	require.ErrorIs(t, analyzer.Err(), firstError)
 	require.Equal(t, []schemaRef{prior, later}, analyzer.schemasByFingerprint["shared"])
@@ -189,7 +189,7 @@ func TestCanonicalComparisonPreservesProjectionPanic(t *testing.T) {
 	}))
 	registration := schemaRef{ref: toRef("Pending"), explicitName: "Pending"}
 	analyzer.schemasByFingerprint["pending"] = []schemaRef{registration}
-	analyzer.canonicalComparisons = []canonicalComparison{{name: "Pending", fingerprint: "pending", registration: registration, added: true, candidate: &Schema{}}}
+	analyzer.canonicalComparisons = []*canonicalComparison{{name: "Pending", fingerprint: "pending", registration: registration, added: true, candidate: &Schema{}}}
 	require.PanicsWithValue(t, failure, func() {
 		analyzer.AnalyzeSchema(&expr.AttributeExpr{Type: expr.String, UserExamples: []*expr.ExampleExpr{{Value: "value"}}})
 	})

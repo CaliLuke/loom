@@ -24,11 +24,31 @@ type HTTPFormEncoding struct {
 	Element *httpencoding.Codec
 	// Branches retains untagged alternatives in authored order, including nested unions.
 	Branches []*HTTPFormEncoding
+	// TaggedBranches retain the native tagged root protocol in authored order.
+	// These are not untagged matching alternatives and never select that decoder.
+	TaggedBranches []*HTTPFormTaggedBranch
+}
+
+// HTTPFormTaggedBranch describes one selected branch of a native tagged root.
+// Object branches flatten their fields; other branches use the union value key.
+type HTTPFormTaggedBranch struct {
+	// Body is the branch occurrence with all semantic constraints retained.
+	Body *AttributeExpr
+	// Tag is the exact wire discriminator value.
+	Tag string
+	// Object captures flattened object fields, or is nil for a value-key branch.
+	Object *HTTPFormEncoding
+	// Value captures the value-key field, or is nil for a flattened object.
+	Value *httpencoding.FieldCodec
+	// AllowsEmpty permits materialization when only the discriminator is present.
+	// Repeated arrays normalize nil and empty wire encodings to a nonnil empty
+	// array; their codec does not distinguish those inputs. Constraints still apply.
+	AllowsEmpty bool
 }
 
 // HTTPFormBodyEncoding resolves a complete form body before code generation.
 // Untagged root alternatives must be non-nullable objects or maps. Tagged
-// roots retain their discriminator/value protocol and have no captured branches.
+// roots retain their discriminator/value protocol through TaggedBranches.
 // Root Encoding Object slots override branch defaults without changing declarations.
 func HTTPFormBodyEncoding(body *AttributeExpr) (*HTTPFormEncoding, error) {
 	if err := validateHTTPMediaSourceTypes(body, make(map[*AttributeExpr]bool)); err != nil {
@@ -124,7 +144,7 @@ func (form *HTTPFormEncoding) captureBranches(union *Union, active map[DataType]
 		if containsUntaggedUnion(form.Body) {
 			return fmt.Errorf("tagged form bodies do not support nested untagged OneOf values")
 		}
-		return nil
+		return form.captureTaggedBranches(union)
 	}
 	if len(union.Values) == 0 {
 		return fmt.Errorf("form union body requires at least one alternative")

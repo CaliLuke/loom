@@ -55,7 +55,11 @@ func (sd *ServiceData) collectBodyUnionTypes(closedObjects bool) {
 		seen := make(map[string]struct{})
 		for _, root := range roots {
 			if root.server == server {
-				collectHTTPUnionTypes(root.attribute, sd.Scope, members, seen, closedObjects, allocated)
+				context := httpContext(sd.Scope, root.request, root.server)
+				context.JSONPresence = root.jsonPresence
+				context.CollectionElementPresence = root.jsonPresence
+				applyUserTypeLayout(context, sd, root.attribute, server)
+				collectHTTPUnionTypes(root.attribute, sd.Scope, context, members, seen, closedObjects, allocated)
 			}
 		}
 		declarations := make([]*uniongen.Type, 0, len(members))

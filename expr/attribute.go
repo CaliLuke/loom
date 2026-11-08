@@ -67,6 +67,10 @@ type (
 		// from a typed object, such as attributes bound to path parameters.
 		// They are neither required nor admitted as undeclared members.
 		omittedMembers []*NamedAttributeExpr
+		// bodyProjection records the authored source and removed members of
+		// an HTTP body object built by body lowering. Copies keep the record;
+		// value capture drops it with the other declaration edges.
+		bodyProjection *HTTPBodyProjection
 		// valueOrigin records structural copy ancestry, never a semantic value
 		// context or resolution. Effective occurrences always receive fresh IDs.
 		valueOrigin *AttributeExpr
@@ -321,7 +325,7 @@ func (a *AttributeExpr) Finalize() {
 		return // Avoid infinite recursion.
 	}
 	a.finalized = true
-	if err := a.resolveTypeRef(); err != nil {
+	if err := a.ResolveTypeReference(); err != nil {
 		eval.ReportError(err.Error())
 		return
 	}
@@ -373,7 +377,7 @@ func (a *AttributeExpr) prepareTypeRefs(seen map[*AttributeExpr]struct{}) {
 	}
 	seen[a] = struct{}{}
 
-	if err := a.resolveTypeRef(); err != nil {
+	if err := a.ResolveTypeReference(); err != nil {
 		eval.ReportError(err.Error())
 		return
 	}
@@ -395,7 +399,10 @@ func (a *AttributeExpr) prepareTypeRefs(seen map[*AttributeExpr]struct{}) {
 	}
 }
 
-func (a *AttributeExpr) resolveTypeRef() error {
+// ResolveTypeReference completes one pending named reference and its retained
+// occurrence refinement. It is idempotent and must run before a consumer copies
+// the completed type; ordinary preparation also uses it as a fallback.
+func (a *AttributeExpr) ResolveTypeReference() error {
 	ut, ok := a.Type.(*UserTypeExpr)
 	if !ok || !isTypeRef(ut) {
 		return nil
@@ -405,6 +412,12 @@ func (a *AttributeExpr) resolveTypeRef() error {
 		return fmt.Errorf("unknown type reference %q", ut.TypeName)
 	}
 	a.Type = resolved
+	if deferred := a.DSLFunc; deferred != nil {
+		a.DSLFunc = nil
+		if !eval.Execute(deferred, a) {
+			return fmt.Errorf("invalid refinement of type reference %q", ut.TypeName)
+		}
+	}
 	return nil
 }
 

@@ -4,6 +4,7 @@ package uniongen
 import (
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/unionjson"
+	"github.com/CaliLuke/loom/internal/formgen"
 )
 
 type (
@@ -60,11 +61,17 @@ type (
 		// FlatFormObject is true when the branch value is object-shaped and form
 		// encoding should flatten its fields under the current prefix.
 		FlatFormObject bool
-		// FlatFormObjectAllowsEmpty is true when the flattened object branch may be
-		// selected with only the discriminator because it has no required fields.
-		FlatFormObjectAllowsEmpty bool
+		// FormValue retains the captured nonobject branch codec.
+		FormValue formgen.Field
+		// FormFields are the flattened object's visible captured members.
+		FormFields []*FormField
+		// FormError describes an unsupported form contract on a reusable type.
+		FormError string
+		// FormBranchAllowsEmpty reports whether the selected branch can be
+		// materialized from only its discriminator; constraints still validate it.
+		FormBranchAllowsEmpty bool
 		// EmptyValueExpr is the Go expression that initializes an empty branch
-		// value when FlatFormObjectAllowsEmpty is true.
+		// value when FormBranchAllowsEmpty is true.
 		EmptyValueExpr string
 		// EmitPrimitiveAlias is true when the branch uses a generated primitive alias
 		// that must be declared in the same file as the union type. Service data
@@ -75,5 +82,18 @@ type (
 		PrimitiveAliasType string
 		// TypeTag is the JSON "type" discriminator value for this branch.
 		TypeTag string
+	}
+	// FormField combines captured policy with a declaration-owned Go selector.
+	FormField struct {
+		// Field retains the resolved codec and nullability.
+		formgen.Field
+		// Name is the captured form key before a caller prefix.
+		Name string
+		// Selector is the allocated exported Go field name.
+		Selector string
+		// Presence uses value as the containing Go object expression.
+		Presence string
+		// Required requires this member's own wire evidence.
+		Required bool
 	}
 )

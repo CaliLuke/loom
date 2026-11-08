@@ -26,6 +26,9 @@ type (
 		keyFailures     map[string]Diagnostic
 		securityKeys    map[string]resolvedSecurityKey
 		securityURIs    map[string]string
+		// componentReferences is the read-only index of finalized references by
+		// owning component prefix, built once when bundling completes.
+		componentReferences map[string][]string
 	}
 	portableKey struct {
 		class    int
@@ -94,6 +97,7 @@ func bundleResolution(r *resolution) (*bundledDescription, error) {
 	if err := b.result.projectSecurityMetadata(); err != nil {
 		return nil, err
 	}
+	b.result.indexComponentReferences()
 	return b.result, nil
 }
 

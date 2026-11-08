@@ -187,6 +187,24 @@ func valueMemberRequired(owner *valueOccurrenceNode, member valueOccurrenceMembe
 	return false
 }
 
+// captureOccurrenceJSONName gives a copy of a constraint-local snapshot the JSON
+// field name of the occurrence it captures. The snapshot owns the local
+// constraints; the occurrence owns its effective name, which includes inherited
+// naming and the names a transport normalizes onto its target occurrences.
+func captureOccurrenceJSONName(attribute, source *AttributeExpr) {
+	for _, key := range []string{"struct:tag:json", "struct:tag:json:name"} {
+		values, ok := source.Meta[key]
+		if !ok {
+			delete(attribute.Meta, key)
+			continue
+		}
+		if attribute.Meta == nil {
+			attribute.Meta = make(MetaExpr)
+		}
+		attribute.Meta[key] = append([]string(nil), values...)
+	}
+}
+
 func (b *valueOccurrenceBuilder) identity() uint64 {
 	b.graph.next++
 	return b.graph.next
@@ -201,6 +219,9 @@ func (b *valueOccurrenceBuilder) occurrence(source *AttributeExpr) (*valueOccurr
 		contract = source.constraintLocal
 	}
 	attribute := copyValueOccurrenceAttribute(contract)
+	if contract != source {
+		captureOccurrenceJSONName(attribute, source)
+	}
 	attribute.valueSourceBound = source.valueSourceBound
 	if b.structuralOnly {
 		attribute.Validation = nil

@@ -1149,6 +1149,12 @@ To omit only synthesized examples, set `Meta("openapi:example", "false")` at
 API scope. Explicit `Example(...)` values remain in both `openapi.json` and
 `openapi.yaml`.
 
+An inherited OpenAPI component name is a preferred name family. An inline body
+that selects all fields can reuse that component when the complete schemas,
+including examples, agree. Component-only declarations and method occurrences
+retain their own prepared examples; different annotations can require a named
+variant even when the field shapes are identical.
+
 Schema examples use JSON representations, including base64 strings for `Bytes`,
 and omit incomplete object examples. Untagged union branches preserve this
 encoding for byte fields, including fields authored as text and nested
@@ -1189,15 +1195,50 @@ All OpenAPI 3.2 additions use the same design and renderer:
 | Parameter serialization | `openapi:style`, `openapi:explode`, and `openapi:allowReserved` on parameter occurrences; the selected grammar controls runtime and export; see [Parameter serialization](http-guide.md#parameter-serialization) |
 | Server names | The DSL `Server(...)` name is emitted as the OpenAPI Server Object `name` |
 
-Optional discriminator metadata requires an explicit `defaultMapping`. Export
-rejects missing or blank fallbacks, malformed URI references, unknown local
-components, non-boolean optional values, and discriminator metadata on non-unions.
+Tagged unions already emit a discriminator from their wire tag/value contract.
+Branch `Meta("openapi:discriminator:mapping", "alias")` adds documentation aliases;
+it does not make the runtime accept those aliases as wire tags. Whole-union
+metadata belongs on the enclosing `Type` or `Attribute`, not the temporary
+`OneOf` constructor root. Function-form branch Attributes may refer to a Type
+by name before it is declared; their refinements complete before transport copies.
+
+For a full-object untagged union, put
+`Meta("openapi:discriminator:propertyName", "kind")` on its enclosing owner and
+mapping keys on explicit branch Attributes. Validation remains exact-one matching,
+including duplicate alternatives and closure; hints never route the decoder.
+For a named object parent, the same propertyName is a parent hint. Its mapping
+entries use `Meta("openapi:discriminator:mapping", "cat=Cat")`, naming a direct
+`Extend` child. Keys are exact authored strings, including empty strings,
+whitespace and `=`; the final `=` separates a parent mapping from the Type name.
+No implicit mapping keys are invented for full-object or parent hints.
+
+Hint optionality is derived from effective requiredness, including inherited and
+required additional member names. OpenAPI 3.2 requires `defaultMapping` when the
+property is optional; 3.1 permits that optional property and omits the 3.2-only
+fallback. Compatibility export never adds a required discriminating property to
+a hinted full-object union or parent. Explicit `optional` metadata remains for
+the existing tagged-union documentation contract and is rejected on hints.
+
+HTTP bodies keep the `allOf` references that their payload or result type
+authors with `openapi:allOf:reference`, for JSON, form and multipart bodies.
+When a body differs from the declaration, the reference is a projection of the
+base: the base's own members, requiredness, constraints, defaults and examples,
+limited to the members the body keeps. Members bound to headers, parameters or
+cookies are not reintroduced, and the body's wire names and field encodings
+apply. A parent hint names the bound member by its wire name in that projection,
+for example `k` for a form field tagged `struct:tag:form:"k"`. When the body
+removes the bound member, the projected base carries no hint; the declaration's
+own schema keeps it. An inline `Body(func() { ... })` selection authors no
+composition and inherits none from the payload. These rules affect only the
+documentation; runtime decoding and validation are unchanged.
+
 A bare fallback names a schema component; `#/components/schemas/Name` is also
-accepted. Use `./schemas.json#/$defs/Fallback` or an absolute URI for an external
-schema; export preserves that reference without fetching it. In the 3.1 target,
-Loom requires the discriminator property and omits `defaultMapping`. Metadata is
-validated before selecting either target, so changing the target cannot hide an
-invalid authored combination.
+accepted. Relative or absolute URI references are preserved without exporter
+fetching. Missing required fallbacks, malformed references, unknown local targets
+and invalid combinations fail before target selection. Discriminator-scoped
+`Meta("openapi:discriminator:extension:x-name", "<JSON value>")` preserves extension
+values. Regenerate after adding hints or correcting named union metadata; these
+annotations do not change service branch selection or validation.
 
 Encoding metadata fields may be `contentType`, `style`, `explode`, or
 `allowReserved`. Nest another `encoding:<property>`,

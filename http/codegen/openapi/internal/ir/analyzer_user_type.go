@@ -8,7 +8,7 @@ import (
 	"github.com/CaliLuke/loom/expr"
 )
 
-func (a *Analyzer) analyzeProjectedResult(attr *expr.AttributeExpr, t expr.UserType, context string, noRef bool) (*Schema, bool) {
+func (a *Analyzer) analyzeProjectedResult(attr *expr.AttributeExpr, t expr.UserType, context string, noRef bool, binding *projectedContributor) (*Schema, bool) {
 	resultType, ok := t.(*expr.ResultTypeExpr)
 	if !ok {
 		return nil, false
@@ -29,16 +29,19 @@ func (a *Analyzer) analyzeProjectedResult(attr *expr.AttributeExpr, t expr.UserT
 	}
 	projectedAttr.Meta[projectedResultMetaKey] = []string{"true"}
 	delete(projectedAttr.Meta, expr.ViewMetaKey)
+	restore := a.contributorBindingScope(binding)
+	defer restore()
 	return a.analyzeSchema(projectedAttr, context, noRef), true
 }
 
-func (a *Analyzer) analyzeUserTypeOverlay(attr *expr.AttributeExpr, t expr.UserType, context string, noRef bool) (*Schema, bool) {
+func (a *Analyzer) analyzeUserTypeOverlay(attr *expr.AttributeExpr, t expr.UserType, context string, noRef bool, binding *projectedContributor) (*Schema, bool) {
 	if !hasUserTypeConstraintOverlay(attr, t) {
 		return nil, false
 	}
-	baseAttr := &expr.AttributeExpr{Type: t, Meta: userTypeNamingMeta(attr.Meta)}
+	componentMeta, occurrenceMeta := userTypeOverlayMetadata(attr.Meta)
+	baseAttr := &expr.AttributeExpr{Type: t, Meta: componentMeta}
 	expr.CopyObjectOpenness(baseAttr, attr)
-	base := a.analyzeUserType(baseAttr, t, context, noRef)
+	base := a.analyzeUserType(baseAttr, t, context, noRef, binding)
 	schema := &Schema{AllOf: []*Schema{base}}
 	if base.Ref != "" {
 		schema = &Schema{Ref: base.Ref}
@@ -50,21 +53,30 @@ func (a *Analyzer) analyzeUserTypeOverlay(attr *expr.AttributeExpr, t expr.UserT
 	if len(schema.AllOf) == 1 {
 		a.constructions[schema] = schemaConstruction{slots: []schemaSlot{{location: schemaAllOf}}}
 	}
-	a.applySchemaAttributeDetails(schema, attr, "", context)
+	occurrence := *attr
+	occurrence.Meta = occurrenceMeta
+	a.applySchemaAttributeDetails(schema, &occurrence, "", context)
 	if hasEncodingSourceOverlay(attr, t) {
 		schema = a.applyEncodingSourceType(schema, attr)
 	}
 	return schema, true
 }
 
-func userTypeNamingMeta(meta expr.MetaExpr) expr.MetaExpr {
-	naming := make(expr.MetaExpr)
-	for _, key := range []string{"openapi:typename", "openapi:typename:canonical"} {
-		if values, ok := meta[key]; ok {
-			naming[key] = append([]string(nil), values...)
+// userTypeOverlayMetadata separates component-owned identity and discriminator
+// policy from reference-local annotations. A discriminator requires the complete
+// branch graph and the original named declaration, never a $ref/allOf wrapper.
+// Both maps own their values so later occurrence processing cannot alter source
+// metadata or the component selected for another occurrence.
+func userTypeOverlayMetadata(meta expr.MetaExpr) (component, occurrence expr.MetaExpr) {
+	component, occurrence = make(expr.MetaExpr), make(expr.MetaExpr)
+	for key, values := range meta {
+		target := occurrence
+		if key == "openapi:typename" || key == "openapi:typename:canonical" || strings.HasPrefix(key, "openapi:discriminator:") {
+			target = component
 		}
+		target[key] = append([]string(nil), values...)
 	}
-	return naming
+	return component, occurrence
 }
 
 func componentAttribute(attr *expr.AttributeExpr, t expr.UserType) *expr.AttributeExpr {
@@ -151,7 +163,7 @@ func hasUserTypeConstraintOverlay(attr *expr.AttributeExpr, userType expr.UserTy
 		// componentAttribute; it is never an annotation beside the reference.
 		if key == "openapi:typename" || key == "openapi:typename:canonical" || key == expr.ViewMetaKey ||
 			key == projectedResultMetaKey || key == "http:encoding:sourceType" || key == "type:generate:force" || strings.HasPrefix(key, "struct:") ||
-			expr.IsObjectOpennessMeta(key) {
+			expr.IsObjectOpennessMeta(key) || strings.HasPrefix(key, "openapi:discriminator:") {
 			continue
 		}
 		if !reflect.DeepEqual(values, base.Meta[key]) {
@@ -161,7 +173,7 @@ func hasUserTypeConstraintOverlay(attr *expr.AttributeExpr, userType expr.UserTy
 	return false
 }
 
-func (a *Analyzer) componentName(attr *expr.AttributeExpr, t expr.UserType, fingerprint, metaName string, canonical bool, schema *Schema) (string, bool) {
+func (a *Analyzer) componentName(attr *expr.AttributeExpr, t expr.UserType, fingerprint, acquisition, metaName string, canonical bool, schema *Schema, binding *projectedContributor) (string, bool) {
 	typeName := codegen.Goify(schemaTypeName(t, metaName), true)
 	if canonical {
 		if metaName != "" {
@@ -169,7 +181,7 @@ func (a *Analyzer) componentName(attr *expr.AttributeExpr, t expr.UserType, fing
 		}
 		_, schemaExists := a.schemas[typeName]
 		existingTypeID, hasTypeID := a.schemaTypeIDs[typeName]
-		if schemaExists && hasTypeID && existingTypeID == t.ID() && a.schemaFingerprints[typeName] == fingerprint {
+		if schemaExists && hasTypeID && existingTypeID == t.ID() && a.schemaFingerprints[typeName] == acquisition {
 			a.schemaTypeIDs[typeName] = t.ID()
 			schema.Ref = toRef(typeName)
 			return typeName, true
@@ -177,8 +189,13 @@ func (a *Analyzer) componentName(attr *expr.AttributeExpr, t expr.UserType, fing
 
 		switch {
 		case a.plan.Valid() && schemaExists && a.schemaNames[typeName].logical == a.logicalDeclaration(t) && a.schemaNames[typeName].baseline == a.componentBaselineFingerprint(attr, t):
+			if owner := a.componentAcquisitions[typeName]; owner != nil && owner.semantic == fingerprint {
+				schema.Ref = toRef(typeName)
+				a.registerComponentReference(acquisition, schema.Ref, metaName, true)
+				return typeName, true
+			}
 			typeName = a.Uniquify(typeName, fingerprint)
-		case a.acquireCanonicalComparison(schema, attr, t, typeName, fingerprint, metaName):
+		case a.acquireCanonicalComparison(schema, attr, t, typeName, acquisition, metaName, binding):
 			return typeName, true
 		default:
 			typeName = a.ClaimExplicitName(typeName, fingerprint)
@@ -189,62 +206,83 @@ func (a *Analyzer) componentName(attr *expr.AttributeExpr, t expr.UserType, fing
 	return typeName, false
 }
 
-func (a *Analyzer) analyzeUserType(attr *expr.AttributeExpr, t expr.UserType, context string, noRef bool) *Schema {
-	if schema, projected := a.analyzeProjectedResult(attr, t, context, noRef); projected {
+func (a *Analyzer) analyzeUserType(attr *expr.AttributeExpr, t expr.UserType, context string, noRef bool, binding *projectedContributor) *Schema {
+	if schema, projected := a.analyzeProjectedResult(attr, t, context, noRef, binding); projected {
 		return schema
 	}
 	if a.asyncAcquisition != nil {
 		return a.analyzeAsyncNamedBaseline(attr, t, context, noRef)
 	}
-	if schema, overlaid := a.analyzeUserTypeOverlay(attr, t, context, noRef); overlaid {
+	if schema, overlaid := a.analyzeUserTypeOverlay(attr, t, context, noRef, binding); overlaid {
 		return schema
 	}
 	metaName, canonical := schemaTypeNaming(attr, t)
 	if expr.IsAlias(t) && !canonical {
-		return a.analyzeUnderlyingSchema(componentAttribute(attr, t), context)
+		return a.analyzeNamedUnderlyingSchema(componentAttribute(attr, t), t, context)
 	}
 
 	s := &Schema{}
 	fingerprint := a.componentFingerprint(attr, t)
+	acquisition := a.componentAcquisitionFingerprint(attr, fingerprint)
 
-	refs, ok := a.schemasByFingerprint[fingerprint]
+	refs, ok := a.schemasByFingerprint[acquisition]
 	if !noRef && ok {
-		if ref := findMatchingSchemaRef(refs, metaName, canonical); ref != "" {
+		if ref := findMatchingSchemaRef(refs, metaName, canonical, preparedComponentBinding{a.preparedExamples, a.examplePlan}); ref != "" {
 			s.Ref = ref
+			a.bindContributor(binding, ref, acquisition, metaName, canonical)
 			return s
 		}
 	}
 
-	typeName, reused := a.componentName(attr, t, fingerprint, metaName, canonical, s)
+	typeName, reused := a.componentName(attr, t, fingerprint, acquisition, metaName, canonical, s, binding)
 	if reused {
+		a.bindContributor(binding, s.Ref, acquisition, metaName, canonical)
 		return s
 	}
 	s.Ref = toRef(typeName)
-	a.registerSchemaRef(fingerprint, s.Ref, metaName)
+	a.registerComponentReference(acquisition, s.Ref, metaName, canonical)
 	if _, ok := a.schemas[typeName]; !ok {
-		a.schemaFingerprints[typeName] = fingerprint
+		a.schemaFingerprints[typeName] = acquisition
 		componentAttr := componentAttribute(attr, t)
 		a.schemaTypeIDs[typeName] = t.ID()
-		naming := a.componentNaming(attr, t, typeName, canonical)
-		componentContext := exampleContext("component", naming.desired)
+		naming := a.componentNaming(attr, t, typeName, fingerprint, canonical)
+		componentContext := exampleContext("component", naming.annotationName)
 		a.schemaNames[typeName] = naming
+		entry := a.reserveComponent(typeName, acquisition, fingerprint, metaName, canonical, attr, t)
+		a.bindContributor(binding, s.Ref, acquisition, metaName, canonical)
 		a.schemas[typeName] = func() *Schema {
 			restore := a.componentAnnotationScope(naming.logical, naming.baseline, componentContext)
 			defer restore()
-			return a.analyzeUnderlyingSchema(componentAttr, componentContext, true)
+			return a.analyzeNamedUnderlyingSchema(componentAttr, t, componentContext, true)
 		}()
+		entry.complete = true
+		if _, hinted := a.discriminatorHints.parentRoots[a.schemas[typeName]]; hinted {
+			a.recordProjectedChildren(attr, t, typeName, componentContext)
+		}
 	}
 	return s
 }
 
-func (a *Analyzer) componentNaming(attr *expr.AttributeExpr, t expr.UserType, allocated string, canonical bool) representationComponentName {
-	// Allocation owns a newly constructed baseline and its sample context.
-	// Matching declaration or shape is not evidence of annotation reuse.
-	desired := allocated
+func (a *Analyzer) componentNaming(attr *expr.AttributeExpr, t expr.UserType, allocated, semantic string, canonical bool) representationComponentName {
+	// Only a fresh baseline allocation reaches this function. Its annotation
+	// context belongs to that allocation; logical or public-name equality does
+	// not authorize borrowing another component's sample binding. Actual reuse
+	// returns earlier, and representation projection copies the acquired record.
+	annotationName := allocated
 	baseName := componentPublicName(attr, t)
 	authority := a.logicalDeclaration(t)
+	hint, _ := schemaTypeNaming(attr, t)
+	desired := annotationName
+	// Contexts and inline declarations may share a preferred family. The final
+	// graph comparison still includes retained annotations and publication.
+	for _, prior := range a.schemaNames {
+		compatible := prior.logical == authority || compatibleSchemaName(schemaRef{ref: toRef(prior.desired), explicitName: prior.hint}, hint, canonical)
+		if compatible && prior.semantic == semantic && prior.desired < desired {
+			desired = prior.desired
+		}
+	}
 	if canonical {
 		desired = baseName
 	}
-	return representationComponentName{desired: desired, logical: authority, baseline: a.componentBaselineFingerprint(attr, t), explicit: canonical}
+	return representationComponentName{desired: desired, hint: hint, annotationName: annotationName, logical: authority, baseline: a.componentBaselineFingerprint(attr, t), semantic: semantic, explicit: canonical}
 }

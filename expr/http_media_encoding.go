@@ -3,6 +3,7 @@ package expr
 import (
 	"fmt"
 	"mime"
+	"slices"
 	"strings"
 )
 
@@ -51,6 +52,26 @@ func HTTPMediaMetadata(attribute *AttributeExpr) MetaExpr {
 			return result
 		}
 		attribute = named.Attribute()
+	}
+	return result
+}
+
+// HTTPBodyProjectionMetadata captures metadata before removing a named body edge.
+// Local metadata is retained verbatim. Only discriminator annotations and the
+// source encoding type inherit from the removed declaration; naming, field
+// layout and unrelated metadata retain their existing owners. Values are detached.
+func HTTPBodyProjectionMetadata(attribute *AttributeExpr) MetaExpr {
+	result := make(MetaExpr)
+	if attribute == nil {
+		return result
+	}
+	for key, values := range attribute.Meta {
+		result[key] = slices.Clone(values)
+	}
+	for key, values := range HTTPMediaMetadata(attribute) {
+		if key == "http:encoding:sourceType" || strings.HasPrefix(key, "openapi:discriminator:") {
+			result[key] = slices.Clone(values)
+		}
 	}
 	return result
 }

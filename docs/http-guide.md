@@ -163,6 +163,21 @@ representation. Clients in any language should JSON-encode the map, then pass
 that string to their URL query encoder. Scalar parameters and repeated scalar
 arrays keep their ordinary query representation.
 
+A JSON query value applies its declared default only when the query key is
+absent. A supplied document, including `{}`, a zero or an empty string, is
+decoded and validated as sent. Servers reject a `null` document with a
+`decode_payload` response. The JSON query maps and unions that Loom generates
+also reject `null` members and validate every member before building the
+payload. String elements with a custom Go type keep that type's text codec
+inside the generated map. `struct:field:type` on a whole map does not replace
+the generated map type, so such a map is decoded and validated like any other
+map; only an emitted custom Go type owns its inner representation. The
+generated CLI flag for a JSON query value applies the same rules before
+building the payload: an explicit `null` document or member is an error rather
+than an omitted value, and an omitted flag uses the declared default.
+Regenerate clients and servers to adopt these rules; previously a defaulted
+JSON query value could fail to compile, and the CLI accepted `null`.
+
 `MapParams()` remains an unprefixed whole-query map, for example
 `status=active&region=west`. Its contract differs from a named `Param("filter")`.
 OpenAPI describes default named maps with parameter `content: application/json`
@@ -425,6 +440,23 @@ discriminator/value fields, while object branches are flattened onto standard
 top-level form fields. This supports OAuth-style token requests such as
 `grant_type=refresh_token` without app-local parser hooks.
 
+Nested complex members of a flattened object branch still use named JSON form
+fields. A map branch uses the value key with one JSON value; nullable maps retain
+JSON `null`, including nullable complex members. Arrays of complex values emit
+one JSON value per item; an inner array is one JSON item. A repeated-array branch
+can emit only its discriminator when empty. Nil and nonnil empty arrays have identical form wire and decode to a
+nonnil empty array; minimum-length validation still applies. Nullable repeated
+arrays and nullable flattened objects have no distinct null spelling and are
+rejected for native form occurrences. A payload field cannot claim the
+same physical form name as the discriminator, including inherited or renamed
+fields. These restrictions do not affect a type used only in JSON.
+
+OpenAPI describes native tagged roots with flat occurrence-specific alternatives,
+including their examples, while JSON uses retain the tagged envelope. Adding
+OpenAPI hint metadata does not change encoding, branch selection or validation.
+Regenerate transports to use captured native array layout and JSON nullability.
+
+
 By default, a named object or map form field also holds one JSON document. For example,
 `address={"street":"Main"}` and `labels={"region":"west"}` are the decoded
 form values; the form encoder percent-encodes the JSON strings on the wire.
@@ -434,7 +466,11 @@ For example, `Meta("struct:tag:form", "wire")` changes an outer field to `wire`
 for both generated clients and servers. A full `struct:tag:*` override replaces
 the generated tag set: if that set has no form tag, an empty form tag, or `-`,
 the field is omitted from form encoding. A JSON-name-only override preserves
-the default form name. Encoding metadata still uses the HTTP element name;
+the default form name. As for JSON query values, `struct:field:type` on a whole
+map field does not replace its generated JSON value, which keeps its `null`
+member checks; custom element types keep their codec, and a custom string field
+keeps its own text codec. Regenerate clients and servers to adopt this.
+Encoding metadata still uses the HTTP element name;
 OpenAPI exports the effective form name and rejects overlapping field claims.
 OpenAPI marks these fields with `contentType: application/json`, without a
 serialization style. Scalars and repeated scalar arrays retain their form
@@ -744,6 +780,24 @@ Scalar headers continue to use the first field value, without comma-list splitti
 These request rules also apply to JSON-RPC. Regenerate clients and servers after
 upgrading; peers that previously sent empty values to request omission/defaults
 must omit the mapping instead. Authored body tags and codecs retain their contracts.
+
+A parameter default is authored by the service, so a default that a custom
+text codec cannot parse is a server fault: the server responds with status 500
+and code `fault` without calling the endpoint. The fault takes precedence over
+client errors still being collected, such as a missing required query
+parameter. It happens only when the default is needed, so requests that
+supply the value are unaffected. This applies to string-backed query, header
+and cookie parameters, styled parameters and their object properties, and
+JSON query values, including member defaults applied while converting a JSON
+query value. A generated client that decodes a response header or cookie with
+such a default reports a `validation_error` whose cause is the fault. Untagged
+text unions cannot declare custom Go types, so their generated branches never
+meet such a default. Every branch of an untagged text union is still decoded,
+and a hand-written branch error, including a fault, fails the whole match even
+when another branch matches.
+Regenerate servers and clients to adopt this classification; earlier servers
+reported some of these failures as `decode_payload` (400) or
+`invalid_field_type` (400).
 
 ### Collection Headers
 

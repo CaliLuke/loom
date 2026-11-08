@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/CaliLuke/loom/internal/formgen"
+
 	"github.com/CaliLuke/loom/codegen/unionnames"
 
 	"github.com/CaliLuke/loom/codegen"
@@ -93,7 +95,7 @@ func renderMultipartLeafFieldEncode(out *strings.Builder, body *TypeData, field 
 		if codec.Kind == httpencoding.BinaryPart {
 			method = "AddBinary"
 		}
-		fmt.Fprintf(out, "partPresent, partError := multipartForm.%s(%q, %q, %s, %s)\nif partError != nil {\nreturn nil, partError\n}\n", method, field.HTTPName, codec.ContentType, value, formApplicationLiteral(codec.Application))
+		fmt.Fprintf(out, "partPresent, partError := multipartForm.%s(%q, %q, %s, %s)\nif partError != nil {\nreturn nil, partError\n}\n", method, field.HTTPName, codec.ContentType, value, formgen.Application(codec.Application))
 	default:
 		key, physical := body.attribute.FindAttribute(field.AttributeName)
 		out.WriteString(renderParameterValue(field.Attribute, physical, body.context, value, "parameterValue", body.context.IsPrimitivePointer(key, body.attribute), "nil, "))

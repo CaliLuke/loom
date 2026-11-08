@@ -92,7 +92,7 @@ func (a *Analyzer) finalizeRepresentations() {
 func (a *Analyzer) representationComponents() ([]*representationComponent, map[string]bool) {
 	components := make([]*representationComponent, 0, len(a.schemas))
 	reserved := make(map[string]bool)
-	fingerprints := completeSchemaFingerprints(a.schemas)
+	fingerprints := completeSchemaFingerprints(a.schemas, a.discriminatorChildren)
 	for name := range a.schemas {
 		naming, found := a.schemaNames[name]
 		if !found {
@@ -159,6 +159,7 @@ func (a *Analyzer) installRepresentations(allocated map[string]*representationCo
 			return ref
 		}, a.copySchemaConstruction)
 	}
+	a.discriminatorChildren = renameDiscriminatorChildren(a.discriminatorChildren, names[a])
 	for _, occurrence := range a.occurrences {
 		if occurrence.root == nil {
 			continue
@@ -269,11 +270,24 @@ func mapSchemaReferenceAdditional(source, result *Schema, path string, visit fun
 func (a *Analyzer) discardRegistrationOnlyVariants() {
 	reached := make(map[string]bool)
 	var visit func(*Schema)
+	// Publishing a hinted parent publishes its children, exactly as a
+	// reference would, so a child representation it reaches is not a
+	// registration-only variant.
+	var reach func(string)
+	reach = func(name string) {
+		if reached[name] {
+			return
+		}
+		reached[name] = true
+		visit(a.schemas[name])
+		for _, child := range a.discriminatorChildren[name] {
+			reach(child)
+		}
+	}
 	visit = func(schema *Schema) {
 		mapSchemaReferences(schema, func(ref, _ string) string {
-			if name, local := schemaComponentName(ref); local && !reached[name] {
-				reached[name] = true
-				visit(a.schemas[name])
+			if name, local := schemaComponentName(ref); local {
+				reach(name)
 			}
 			return ref
 		})

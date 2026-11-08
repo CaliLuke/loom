@@ -3,7 +3,6 @@ package service
 import (
 	"slices"
 	"sort"
-	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/uniongen"
@@ -200,23 +199,21 @@ func buildUnionTypeData(typ expr.DataType, scope *codegen.NameScope, loc *codege
 		}
 		kindConst := declarations.union.Branches[nat.Name].KindConst
 		fields[i] = &uniongen.Field{
-			Name:                      expr.AttributeName(nat.Name),
-			KindConst:                 kindConst,
-			FieldName:                 fieldName,
-			MethodName:                member.Method,
-			FieldType:                 fieldType,
-			AllowsNull:                expr.AllowsNull(nat.Attribute),
-			FlatFormObject:            expr.IsObject(nat.Attribute.Type),
-			FlatFormObjectAllowsEmpty: flatFormObjectAllowsEmpty(nat.Attribute),
-			EmptyValueExpr:            emptyObjectValueExpr(fieldType),
-			EmitPrimitiveAlias:        emitPrimitiveAlias,
-			PrimitiveAliasType:        primitiveAliasType,
-			TypeTag:                   expr.UnionVariantTag(nat),
+			Name:               expr.AttributeName(nat.Name),
+			KindConst:          kindConst,
+			FieldName:          fieldName,
+			MethodName:         member.Method,
+			FieldType:          fieldType,
+			AllowsNull:         expr.AllowsNull(nat.Attribute),
+			EmitPrimitiveAlias: emitPrimitiveAlias,
+			PrimitiveAliasType: primitiveAliasType,
+			TypeTag:            expr.UnionVariantTag(nat),
 		}
+		uniongen.ConfigureFormField(fields[i], nat.Attribute, typeContext(scope))
 		if u.Untagged {
 			fields[i].ValidateCode = unionBranchValidationCode(nat.Attribute, typeContext(scope), false)
 		}
-		hasScalarFormBranch = hasScalarFormBranch || !fields[i].FlatFormObject
+		hasScalarFormBranch = hasScalarFormBranch || (!fields[i].FlatFormObject && fields[i].FormError == "")
 	}
 
 	return &UnionTypeData{
@@ -261,23 +258,21 @@ func buildViewUnionTypeData(typ expr.DataType, scope *codegen.NameScope, loc *co
 		}
 		kindConst := declarations.union.Branches[nat.Name].KindConst
 		fields[i] = &uniongen.Field{
-			Name:                      expr.AttributeName(nat.Name),
-			KindConst:                 kindConst,
-			FieldName:                 fieldName,
-			MethodName:                member.Method,
-			FieldType:                 fieldType,
-			AllowsNull:                expr.AllowsNull(nat.Attribute),
-			FlatFormObject:            expr.IsObject(nat.Attribute.Type),
-			FlatFormObjectAllowsEmpty: flatFormObjectAllowsEmpty(nat.Attribute),
-			EmptyValueExpr:            emptyObjectValueExpr(fieldType),
-			EmitPrimitiveAlias:        emitPrimitiveAlias,
-			PrimitiveAliasType:        primitiveAliasType,
-			TypeTag:                   expr.UnionVariantTag(nat),
+			Name:               expr.AttributeName(nat.Name),
+			KindConst:          kindConst,
+			FieldName:          fieldName,
+			MethodName:         member.Method,
+			FieldType:          fieldType,
+			AllowsNull:         expr.AllowsNull(nat.Attribute),
+			EmitPrimitiveAlias: emitPrimitiveAlias,
+			PrimitiveAliasType: primitiveAliasType,
+			TypeTag:            expr.UnionVariantTag(nat),
 		}
+		uniongen.ConfigureFormField(fields[i], nat.Attribute, projectedTypeContext("", !expr.IsPrimitive(nat.Attribute.Type), scope))
 		if u.Untagged {
 			fields[i].ValidateCode = unionBranchValidationCode(nat.Attribute, projectedTypeContext("", !expr.IsPrimitive(nat.Attribute.Type), scope), true)
 		}
-		hasScalarFormBranch = hasScalarFormBranch || !fields[i].FlatFormObject
+		hasScalarFormBranch = hasScalarFormBranch || (!fields[i].FlatFormObject && fields[i].FormError == "")
 	}
 
 	return &UnionTypeData{
@@ -359,17 +354,6 @@ func primitiveAliasGoType(dt expr.DataType) (string, bool) {
 		}
 		dt = ut.Attribute().Type
 	}
-}
-
-func flatFormObjectAllowsEmpty(att *expr.AttributeExpr) bool {
-	return expr.IsObject(att.Type) && len(att.AllRequired()) == 0
-}
-
-func emptyObjectValueExpr(fieldType string) string {
-	if strings.HasPrefix(fieldType, "*") {
-		return "&" + strings.TrimPrefix(fieldType, "*") + "{}"
-	}
-	return fieldType + "{}"
 }
 
 // buildErrorInitData creates the data needed to generate code around endpoint error return values.

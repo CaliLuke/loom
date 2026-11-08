@@ -94,6 +94,7 @@ func applyMediaFieldEncoding(request *transportir.Request, media *MediaType) err
 		writeFieldEncoding(metadata, name, source)
 	}
 	media.Metadata = metadata
+	projectTaggedFormMediaExamples(media, request.Form)
 	return nil
 }
 
@@ -101,6 +102,14 @@ func formExportFields(root *expr.HTTPFormEncoding) []exportedFieldEncoding {
 	var result []exportedFieldEncoding
 	for _, branch := range root.Branches {
 		result = append(result, formExportFields(branch)...)
+	}
+	for _, branch := range root.TaggedBranches {
+		if branch.Object != nil {
+			result = append(result, formExportFields(branch.Object)...)
+		} else {
+			codec := branch.Value.Codec
+			result = append(result, exportedFieldEncoding{name: branch.Value.Name, shape: expr.HTTPValueShape(branch.Body), form: &codec})
+		}
 	}
 	scoped := *root.Body
 	scoped.Meta = root.Metadata

@@ -65,7 +65,7 @@ func (a *Analyzer) acquireAsyncPreparedBaseline(
 
 func (a *Analyzer) analyzeAsyncNamedBaseline(attr *expr.AttributeExpr, typ expr.UserType, context string, noRef bool) *Schema {
 	acquisition := a.asyncAcquisition
-	if schema, overlaid := a.analyzeUserTypeOverlay(attr, typ, context, noRef); overlaid {
+	if schema, overlaid := a.analyzeUserTypeOverlay(attr, typ, context, noRef, nil); overlaid {
 		return schema
 	}
 	// A declared cut uses the actual handle produced by declaration registration,
@@ -81,7 +81,7 @@ func (a *Analyzer) analyzeAsyncNamedBaseline(attr *expr.AttributeExpr, typ expr.
 	defer func() {
 		a.asyncAcquisition = acquisition
 	}()
-	return a.analyzeUserType(attr, typ, context, noRef)
+	return a.analyzeUserType(attr, typ, context, noRef, nil)
 }
 
 // inline identifies the existing consumer's sampler role. Named recursive cuts

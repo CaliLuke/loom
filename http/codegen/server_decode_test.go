@@ -304,10 +304,11 @@ func TestRequestDecoderReportsQueryParseErrors(t *testing.T) {
 
 func TestRequestDecoderMapQueryPresenceIsScopedToMapParam(t *testing.T) {
 	code := decodeSectionCode(t, testdata.PayloadQueryMapStringStringDSL)
+	require.Contains(t, code, `q map[string]string`)
 	require.Contains(t, code, `var decoded map[string]loom.Optional[string]`)
 	require.Contains(t, code, `present, decodeErr := loomhttp.DecodeJSONField(qp, "q", &decoded, false, loomhttp.FieldValue)`)
 	require.Contains(t, code, "if decodeErr != nil {\n\t\t\t\treturn payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(decodeErr))")
-	require.Contains(t, code, "if present {\n\t\t\t\tif decoded != nil {\n\t\t\t\t\tq = make(map[string]string, len(decoded))")
+	require.Contains(t, code, "if present {\n\t\t\t\tfor _, v := range decoded {\n\t\t\t\t\tif _, ok := v.Value(); !ok {\n\t\t\t\t\t\terr = loom.MergeErrors(err, loom.InvalidNullMapValueError(\"q[key]\"))\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t\tif err != nil {\n\t\t\t\t\treturn payload, err\n\t\t\t\t}\n\t\t\t\tif decoded != nil {\n\t\t\t\t\tq = make(map[string]string, len(decoded))")
 	require.Contains(t, code, `q[tk] = tv`)
 	require.NotContains(t, code, "strings.HasPrefix")
 	root := decodeSectionCode(t, testdata.PayloadMapQueryPrimitivePrimitiveDSL)

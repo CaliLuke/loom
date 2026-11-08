@@ -16,7 +16,7 @@ func MultipartJSONShape(source *expr.AttributeExpr, contract *expr.HTTPMultipart
 		return nil, fmt.Errorf("multipart schema requires an occurrence, contract and context")
 	}
 	target := TargetGraph(source)
-	normalizeMultipartRoot(target, contract)
+	normalizeMultipartRoot(target, contract, nil)
 	return formJSONShape(source, target, context)
 }
 
@@ -24,33 +24,42 @@ func MultipartJSONShape(source *expr.AttributeExpr, contract *expr.HTTPMultipart
 // decoder, preserving the captured per-item branch grammar.
 func MultipartFieldJSONShape(source *expr.AttributeExpr, codec httpencoding.MultipartCodec, context *codegen.AttributeContext) (*loom.JSONShape, error) {
 	target := TargetGraph(source)
-	normalizeMultipartFieldTarget(target, codec)
+	normalizeMultipartFieldTarget(target, codec, nil)
 	return formJSONShape(source, target, context)
 }
 
-func normalizeMultipartFieldTarget(target *expr.AttributeExpr, codec httpencoding.MultipartCodec) {
+// normalizeMultipartFieldTarget applies one part binding's captured grammar.
+// Explicit style framing uses the form field grammar. A JSON part makes the
+// value, or each item under item application, a JSON content boundary; text
+// parts use element names and binary parts keep the multipart codec.
+func normalizeMultipartFieldTarget(target *expr.AttributeExpr, codec httpencoding.MultipartCodec, boundaries *[]*expr.AttributeExpr) {
 	if codec.StyleCodec != nil {
-		normalizeFormFieldTarget(target, *codec.StyleCodec)
+		normalizeFormFieldTarget(target, *codec.StyleCodec, boundaries)
 		return
 	}
-	if codec.Kind == httpencoding.BranchPart {
+	switch codec.Kind {
+	case httpencoding.BranchPart:
 		for index, branch := range expr.AsUnion(target.Type).Values {
 			branch.Attribute = TargetGraph(branch.Attribute)
-			normalizeMultipartFieldTarget(branch.Attribute, codec.Branches[index])
+			normalizeMultipartFieldTarget(branch.Attribute, codec.Branches[index], boundaries)
 		}
-	} else if codec.Kind == httpencoding.TextPart {
+	case httpencoding.TextPart:
 		normalizeTextRecord(target)
+	case httpencoding.JSONPart:
+		recordJSONContent(boundaries, target, codec.Application)
 	}
 }
 
-func normalizeMultipartRoot(target *expr.AttributeExpr, contract *expr.HTTPMultipartEncoding) {
+// normalizeMultipartRoot normalizes a multipart root alternative and, when
+// boundaries is not nil, collects its JSON content occurrences.
+func normalizeMultipartRoot(target *expr.AttributeExpr, contract *expr.HTTPMultipartEncoding, boundaries *[]*expr.AttributeExpr) {
 	if contract.Custom {
 		return
 	}
 	if union := expr.AsUnion(target.Type); union != nil && len(contract.Branches) > 0 {
 		for index, branch := range union.Values {
 			branch.Attribute = TargetGraph(branch.Attribute)
-			normalizeMultipartRoot(branch.Attribute, contract.Branches[index])
+			normalizeMultipartRoot(branch.Attribute, contract.Branches[index], boundaries)
 		}
 		return
 	}
@@ -58,7 +67,7 @@ func normalizeMultipartRoot(target *expr.AttributeExpr, contract *expr.HTTPMulti
 		captured := contract.Fields[field.Name]
 		field.Attribute = TargetGraph(field.Attribute)
 		if !captured.Omitted {
-			normalizeMultipartFieldTarget(field.Attribute, captured.Codec)
+			normalizeMultipartFieldTarget(field.Attribute, captured.Codec, boundaries)
 		}
 		if field.Attribute.Meta == nil {
 			field.Attribute.Meta = expr.MetaExpr{}

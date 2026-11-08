@@ -65,7 +65,7 @@ func TestCollectHTTPUnionTypesDeterministicAcrossObjectOrder(t *testing.T) {
 func TestBuildHTTPUnionTypeDataUsesExplicitVariantTags(t *testing.T) {
 	scope := cg.NewNameScope()
 
-	data := buildHTTPUnionTypeData(makeTaggedUnionForTagTest(), scope, false)
+	data := buildHTTPUnionTypeData(makeTaggedUnionForTagTest(), scope, bodyCodecContext(scope, false), false)
 
 	require.Len(t, data.Fields, 2)
 	require.Equal(t, "single", data.Fields[0].TypeTag)
@@ -75,14 +75,14 @@ func TestBuildHTTPUnionTypeDataUsesExplicitVariantTags(t *testing.T) {
 func TestBuildHTTPUnionTypeDataAllowsEmptyOptionalObjectBranches(t *testing.T) {
 	scope := cg.NewNameScope()
 
-	data := buildHTTPUnionTypeData(makeOptionalObjectUnionForFormTest(), scope, false)
+	data := buildHTTPUnionTypeData(makeOptionalObjectUnionForFormTest(), scope, bodyCodecContext(scope, false), false)
 
 	require.Len(t, data.Fields, 2)
 	require.True(t, data.Fields[0].FlatFormObject)
-	require.True(t, data.Fields[0].FlatFormObjectAllowsEmpty)
+	require.True(t, data.Fields[0].FormBranchAllowsEmpty)
 	require.Contains(t, data.Fields[0].EmptyValueExpr, "{}")
 	require.True(t, data.Fields[1].FlatFormObject)
-	require.False(t, data.Fields[1].FlatFormObjectAllowsEmpty)
+	require.False(t, data.Fields[1].FormBranchAllowsEmpty)
 }
 
 func TestNeedInitSupportsRootUnion(t *testing.T) {
@@ -106,7 +106,7 @@ func TestRenderHTTPUntaggedUnionUsesSharedMatcher(t *testing.T) {
 
 func TestRenderHTTPUnionMarshalJSONPreservesDeterministicNestedOrdering(t *testing.T) {
 	scope := cg.NewNameScope()
-	tagged := buildHTTPUnionTypeData(makeTaggedUnionForTagTest(), scope, false)
+	tagged := buildHTTPUnionTypeData(makeTaggedUnionForTagTest(), scope, bodyCodecContext(scope, false), false)
 
 	require.Contains(t, uniongen.MarshalJSONBody(tagged), "}, loom.JSONOptions(), json.Deterministic(true))")
 
@@ -119,7 +119,7 @@ func TestRenderHTTPUnionMarshalJSONPreservesDeterministicNestedOrdering(t *testi
 
 func TestRenderHTTPUnionUnmarshalJSONReturnsStructuredErrors(t *testing.T) {
 	scope := cg.NewNameScope()
-	data := buildHTTPUnionTypeData(makeTaggedUnionForTagTest(), scope, false)
+	data := buildHTTPUnionTypeData(makeTaggedUnionForTagTest(), scope, bodyCodecContext(scope, false), false)
 
 	body := uniongen.UnmarshalJSONBody(data)
 
@@ -132,7 +132,7 @@ func TestRenderHTTPUnionUnmarshalJSONReturnsStructuredErrors(t *testing.T) {
 
 func TestRenderHTTPUnionUnmarshalFormReturnsStructuredEnumError(t *testing.T) {
 	scope := cg.NewNameScope()
-	data := buildHTTPUnionTypeData(makeTaggedUnionForTagTest(), scope, false)
+	data := buildHTTPUnionTypeData(makeTaggedUnionForTagTest(), scope, bodyCodecContext(scope, false), false)
 
 	body := uniongen.UnmarshalFormBody(data)
 
@@ -144,7 +144,7 @@ func collectHTTPUnionTypeNames(att *expr.AttributeExpr) map[string]string {
 	scope := cg.NewNameScope()
 	seen := make(map[string]struct{})
 	unionByName := make(map[string]*uniongen.Type)
-	collectHTTPUnionTypes(att, scope, unionByName, seen, false, unionByName)
+	collectHTTPUnionTypes(att, scope, bodyCodecContext(scope, false), unionByName, seen, false, unionByName)
 
 	names := make(map[string]string, len(unionByName))
 	for _, data := range unionByName {

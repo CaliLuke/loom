@@ -38,6 +38,10 @@ func (a *analyzer) normalizeOneOfSiblings(schema *Schema, source *base.Schema, p
 		switch keyword {
 		case "oneOf", "title", "description", "example", "examples", "deprecated", "readOnly", "writeOnly", "default", "unevaluatedProperties":
 			continue
+		case "discriminator":
+			if schema.Discriminator == nil || !schema.Discriminator.validated {
+				return fail(keyword)
+			}
 		case "type":
 			if schema.Nullable && !slices.Contains(source.Type, "null") {
 				return fail(keyword)
@@ -97,6 +101,15 @@ func (a *analyzer) oneOfTypeSubset(schema *Schema, types []string, active map[*S
 	return slices.Contains(types, schema.Type) || schema.Type == "integer" && slices.Contains(types, "number")
 }
 
+// schemaDefinesProperties requires every represented value to be an object
+// carrying the listed members. JSON Schema required implication alone is
+// weaker: required is vacuously satisfied by null and other non-object values.
+func (a *analyzer) schemaDefinesProperties(schema *Schema, required []string) bool {
+	return a.oneOfTypeSubset(schema, []string{"object"}, make(map[*Schema]bool)) &&
+		a.oneOfRequires(schema, required, make(map[*Schema]bool))
+}
+
+// oneOfRequires proves only the conditional required-keyword implication.
 func (a *analyzer) oneOfRequires(schema *Schema, required []string, active map[*Schema]bool) bool {
 	if schema == nil || active[schema] {
 		return false

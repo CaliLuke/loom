@@ -104,6 +104,6 @@ func (b *payloadBuilder) buildJSONRPCID() *JSONRPCIDData {
 		AllowsNull: expr.AllowsNull(attribute), ClientPresence: presence,
 		Argument: argument, FieldName: field,
 		DecodeCode: jsonrpcIDDecodeCode(binding, argument, carrier, converted,
-			goTypeDef(b.sd.Scope, source, &codegen.AttributeContext{Pointer: true, UseDefault: false, JSONPresence: false, CollectionElementPresence: false}), validation, inlineConversionCode(plan)),
+			goTypeDef(b.sd.Scope, source, &codegen.AttributeContext{Pointer: true, UseDefault: false, JSONPresence: false, CollectionElementPresence: false}), validation, inlineConversionCode(plan, "")),
 	}
 }

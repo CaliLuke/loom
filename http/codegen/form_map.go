@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/internal/formgen"
+
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/internal/representation"
 	"github.com/CaliLuke/loom/internal/httpencoding"
@@ -34,7 +36,7 @@ func renderFormMapEncode(body *TypeData, contract *expr.HTTPFormEncoding, value 
 	out.WriteString("if fieldError := func() error {\n")
 	switch {
 	case element.Codec.Style == httpencoding.JSON:
-		fmt.Fprintf(&out, "if present, err := loomhttp.EncodeJSONField(parameterForm, formKey, formValue, %s); err != nil {\nreturn err\n} else if !present {\nreturn fmt.Errorf(\"form map entry has no encoded value\")\n}\n", formApplicationLiteral(element.Codec.Application))
+		fmt.Fprintf(&out, "if present, err := loomhttp.EncodeJSONField(parameterForm, formKey, formValue, %s); err != nil {\nreturn err\n} else if !present {\nreturn fmt.Errorf(\"form map entry has no encoded value\")\n}\n", formgen.Application(element.Codec.Application))
 	case expr.AsUnion(element.Type) != nil:
 		if element.Codec.Style == httpencoding.Content {
 			out.WriteString(renderFormContentUnionEncode(element, "formValue"))
@@ -61,7 +63,7 @@ func renderFormMapDecode(body *TypeData, contract *expr.HTTPFormEncoding, target
 	out.WriteString(parameterScalarAssignment(mapping.KeyType, mapping.KeyType, body.context, "formKey", "mapKey", "form map key", false))
 	switch {
 	case element.Codec.Style == httpencoding.JSON:
-		fmt.Fprintf(&out, "if _, fieldError := loomhttp.DecodeJSONField(parameterForm, formKey, &formValue, %t, %s); fieldError != nil {\nreturn fieldError\n}\n", expr.AllowsNull(element.attribute), formApplicationLiteral(element.Codec.Application))
+		fmt.Fprintf(&out, "if _, fieldError := loomhttp.DecodeJSONField(parameterForm, formKey, &formValue, %t, %s); fieldError != nil {\nreturn fieldError\n}\n", expr.AllowsNull(element.attribute), formgen.Application(element.Codec.Application))
 	case expr.AsUnion(element.Type) != nil:
 		matcher := "matchTextUnion"
 		if element.Codec.Style == httpencoding.Content {

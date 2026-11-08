@@ -132,15 +132,34 @@ if {{ .DecodePlan.QueryErrorVar }} != nil {
 			{{ requestErrorReturn "loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(decodeErr))" }}
 		}
 		if present {
+			{{- if .JSONValidateCode }}
+			{{ .JSONValidateCode }}
+			if err != nil {
+				{{ requestErrorReturn "err" }}
+			}
+			{{- end }}
+			{{- if .JSONDecodeFailure }}
+			transformErr := new(error)
 			{{ .JSONDecodeCode }}
+			if *transformErr != nil {
+				{{ requestErrorReturn .JSONDecodeFailure }}
+			}
+			{{- else }}
+			{{ .JSONDecodeCode }}
+			{{- end }}
 		}
 		{{- if .Required }}
 		if !present {
 			err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "query string"))
 		}
-		{{- else if .DefaultValue }}
+		{{- else if .JSONDefaultCode }}
 		if !present {
-			{{ .VarName }} = {{ printf "%#v" .DefaultValue }}
+			if parameterError := func() error {
+				{{ .JSONDefaultCode -}}
+				return nil
+			}(); parameterError != nil {
+				{{ requestErrorReturn "parameterError" }}
+			}
 		}
 		{{- end }}
 	}

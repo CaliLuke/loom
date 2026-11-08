@@ -395,8 +395,12 @@ Form fields (#1005). An explicit `style`, `explode` or `allowReserved` on an
 `application/x-www-form-urlencoded` Encoding Object now resolves through the
 same table as query parameters (OAS 3.2 §4.15.1.2). Today `Match` rejects it,
 and it rejects a content type combined with a style field. The form body is its
-own `KeySet` namespace. A `deepObject` form field holding an `Object` or
-`ScalarMap` is what #1005 needs for nested tagged form unions.
+own `KeySet` namespace. #1005 consumes admitted explicit `deepObject` for
+`Object`/`ScalarMap` fields and eligible FullObject union alternatives. With no
+style flags, complex fields retain the JSON content default, including tagged
+union envelopes and nested JSON members. Native tagged fields are `Nested` for
+style admission and do not gain `deepObject` support through exporter projection.
+The separate tagged form-root flattening contract is unchanged.
 
 Export keeps the form-field codec. Without any style field, an Encoding Object
 for an object, map or union would select its content type. So export always

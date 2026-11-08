@@ -1,6 +1,7 @@
 package codegen
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -71,18 +72,22 @@ func TestClientRequestBodyValidatorStubForUnionObjectBranchTypes(t *testing.T) {
 
 	stubs := make(map[string]*TypeData)
 	for _, bodyType := range sd.ClientBodyAttributeTypes {
-		stubs[bodyType.Name] = bodyType
+		stubs[bodyType.VarName] = bodyType
 	}
 
-	authCode := stubs["AuthorizationCodeGrantRequestBody"]
-	require.NotNil(t, authCode)
-	require.Equal(t, "// no validations", authCode.ValidateDef)
-	require.Equal(t, "err = ValidateAuthorizationCodeGrantRequestBody(v)", authCode.ValidateRef)
-
-	refresh := stubs["RefreshTokenGrantRequestBody"]
-	require.NotNil(t, refresh)
-	require.Equal(t, "// no validations", refresh.ValidateDef)
-	require.Equal(t, "err = ValidateRefreshTokenGrantRequestBody(v)", refresh.ValidateRef)
+	// Form branches have occurrence-owned carrier names. Every allocated branch
+	// must still refer to its callable validator, even without value predicates.
+	require.Len(t, sd.ClientUnionTypes, 1)
+	branches := sd.ClientUnionTypes[0].Fields
+	require.Len(t, branches, 2)
+	require.ElementsMatch(t, []string{"AuthorizationCode", "RefreshToken"}, []string{branches[0].Name, branches[1].Name})
+	for _, branch := range branches {
+		typeName := strings.TrimPrefix(branch.FieldType, "*")
+		stub := stubs[typeName]
+		require.NotNil(t, stub, "missing validator for allocated branch %s", branch.Name)
+		require.Equal(t, "// no validations", stub.ValidateDef)
+		require.Equal(t, "err = Validate"+typeName+"(v)", stub.ValidateRef)
+	}
 }
 
 func TestAttributeTypeDataEmitsNoOpValidatorStubForTaggedClientRequestBodyType(t *testing.T) {

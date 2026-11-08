@@ -23,8 +23,15 @@ var httpDecoderConversionPartials = []templateSource{
  }
  {{- else if ne .DefaultValue nil }} else {
   {{- if .IsTextUnmarshaler }}
+   {{- if .Validate }}
    {{ .Locals.Raw }} = {{ printf "%q" .DefaultValue }}
-   {{- template "partial_query_type_conversion" . }}
+   {{- end }}
+   if parameterError := func() error {
+   {{ renderElementDefault .Element -}}
+   return nil
+   }(); parameterError != nil {
+   {{ defaultErrorReturn "parameterError" }}
+   }
   {{- else if eq .Type.Name "any" }}
    {{ .VarName }} = loom.MustJSONValueFrom({{ printf "%#v" .DefaultValue }})
   {{- else }}

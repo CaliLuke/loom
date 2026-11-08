@@ -11,6 +11,7 @@ type (
 	bodyCarrierPlan struct {
 		fields   map[string]fieldCarrierRole
 		element  *fieldCarrierRole
+		value    *fieldCarrierRole
 		branches []*bodyCarrierPlan
 	}
 	fieldCarrierRole struct {
@@ -35,6 +36,14 @@ func formBodyCarrierPlan(contract *expr.HTTPFormEncoding) *bodyCarrierPlan {
 	}
 	for _, branch := range contract.Branches {
 		plan.branches = append(plan.branches, formBodyCarrierPlan(branch))
+	}
+	for _, branch := range contract.TaggedBranches {
+		child := formBodyCarrierPlan(branch.Object)
+		if branch.Value != nil {
+			role := formFieldCarrierRole(branch.Value.Codec)
+			child = &bodyCarrierPlan{value: &role}
+		}
+		plan.branches = append(plan.branches, child)
 	}
 	return plan
 }

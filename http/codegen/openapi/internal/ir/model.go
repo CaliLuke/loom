@@ -26,6 +26,11 @@ type (
 		RequestBodies   map[string]*RequestBodyRef
 		Responses       map[string]*ResponseRef
 		Examples        map[string]*ExampleRef
+		// DiscriminatorChildren maps a parent-hint schema component name to
+		// the schema component names of its direct allOf children. Publishing
+		// the parent publishes these children: they are the implicit members of
+		// its discriminator.
+		DiscriminatorChildren map[string][]string
 	}
 
 	// PathItem groups operations by method.
@@ -212,6 +217,9 @@ type (
 		locations  map[*expr.AttributeExpr]*Schema
 		Services   map[string]map[string]*EndpointBodies
 		Components map[string]*Schema
+		// DiscriminatorChildren maps a parent-hint component name to the
+		// component names of its direct allOf children.
+		DiscriminatorChildren map[string][]string
 	}
 
 	// EndpointBodies describes the request and response body schemas for one endpoint.
@@ -290,6 +298,12 @@ type (
 		Mapping        map[string]string
 		DefaultMapping string
 		Optional       bool
+		// Untagged identifies a validation-neutral union hint.
+		Untagged bool `json:",omitzero"`
+		// Object identifies a parent-object hint.
+		Object bool `json:",omitzero"`
+		// Extensions retains Discriminator Object x-* properties.
+		Extensions map[string]any `json:",omitzero"`
 	}
 
 	// XML describes how a schema maps to XML nodes.

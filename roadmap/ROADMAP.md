@@ -30,14 +30,6 @@ justify their own scope against this rule.
 
 ## Active Work
 
-- [Discriminator import #1005](https://github.com/CaliLuke/loom/issues/1005)
-  consumes the delivered [expanded oneOf contract](issue-1014-oneof-import-design.md)
-  and its [acceptance record](../internal/openapiimport/oneof_import_validation.md).
-  It builds on the delivered
-  [external reference resolver](issue-957-external-references-design.md) from
-  [#957](https://github.com/CaliLuke/loom/issues/957); discriminator selection
-  must preserve the admitted value domain and the source object's shape.
-
 - The [compiler architecture contract](../codegen/COMPILATION.md) defines ongoing
   work on immutable representation reuse, declaration sharing, artifact lifetime,
   bounded scheduling and evidence-driven performance validation. Captured-target

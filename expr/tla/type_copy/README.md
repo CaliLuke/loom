@@ -65,3 +65,25 @@ nodes, shared references, cycles and unchanged sources. Existing HTTP and JSON-R
 `TestObjectDefaultsTransport` compile and exercise nested service-package types
 through their local body/CLI declarations. `TestUserTypePackageHTTPModuleCompiles`
 checks request, response, error and streaming package placement.
+
+## Metadata at a removed declaration edge
+
+`MetadataProjection.tla` models HTTP body projection removing a named declaration
+edge. `metadata-lost.cfg` reproduces a lost hint/source-type contract in two
+states. `metadata-captured.cfg` retains occurrence-first metadata and declaration
+identity in four distinct states. `HTTPBodyProjectionMetadata` captures only
+inherited discriminator slots and the existing `http:encoding:sourceType` slot;
+local metadata is cloned, and unrelated declaration metadata is not inherited.
+Mapped object bodies and flattened aliases consume that shared capture. The
+original declaration identity remains independently available to ParentHint.
+
+```sh
+java -cp "$TLA_TOOLS_JAR" tlc2.TLC -workers 1 -config metadata-lost.cfg -metadir /tmp/loom-metadata-lost MetadataProjection.tla
+java -cp "$TLA_TOOLS_JAR" tlc2.TLC -workers 1 -config metadata-captured.cfg -metadir /tmp/loom-metadata-captured MetadataProjection.tla
+```
+
+The bounded model abstracts mutable storage. `http_body_metadata_test.go`,
+transport IR `alias_metadata_test.go`, and `TestDiscriminatorParentHintHTTPBody`
+check actual overrides, detached slices, unrelated metadata exclusion, source
+identity and exported named request/response occurrences. A Type-level field
+style is not an admitted substitute for an HTTP Payload/Body occurrence style.

@@ -35,6 +35,14 @@ func (a *analyzer) schemaReference(proxy *base.SchemaProxy, path string) *Schema
 		len(sibling.AllOf) > 0 || len(sibling.AnyOf) > 0 || len(sibling.OneOf) > 0 {
 		return fail("structural reference intersections require general schema composition support")
 	}
+	return a.schemaReferenceOverlay(sibling, target, ref, path)
+}
+
+// schemaReferenceOverlay normalizes occurrence assertions with the referenced carrier.
+func (a *analyzer) schemaReferenceOverlay(sibling, target *base.Schema, ref, path string) *Schema {
+	fail := func(message string) *Schema {
+		return &Schema{Ref: ref, referenceError: &Diagnostic{Code: "schema-reference-siblings", Path: path, Message: message}}
+	}
 	targetTypes := a.referenceCarrierTypes(target, ref)
 	if len(sibling.Type) > 0 && !sameReferenceTypes(sibling.Type, target.Type) && !sameReferenceTypes(sibling.Type, targetTypes) {
 		return fail("reference sibling type must preserve the referenced concrete type and nullability")
@@ -46,6 +54,12 @@ func (a *analyzer) schemaReference(proxy *base.SchemaProxy, path string) *Schema
 	// defaults and lengths. They do not replace or mutate the referenced schema.
 	source := *sibling
 	source.Type = targetTypes
+	// A reference to an admitted union shares the same count-before-close
+	// occurrence contract as an adjacent oneOf. Keep its closure local.
+	unionClosed := len(target.OneOf) > 0 && source.UnevaluatedProperties != nil && source.UnevaluatedProperties.IsB() && !source.UnevaluatedProperties.B
+	if unionClosed {
+		source.UnevaluatedProperties = nil
+	}
 	inheritedFormat := source.Format == ""
 	if inheritedFormat {
 		source.Format = target.Format
@@ -55,6 +69,7 @@ func (a *analyzer) schemaReference(proxy *base.SchemaProxy, path string) *Schema
 		return fail("reference sibling membership cannot remove inherited nullability")
 	}
 	schema.Ref = ref
+	schema.UnionClosed = unionClosed
 	schema.referenceSiblings = true
 	schema.inheritedFormat = inheritedFormat
 	return schema
@@ -69,7 +84,7 @@ func referenceSchemaShape(proxy *base.SchemaProxy, seen map[*base.Schema]bool) *
 		return nil
 	}
 	seen[source] = true
-	if len(source.Type) > 0 {
+	if len(source.Type) > 0 || len(source.OneOf) > 0 && len(source.AnyOf) == 0 && len(source.AllOf) == 0 {
 		return source
 	}
 	if len(source.AllOf) == 1 {

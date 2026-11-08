@@ -81,3 +81,25 @@ inputs, status/problem responses and absence of service calls on rejection.
 OpenAPI JSON/YAML are parsed with libopenapi and linted with the pinned Vacuum
 rules for 3.1 and 3.2. The full exported-design corpus is outside this ticket's
 acceptance scope.
+
+## Native tagged branch layout capture
+
+`PhysicalLayouts.tla` also includes a native tagged form branch. The
+`tagged-no-capture.cfg` control reproduces inheritance of JSON presence layout
+into a repeated scalar array; the compiled codec then encounters Optional
+wrappers where native strings are required. `native-layout.cfg` now checks nine
+states with tagged capture enabled. This extends the earlier seven-state run.
+
+```sh
+java -cp "$TLA_TOOLS_JAR" tlc2.TLC -workers 1 -config tagged-no-capture.cfg -metadir /tmp/loom-tagged-missing PhysicalLayouts.tla
+java -cp "$TLA_TOOLS_JAR" tlc2.TLC -workers 1 -config native-layout.cfg -metadir /tmp/loom-tagged-captured PhysicalLayouts.tla
+```
+
+`expr.HTTPFormTaggedBranchEncoding` captures native object fields and value-key
+codecs separately from untagged matching branches. HTTP `bodyCarrierPlan` feeds
+those facts into the existing `Layout.Record`/`ApplyLayout` owners. Nested JSON
+fields retain JSON presence and names; native scalar array elements retain
+native layout. `TestDiscriminatorHintGeneratedWire` checks generated client,
+server and result conversion with and without hints; `TestTaggedFormUnionHonestExport`
+checks the corresponding schema and field encoding. The model abstracts names,
+nullable admission and concrete Go types; direct and compiled tests cover them.

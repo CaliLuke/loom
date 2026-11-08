@@ -31,7 +31,7 @@ func (v *attributeValidator) validate(a *AttributeExpr, ctx string, parent eval.
 	}
 	v.seen[a] = true
 	verr := new(eval.ValidationErrors)
-	if err := a.resolveTypeRef(); err != nil {
+	if err := a.ResolveTypeReference(); err != nil {
 		verr.Add(parent, "%s", err.Error())
 		return verr
 	}

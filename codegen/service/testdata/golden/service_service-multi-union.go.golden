@@ -156,11 +156,21 @@ func (u Values) MarshalFormValues(values url.Values, prefix string) error {
 	values.Set(loomhttp.FormChildKey(prefix, "type"), string(u.kind))
 	switch u.kind {
 	case ValuesKindA:
-		_, err := loomhttp.EncodeFormValue(values, prefix, u.A)
-		return err
+		if u.A == nil {
+			return nil
+		}
+		if _, parameterError := loomhttp.EncodeFormValue(values, loomhttp.FormChildKey(prefix, "a"), u.A.A); parameterError != nil {
+			return parameterError
+		}
+		return nil
 	case ValuesKindB:
-		_, err := loomhttp.EncodeFormValue(values, prefix, u.B)
-		return err
+		if u.B == nil {
+			return nil
+		}
+		if _, parameterError := loomhttp.EncodeFormValue(values, loomhttp.FormChildKey(prefix, "b"), u.B.B); parameterError != nil {
+			return parameterError
+		}
+		return nil
 	default:
 		return fmt.Errorf("unexpected Values discriminant %q", u.kind)
 	}
@@ -179,7 +189,14 @@ func (u *Values) UnmarshalFormValues(values url.Values, prefix string) error {
 	switch rawType {
 	case string(ValuesKindA):
 		var v *TypeA
-		seen, err := loomhttp.DecodeFormValue(values, prefix, &v)
+		v = &TypeA{}
+		seen := false
+		var err error
+		if present, fieldError := loomhttp.DecodeFormValue(values, loomhttp.FormChildKey(prefix, "a"), &v.A); fieldError != nil {
+			return fieldError
+		} else {
+			seen = seen || present
+		}
 		if err != nil {
 			return err
 		}
@@ -190,7 +207,14 @@ func (u *Values) UnmarshalFormValues(values url.Values, prefix string) error {
 		u.A = v
 	case string(ValuesKindB):
 		var v *TypeB
-		seen, err := loomhttp.DecodeFormValue(values, prefix, &v)
+		v = &TypeB{}
+		seen := false
+		var err error
+		if present, fieldError := loomhttp.DecodeFormValue(values, loomhttp.FormChildKey(prefix, "b"), &v.B); fieldError != nil {
+			return fieldError
+		} else {
+			seen = seen || present
+		}
 		if err != nil {
 			return err
 		}

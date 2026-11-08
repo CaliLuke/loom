@@ -1,7 +1,8 @@
 package ir
 
 import (
-	"fmt"
+	"slices"
+	"strings"
 
 	"github.com/CaliLuke/loom/expr"
 )
@@ -16,6 +17,11 @@ type (
 		branch     string
 		element    bool
 		additional bool
+		// base is the declaration a composition contributor references.
+		base expr.UserType
+		// contributor is a composition contributor projected into the wire
+		// context of an HTTP body occurrence; it projects with its own plan.
+		contributor *projectedContributor
 	}
 	schemaConstruction struct {
 		kind  expr.Kind
@@ -25,6 +31,12 @@ type (
 		baseline   *Schema
 		occurrence expr.ValuePlanNode
 		projection string
+	}
+	// schemaPosition pairs a baseline schema with the value-plan node it is
+	// projected at; the node carries the occurrence codec.
+	schemaPosition struct {
+		schema *Schema
+		plan   expr.ValuePlanNode
 	}
 )
 
@@ -84,100 +96,73 @@ func (a *Analyzer) applyNullableSchema(schema *Schema) {
 	a.constructions[schema] = schemaConstruction{slots: []schemaSlot{{location: schemaAnyOf}}}
 }
 
-// projectBaseline changes only byte-owned constraints. The baseline graph owns
-// every emitted edge and annotation, including absence and memo-elided aliases.
-// No source selection, sampling or schema reconstruction occurs in this walk.
-func (a *Analyzer) projectBaseline(baseline *Schema, attribute *expr.AttributeExpr, plan expr.ValuePlanNode) *Schema {
-	if baseline == nil {
-		return nil
+// constructionContext identifies the JSON representations that the composition
+// contributors recorded below baseline refer to. The construction owns the
+// contributors a projected composition materializes; member projections
+// receive value-plan attribute copies, which do not carry them. The walk pairs
+// every recorded slot with the plan node planProjectionChildren selects,
+// follows local component references as the projection planner does, and
+// counts a contributor only where its composition is projected with the JSON
+// codec. A projection decision therefore sees every inline composition its
+// materialization reaches, at any depth and through any intermediate.
+func (a *Analyzer) constructionContext(baseline *Schema, plan expr.ValuePlanNode) string {
+	root := schemaPosition{baseline, plan}
+	if context, found := a.constructionContexts[root]; found {
+		return context
 	}
-	projection := byteProjectionIdentity(attribute, plan)
-	if projection == "" {
-		return baseline
-	}
-	key := schemaProjectionKey{baseline, plan, projection}
-	if prior := a.projectedSchemas[key]; prior != nil {
-		return prior
-	}
-	result := *baseline
-	a.projectedSchemas[key] = &result
-	a.copySchemaConstruction(baseline, &result)
-	if name, local := schemaComponentName(baseline.Ref); local {
-		result.Ref = toRef(a.projectBaselineComponent(name, attribute, plan, projection))
-	}
-	layers, bytes := byteOccurrenceLayers(attribute, plan)
-	if bytes {
-		result.MinLength, result.MaxLength = nil, nil
-		if result.Format == "binary" {
-			result.Format = ""
+	var closures []string
+	visited := make(map[schemaPosition]bool)
+	var visit func(schemaPosition)
+	visit = func(position schemaPosition) {
+		if position.schema == nil || !position.plan.Valid() || visited[position] {
+			return
+		}
+		visited[position] = true
+		if name, local := schemaComponentName(position.schema.Ref); local {
+			visit(schemaPosition{a.schemas[name], position.plan})
+		}
+		construction := a.constructions[position.schema]
+		structural := construction.structuralPlan(position.plan)
+		for _, slot := range construction.slots {
+			if slot.contributor != nil {
+				visit(schemaPosition{slot.get(position.schema), slot.contributor.plan})
+				continue
+			}
+			if slot.base == nil {
+				visit(schemaPosition{slot.get(position.schema), slot.plan(structural)})
+				continue
+			}
+			if position.plan.Codec() != expr.ValueCodecJSON {
+				continue
+			}
+			if closure := a.declarationClosure(slot.base); closure != "" {
+				closures = append(closures, closure)
+			}
 		}
 	}
-	construction, recorded := a.constructions[baseline]
-	if !recorded {
-		if baseline.Ref == "" {
-			panic("OpenAPI projected baseline has no construction record")
-		}
-		return &result
-	}
-	if bytes && construction.kind == expr.BytesKind && len(construction.slots) == 0 {
-		result.ContentEncoding = "base64"
-		applyByteGate(&result, byteConstraintSchema(effectiveByteConstraint(attribute, layers, "$")))
-	}
-	return a.projectBaselineChildren(baseline, &result, attribute, plan, construction)
+	visit(root)
+	slices.Sort(closures)
+	context := strings.Join(slices.Compact(closures), "|")
+	a.constructionContexts[root] = context
+	return context
 }
 
-func (a *Analyzer) projectBaselineChildren(baseline, result *Schema, attribute *expr.AttributeExpr, plan expr.ValuePlanNode, construction schemaConstruction) *Schema {
+// structuralPlan returns the plan node a construction's slots pair with: a
+// typed construction descends the plan's named-declaration edges.
+func (c schemaConstruction) structuralPlan(plan expr.ValuePlanNode) expr.ValuePlanNode {
 	structural := plan
-	if construction.kind != 0 {
+	if c.kind != 0 {
 		for structural.Underlying().Valid() {
 			structural = structural.Underlying()
 		}
 	}
-	for _, slot := range construction.slots {
-		childPlan := slot.plan(structural)
-		childAttribute := attribute
-		if slot.member != "" || slot.branch != "" || slot.element || slot.additional {
-			if !childPlan.Valid() {
-				panic("OpenAPI baseline construction has no paired target child")
-			}
-			childAttribute = childPlan.Attribute()
-		}
-		child := a.projectBaseline(slot.get(baseline), childAttribute, childPlan)
-		slot.set(result, child)
-		if slot.branch != "" && result.Discriminator != nil {
-			discriminator := *result.Discriminator
-			discriminator.Mapping = copySchemaMapping(result.Discriminator.Mapping)
-			discriminator.Mapping[slot.branch] = child.Ref
-			result.Discriminator = &discriminator
-		}
-	}
-	return result
+	return structural
 }
 
-func (a *Analyzer) projectBaselineComponent(original string, attribute *expr.AttributeExpr, plan expr.ValuePlanNode, projection string) string {
-	baseline := a.schemas[original]
-	if baseline == nil {
-		panic(fmt.Sprintf("OpenAPI baseline component %q is missing", original))
-	}
-	key := schemaProjectionKey{baseline, plan, projection}
-	if name := a.projectedComponents[key]; name != "" {
-		return name
-	}
-	fingerprint := fingerprintString(original + ":" + projection)
-	name := a.Uniquify(original, fingerprint)
-	a.projectedComponents[key] = name
-	placeholder := &Schema{}
-	a.schemas[name] = placeholder
-	a.schemaFingerprints[name] = fingerprint
-	a.schemaTypeIDs[name] = a.schemaTypeIDs[original]
-	naming := a.schemaNames[original]
-	if naming.desired == "" {
-		naming = representationComponentName{desired: original, logical: original}
-	}
-	naming.json = true
-	a.schemaNames[name] = naming
-	*placeholder = *a.projectBaseline(baseline, attribute, plan)
-	return name
+// positional reports whether the slot's child stays at its parent's value
+// position, as wrappers and composition members do.
+func (s schemaSlot) positional() bool {
+	return s.member == "" && s.branch == "" && !s.element && !s.additional
 }
 
 func (s schemaSlot) plan(parent expr.ValuePlanNode) expr.ValuePlanNode {
@@ -250,14 +235,6 @@ func (s schemaSlot) set(schema *Schema, child *Schema) {
 		schema.AnyOf = append([]*Schema(nil), schema.AnyOf...)
 		schema.AnyOf[s.index] = child
 	}
-}
-
-func copySchemaMapping(source map[string]string) map[string]string {
-	result := make(map[string]string, len(source))
-	for name, value := range source {
-		result[name] = value
-	}
-	return result
 }
 
 // copySchemaConstruction carries the existing owning edge correspondence through

@@ -24,6 +24,11 @@ func parameterMetadata(parameter renderedParameter) ([]renderedMetadata, error) 
 
 func parameterCodecMetadata(location string, codec httpencoding.Codec) []renderedMetadata {
 	if codec.Style == httpencoding.JSON {
+		// Unlike nested objects and maps, native FullObject unions default to
+		// a style codec. Retain captured JSON intent independently of hints.
+		if codec.Shape == httpencoding.Union {
+			return []renderedMetadata{{name: "openapi:contentType", value: "application/json"}}
+		}
 		return nil
 	}
 	style := parameterStyleName(codec.Style)

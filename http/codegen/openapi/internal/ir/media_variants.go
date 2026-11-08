@@ -11,7 +11,7 @@ func analyzeMediaVariants(a *Analyzer, variants []*transportir.MediaVariant, usa
 	for _, variant := range variants {
 		attribute := attributeForSchemaUsage(variant.Body, usage)
 		context := attributeExampleContext(attribute, a.closeObjects, "media-variant", variant.ContentType)
-		schemas[variant.ContentType] = a.analyzePreparedOccurrence(attribute, context, variant.Value)
+		schemas[variant.ContentType] = a.analyzeFormOccurrence(attribute, context, variant.Value, variant.Form)
 	}
 	return schemas
 }

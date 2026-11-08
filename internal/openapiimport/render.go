@@ -54,6 +54,9 @@ func Render(document *Document, options Options) ([]byte, error) {
 	r.line("import . %q", "github.com/CaliLuke/loom/dsl")
 	r.line("")
 	for _, schema := range document.Components.Schemas {
+		if schema.Schema.synthesizedEnvelope {
+			continue
+		}
 		if err := r.namedSchema(schema); err != nil {
 			return nil, err
 		}

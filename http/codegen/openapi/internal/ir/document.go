@@ -34,8 +34,9 @@ func BuildDocument(api *expr.APIExpr, types []expr.UserType, resultTypes []*expr
 	doc := &Document{
 		Paths: make(map[string]*PathItem),
 		Components: &Components{
-			Schemas:         bodyTypes.Components,
-			SecuritySchemes: bindings.schemes,
+			Schemas:               bodyTypes.Components,
+			SecuritySchemes:       bindings.schemes,
+			DiscriminatorChildren: bodyTypes.DiscriminatorChildren,
 		},
 		Security: bindings.requirements(apiRequirements),
 	}

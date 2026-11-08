@@ -105,7 +105,15 @@ func TestPreparedBodyUnionAllocationAndMembership(t *testing.T) {
 		require.ElementsMatch(t, []string{"Shared", "ServerOnly"}, httpUnionTypeNames(sd.ServerUnionTypes))
 		clientShared := sd.ClientUnionTypes[1]
 		serverShared := sd.ServerUnionTypes[1]
-		require.Same(t, clientShared, serverShared, "package membership must reuse the allocated declaration")
+		require.Equal(t, clientShared.Name, serverShared.Name, "packages retain the allocated type name")
+		require.Equal(t, clientShared.KindName, serverShared.KindName)
+		require.NotSame(t, clientShared, serverShared, "physical package bindings are independently owned")
+		require.Len(t, clientShared.Fields, len(serverShared.Fields))
+		for index, field := range clientShared.Fields {
+			require.Equal(t, field.KindConst, serverShared.Fields[index].KindConst)
+			require.Equal(t, field.FieldType, serverShared.Fields[index].FieldType)
+			require.NotSame(t, field, serverShared.Fields[index])
+		}
 		require.Equal(t, "SharedKindLeft", clientShared.Fields[0].KindConst)
 	}
 }

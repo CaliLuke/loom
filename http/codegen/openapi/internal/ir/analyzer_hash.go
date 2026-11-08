@@ -111,6 +111,7 @@ func (e *canonicalSchemaEncoder) writeAttribute(att *expr.AttributeExpr, closeOb
 		return
 	}
 	e.writeString("attribute")
+	e.writeDiscriminatorHintMetadata(att.Meta)
 	if source, ok := att.Meta.Last("http:encoding:sourceType"); ok {
 		e.writeString("encoding-source-type")
 		e.writeString(source)
@@ -297,6 +298,13 @@ func (e *canonicalSchemaEncoder) writeUnion(att *expr.AttributeExpr, closeObject
 	e.writeInt(len(values))
 	for _, value := range values {
 		e.writeString(expr.UnionVariantTag(value.branch))
+		if aliases := value.branch.Attribute.Meta["openapi:discriminator:mapping"]; len(aliases) > 0 {
+			e.writeString("discriminator-aliases")
+			e.writeInt(len(aliases))
+			for _, alias := range aliases {
+				e.writeString(alias)
+			}
+		}
 		e.writeAttribute(value.branch.Attribute, closeObjects, value.input)
 	}
 }
@@ -526,6 +534,10 @@ func (e *canonicalSchemaEncoder) writeUserTypeShape(att *expr.AttributeExpr, nam
 	if att.UnionClosed() != base.UnionClosed() {
 		// Use the same occurrence metadata projection as the emitted component.
 		// Alias layers must carry closure to the underlying union as well.
+		base.Meta = componentAttribute(att, named).Meta
+		derived = true
+	}
+	if hasDiscriminatorHintMetadata(att.Meta) {
 		base.Meta = componentAttribute(att, named).Meta
 		derived = true
 	}

@@ -404,6 +404,9 @@ func discriminatorToIR(discriminator *openapi.Discriminator) *openapiir.Discrimi
 		Mapping:        cloneStringMap(discriminator.Mapping),
 		DefaultMapping: discriminator.DefaultMapping,
 		Optional:       discriminator.Optional,
+		Untagged:       discriminator.Untagged,
+		Object:         discriminator.Object,
+		Extensions:     discriminator.Extensions,
 	}
 }
 

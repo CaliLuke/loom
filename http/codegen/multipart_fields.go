@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/CaliLuke/loom/internal/formgen"
+
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/unionjson"
 	"github.com/CaliLuke/loom/expr"
@@ -69,9 +71,9 @@ func renderMultipartValueProjection(out *strings.Builder, attribute *expr.Attrib
 	}
 	switch codec.Kind {
 	case httpencoding.JSONPart:
-		fmt.Fprintf(out, "return loomhttp.MultipartJSONValue(multipartForm, %s, %s)\n", name, formApplicationLiteral(codec.Application))
+		fmt.Fprintf(out, "return loomhttp.MultipartJSONValue(multipartForm, %s, %s)\n", name, formgen.Application(codec.Application))
 	case httpencoding.BinaryPart:
-		fmt.Fprintf(out, "return loomhttp.MultipartBinaryValue(multipartForm, %s, %s)\n", name, formApplicationLiteral(codec.Application))
+		fmt.Fprintf(out, "return loomhttp.MultipartBinaryValue(multipartForm, %s, %s)\n", name, formgen.Application(codec.Application))
 	default:
 		text := multipartTextCodec(attribute, codec)
 		element := &Element{Namespace: field.Namespace}
@@ -101,9 +103,9 @@ func renderMultipartFieldDecode(out *strings.Builder, body *TypeData, field *For
 	name := strconv.Quote(field.HTTPName)
 	switch codec.Kind {
 	case httpencoding.JSONPart:
-		fmt.Fprintf(out, "partPresent, partError := loomhttp.DecodeMultipartJSON(multipartForm, %s, &%s, %t, %s)\n", name, target, expr.AllowsNull(field.Attribute), formApplicationLiteral(codec.Application))
+		fmt.Fprintf(out, "partPresent, partError := loomhttp.DecodeMultipartJSON(multipartForm, %s, &%s, %t, %s)\n", name, target, expr.AllowsNull(field.Attribute), formgen.Application(codec.Application))
 	case httpencoding.BinaryPart:
-		fmt.Fprintf(out, "partPresent, partError := loomhttp.DecodeMultipartBinary(multipartForm, %s, &%s, %s)\n", name, target, formApplicationLiteral(codec.Application))
+		fmt.Fprintf(out, "partPresent, partError := loomhttp.DecodeMultipartBinary(multipartForm, %s, &%s, %s)\n", name, target, formgen.Application(codec.Application))
 	default:
 		text := multipartTextCodec(field.Attribute, codec)
 		element := &Element{Namespace: field.Namespace}

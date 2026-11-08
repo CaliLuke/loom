@@ -66,14 +66,35 @@ func AnalyzePartial(source Source, selection Selection, allowLossy bool) (analys
 		analysis.Blocked = append(analysis.Blocked, diagnostics...)
 	}
 	rawDiagnostics, analysis.Omitted = splitDocumentOmissions(rawDiagnostics)
+	retained := analysis.selectOperations(document, rawDiagnostics, allowLossy)
+	analysis.Blocked = uniqueDiagnostics(analysis.Blocked)
+	analysis.Warnings = uniqueDiagnostics(analysis.Warnings)
+	analysis.Document = documentForOperations(document, retained)
+	pruneComponents(analysis.Document)
+	var finalHintOmissions Diagnostics
+	analysis.Document, finalHintOmissions = omitUnprojectableParentHints(analysis.Document)
+	analysis.OperationOmissions = reconcileParentHintOmissions(analysis.OperationOmissions, finalHintOmissions)
+	assignOperationNames(analysis.Document.Operations)
+	if diagnostics := planDocument(analysis.Document).diagnostics; len(diagnostics) > 0 {
+		return nil, report, fmt.Errorf("plan partial OpenAPI import:\n%s", diagnostics.Error())
+	}
+	return analysis, report, nil
+}
+
+// selectOperations tests detached single-operation projections. The final
+// combined projection reconciles metadata omissions with all retained uses.
+func (a *PartialAnalysis) selectOperations(document *Document, rawDiagnostics Diagnostics, allowLossy bool) []Operation {
 	retained := make([]Operation, 0, len(document.Operations))
 	for _, operation := range document.Operations {
 		candidate := documentForOperations(document, []Operation{operation})
 		closure := pruneComponents(candidate)
 		diagnostics := filterSecurityFailures(candidate, filterOperationDiagnostics(rawDiagnostics, operation, closure))
 		diagnostics, omitted := splitOperationOmissions(diagnostics, operation)
+		var hintOmissions Diagnostics
+		candidate, hintOmissions = omitUnprojectableParentHints(candidate)
+		omitted = append(omitted, hintOmissions...)
 		if len(omitted) > 0 {
-			analysis.OperationOmissions = append(analysis.OperationOmissions, SkippedOperation{
+			a.OperationOmissions = append(a.OperationOmissions, SkippedOperation{
 				Method:      operation.Method,
 				Path:        operation.Path,
 				Diagnostics: omitted,
@@ -82,8 +103,8 @@ func AnalyzePartial(source Source, selection Selection, allowLossy bool) (analys
 		diagnostics = append(diagnostics, planDocument(candidate).diagnostics...)
 		fatal, warnings := diagnostics.sorted().Classify(allowLossy)
 		if len(fatal) > 0 {
-			analysis.Blocked = append(analysis.Blocked, fatal...)
-			analysis.Skipped = append(analysis.Skipped, SkippedOperation{
+			a.Blocked = append(a.Blocked, fatal...)
+			a.Skipped = append(a.Skipped, SkippedOperation{
 				Method:      operation.Method,
 				Path:        operation.Path,
 				Diagnostics: fatal,
@@ -91,17 +112,9 @@ func AnalyzePartial(source Source, selection Selection, allowLossy bool) (analys
 			continue
 		}
 		retained = append(retained, operation)
-		analysis.Warnings = append(analysis.Warnings, warnings...)
+		a.Warnings = append(a.Warnings, warnings...)
 	}
-	analysis.Blocked = uniqueDiagnostics(analysis.Blocked)
-	analysis.Warnings = uniqueDiagnostics(analysis.Warnings)
-	analysis.Document = documentForOperations(document, retained)
-	pruneComponents(analysis.Document)
-	assignOperationNames(analysis.Document.Operations)
-	if diagnostics := planDocument(analysis.Document).diagnostics; len(diagnostics) > 0 {
-		return nil, report, fmt.Errorf("plan partial OpenAPI import:\n%s", diagnostics.Error())
-	}
-	return analysis, report, nil
+	return retained
 }
 
 func splitOperationOmissions(diagnostics Diagnostics, operation Operation) (retained, omitted Diagnostics) {

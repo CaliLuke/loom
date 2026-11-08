@@ -144,6 +144,11 @@ func clientResponseDecoderSection(svc *expr.HTTPServiceExpr, services *ServicesD
 	}
 	fm := transDecoderTmplFuncs(svc, services)
 	fm["buildResponseData"] = buildResponseData
+	// A response default that cannot be materialized keeps the client
+	// validation envelope, with the server fault as its cause.
+	fm["defaultErrorReturn"] = func(expression string) string {
+		return fmt.Sprintf("return nil, loomhttp.ErrValidationError(%q, %q, %s)", e.ServiceName, e.Method.Name, expression)
+	}
 	return codegen.NewTextTemplateSection(
 		"response-decoder",
 		responseDecoderSource,

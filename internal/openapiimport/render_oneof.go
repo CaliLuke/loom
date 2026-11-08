@@ -11,10 +11,13 @@ import (
 // oneOfExpression preserves branch attributes instead of reducing an inline
 // schema to its constructor. Reference-only unions retain their compact form.
 func (r *renderer) oneOfExpression(schema *Schema, path string) (string, bool, error) {
+	if schema.Discriminator != nil && schema.Discriminator.Tagged != nil {
+		return r.discriminatorEnvelopeExpression(schema, path)
+	}
 	expressions := make([]string, len(schema.OneOf))
 	bases := make([]string, len(schema.OneOf))
 	keys := make([]string, len(schema.OneOf))
-	compact := true
+	compact := schema.Discriminator == nil
 	for index, branch := range schema.OneOf {
 		expression, object, err := r.schemaExpression(branch, fmt.Sprintf("%s/oneOf/%d", path, index))
 		if err != nil {
@@ -50,7 +53,11 @@ func (r *renderer) oneOfExpression(schema *Schema, path string) (string, bool, e
 		child.line("Untagged()")
 	}
 	for index, branch := range schema.OneOf {
-		if err := child.attribute(names[index], branch, nil, fmt.Sprintf("%s/oneOf/%d", path, index)); err != nil {
+		metadata := []renderedMetadata{}
+		for _, key := range r.discriminatorBranchAliases(schema, index) {
+			metadata = append(metadata, renderedMetadata{name: "openapi:discriminator:mapping", value: key})
+		}
+		if err := child.attribute(names[index], branch, nil, fmt.Sprintf("%s/oneOf/%d", path, index), metadata...); err != nil {
 			return "", false, err
 		}
 	}
