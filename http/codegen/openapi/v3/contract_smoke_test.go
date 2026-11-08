@@ -397,10 +397,16 @@ func smokeHeyAPITypeScriptClient(t *testing.T, workDir, jsonPath string) {
 	require.NoError(t, os.MkdirAll(heyDir, 0o750))
 	generatorDir := filepath.Join(heyDir, ".hey-api")
 	require.NoError(t, os.MkdirAll(generatorDir, 0o750))
+	// Own both package roots so npm cannot merge their different TypeScript
+	// versions into an enclosing project discovered above the temporary directory.
+	for _, dir := range []string{heyDir, generatorDir} {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "package.json"), []byte("{\"private\":true}\n"), 0o600))
+	}
 	_, err := testingx.RunCmd(
 		generatorDir,
 		"npm",
 		"install",
+		"--prefix", generatorDir,
 		"--ignore-scripts",
 		"--save-exact",
 		"typescript@npm:@typescript/typescript6@"+typeScriptAPIVersion,
@@ -411,6 +417,7 @@ func smokeHeyAPITypeScriptClient(t *testing.T, workDir, jsonPath string) {
 		heyDir,
 		"npm",
 		"install",
+		"--prefix", heyDir,
 		"--ignore-scripts",
 		"--save-exact",
 		"typescript@"+typeScriptVersion,
