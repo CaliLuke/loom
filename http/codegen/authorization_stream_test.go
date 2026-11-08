@@ -70,14 +70,14 @@ import (
 	feed "example.com/accessstream/gen/feed"
 	feedsvr "example.com/accessstream/gen/http/feed/server"
 	loomhttp "github.com/CaliLuke/loom/http"
-	loom "github.com/CaliLuke/loom/pkg"
 	observation "github.com/CaliLuke/loom/observability/transport"
+	loom "github.com/CaliLuke/loom/pkg"
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/require"
 )
 
 type service struct {
-	calls atomic.Int32
+	calls        atomic.Int32
 	socketReturn <-chan struct{}
 }
 
@@ -171,27 +171,57 @@ func TestStreamAdmission(t *testing.T) {
 	releaseSocket()
 	select {
 	case <-socketHandlerDone:
-	case <-time.After(5*time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("WebSocket handler did not finish after service return")
 	}
 	require.Equal(t, int32(1), s.calls.Load())
-	// Unopened service streams do not invent successful negotiation events.
+	mu.Lock()
+	beforeLazy := len(events)
+	mu.Unlock()
+	s.calls.Store(0)
+	// A successful zero-event SSE return publishes a handshake. An unopened
+	// WebSocket still has no negotiated stream and emits no stream lifecycle.
 	for _, path := range []string{"/watch", "/socket"} {
-		mux.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest("GET", path+"?id=lazy", nil).WithContext(ctx))
+		response := httptest.NewRecorder()
+		mux.ServeHTTP(response, httptest.NewRequest("GET", path+"?id=lazy", nil).WithContext(ctx))
+		require.Empty(t, response.Body.String())
+		if path == "/watch" {
+			require.Equal(t, http.StatusOK, response.Code)
+			require.Equal(t, "text/event-stream", response.Header().Get("Content-Type"))
+		} else {
+			require.NotEqual(t, http.StatusSwitchingProtocols, response.Code)
+			require.Empty(t, response.Header().Get("Upgrade"))
+		}
 	}
+	require.Equal(t, int32(2), s.calls.Load())
 	mu.Lock()
 	observed := append([]observation.Event(nil), events...)
 	mu.Unlock()
-	counts := make(map[string]int)
-	for _, event := range observed {
+	counts := make(map[string][2]int)
+	for index, event := range observed {
 		if event.Kind == observation.EventKindStreamOpen || event.Kind == observation.EventKindStreamClose {
 			require.Equal(t, "feed", event.Service)
 			require.Equal(t, http.MethodGet, event.HTTPMethod)
 			require.NotEmpty(t, event.Route)
-			counts[event.Method]++
+			phase := "allowed"
+			if index >= beforeLazy {
+				phase = "lazy"
+			}
+			key := event.Method + "/" + phase
+			count := counts[key]
+			if event.Kind == observation.EventKindStreamOpen {
+				count[0]++
+			} else {
+				count[1]++
+			}
+			counts[key] = count
 		}
 	}
-	require.Equal(t, map[string]int{"watch": 2, "socket": 2}, counts)
+	require.Equal(t, map[string][2]int{
+		"watch/allowed":  {1, 1},
+		"socket/allowed": {1, 1},
+		"watch/lazy":     {1, 1},
+	}, counts)
 	s.calls.Store(0)
 	for _, req := range []any{nil, (*feed.WatchEndpointInput)(nil), &feed.WatchEndpointInput{}} {
 		_, err := e.Watch(context.Background(), req)

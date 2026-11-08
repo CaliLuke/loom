@@ -35,7 +35,8 @@ func TestCollisionMapCarrier(t *testing.T) {
 			endpoints := &service.Endpoints{Colliding: func(_ context.Context, p any) (any, error) {
 				calls++
 				received = p.(*service.CollidingPayload)
-				return &service.CollidingResult{}, nil
+				data := ""
+				return &service.CollidingResult{Data: &data}, nil
 			}}
 			mux := loomhttp.NewMuxer()
 			server.Mount(mux, server.New(endpoints, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil))
@@ -59,6 +60,7 @@ func TestCollisionMapCarrier(t *testing.T) {
 				return
 			}
 			require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+			require.JSONEq(t, "\"\"", response.Body.String())
 			require.Equal(t, 1, calls)
 			require.NotNil(t, received)
 			require.NotNil(t, received.ValHeader)

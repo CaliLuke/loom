@@ -273,8 +273,18 @@ func TestSSEFieldPresencePreStreamFailureIsNotAStream(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected pre-stream failure, got stream %T", res)
 	}
-	if !strings.Contains(err.Error(), "unexpected status from SSE endpoint") {
-		t.Errorf("unexpected error: %v", err)
+	if res != nil {
+		t.Errorf("pre-stream failure returned a stream: %T", res)
+	}
+	var failure *loomhttp.ClientError
+	if !errors.As(err, &failure) {
+		t.Fatalf("expected ordinary HTTP client error, got %T: %v", err, err)
+	}
+	if failure.Name != "invalid_response" || failure.Service != "SSEFieldPresence" || failure.Method != "StreamOptional" || !failure.Fault {
+		t.Errorf("unexpected failure contract: %+v", failure)
+	}
+	if !strings.Contains(failure.Message, "invalid response code 500") || strings.Contains(failure.Message, errPreStream.Error()) {
+		t.Errorf("unexpected or unsafe response error: %v", failure)
 	}
 }
 

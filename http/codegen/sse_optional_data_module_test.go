@@ -89,6 +89,7 @@ const sseOptionalDataHarness = `package sseoptionaldata_test
 
 import (
 	"context"
+	"encoding/json/v2"
 	"errors"
 	"io"
 	"net/http"
@@ -283,18 +284,36 @@ func TestSSEOptionalDataPreStreamFailureIsNotAStream(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected pre-stream failure, got stream %T", res)
 	}
-	if !strings.Contains(err.Error(), "unexpected status from SSE endpoint") {
-		t.Errorf("unexpected error: %v", err)
+	if res != nil {
+		t.Errorf("pre-stream failure returned a stream: %T", res)
+	}
+	var failure *loomhttp.ClientError
+	if !errors.As(err, &failure) {
+		t.Fatalf("expected ordinary HTTP client error, got %T: %v", err, err)
+	}
+	if failure.Name != "invalid_response" || failure.Service != "SSEOptionalData" || failure.Method != "StreamText" || !failure.Fault {
+		t.Errorf("unexpected failure contract: %+v", failure)
+	}
+	if !strings.Contains(failure.Message, "invalid response code 500") || strings.Contains(failure.Message, errPreStream.Error()) {
+		t.Errorf("unexpected or unsafe response error: %v", failure)
 	}
 	resp, err := http.Get(base + "/text")
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
+	var problem loomhttp.ProblemResponse
+	decodeErr := json.UnmarshalRead(resp.Body, &problem)
 	if err := resp.Body.Close(); err != nil {
 		t.Errorf("close: %v", err)
 	}
-	if resp.StatusCode == http.StatusOK || strings.HasPrefix(resp.Header.Get("Content-Type"), "text/event-stream") {
+	if decodeErr != nil {
+		t.Fatalf("decode problem: %v", decodeErr)
+	}
+	if resp.StatusCode != http.StatusInternalServerError || !strings.HasPrefix(resp.Header.Get("Content-Type"), "application/problem+json") {
 		t.Errorf("pre-stream failure committed the stream: status %d, content type %q", resp.StatusCode, resp.Header.Get("Content-Type"))
+	}
+	if problem.Code != "fault" || problem.Detail != "internal server error" || problem.Status != http.StatusInternalServerError {
+		t.Errorf("unexpected problem: %+v", problem)
 	}
 }
 
