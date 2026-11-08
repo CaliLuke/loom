@@ -408,12 +408,12 @@ func MixedMetadataDSL() {
 
 // ImplicitHandshakeDSL declares optional handshake metadata with authored
 // defaults on SSE and typed mixed methods, plus an optional member without one.
-// Token members use the module-local custom representation package; the invalid
-// carrier's default fails that representation's parser at runtime.
+// Token members use the shared custom representation fixture package; the
+// invalid carrier's default fails that representation's parser at runtime.
 func ImplicitHandshakeDSL() {
 	token := func(fallback string) func() {
 		return func() {
-			Meta("struct:field:type", "scalar.Token", "example.com/handshake/scalar")
+			Meta("struct:field:type", "custom.Token", "github.com/CaliLuke/loom/http/codegen/testdata/custom")
 			Default(fallback)
 		}
 	}

@@ -56,8 +56,8 @@ func TestGeneratedImplicitHandshakeAndDynamicView(t *testing.T) {
 	require.True(t, found)
 	viewed, _, _ = strings.Cut(viewed, "\n}\n")
 	require.NotContains(t, viewed, "loom-view", "fixed views keep no wire view header")
-	require.Equal(t, 2, strings.Count(server, `value := &implicit.ImplicitOpening{Trace: "abc", Count: 7, Session: "sess", Token: func() scalar.Token {`), server)
-	require.Equal(t, 2, strings.Count(server, `loom.ParseStringValue[scalar.Token]("bad:default", "default.token")`), server)
+	require.Equal(t, 2, strings.Count(server, `value := &implicit.ImplicitOpening{Trace: "abc", Count: 7, Session: "sess", Token: func() custom.Token {`), server)
+	require.Equal(t, 2, strings.Count(server, `loom.ParseStringValue[custom.Token]("bad:default", "default.token")`), server)
 	require.NotContains(t, server, "new(implicit.ImplicitOpening)")
 	require.Contains(t, server, "return loomhttp.SSEHandshake{}, &loomhttp.StatusViolationError{}", "required metadata still rejects absence")
 }
@@ -103,8 +103,6 @@ func TestSSEHandshakeGenerated(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "status_test.go"), []byte(finalStatusHarness), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "mixed_test.go"), []byte(mixedHandshakeHarness), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "implicit_test.go"), []byte(implicitHandshakeHarness), 0o600))
-	require.NoError(t, os.MkdirAll(filepath.Join(dir, "scalar"), 0o700))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "scalar", "token.go"), []byte(implicitTokenRepresentation), 0o600))
 	runGoCommand(t, dir, "mod", "tidy")
 	runGoCommand(t, dir, "test", "./...")
 }

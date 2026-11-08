@@ -1,4 +1,4 @@
-// Package custom provides named numeric types for generated HTTP fixtures.
+// Package custom provides authored Go representations for generated HTTP fixtures.
 package custom
 
 type (

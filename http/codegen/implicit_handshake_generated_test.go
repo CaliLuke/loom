@@ -15,8 +15,8 @@ import (
 	implicitclient "example.com/handshake/gen/http/implicit/client"
 	implicitserver "example.com/handshake/gen/http/implicit/server"
 	implicitsvc "example.com/handshake/gen/implicit"
-	"example.com/handshake/scalar"
 	loomhttp "github.com/CaliLuke/loom/http"
+	"github.com/CaliLuke/loom/http/codegen/testdata/custom"
 )
 
 type implicitImplementation struct{}
@@ -146,7 +146,7 @@ func TestImplicitHandshakeClient(t *testing.T) {
 	defer hs.Close()
 	c := implicitclient.NewClient("http", strings.TrimPrefix(hs.URL, "http://"), hs.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
 	service := implicitsvc.NewClient(c.Watch(), c.Mixed(), c.MixedStream(), c.Invalid(), c.InvalidMixed(), c.InvalidMixedStream())
-	defaults := implicitsvc.ImplicitOpening{Trace: "abc", Count: 7, Session: "sess", Token: scalar.Token("token:default"), Hint: scalar.Token("token:hint")}
+	defaults := implicitsvc.ImplicitOpening{Trace: "abc", Count: 7, Session: "sess", Token: custom.Token("token:default"), Hint: custom.Token("token:hint")}
 	for explicit, want := range map[bool]implicitsvc.ImplicitOpening{
 		false: defaults,
 		true:  {},
@@ -169,31 +169,5 @@ func TestImplicitHandshakeClient(t *testing.T) {
 	if err != nil || result != "whole" || metadata == nil || withoutHint(*metadata) != withoutHint(defaults) {
 		t.Errorf("mixed implicit tuple: %q %#v %v", result, metadata, err)
 	}
-}
-`
-
-const implicitTokenRepresentation = `package scalar
-
-import (
-	"errors"
-	"strings"
-)
-
-// Token is a module-local custom String representation whose parser rejects
-// the bad prefix, so an authored default can fail only at runtime.
-type Token string
-
-// MarshalText returns the token text.
-func (t Token) MarshalText() ([]byte, error) {
-	return []byte(t), nil
-}
-
-// UnmarshalText admits any text without the bad prefix.
-func (t *Token) UnmarshalText(text []byte) error {
-	if strings.HasPrefix(string(text), "bad") {
-		return errors.New("rejected token")
-	}
-	*t = Token(text)
-	return nil
 }
 `
