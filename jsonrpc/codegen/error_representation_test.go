@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	httpcodegen "github.com/CaliLuke/loom/http/codegen"
 )
 
 func TestMappedErrorBodyMaterializesItsSource(t *testing.T) {
@@ -16,8 +18,20 @@ func TestMappedErrorBodyMaterializesItsSource(t *testing.T) {
 	for _, name := range []string{"unary", "events", "socket"} {
 		t.Run(name, func(t *testing.T) {
 			endpoint := services.Get(name).Endpoint("show")
-			require.Len(t, endpoint.Errors, 1)
-			response := endpoint.Errors[0].Errors[0].Response
+			// The shared fixture also declares omitted and explicit-zero codes.
+			// Locate this contract by authored identity, independently of grouping.
+			var response *httpcodegen.ResponseData
+			for _, group := range endpoint.Errors {
+				for _, mapped := range group.Errors {
+					if mapped.Name == "public" {
+						require.Nil(t, response, "duplicate public mapping")
+						require.NotNil(t, group.JSONRPCCode)
+						require.Equal(t, 4403, *group.JSONRPCCode)
+						response = mapped.Response
+					}
+				}
+			}
+			require.NotNil(t, response)
 			require.True(t, response.EncodePlan.NeedsProblemSource)
 			body := response.EncodePlan.FirstBody
 			require.Equal(t, "problem", body.Init.ServerArgs[0].Ref)

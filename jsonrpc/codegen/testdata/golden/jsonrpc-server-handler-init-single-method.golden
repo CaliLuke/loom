@@ -13,7 +13,7 @@ func NewAddHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*htt
 				code := jsonrpc.InternalError
 				errorResponse := loom.ResolveErrorResponse(err)
 				// nolint:errorlint // Response ownership is already resolved.
-				if serviceError, ok := errorResponse.Owner.(*loom.ServiceError); ok {
+				if serviceError := errorResponse.ServiceError; serviceError != nil {
 					code = jsonrpc.CodeForServiceError(serviceError)
 				}
 				encodeJSONRPCError(ctx, w, req, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err), encoder, errhandler)
@@ -30,7 +30,7 @@ func NewAddHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*htt
 				if errorResponse.Owner == nil {
 					code := jsonrpc.InternalError
 					// nolint:errorlint // Response ownership is already resolved.
-					if serviceError, ok := errorResponse.Owner.(*loom.ServiceError); ok {
+					if serviceError := errorResponse.ServiceError; serviceError != nil {
 						code = jsonrpc.CodeForServiceError(serviceError)
 					}
 					encodeJSONRPCError(ctx, w, req, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err), encoder, errhandler)
@@ -44,7 +44,7 @@ func NewAddHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*htt
 				default:
 					code := jsonrpc.InternalError
 					// nolint:errorlint // Response ownership is already resolved.
-					if serviceError, ok := errorResponse.Owner.(*loom.ServiceError); ok {
+					if serviceError := errorResponse.ServiceError; serviceError != nil {
 						code = jsonrpc.CodeForServiceError(serviceError)
 					}
 					encodeJSONRPCError(ctx, w, req, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err), encoder, errhandler)

@@ -370,20 +370,9 @@ import (
 )
 
 
-
-// EncodeStreamResponse returns an encoder for responses returned by the
-// JSONRPCSSEObjectService Stream endpoint.
-func EncodeStreamResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
-	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-			res, ok := v.(*jsonrpcsseobjectservice.StreamResult)
-			if !ok {
-				return loomhttp.ErrInvalidType("JSONRPCSSEObjectService", "Stream", "*jsonrpcsseobjectservice.StreamResult", v)
-			}
-	enc := encoder(ctx, w)
-	body := NewStreamResponseBody(res)
-	w.WriteHeader(http.StatusOK)
-				return enc.Encode(body)
-	}
+// prepareStreamHandshake prepares immutable stream response metadata before publication.
+func prepareStreamHandshake(ctx context.Context) (loomhttp.SSEHandshake, error) {
+	return loomhttp.SSEHandshake{Status: 200}, nil
 }
 
 
