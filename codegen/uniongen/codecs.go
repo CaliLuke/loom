@@ -85,6 +85,7 @@ func MarshalFormBody(data *Type) string {
 // UnmarshalFormBody renders the body of the union UnmarshalForm method.
 func UnmarshalFormBody(data *Type) string {
 	var b strings.Builder
+	canDecode := false
 	fmt.Fprintf(&b, "typeKey := loomhttp.FormChildKey(prefix, %q)\n", data.TypeKey)
 	if data.HasScalarFormBranch {
 		fmt.Fprintf(&b, "valueKey := loomhttp.FormChildKey(prefix, %q)\n", data.ValueKey)
@@ -99,6 +100,7 @@ func UnmarshalFormBody(data *Type) string {
 			fmt.Fprintf(&b, "return fmt.Errorf(%q)\n", field.FormError)
 			continue
 		}
+		canDecode = true
 		fmt.Fprintf(&b, "var v %s\n", field.FieldType)
 		if field.FlatFormObject {
 			fmt.Fprintf(&b, "v = %s\nseen := false\nvar err error\n", field.EmptyValueExpr)
@@ -123,7 +125,10 @@ func UnmarshalFormBody(data *Type) string {
 	for _, field := range data.Fields {
 		fmt.Fprintf(&b, "\t\t\tstring(%s),\n", field.KindConst)
 	}
-	b.WriteString("\t\t})\n\t}\nreturn nil")
+	b.WriteString("\t\t})\n\t}")
+	if canDecode {
+		b.WriteString("\nreturn nil")
+	}
 	return b.String()
 }
 
