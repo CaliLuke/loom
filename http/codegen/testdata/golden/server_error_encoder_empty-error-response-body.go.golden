@@ -15,7 +15,7 @@ func EncodeMethodEmptyErrorResponseBodyError(encoder func(context.Context, http.
 			if !ok {
 				return encodeError(ctx, w, v)
 			}
-			problem := loomhttp.NewProblemResponse(ctx, v, 500, "", "")
+			problem := loomhttp.NewProblemResponse(ctx, v, http.StatusInternalServerError, "", "")
 			w.Header().Set("Error-Code", problem.Code)
 			w.Header().Set("Loom-Attribute-Type", problem.Type)
 			w.Header().Set("Loom-Attribute-Title", problem.Title)

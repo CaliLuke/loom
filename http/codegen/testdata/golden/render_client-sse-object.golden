@@ -5,9 +5,10 @@ type SSEObjectMethodClientStream interface {
 type (
 	// SSEObjectMethodStreamImpl implements the SSEObjectMethodClientStream interface.
 	SSEObjectMethodStreamImpl struct {
-		ctx     context.Context
-		reader  *loomhttp.SSEStreamReader
-		decoder func(*http.Response) loomhttp.Decoder
+		ctx      context.Context
+		reader   *loomhttp.SSEStreamReader
+		response *http.Response
+		decoder  func(*http.Response) loomhttp.Decoder
 	}
 )
 
@@ -18,9 +19,10 @@ var _ SSEObjectMethodClientStream = (*SSEObjectMethodStreamImpl)(nil)
 // NewSSEObjectMethodStream creates a new SSEObjectMethodClientStream.
 func NewSSEObjectMethodStream(ctx context.Context, resp *http.Response, decoder func(*http.Response) loomhttp.Decoder) SSEObjectMethodClientStream {
 	return &SSEObjectMethodStreamImpl{
-		ctx:     ctx,
-		decoder: decoder,
-		reader:  loomhttp.NewSSEStreamReader(resp.Body),
+		ctx:      ctx,
+		decoder:  decoder,
+		reader:   loomhttp.NewSSEStreamReader(resp.Body),
+		response: resp,
 	}
 }
 
@@ -62,10 +64,7 @@ func (s *SSEObjectMethodStreamImpl) processEvent(parsed loomhttp.SSEEvent) (even
 	event = new(sseobjectservice.SSEObjectMethodResult)
 	dataContent := parsed.Data
 	// Decode JSON into the struct pointer directly
-	respBody := &http.Response{
-		StatusCode: http.StatusOK,
-		Body:       io.NopCloser(bytes.NewReader([]byte(dataContent))),
-	}
+	respBody := loomhttp.SSEEventResponse(s.response, dataContent)
 	err = s.decoder(respBody).Decode(event)
 	if err != nil {
 		return

@@ -27,7 +27,7 @@ func TestRenderSSEParseAssignment(t *testing.T) {
 
 	t.Run("default decode", func(t *testing.T) {
 		code := renderSSEParseAssignment("event", "*Example", false)
-		require.Contains(t, code, "strings.NewReader(dataContent)")
+		require.Contains(t, code, "respBody := loomhttp.SSEEventResponse(s.response, dataContent)")
 		require.Contains(t, code, "s.decoder(respBody).Decode(&event)")
 	})
 
@@ -72,7 +72,8 @@ func TestSSEClientEmitterDelegatesCoreReader(t *testing.T) {
 	code := renderedSectionSource(t, sseFile.Section("client-sse")[0])
 
 	require.Contains(t, code, "SSEStreamReader")
-	require.Contains(t, code, "reader:  loomhttp.NewSSEStreamReader(resp.Body)")
+	require.Regexp(t, `reader:\s+loomhttp.NewSSEStreamReader\(resp.Body\)`, code)
+	require.Regexp(t, `response:\s+resp,`, code)
 	require.Contains(t, code, "parsed, err = s.reader.ReadEvent(ctx)")
 	require.Contains(t, code, "return s.reader.Close()")
 	require.NotContains(t, code, "func (s *SSEObjectMethodStreamImpl) readEvent")

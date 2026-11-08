@@ -24,9 +24,28 @@ func DecodeMethodCookieCustomTextUnmarshalerDefaultRequest(mux loomhttp.Muxer, _
 					err = loom.MergeErrors(err, loom.InvalidFieldTypeError("id", idRaw, "uuid.UUID"))
 				}
 			} else {
-				idRaw = "550e8400-e29b-41d4-a716-446655440000"
-				if err2 := id.UnmarshalText([]byte(idRaw)); err2 != nil {
-					err = loom.MergeErrors(err, loom.InvalidFieldTypeError("id", idRaw, "uuid.UUID"))
+				if parameterError := func() error {
+					{
+						var parameterDefaultError error
+						transformErr := &parameterDefaultError
+						id = func() uuid.UUID {
+							var defaultValue uuid.UUID
+							if *transformErr != nil {
+								return defaultValue
+							}
+							defaultValue, defaultError := loom.ParseStringValue[uuid.UUID]("550e8400-e29b-41d4-a716-446655440000", "default")
+							if defaultError != nil {
+								*transformErr = defaultError
+							}
+							return defaultValue
+						}()
+						if parameterDefaultError != nil {
+							return loom.Fault("%s", "parameter id: invalid default")
+						}
+					}
+					return nil
+				}(); parameterError != nil {
+					return payload, parameterError
 				}
 			}
 		}

@@ -5,9 +5,10 @@ type CreateClientStream interface {
 type (
 	// CreateStreamImpl implements the CreateClientStream interface.
 	CreateStreamImpl struct {
-		ctx     context.Context
-		reader  *loomhttp.SSEStreamReader
-		decoder func(*http.Response) loomhttp.Decoder
+		ctx      context.Context
+		reader   *loomhttp.SSEStreamReader
+		response *http.Response
+		decoder  func(*http.Response) loomhttp.Decoder
 	}
 )
 
@@ -17,9 +18,10 @@ var _ CreateClientStream = (*CreateStreamImpl)(nil)
 // NewCreateStream creates a new CreateClientStream.
 func NewCreateStream(ctx context.Context, resp *http.Response, decoder func(*http.Response) loomhttp.Decoder) CreateClientStream {
 	return &CreateStreamImpl{
-		ctx:     ctx,
-		decoder: decoder,
-		reader:  loomhttp.NewSSEStreamReader(resp.Body),
+		ctx:      ctx,
+		decoder:  decoder,
+		reader:   loomhttp.NewSSEStreamReader(resp.Body),
+		response: resp,
 	}
 }
 
@@ -60,10 +62,7 @@ func (s *CreateStreamImpl) processEvent(parsed loomhttp.SSEEvent) (event *mixedr
 	event = new(mixedresultsservice.Event)
 	dataContent := parsed.Data
 	// Decode JSON into the struct pointer directly
-	respBody := &http.Response{
-		StatusCode: http.StatusOK,
-		Body:       io.NopCloser(bytes.NewReader([]byte(dataContent))),
-	}
+	respBody := loomhttp.SSEEventResponse(s.response, dataContent)
 	err = s.decoder(respBody).Decode(event)
 	if err != nil {
 		return

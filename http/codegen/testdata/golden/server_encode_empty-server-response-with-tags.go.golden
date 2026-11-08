@@ -7,7 +7,15 @@ func EncodeMethodEmptyServerResponseWithTagsResponse(encoder func(context.Contex
 		if !ok {
 			return loomhttp.ErrInvalidType("ServiceEmptyServerResponseWithTags", "MethodEmptyServerResponseWithTags", "*serviceemptyserverresponsewithtags.MethodEmptyServerResponseWithTagsResult", v)
 		}
-		if res.H == "true" {
+		if func() bool {
+			if res == nil {
+				return false
+			}
+			if res.H == "true" {
+				return true
+			}
+			return false
+		}() {
 			w.WriteHeader(http.StatusNotModified)
 			return nil
 		}

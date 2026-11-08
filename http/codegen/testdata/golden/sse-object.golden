@@ -46,7 +46,8 @@ func (s *SSEObjectMethodServerStream) SendWithContext(ctx context.Context, v *ss
 	})
 }
 
-// Close prevents later SSE control or event writes.
+// Close completes the SSE response successfully and prevents later control or
+// event writes.
 func (s *SSEObjectMethodServerStream) Close() error {
 	return s.writer.Close()
 }

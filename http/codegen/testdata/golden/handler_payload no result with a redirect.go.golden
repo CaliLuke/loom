@@ -22,6 +22,7 @@ func NewMethodPayloadNoResultHandler(
 			lifecycle.DecodeFailed(err, encodeError, errhandler)
 			return
 		}
+		lifecycle.Exchange().BeginFinal(loomhttp.FinalRedirect)
 		http.Redirect(w, r, "/redirect/dest", http.StatusMovedPermanently)
 	})
 }

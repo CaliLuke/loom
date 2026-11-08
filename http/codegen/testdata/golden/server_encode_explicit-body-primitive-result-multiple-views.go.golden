@@ -8,7 +8,10 @@ func EncodeMethodExplicitBodyPrimitiveResultMultipleViewResponse(encoder func(co
 		if !ok {
 			return loomhttp.ErrInvalidType("ServiceExplicitBodyPrimitiveResultMultipleView", "MethodExplicitBodyPrimitiveResultMultipleView", "*serviceexplicitbodyprimitiveresultmultipleviewviews.Resulttypemultipleviews", v)
 		}
-		if res.Projected == nil || (res.Projected.A == nil) {
+		if res.Projected == nil {
+			return fmt.Errorf("selected response value is absent")
+		}
+		if res.Projected.A == nil {
 			return fmt.Errorf("selected response value is absent")
 		}
 

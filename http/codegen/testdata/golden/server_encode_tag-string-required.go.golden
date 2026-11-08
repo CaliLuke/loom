@@ -6,7 +6,15 @@ func EncodeMethodTagStringRequiredResponse(encoder func(context.Context, http.Re
 		if !ok {
 			return loomhttp.ErrInvalidType("ServiceTagStringRequired", "MethodTagStringRequired", "*servicetagstringrequired.MethodTagStringRequiredResult", v)
 		}
-		if res.H == "value" {
+		if func() bool {
+			if res == nil {
+				return false
+			}
+			if res.H == "value" {
+				return true
+			}
+			return false
+		}() {
 			w.Header().Set("H", res.H)
 			w.WriteHeader(http.StatusAccepted)
 			return nil

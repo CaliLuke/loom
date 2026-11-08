@@ -19,6 +19,20 @@ func DecodeMethodQueryMapStringArrayBoolRequest(mux loomhttp.Muxer, _ func(*http
 				return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(decodeErr))
 			}
 			if present {
+				for _, v := range decoded {
+					if actual, ok := v.Value(); ok {
+						for i, e := range actual {
+							if _, ok := e.Value(); !ok {
+								err = loom.MergeErrors(err, loom.InvalidNullElementError("q[key]", i))
+							}
+						}
+					} else {
+						err = loom.MergeErrors(err, loom.InvalidNullMapValueError("q[key]"))
+					}
+				}
+				if err != nil {
+					return payload, err
+				}
 				if decoded != nil {
 					q = make(map[string][]bool, len(decoded))
 					for key, val := range decoded {

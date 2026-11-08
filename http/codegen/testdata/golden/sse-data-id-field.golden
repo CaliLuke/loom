@@ -53,7 +53,8 @@ func (s *SSEDataIDFieldMethodServerStream) SendWithContext(ctx context.Context, 
 	})
 }
 
-// Close prevents later SSE control or event writes.
+// Close completes the SSE response successfully and prevents later control or
+// event writes.
 func (s *SSEDataIDFieldMethodServerStream) Close() error {
 	return s.writer.Close()
 }

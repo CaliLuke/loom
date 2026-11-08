@@ -8,27 +8,31 @@ func EncodeCreateResponse(encoder func(context.Context, http.ResponseWriter) loo
 		}
 		if res.Session != nil {
 			session := *res.Session
-			if err := loomhttp.SetResponseCookie(ctx, w, &http.Cookie{
+			sessions, err := loomhttp.PrepareResponseCookie(ctx, &http.Cookie{
 				Name:     "__Host-ak_session",
 				Value:    session,
 				Path:     "/",
 				Secure:   true,
 				HttpOnly: true,
 				SameSite: http.SameSiteLaxMode,
-			}); err != nil {
+			})
+			if err != nil {
 				return err
 			}
+			w.Header().Add("Set-Cookie", sessions)
 		}
 		if res.Refresh != nil {
 			refresh := *res.Refresh
-			if err := loomhttp.SetResponseCookie(ctx, w, &http.Cookie{
+			refreshs, err := loomhttp.PrepareResponseCookie(ctx, &http.Cookie{
 				Name:   "ak_refresh",
 				Value:  refresh,
 				Path:   "/tokens",
 				Domain: "accounts.loom.design",
-			}); err != nil {
+			})
+			if err != nil {
 				return err
 			}
+			w.Header().Add("Set-Cookie", refreshs)
 		}
 		w.WriteHeader(http.StatusCreated)
 		return nil

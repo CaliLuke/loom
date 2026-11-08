@@ -15,7 +15,7 @@ func EncodeMethodServiceErrorResponseError(encoder func(context.Context, http.Re
 				return encodeError(ctx, w, v)
 			}
 			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "application/problem+json")
-			problem := loomhttp.NewProblemResponse(ctx, v, 500, "", "")
+			problem := loomhttp.NewProblemResponse(ctx, v, http.StatusInternalServerError, "", "")
 			enc := encoder(ctx, w)
 			var body any
 			if formatter != nil {
@@ -33,7 +33,7 @@ func EncodeMethodServiceErrorResponseError(encoder func(context.Context, http.Re
 				return encodeError(ctx, w, v)
 			}
 			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "application/problem+json")
-			problem := loomhttp.NewProblemResponse(ctx, v, 400, "", "")
+			problem := loomhttp.NewProblemResponse(ctx, v, http.StatusBadRequest, "", "")
 			enc := encoder(ctx, w)
 			var body any
 			if formatter != nil {

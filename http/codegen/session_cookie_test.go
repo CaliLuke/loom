@@ -25,7 +25,8 @@ func TestSessionCookie(t *testing.T) {
 		serverFiles := ServerFiles("", services)
 		require.Len(t, serverFiles, 2)
 		serverEncode := codegen.SectionCode(t, serverFiles[1].AllSections()[1])
-		require.Contains(t, serverEncode, `loomhttp.SetResponseCookie(ctx, w, &http.Cookie{`)
+		require.Contains(t, serverEncode, `sessions, err := loomhttp.PrepareResponseCookie(ctx, &http.Cookie{`)
+		require.Regexp(t, `if err != nil \{\s+return err\s+\}\s+w.Header\(\).Add\("Set-Cookie", sessions\)`, serverEncode)
 		require.Contains(t, serverEncode, `Secure:   true`)
 		require.Contains(t, serverEncode, `HttpOnly: true`)
 		testutil.NewGoldenFile(t, filepath.Join("testdata", "golden")).

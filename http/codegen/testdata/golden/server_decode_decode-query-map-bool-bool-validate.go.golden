@@ -19,6 +19,24 @@ func DecodeMethodQueryMapBoolBoolValidateRequest(mux loomhttp.Muxer, _ func(*htt
 				return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(decodeErr))
 			}
 			if present {
+				if len(decoded) < 1 {
+					err = loom.MergeErrors(err, loom.InvalidLengthError("q", len(decoded), 1, true))
+				}
+				for k, v := range decoded {
+					if !(k == false) {
+						err = loom.MergeErrors(err, loom.InvalidEnumValueError("q.key", k, []any{false}))
+					}
+					if actual, ok := v.Value(); ok {
+						if !(actual == true) {
+							err = loom.MergeErrors(err, loom.InvalidEnumValueError("q[key]", actual, []any{true}))
+						}
+					} else {
+						err = loom.MergeErrors(err, loom.InvalidNullMapValueError("q[key]"))
+					}
+				}
+				if err != nil {
+					return payload, err
+				}
 				if decoded != nil {
 					q = make(map[bool]bool, len(decoded))
 					for key, val := range decoded {
@@ -38,17 +56,6 @@ func DecodeMethodQueryMapBoolBoolValidateRequest(mux loomhttp.Muxer, _ func(*htt
 			}
 			if !present {
 				err = loom.MergeErrors(err, loom.MissingFieldError("q", "query string"))
-			}
-		}
-		if len(q) < 1 {
-			err = loom.MergeErrors(err, loom.InvalidLengthError("q", len(q), 1, true))
-		}
-		for k, v := range q {
-			if !(k == false) {
-				err = loom.MergeErrors(err, loom.InvalidEnumValueError("q.key", k, []any{false}))
-			}
-			if !(v == true) {
-				err = loom.MergeErrors(err, loom.InvalidEnumValueError("q[key]", v, []any{true}))
 			}
 		}
 		if err != nil {

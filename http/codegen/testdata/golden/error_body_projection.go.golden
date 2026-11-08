@@ -129,7 +129,10 @@ func EncodeMapError(encoder func(context.Context, http.ResponseWriter) loomhttp.
 				return encodeError(ctx, w, v)
 			}
 			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "application/json")
-			if res == nil || (res.Body == nil) {
+			if res == nil {
+				return fmt.Errorf("selected response value is absent")
+			}
+			if (formatter == nil) && (res.Body == nil) {
 				return fmt.Errorf("selected response value is absent")
 			}
 
@@ -167,7 +170,10 @@ func EncodeObjectError(encoder func(context.Context, http.ResponseWriter) loomht
 				return encodeError(ctx, w, v)
 			}
 			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "application/json")
-			if res == nil || (res.Body == nil) {
+			if res == nil {
+				return fmt.Errorf("selected response value is absent")
+			}
+			if (formatter == nil) && (res.Body == nil) {
 				return fmt.Errorf("selected response value is absent")
 			}
 
@@ -277,7 +283,10 @@ func EncodeOptionalError(encoder func(context.Context, http.ResponseWriter) loom
 				return encodeError(ctx, w, v)
 			}
 			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "text/plain")
-			if res == nil || (res.Body == nil) {
+			if res == nil {
+				return fmt.Errorf("selected response value is absent")
+			}
+			if (formatter == nil) && (res.Body == nil) {
 				return fmt.Errorf("selected response value is absent")
 			}
 

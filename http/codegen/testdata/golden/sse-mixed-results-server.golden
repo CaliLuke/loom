@@ -43,7 +43,8 @@ func (s *CreateServerStream) SendWithContext(ctx context.Context, v *mixedresult
 	})
 }
 
-// Close prevents later SSE control or event writes.
+// Close completes the SSE response successfully and prevents later control or
+// event writes.
 func (s *CreateServerStream) Close() error {
 	return s.writer.Close()
 }

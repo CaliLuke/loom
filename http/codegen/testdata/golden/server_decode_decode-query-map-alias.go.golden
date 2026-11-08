@@ -5,7 +5,7 @@ func DecodeMethodARequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Dec
 		var payload *servicequerymapalias.MethodAPayload
 		var err error
 		var (
-			map_ map[float32]bool
+			map_ servicequerymapalias.MapAlias
 		)
 		qp, queryErr := url.ParseQuery(r.URL.RawQuery)
 		if queryErr != nil {
@@ -18,6 +18,14 @@ func DecodeMethodARequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Dec
 				return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(decodeErr))
 			}
 			if present {
+				for _, v := range decoded {
+					if _, ok := v.Value(); !ok {
+						err = loom.MergeErrors(err, loom.InvalidNullMapValueError("map[key]"))
+					}
+				}
+				if err != nil {
+					return payload, err
+				}
 				if decoded != nil {
 					map_ = make(map[float32]bool, len(decoded))
 					for key, val := range decoded {
