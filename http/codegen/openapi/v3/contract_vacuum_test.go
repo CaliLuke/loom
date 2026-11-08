@@ -20,7 +20,11 @@ type contractVacuum struct {
 	ruleset string
 }
 
-const vacuumVersion = "v0.39.3"
+// Required unreleased fix for external security requirement URIs:
+// https://github.com/daveshanley/vacuum/issues/1056 and PR1029.
+// Return to a stable release containing c8d7f10d3472db624b17892eebf679471c922c47
+// once the existing positive and negative contract controls pass unchanged.
+const vacuumVersion = "v0.39.4-0.20261107034229-b6c4e203d2ea"
 
 func installContractVacuum(t *testing.T) contractVacuum {
 	t.Helper()

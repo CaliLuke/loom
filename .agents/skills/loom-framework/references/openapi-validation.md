@@ -13,7 +13,7 @@ Use the existing suites and fixtures; do not default to the exported-design corp
 | Regex engine agreement | `ir/pattern_projection_test.go` compares Go regexp and unflagged Node ECMA matching on anchors, ASCII whitespace, literal classes/braces and quantified assertions. Unsupported syntax must return diagnostics. |
 | Discriminator semantics | `ir/discriminator_metadata_test.go` checks admission and URI references; v3 discriminator tests cover both targets, required controls, nested/reusable occurrences and fallback-only graph edges. The bounded Lean model records the cross-field rule, not URI or engine correctness. |
 | Independent-process determinism | `requireIndependentRegeneration` invokes a new CLI process and compares exact JSON/YAML bytes for the nullable import. Export fixture snapshots are likewise compared across separate generator processes. |
-| Structural conformance | Libopenapi parses rendered JSON/YAML. Vacuum v0.39.3 lints both formats for the representative specimens, including the full 3.2 fixture. The gate requires success and verifies rejection of malformed documents; no crash is counted as a pass. |
+| Structural conformance | Libopenapi parses rendered JSON/YAML. The exactly pinned Vacuum build lints both formats for the representative specimens, including the full 3.2 fixture. The gate requires success and verifies rejection of malformed documents; no crash is counted as a pass. |
 | Encoding admission | Shared IR rejects named `encoding` combined with positional `prefixEncoding` or `itemEncoding` at the same object. Direct metadata tests cover nested scopes and index aliases; rendered tests cover requests, successful responses and errors in both targets. |
 
 The existing `gojsonschema` dependency is used for the specimens' shared
@@ -32,7 +32,9 @@ external linting and process determinism explicit in the acceptance record.
 
 ## External lint gate
 
-`make openapi-contract` installs [Vacuum v0.39.3](https://github.com/daveshanley/vacuum/releases/tag/v0.39.3)
+`make openapi-contract` installs the official Vacuum module
+`v0.39.4-0.20261107034229-b6c4e203d2ea`, exact commit
+[`b6c4e203d2eae41934087140a4d809dd1cce6d82`](https://github.com/daveshanley/vacuum/commit/b6c4e203d2eae41934087140a4d809dd1cce6d82)
 into a temporary module with the repository Go toolchain. That module selects
 the framework's `github.com/pb33f/libopenapi` version from the root module, and
 the gate checks the installed binary's build information to confirm the version.
@@ -42,7 +44,8 @@ It preserves absolute external reference origins when an OpenAPI document suppli
 `$self` ([upstream #699](https://github.com/pb33f/libopenapi/issues/699)), and includes
 [libopenapi PR #656](https://github.com/pb33f/libopenapi/pull/656).
 This fixes enum value comparison for arrays, objects and numeric representations.
-Both dependencies use released versions, with no fork or replacement directive.
+The parser uses its released version. Neither dependency uses a fork, source patch
+or replacement directive.
 The Vacuum pin lives in `v3/contract_vacuum_test.go`; this is a contributor
 tool, not a runtime dependency. Run the existing gate so its CLI uses the same
 parser version as the framework.
@@ -58,15 +61,22 @@ Other controls remove required document and device-flow fields, introduce an
 invalid parameter location or schema type, and reintroduce conflicting nested
 encodings. Assertions require the relevant rule diagnostic, not just process failure.
 
-Vacuum v0.39.3 resolves fragment-only OpenAPI 3.2 security requirement URIs
-([upstream #1044](https://github.com/daveshanley/vacuum/issues/1044)).
-Document-prefixed URIs that resolve through `$self` still fail its security rule,
-as tracked by [upstream #1053](https://github.com/daveshanley/vacuum/issues/1053).
-The external-reference identity specimen remains blocked by that defect; neither
-this version update nor ordinary gate success waives its zero-error obligation.
-Keep the authored URI and the security rule intact. The standalone fragment,
-absolute, relative and missing-target controls distinguish the released fix from
-the remaining limitation.
+The Vacuum pin is a required-unreleased-correctness exception. Stable v0.39.3
+rejects valid document-prefixed and external OpenAPI 3.2 Security Requirement
+URIs ([upstream #1053](https://github.com/daveshanley/vacuum/issues/1053),
+[upstream #1056](https://github.com/daveshanley/vacuum/issues/1056)). The pinned
+head belongs to official draft [PR #1029](https://github.com/daveshanley/vacuum/pull/1029)
+and includes dedicated external-security fix
+[`c8d7f10d3472db624b17892eebf679471c922c47`](https://github.com/daveshanley/vacuum/commit/c8d7f10d3472db624b17892eebf679471c922c47).
+The draft also contains broader autofix work; this gate only invokes linting,
+never repair or write operations.
+
+Return to the latest stable Vacuum release once it includes both security URI
+fixes and the maintained same-document/external positives and missing-target
+negatives pass with the selected parser. Keep the authored URIs, admitted-resource
+boundary and security rule intact. A successful ordinary lint run alone does not
+satisfy the generated external-reference identity specimen; its zero-error check
+remains mandatory. No rule or specimen is disabled to adopt the pin.
 
 Redocly 2.62.1 crashed on the full 3.2 specimen before linting. The replacement
 exposed an invalid combination of named and positional nested encodings in that
