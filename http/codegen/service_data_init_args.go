@@ -12,13 +12,13 @@ func buildPayloadFieldArgs(request *RequestData, payload *expr.AttributeExpr) []
 		field := *element.AttributeData
 		field.Description = description
 		field.DefaultValue = defaultValue
-		_, target := payload.FindAttribute(element.AttributeName)
-		if target == nil {
-			target = payload
-		}
 		args = append(args, &InitArgData{
-			Ref: element.VarName, AttributeData: &field, parameter: element,
-			attribute: element.attribute, context: element.context, fieldAttribute: target,
+			Ref:            element.VarName,
+			AttributeData:  &field,
+			parameter:      element,
+			attribute:      element.attribute,
+			context:        element.context,
+			fieldAttribute: element.fieldAttribute,
 		})
 	}
 	for _, param := range request.PathParams {
