@@ -143,35 +143,85 @@ func TestAsyncRetainedDeclarationBindings(t *testing.T) {
 	identity := asyncAnnotationDocument(t, testdata.TypeIdentityDSL, true)
 	inbound := asyncAnnotationMap(t, asyncAnnotationMap(t, asyncAnnotationMap(t, asyncAnnotationMap(t, asyncAnnotationMap(t, asyncAnnotationMap(t, identity, "paths"), "/stream"), "get"), "x-loom-async"), "messages"), "inbound")
 	require.Equal(t, "#/components/schemas/Other", asyncAnnotationMap(t, inbound, "schema")["$ref"])
-	recursive := func() {
+	for _, test := range []struct {
+		name     string
+		authored bool
+		mapped   bool
+	}{
+		{name: "derived"},
+		{name: "derived-authored", authored: true},
+		{name: "mapped", mapped: true},
+		{name: "mapped-authored", authored: true, mapped: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			spec := asyncAnnotationDocument(t, recursiveAuthorityDSL(test.authored, test.mapped), true)
+			message := asyncAnnotationMessage(t, spec, "/recursive")
+			properties := asyncAnnotationMap(t, message, "properties")
+			child := asyncAnnotationMap(t, properties, "child")
+			ref, ok := child["$ref"].(string)
+			require.True(t, ok)
+			require.True(t, strings.HasPrefix(ref, "#/components/schemas/"))
+			if !test.mapped {
+				require.Equal(t, "#/components/schemas/RecursiveAuthority", ref)
+			}
+			require.NotContains(t, child, "properties", "the recursive cut remains a reference")
+			components := asyncAnnotationMap(t, asyncAnnotationMap(t, spec, "components"), "schemas")
+			component := asyncAnnotationMap(t, components, strings.TrimPrefix(ref, "#/components/schemas/"))
+			label := asyncAnnotationMap(t, asyncAnnotationMap(t, component, "properties"), "label")
+			require.Equal(t, "string", label["type"])
+			require.Equal(t, "Authored label.", label["description"])
+			switch {
+			case test.authored:
+				require.Equal(t, map[string]any{"label": "child-owned"}, child["example"])
+				require.Equal(t, map[string]any{"label": "declaration-owned"}, component["example"])
+			case test.mapped:
+				// Ineligible async documentation retains its independent sampler.
+				example := asyncAnnotationMap(t, child, "example")
+				require.IsType(t, "", example["label"])
+				require.NotContains(t, example, "child", "the cut must not synthesize another recursive value")
+			default:
+				// Eligible async documentation reuses the prepared event, including
+				// the absence of a synthetic reference-local example at this cut.
+				require.NotContains(t, child, "example")
+			}
+			if !test.mapped {
+				if test.authored {
+					require.Equal(t, map[string]any{"label": "declaration-owned"}, message["example"])
+				}
+				requireAsyncMessageMatchesPayload(t, spec, "/recursive")
+				require.Equal(t, component["properties"], properties, "expanded children retain acquired declaration annotations")
+			}
+		})
+	}
+}
+
+func recursiveAuthorityDSL(authored, mapped bool) func() {
+	return func() {
 		node := dsl.Type("RecursiveAuthority", func() {
 			dsl.Attribute("label", dsl.String, "Authored label.")
-			dsl.Attribute("child", "RecursiveAuthority")
+			dsl.Attribute("child", "RecursiveAuthority", func() {
+				if authored {
+					dsl.Example(map[string]any{"label": "child-owned"})
+				}
+			})
+			if authored {
+				dsl.Example(map[string]any{"label": "declaration-owned"})
+			}
 		})
 		dsl.Service("cut", func() {
 			dsl.Method("watch", func() {
 				dsl.StreamingResult(node)
 				dsl.HTTP(func() {
 					dsl.GET("/recursive")
-					dsl.ServerSentEvents()
+					dsl.ServerSentEvents(func() {
+						if mapped {
+							dsl.SSEEventID("label")
+						}
+					})
 				})
 			})
 		})
 	}
-	spec := asyncAnnotationDocument(t, recursive, true)
-	message := asyncAnnotationMessage(t, spec, "/recursive")
-	child := asyncAnnotationMap(t, asyncAnnotationMap(t, message, "properties"), "child")
-	require.Equal(t, "#/components/schemas/RecursiveAuthority", child["$ref"])
-	components := asyncAnnotationMap(t, asyncAnnotationMap(t, spec, "components"), "schemas")
-	require.Contains(t, components, "RecursiveAuthority")
-	example := asyncAnnotationMap(t, child, "example")
-	require.Contains(t, example, "label", "the retained target-plan position owns the reference annotation")
-	require.NotContains(t, example, "child", "the recursive cut must not synthesize another recursive value")
-	component := asyncAnnotationMap(t, components, "RecursiveAuthority")
-	properties := asyncAnnotationMap(t, component, "properties")
-	label := asyncAnnotationMap(t, properties, "label")
-	require.Equal(t, "string", label["type"])
-	require.IsType(t, "", example["label"])
 }
 
 func asyncAnnotationDocument(t *testing.T, fixture func(), serviceFirst bool) map[string]any {

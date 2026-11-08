@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/internal/representation"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
@@ -409,4 +410,63 @@ func TestAsyncMaterializationDoesNotAssignArbitraryAlternatives(t *testing.T) {
 		result := materializeAsyncSchema(&asyncSchema{schema: schema, sampler: materializationByteObject()}, nil)
 		require.Empty(t, result.structures, "arbitrary alternatives and assertions have no inferred source-child authority")
 	}
+}
+
+// Derived messages consume the event's prepared positions. In particular, an
+// unauthored recursive cut must not acquire a new async-local representative.
+func TestDerivedAsyncRecursiveCutPreparedPosition(t *testing.T) {
+	root := codegen.RunDSL(t, func() {
+		node := dsl.Type("RecursiveAuthority", func() {
+			dsl.Attribute("label", dsl.String, "Authored label.")
+			dsl.Attribute("child", "RecursiveAuthority")
+		})
+		dsl.Service("cut", func() {
+			dsl.Method("watch", func() {
+				dsl.StreamingResult(node)
+				dsl.HTTP(func() {
+					dsl.GET("/recursive")
+					dsl.ServerSentEvents()
+				})
+			})
+		})
+	})
+	bodies := BuildBodyTypes(root.API, root.Types, root.ResultTypes)
+	require.NoError(t, bodies.Err)
+	endpoint := bodies.Services["cut"]["watch"]
+	event := endpoint.event
+	require.NotNil(t, event)
+	require.True(t, event.eligible)
+	prepared := endpoint.async["/recursive"]["outbound"]
+	require.True(t, prepared.derived)
+	require.Same(t, event.target, prepared.target)
+	require.Same(t, event.schema, prepared.schema)
+	child := valuePlanMemberNode(event.target.Plan.Root().Underlying(), "child")
+	require.True(t, child.Valid())
+	set := event.target.ExampleSets[child]
+	require.NotNil(t, set)
+	require.True(t, set.Prepared)
+	require.Empty(t, set.Examples, "the cut has no authored local example")
+	require.NotNil(t, set.Representative)
+	representative := set.Representative
+	value, valid := preparedOpenAPIExampleValue(*representative)
+	require.True(t, valid)
+	require.Contains(t, value, "label")
+	// A retained synthetic candidate does not author a reference-local overlay.
+	// Ordinary named acquisition selected the declaration; the async view must
+	// preserve that selection instead of applying a second sampling policy.
+	message := buildAsyncMessages(endpoint.prepared, "/recursive", endpoint)["outbound"].(map[string]any)
+	schema := materializationDecode(t, message["schema"])
+	cut := schema.Properties["child"]
+	require.Equal(t, "#/components/schemas/RecursiveAuthority", cut.Ref)
+	require.Empty(t, cut.Properties)
+	require.Nil(t, cut.Example)
+	require.Empty(t, cut.Examples)
+	component := bodies.Components["RecursiveAuthority"]
+	require.NotNil(t, component.Example, "declaration sampling remains independently owned")
+	require.Equal(t, materializationDecode(t, RenderSchema(component.Properties["child"])), cut)
+	require.Equal(t, event.schema.Example, schema.Example, "the root keeps the prepared event's selected example")
+	require.Same(t, representative, event.target.ExampleSets[child].Representative)
+	after, valid := preparedOpenAPIExampleValue(*representative)
+	require.True(t, valid)
+	require.Equal(t, value, after, "materialization neither replaces nor consumes the retained candidate")
 }

@@ -35,11 +35,16 @@ func TestSelectedBodyPreservesAllocatedAnnotationOwner(t *testing.T) {
 	}
 	require.NotNil(t, document)
 	components := document["components"].(map[string]any)["schemas"].(map[string]any)
-	// The fixed-seed representative now comes from shared preparation; the
-	// selected occurrence still owns its allocated component context.
-	require.Contains(t, components, "Body_99e66af2c29e5c06")
-	body := components["Body_99e66af2c29e5c06"].(map[string]any)
+	// Follow the selected occurrence's published binding: canonical acquisition
+	// may reuse the unsuffixed name without changing either annotation owner.
+	selected := asyncAnnotationMap(t, components, "body")
+	ref, ok := selected["$ref"].(string)
+	require.True(t, ok)
+	require.True(t, strings.HasPrefix(ref, "#/components/schemas/"))
+	name := strings.TrimPrefix(ref, "#/components/schemas/")
+	require.NotEqual(t, "body", name, "the occurrence must not resolve to itself")
+	body := asyncAnnotationMap(t, components, name)
 	require.Equal(t, map[string]any{"a": "Dicta harum."}, body["example"])
-	require.Equal(t, "Libero aut et temporibus id officiis.", body["properties"].(map[string]any)["a"].(map[string]any)["example"])
-	require.Equal(t, "#/components/schemas/Body_99e66af2c29e5c06", components["body"].(map[string]any)["$ref"])
+	require.Equal(t, "Libero aut et temporibus id officiis.", asyncAnnotationMap(t, asyncAnnotationMap(t, body, "properties"), "a")["example"])
+	require.Equal(t, map[string]any{"a": "Qui iusto."}, selected["example"], "the selected occurrence keeps its independent sample")
 }
