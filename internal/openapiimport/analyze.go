@@ -3,7 +3,6 @@ package openapiimport
 import (
 	"encoding/json/jsontext"
 	"fmt"
-	"regexp"
 	"sort"
 	"strings"
 
@@ -31,7 +30,12 @@ type analyzer struct {
 	schemaSources    map[*Schema]*base.Schema
 }
 
-var concreteHTTPStatus = regexp.MustCompile(`^[1-5][0-9]{2}$`)
+// supportedSchemaDialect admits absence or the format's normative default only.
+// OpenAPI 3.2 retains the OpenAPI 3.1 base dialect URI.
+func supportedSchemaDialect(version, dialect string) bool {
+	return dialect == "" || dialect == "https://spec.openapis.org/oas/3.1/dialect/base" &&
+		(strings.HasPrefix(version, "3.1.") || strings.HasPrefix(version, "3.2."))
+}
 
 func renderableVersion(version string) bool {
 	return strings.HasPrefix(version, "3.0.") || strings.HasPrefix(version, "3.1.") || strings.HasPrefix(version, "3.2.")
@@ -56,13 +60,11 @@ func (a *analyzer) document(source *v3.Document) *Document {
 		}
 		a.unsupportedExtensions("#/info", source.Info.Extensions)
 	}
-	if len(source.Servers) > 0 {
-		a.unsupported("servers", "#/servers", "server definitions are not in the strict import subset")
-	}
+	document.Servers = a.servers(source.Servers)
 	if source.ExternalDocs != nil {
 		a.unsupported("external-docs", "#/externalDocs", "external documentation is not in the strict import subset")
 	}
-	if source.JsonSchemaDialect != "" {
+	if !supportedSchemaDialect(source.Version, source.JsonSchemaDialect) {
 		a.unsupported("json-schema-dialect", "#/jsonSchemaDialect", "custom JSON Schema dialects are not in the strict import subset")
 	}
 	hasSelf := source.Self != ""
@@ -190,9 +192,6 @@ func (a *analyzer) operation(method, path string, inherited []*v3.Parameter, sou
 	}
 	if source.Responses != nil {
 		for status, response := range source.Responses.Codes.FromOldest() {
-			if !concreteHTTPStatus.MatchString(status) {
-				a.unsupported("response-status", pointer+"/responses/"+escapeJSONPointer(status), "response status must be a concrete three-digit HTTP code")
-			}
 			operation.Responses = append(operation.Responses, StatusResponse{
 				Status: status, Response: a.response(response, pointer+"/responses/"+escapeJSONPointer(status)),
 			})
@@ -201,7 +200,9 @@ func (a *analyzer) operation(method, path string, inherited []*v3.Parameter, sou
 			return operation.Responses[i].Status < operation.Responses[j].Status
 		})
 		if source.Responses.Default != nil {
-			a.unsupported("default-response", pointer+"/responses/default", "default responses are not in the strict import subset")
+			operation.Responses = append(operation.Responses, StatusResponse{
+				Status: "default", Response: a.response(source.Responses.Default, pointer+"/responses/default"),
+			})
 		}
 		a.unsupportedExtensions(pointer+"/responses", source.Responses.Extensions)
 	}
@@ -214,6 +215,7 @@ func (a *analyzer) operation(method, path string, inherited []*v3.Parameter, sou
 	if source.ExternalDocs != nil {
 		a.unsupported("external-docs", pointer+"/externalDocs", "external documentation is not in the strict import subset")
 	}
+	a.analyzeSSEAsync(&operation, source, components)
 	return operation
 }
 
@@ -357,8 +359,16 @@ func (a *analyzer) response(source *v3.Response, path string) Response {
 		description, summary := a.referenceAnnotations(referenceNode)
 		return Response{Ref: reference, ReferenceDescription: description, ReferenceSummary: summary}
 	}
-	contentType, schema, examples := a.content(source.Content, path+"/content")
+	schema, stream := a.sseResponse(source.Content, path+"/content")
+	var contentType string
+	var examples []Example
+	if stream != nil {
+		contentType = "text/event-stream"
+	} else {
+		contentType, schema, examples = a.content(source.Content, path+"/content")
+	}
 	response := Response{
+		stream:      stream,
 		Description: source.Description,
 		Summary:     source.Summary,
 		ContentType: contentType,
@@ -420,9 +430,7 @@ func (a *analyzer) header(source *v3.Header, path string) Header {
 	if source.AllowEmptyValue {
 		a.unsupported("header-serialization", path, "custom header serialization is not in the strict import subset")
 	}
-	if source.Example != nil || orderedmap.Len(source.Examples) > 0 {
-		a.unsupported("examples", path, "header examples are not in the strict import subset")
-	}
+	header.Schema = schemaWithExamples(header.Schema, a.headerExamples(source, header.Schema, path))
 	if header.Deprecated {
 		a.unsupported("header-deprecated", path, "the HTTP DSL has no per-header deprecated marker; the flag is omitted from the rendered design")
 	}
@@ -451,7 +459,7 @@ func (a *analyzer) content(content *orderedmap.Map[string, *v3.MediaType], path 
 			a.unsupported("media-encoding", mediaPath, "media encodings are not in the strict import subset")
 		}
 		schema := a.schema(media.Schema, mediaPath+"/schema")
-		examples := a.mediaExamples(media, schema, mediaPath)
+		examples := a.wireExamples(media.Example, media.Examples, schema, mediaPath)
 		a.unsupportedExtensions(mediaPath, media.Extensions)
 		return contentType, schema, examples
 	}
@@ -491,6 +499,7 @@ func (a *analyzer) schema(proxy *base.SchemaProxy, path string) *Schema {
 
 func (a *analyzer) schemaSource(source *base.Schema, path string) *Schema {
 	schema := newNormalizedSchema(source)
+	retainSchemaPresence(schema, source)
 	a.schemaPattern(schema, path)
 	a.schemaNumericBounds(schema, source, path)
 	supportedNullableComposition := a.schemaNullableAnyOf(schema, source, path)

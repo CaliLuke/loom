@@ -23,6 +23,9 @@ func (s *StreamingPayloadResultCollectionWithExplicitViewMethodServerStream) Rec
 	// upgrade is done here so that authorization logic in the endpoint is executed
 	// before calling the actual service method which may call Recv().
 	s.once.Do(func() {
+		if exchange := loomhttp.ExchangeFromContext(s.r.Context()); exchange != nil {
+			exchange.BeginFinal(loomhttp.FinalUpgrade)
+		}
 		var conn *websocket.Conn
 		conn, err = s.upgrader.Upgrade(s.w, s.r, nil)
 		if err != nil {

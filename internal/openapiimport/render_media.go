@@ -199,35 +199,35 @@ func (r *renderer) formBodyRequiresRaw(schema *Schema, path string, seen map[str
 	return false, nil
 }
 
-func (r *renderer) operationResponses(
-	operation *Operation,
-	mode responseBodyMode,
-	path string,
-) (renderedResponse, []renderedResponse, error) {
-	var success []renderedResponse
-	var failures []renderedResponse
-	successClass := successResponseClass(operation.Responses)
-	for _, source := range operation.Responses {
-		rawBody := mode != responseBodyEncoded && source.Response.Schema != nil &&
-			!isJSONMediaType(source.Response.ContentType)
-		response, err := r.renderedResponse(source, rawBody, path+"/responses/"+source.Status)
-		if err != nil {
-			return renderedResponse{}, nil, err
-		}
-		if isSuccessResponseStatus(source.Status, successClass) {
-			success = append(success, response)
-		} else {
-			failures = append(failures, response)
+func (r *renderer) operationResponses(operation *Operation, path string) (renderedResponses, error) {
+	plan, diagnostics := classifyOperationResponses(operation, path, r.document.Components)
+	if len(diagnostics) > 0 {
+		return renderedResponses{}, diagnostics
+	}
+	result := renderedResponses{mode: plan.mode}
+	groups := []struct {
+		source []plannedResponse
+		target *[]renderedResponse
+	}{
+		{plan.successes, &result.successes}, {plan.failures, &result.failures}, {plan.informational, &result.informational},
+	}
+	for _, group := range groups {
+		for _, planned := range group.source {
+			source := planned.source
+			response, err := r.renderedResponse(source, planned.rawBody, path+"/responses/"+source.Status)
+			if err != nil {
+				return renderedResponses{}, err
+			}
+			response.selector = planned.selector
+			response.errorName = "Status" + selectorName(planned.selector)
+			if !planned.selector.IsExact() {
+				response.statusField = "http_status"
+			}
+			*group.target = append(*group.target, response)
 		}
 	}
-	if len(success) != 1 {
-		return renderedResponse{}, nil, fmt.Errorf(
-			"render OpenAPI design: %s must define exactly one 2xx response or, when absent, exactly one 3xx response, got %d",
-			path,
-			len(success),
-		)
-	}
-	return success[0], failures, nil
+	result.allocateFields()
+	return result, nil
 }
 
 func (r *renderer) renderedResponse(source StatusResponse, rawBody bool, path string) (renderedResponse, error) {
@@ -237,7 +237,7 @@ func (r *renderer) renderedResponse(source StatusResponse, rawBody bool, path st
 	if source.Response.Schema == nil && source.Response.ContentType != "" {
 		return renderedResponse{}, fmt.Errorf("render OpenAPI design: %s has content type but no schema", path)
 	}
-	if source.Response.Schema != nil && len(source.Response.Schema.MediaTypes) == 0 && (source.Response.ContentType == "" ||
+	if source.Response.stream == nil && source.Response.Schema != nil && len(source.Response.Schema.MediaTypes) == 0 && (source.Response.ContentType == "" ||
 		!rawBody && !isJSONMediaType(source.Response.ContentType)) {
 		return renderedResponse{}, fmt.Errorf(
 			"render OpenAPI design: %s content type %q is not renderable",
@@ -265,7 +265,7 @@ func (r *renderer) renderedResponse(source StatusResponse, rawBody bool, path st
 		headers = append(headers, renderedHeader{name: named.Name, field: field, header: header})
 	}
 	bodyField := ""
-	if source.Response.Schema != nil && !rawBody {
+	if source.Response.stream == nil && source.Response.Schema != nil && !rawBody {
 		bodyField = uniqueName("body", used)
 	}
 	return renderedResponse{

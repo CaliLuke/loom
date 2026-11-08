@@ -11,15 +11,18 @@ JSON-RPC over HTTP uses the same headers, routing, and body types.
 	httpcodegen.NewServicesData(service, JSONRPC.HTTPExpr)
 	        |
 	        v
-	typed shared sections selected by Method.IsJSONRPC plus JSON-RPC-owned
+	typed shared sections selected by EndpointData.IsJSONRPC plus JSON-RPC-owned
 	server, client, SSE, WebSocket, and example sections
 	        |
 	        v
 	[]*codegen.File consumed by codegen/generator
 
 The package does not define a parallel ServicesData model. JSON-RPC behavior
-must be selected through evaluated method metadata or explicit generator
-configuration; generated source is never parsed or rewritten.
+must be selected through the evaluated endpoint occurrence: EndpointData.IsJSONRPC
+is projected from the transport IR. Shared method metadata describes service
+capabilities, not the protocol of an individual endpoint. Explicit generator
+configuration selects the transport pipeline; generated source is never parsed
+or rewritten.
 
 # What this package owns
 

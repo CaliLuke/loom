@@ -128,6 +128,10 @@ func addSSEClientImplStruct(stmt *jen.Statement, ed *EndpointData, streamName, i
 		fields := []jen.Code{
 			jen.Id("ctx").Qual("context", "Context"),
 			jen.Id("reader").Op("*").Add(codegen.TypeRef("loomhttp.SSEStreamReader")),
+			jen.Id("response").Op("*").Qual("net/http", "Response"),
+		}
+		if ed.SSE.HandshakeRef != "" {
+			fields = append(fields, jen.Id("metadata").Add(codegen.TypeRef(ed.SSE.HandshakeRef)))
 		}
 		if sseClientNeedsDecoder(ed) {
 			fields = append(fields, jen.Id("decoder").Func().Params(jen.Op("*").Qual("net/http", "Response")).Add(codegen.TypeRef("loomhttp.Decoder")))
@@ -143,17 +147,24 @@ func addSSEClientConstructor(stmt *jen.Statement, ed *EndpointData, streamName, 
 	stmt.Line()
 	codegen.Doc(stmt, "New"+ed.Method.VarName+"Stream creates a new "+streamName+".")
 	stmt.Func().
-		Id("New"+ed.Method.VarName+"Stream").
-		Params(
-			jen.Id("ctx").Qual("context", "Context"),
-			jen.Id("resp").Op("*").Qual("net/http", "Response"),
-			jen.Id("decoder").Func().Params(jen.Op("*").Qual("net/http", "Response")).Add(codegen.TypeRef("loomhttp.Decoder")),
-		).
+		Id("New" + ed.Method.VarName + "Stream").
+		ParamsFunc(func(parameters *jen.Group) {
+			parameters.Id("ctx").Qual("context", "Context")
+			parameters.Id("resp").Op("*").Qual("net/http", "Response")
+			parameters.Id("decoder").Func().Params(jen.Op("*").Qual("net/http", "Response")).Add(codegen.TypeRef("loomhttp.Decoder"))
+			if ed.SSE.HandshakeRef != "" {
+				parameters.Id("metadata").Add(codegen.TypeRef(ed.SSE.HandshakeRef))
+			}
+		}).
 		Id(streamName).
 		BlockFunc(func(group *jen.Group) {
 			values := jen.Dict{
-				jen.Id("ctx"):    jen.Id("ctx"),
-				jen.Id("reader"): jen.Id("loomhttp").Dot("NewSSEStreamReader").Call(jen.Id("resp").Dot("Body")),
+				jen.Id("ctx"):      jen.Id("ctx"),
+				jen.Id("reader"):   jen.Id("loomhttp").Dot("NewSSEStreamReader").Call(jen.Id("resp").Dot("Body")),
+				jen.Id("response"): jen.Id("resp"),
+			}
+			if ed.SSE.HandshakeRef != "" {
+				values[jen.Id("metadata")] = jen.Id("metadata")
 			}
 			if sseClientNeedsDecoder(ed) {
 				values[jen.Id("decoder")] = jen.Id("decoder")

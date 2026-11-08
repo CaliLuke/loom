@@ -48,6 +48,8 @@ type (
 		// that exact documentation occurrence. Records retain their own semantic
 		// owners and projection plans; schema traversal never reselects a source.
 		ExampleSets map[expr.ValuePlanNode]*ValueExampleSet
+		// AnnotationsPrepared reports successful preparation independently of optional examples.
+		AnnotationsPrepared bool
 		// Annotations retains checked required values for each exact schema node.
 		Annotations map[expr.ValuePlanNode]expr.JSONSchemaAnnotations
 		// Error retains a plan construction failure for consuming analysis.
@@ -167,10 +169,21 @@ type (
 	Response struct {
 		Result          *expr.AttributeExpr
 		StreamingResult *expr.AttributeExpr
-		// Responses holds tagged responses in authored priority order, followed by
-		// the unique untagged application response checked by expression validation.
-		Responses           []*ResponseStatus
-		ErrorResponses      []*ResponseStatus
+		// Responses retains validated success occurrences in selection order:
+		// tagged branches precede untagged branches; status-selected branches retain
+		// declaration order and are selected by the captured selector keys.
+		Responses      []*ResponseStatus
+		ErrorResponses []*ResponseStatus
+		// Informational retains every declaration, independent of observer registration.
+		Informational []*InformationalResponse
+		// FinalKeys is the detached complete final-selector inventory.
+		FinalKeys []expr.HTTPStatusSelector
+		// InformationalKeys is the detached observation-selector inventory, not emission domains.
+		InformationalKeys []expr.HTTPStatusSelector
+		// StatusSelected selects successes through the native status field.
+		StatusSelected bool
+		// NoSuccess records an explicitly error-only endpoint.
+		NoSuccess           bool
 		HasMixedResults     bool
 		SkipBodyEncode      bool
 		FileResponse        bool
@@ -178,7 +191,56 @@ type (
 		IDAttributeRequired bool
 	}
 
+	// InformationalResponse names one header-only response occurrence.
+	InformationalResponse struct {
+		// Name is the authored declaration name used for typed sender/observer APIs.
+		Name string
+		// Response is the common carrier, binding and selector record.
+		Response *ResponseStatus
+	}
+
+	// StatusBinding identifies the actual native field that stores an HTTP status.
+	StatusBinding struct {
+		// Name is the resolved native object key, including its mapped suffix.
+		Name string
+		// Attribute is the native field, not a projected wire-body field.
+		Attribute *expr.AttributeExpr
+		// Value retains the field's effective semantic occurrence when prepared.
+		Value *ValueTarget
+	}
+
+	// ResponseBody retains one physical body representation and its captured
+	// source authority, without duplicating response status or metadata ownership.
+	ResponseBody struct {
+		// Body is the finalized physical body derived from the whole unary Result.
+		Body *expr.AttributeExpr
+		// ContentType is an authored encoder selection, empty for negotiation.
+		ContentType string
+		// ContentTypes lists this body's advertised media independently of SSE.
+		ContentTypes []string
+		// MediaVariants retains any authored union media contracts.
+		MediaVariants []*MediaVariant
+		// BodyValue binds the body to the existing service Result occurrence.
+		BodyValue *ValueTarget
+		// BodyValues retains its per-media preparation contexts.
+		BodyValues map[string]*ValueTarget
+	}
+
 	ResponseStatus struct {
+		// Unary is the separate whole Result representation of typed mixed success.
+		Unary *ResponseBody
+		// Occurrence identifies the validated response across semantic capture and backends.
+		Occurrence *expr.HTTPResponseExpr
+		// Carrier is the native result, error, handshake or informational source.
+		Carrier *expr.AttributeExpr
+		// Handshake marks metadata owned separately from the stream event.
+		Handshake bool
+		// StatusField is the resolved native status binding, or nil for literal-only responses.
+		StatusField *StatusBinding
+		// Required retains detached validation-time requirements by native result view.
+		Required map[string][]string
+		// AuthoredBody is read-only pre-finalization provenance, not another example source.
+		AuthoredBody *expr.AttributeExpr
 		// MediaVariants retains each typed response representation independently.
 		MediaVariants []*MediaVariant
 		// BodyValue carries the effective result or error occurrence.
@@ -194,20 +256,22 @@ type (
 		// IndependentDocumentBody marks an authored OpenAPIBody contract.
 		IndependentDocumentBody bool
 		Error                   *Error
-		StatusCode              int
-		Description             string
-		ContentType             string
-		ContentTypes            []string
-		Headers                 []*Header
-		Cookies                 []*Cookie
-		Body                    *expr.AttributeExpr
-		DocumentBody            *expr.AttributeExpr
-		BodyOrigin              string
+		// Selector is the authored HTTP status owner; JSON-RPC errors leave it unset.
+		Selector expr.HTTPStatusSelector
+		// Domain is the detached validation-time domain captured by the expression.
+		Domain       []int
+		Description  string
+		ContentType  string
+		ContentTypes []string
+		Headers      []*Header
+		Cookies      []*Cookie
+		Body         *expr.AttributeExpr
+		DocumentBody *expr.AttributeExpr
+		BodyOrigin   string
 		// Tag binds response selection to a validated semantic result field.
 		Tag          *expr.HTTPResponseTag
 		IsError      bool
 		EmitExamples bool
-		IsWebSocket  bool
 		BinaryBody   bool
 		Meta         expr.MetaExpr
 		Links        []*ResponseLink
@@ -300,10 +364,12 @@ type (
 	}
 
 	Error struct {
-		Name      string
-		Attribute *expr.AttributeExpr
-		Type      expr.DataType
-		Remedy    *ErrorRemedy
+		// JSONRPCCode is present only for a named JSON-RPC error mapping.
+		JSONRPCCode *int
+		Name        string
+		Attribute   *expr.AttributeExpr
+		Type        expr.DataType
+		Remedy      *ErrorRemedy
 	}
 
 	ErrorRemedy struct {

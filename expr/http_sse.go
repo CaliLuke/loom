@@ -57,7 +57,7 @@ func (e *HTTPSSEExpr) EvalName() string {
 
 // Validate validates the Server-Sent Events expression against a specific result type.
 func (e *HTTPSSEExpr) Validate(method *MethodExpr) error {
-	if method == nil || method.Result == nil {
+	if method == nil || method.EffectiveStreamingResult() == nil {
 		return nil
 	}
 
@@ -65,16 +65,16 @@ func (e *HTTPSSEExpr) Validate(method *MethodExpr) error {
 	if err := validateSSEField(method.Payload, e.RequestIDField, "request ID", []DataType{String}); err != nil {
 		verr.Add(method, "%s", err.Error())
 	}
-	if err := validateSSEField(method.Result, e.DataField, "event data", nil); err != nil {
+	if err := validateSSEField(method.EffectiveStreamingResult(), e.DataField, "event data", nil); err != nil {
 		verr.Add(method, "%s", err.Error())
 	}
-	if err := validateSSEField(method.Result, e.IDField, "event id", []DataType{String}); err != nil {
+	if err := validateSSEField(method.EffectiveStreamingResult(), e.IDField, "event id", []DataType{String}); err != nil {
 		verr.Add(method, "%s", err.Error())
 	}
-	if err := validateSSEField(method.Result, e.EventField, "event type", []DataType{String}); err != nil {
+	if err := validateSSEField(method.EffectiveStreamingResult(), e.EventField, "event type", []DataType{String}); err != nil {
 		verr.Add(method, "%s", err.Error())
 	}
-	if err := validateSSEField(method.Result, e.RetryField, "event retry", []DataType{Int, Int32, Int64, UInt, UInt32, UInt64}); err != nil {
+	if err := validateSSEField(method.EffectiveStreamingResult(), e.RetryField, "event retry", []DataType{Int, Int32, Int64, UInt, UInt32, UInt64}); err != nil {
 		verr.Add(method, "%s", err.Error())
 	}
 	if err := e.validateProjections(method); err != nil {
@@ -100,10 +100,10 @@ func (e *HTTPSSEExpr) validateProjections(method *MethodExpr) error {
 	if e.DataField != "" {
 		return fmt.Errorf("SSE projections cannot be combined with SSEEventData")
 	}
-	if !method.Result.IsRequired(e.EventField) {
+	if !method.EffectiveStreamingResult().IsRequired(e.EventField) {
 		return fmt.Errorf("SSE projection discriminator field %q must be required", e.EventField)
 	}
-	resultType, ok := method.Result.Type.(*ResultTypeExpr)
+	resultType, ok := method.EffectiveStreamingResult().Type.(*ResultTypeExpr)
 	if !ok {
 		return fmt.Errorf("SSE projections require StreamingResult to use a ResultType")
 	}

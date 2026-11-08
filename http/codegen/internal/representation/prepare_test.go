@@ -229,7 +229,7 @@ func TestBuildValuePlanRebindsPreparedExamplesToRebuiltNodes(t *testing.T) {
 
 	generator := expr.NewRandom("rebind-without-resampling")
 	control := expr.NewRandom("rebind-without-resampling")
-	require.NoError(t, PrepareTargetExamples(target, prepared.Endpoints[0].Request.Body, generator))
+	require.NoError(t, PrepareTargetValues(target, prepared.Endpoints[0].Request.Body, generator, true))
 	require.Equal(t, control.Int(), generator.Int(), "retained source result must prevent resampling")
 	_, newRootPresent := target.ExampleSets[target.Plan.Root()]
 	require.True(t, newRootPresent)

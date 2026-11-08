@@ -107,7 +107,7 @@ func (s *clientTypeSections) appendEndpointTypes(adata *EndpointData, seen map[s
 	if adata.ClientWebSocket != nil {
 		s.appendTypeData("client-request-body", adata.ClientWebSocket.Payload, true, seen)
 	}
-	for _, resp := range adata.Result.Responses {
+	for _, resp := range responsePayloads(adata) {
 		s.appendTypeData("client-response-body", resp.ClientBody, false, seen)
 	}
 	for _, gerr := range adata.Errors {
@@ -166,8 +166,14 @@ func (s *clientTypeSections) appendBodyInitSections() {
 }
 
 func (s *clientTypeSections) appendResultInitSections(adata *EndpointData) {
+	for _, info := range adata.Informational {
+		s.appendTypeInitSection("client-informational-init", info.Response.ResultInit)
+	}
 	for _, resp := range adata.Result.Responses {
 		s.appendTypeInitSection("client-result-init", resp.ResultInit)
+		if resp.Unary != nil {
+			s.appendTypeInitSection("client-result-init", resp.Unary.ResultInit)
+		}
 	}
 	for _, gerr := range adata.Errors {
 		for _, herr := range gerr.Errors {
@@ -194,9 +200,10 @@ func (s *clientTypeSections) appendValidateSections() {
 }
 
 func recordValidatedType(data *TypeData, seenValidated map[string]struct{}, validatedTypes *[]*TypeData) {
-	if _, ok := seenValidated[data.Name]; ok {
+	identity := data.validationFunction.Name + "\x00" + data.validationFunction.Ref
+	if _, ok := seenValidated[identity]; ok {
 		return
 	}
-	seenValidated[data.Name] = struct{}{}
+	seenValidated[identity] = struct{}{}
 	*validatedTypes = append(*validatedTypes, data)
 }

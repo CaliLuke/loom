@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/dave/jennifer/jen"
 
@@ -141,7 +142,7 @@ func writeClientEndpointDefinitions(group *jen.Group, endpoint *EndpointData) {
 			jen.Id("encodeRequest").Op("=").Id(endpoint.RequestEncoder).Call(requestEncoderArg),
 		)
 	}
-	if !IsSSEEndpoint(endpoint) || len(endpoint.Errors) > 0 {
+	if endpoint.ResponseDecoder != "" {
 		defs = append(defs,
 			jen.Id("decodeResponse").Op("=").Id(endpoint.ResponseDecoder).Call(
 				jen.Id("c").Dot("decoder"),
@@ -220,13 +221,37 @@ func renderClientWebSocketEndpoint(group *jen.Group, endpoint *EndpointData) {
 }
 
 func renderClientSSEEndpoint(group *jen.Group, endpoint *EndpointData) {
-	group.Comment("For SSE endpoints, connect and return a stream")
 	if endpoint.HasMixedResults {
-		group.Comment("Set Accept header for content negotiation")
 		group.Id("req").Dot("Header").Dot("Set").Call(jen.Lit("Accept"), jen.Lit("text/event-stream"))
 	}
+	renderClientDo(group, endpoint)
+	var b strings.Builder
+	fmt.Fprintf(&b, "selected, found := loomhttp.SelectFinal([]loomhttp.StatusSelector{%s}, resp.StatusCode)\n", finalSelectorValues(endpoint))
+	b.WriteString("success := false\nif found {\nswitch selected {\n")
+	for _, response := range endpoint.Result.Responses {
+		fmt.Fprintf(&b, "case %#v:\nsuccess = true\n", responseContractSelectorValue(response.Selector))
+	}
+	b.WriteString("}\n}\nif !success {\nreturn decodeResponse(resp)\n}\n")
+	b.WriteString("return loomhttp.DecodeResponse(resp, false, true, func(resp *http.Response) (any, error) {\nmediaType, _, err := mime.ParseMediaType(resp.Header.Get(\"Content-Type\"))\nif err != nil || mediaType != \"text/event-stream\" {\nreturn nil, fmt.Errorf(\"unexpected content type %q (expected text/event-stream)\", resp.Header.Get(\"Content-Type\"))\n}\n")
+	argument := ""
+	if endpoint.SSE.HandshakeRef != "" {
+		fmt.Fprintf(&b, "metadata, err := %s(selected, resp)\nif err != nil {\nreturn nil, err\n}\n", endpoint.SSE.DecodeHandshake)
+		argument = ", metadata"
+	}
+	fmt.Fprintf(&b, "return New%sStream(ctx, resp, c.decoder%s), nil\n})", endpoint.Method.VarName, argument)
+	group.Add(gocodegen.Expr(b.String()))
+}
 
+func renderClientDo(group *jen.Group, endpoint *EndpointData) {
+	if len(endpoint.Informational) > 0 {
+		group.List(jen.Id("req"), jen.Id("finishInformational")).Op(":=").Id("loomhttp").Dot("ObserveInformational").Call(
+			jen.Id("req"), jen.Id(endpoint.InformationalObservers).Call(jen.Id("ctx")),
+		)
+	}
 	group.List(jen.Id("resp"), jen.Err()).Op(":=").Id("c").Dot(endpoint.ClientDoer).Dot("Do").Call(jen.Id("req"))
+	if len(endpoint.Informational) > 0 {
+		group.List(jen.Id("resp"), jen.Err()).Op("=").Id("finishInformational").Call(jen.Id("resp"), jen.Err())
+	}
 	group.If(jen.Err().Op("!=").Nil()).Block(
 		jen.Return(
 			jen.Nil(),
@@ -237,55 +262,10 @@ func renderClientSSEEndpoint(group *jen.Group, endpoint *EndpointData) {
 			),
 		),
 	)
-
-	if len(endpoint.Errors) > 0 {
-		group.If(jen.Id("resp").Dot("StatusCode").Op("!=").Id("http").Dot("StatusOK")).Block(
-			jen.Return(jen.Id("decodeResponse").Call(jen.Id("resp"))),
-		)
-	}
-
-	group.Return(jen.Id("loomhttp").Dot("DecodeResponse").Call(
-		jen.Id("resp"), jen.False(), jen.True(),
-		jen.Func().Params(jen.Id("resp").Op("*").Id("http").Dot("Response")).Params(jen.Any(), jen.Error()).BlockFunc(func(decode *jen.Group) {
-			if len(endpoint.Errors) == 0 {
-				decode.If(jen.Id("resp").Dot("StatusCode").Op("!=").Id("http").Dot("StatusOK")).Block(
-					jen.Return(jen.Nil(), jen.Qual("fmt", "Errorf").Call(
-						jen.Lit("unexpected status from SSE endpoint: %d"),
-						jen.Id("resp").Dot("StatusCode"),
-					)),
-				)
-			}
-			decode.Id("contentType").Op(":=").Id("resp").Dot("Header").Dot("Get").Call(jen.Lit("Content-Type"))
-			decode.If(
-				jen.Id("contentType").Op("!=").Lit("").
-					Op("&&").
-					Op("!").Qual("strings", "HasPrefix").Call(jen.Id("contentType"), jen.Lit("text/event-stream")),
-			).Block(
-				jen.Return(jen.Nil(), jen.Qual("fmt", "Errorf").Call(
-					jen.Lit("unexpected content type: %s (expected text/event-stream)"),
-					jen.Id("contentType"),
-				)),
-			)
-			decode.Return(
-				jen.Id("New"+endpoint.Method.VarName+"Stream").Call(jen.Id("ctx"), jen.Id("resp"), jen.Id("c").Dot("decoder")),
-				jen.Nil(),
-			)
-		}),
-	))
 }
 
 func renderClientHTTPEndpoint(group *jen.Group, endpoint *EndpointData) {
-	group.List(jen.Id("resp"), jen.Err()).Op(":=").Id("c").Dot(endpoint.ClientDoer).Dot("Do").Call(jen.Id("req"))
-	group.If(jen.Err().Op("!=").Nil()).Block(
-		jen.Return(
-			jen.Nil(),
-			jen.Id("loomhttp").Dot("ErrRequestError").Call(
-				jen.Lit(endpoint.ServiceName),
-				jen.Lit(endpoint.Method.Name),
-				jen.Err(),
-			),
-		),
-	)
+	renderClientDo(group, endpoint)
 
 	if endpoint.Method.SkipResponseBodyEncodeDecode || endpoint.Method.FileResponse {
 		if endpoint.Result.Ref != "" {

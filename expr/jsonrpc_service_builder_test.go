@@ -112,3 +112,20 @@ func TestNewJSONRPCHTTPService(t *testing.T) {
 		require.Equal(t, "/rpc", httpService.HTTPEndpoints[0].Routes[0].Path)
 	})
 }
+
+func TestJSONRPCProtocolOccurrence(t *testing.T) {
+	method := &MethodExpr{Name: "read", Meta: MetaExpr{"jsonrpc": {}}, Payload: &AttributeExpr{Type: String}, Result: &AttributeExpr{Type: String}}
+	service := &ServiceExpr{Name: "protocol", Methods: []*MethodExpr{method}}
+	rpc := NewJSONRPCHTTPService(service, "/rpc")
+	http := &HTTPEndpointExpr{MethodExpr: method}
+	require.Nil(t, rpc.Root)
+	require.True(t, rpc.HTTPEndpoints[0].IsJSONRPC())
+	require.False(t, http.IsJSONRPC())
+	prior := Root
+	Root = &RootExpr{}
+	t.Cleanup(func() {
+		Root = prior
+	})
+	require.True(t, rpc.HTTPEndpoints[0].IsJSONRPC())
+	require.False(t, http.IsJSONRPC())
+}

@@ -49,7 +49,8 @@ paths:
                         method: GET
                     response:
                         contentType: text/event-stream
-                        status: 200
+                        statuses:
+                            - "200"
                 messages:
                     outbound:
                         contentType: application/json
@@ -88,7 +89,8 @@ paths:
                         method: GET
                     response:
                         contentType: text/event-stream
-                        status: 200
+                        statuses:
+                            - "200"
                 messages:
                     outbound:
                         contentType: application/json
@@ -127,7 +129,8 @@ paths:
                         method: GET
                     response:
                         contentType: text/event-stream
-                        status: 200
+                        statuses:
+                            - "200"
                 messages:
                     outbound:
                         contentType: application/json

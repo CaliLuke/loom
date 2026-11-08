@@ -93,9 +93,7 @@ func (r *RootExpr) composeDesign() {
 			validation = nil
 		}
 		attribute.Validation = validation
-		if value, present := constraints.Default(); present {
-			attribute.DefaultValue = value
-		}
+		applyEffectiveDefault(attribute, constraints)
 	}
 	// JSON identity depends on finalized inherited defaults as well as metadata.
 	// Check the original authored declarations against the canonical service

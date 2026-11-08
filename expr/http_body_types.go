@@ -3,7 +3,6 @@ package expr
 import (
 	"encoding/json/v2"
 	"fmt"
-	"net/http"
 	"strings"
 	"unicode"
 )
@@ -231,10 +230,15 @@ func httpStreamingBody(e *HTTPEndpointExpr) *AttributeExpr {
 func httpResponseBody(a *HTTPEndpointExpr, resp *HTTPResponseExpr) *AttributeExpr {
 	var name, suffix string
 	if len(a.Responses) > 1 {
-		suffix = http.StatusText(resp.StatusCode)
+		if resp.JSONRPCError == nil {
+			suffix = resp.Status.NameSuffix()
+		}
 	}
 	name = a.Name() + suffix
-	return buildHTTPResponseBody(name, a.MethodExpr.Result, resp, a.Service)
+	if resp.Handshake != nil {
+		return &AttributeExpr{Type: Empty}
+	}
+	return buildHTTPResponseBody(name, resp.responseSource(a.MethodExpr.Result), resp, a.Service)
 }
 
 // httpErrorResponseBody returns an attribute describing the response body of a
@@ -247,20 +251,22 @@ func httpErrorResponseBody(e *HTTPEndpointExpr, v *HTTPErrorExpr) *AttributeExpr
 	return buildHTTPResponseBody(name, v.AttributeExpr, v.Response, e.Service)
 }
 
+// buildHTTPResponseBody projects a response body. A nil mapping retains the
+// entire source for a typed mixed unary result, independently of its metadata.
 func buildHTTPResponseBody(name string, attr *AttributeExpr, resp *HTTPResponseExpr, svc *HTTPServiceExpr) *AttributeExpr {
 	const suffix = "ResponseBody"
 	name = concat(name, "Response", "Body")
 	if attr == nil || attr.Type == Empty {
 		return &AttributeExpr{Type: Empty}
 	}
-	if resp.Body != nil {
+	if resp != nil && resp.Body != nil {
 		return explicitHTTPResponseBody(resp.Body, name, suffix, svc)
 	}
 	if !IsObject(attr.Type) {
 		return primitiveHTTPResponseBody(attr, resp, name)
 	}
 	body := responseBodyObject(attr, resp)
-	if emptyHTTPBodyObject(body.AttributeExpr) {
+	if resp != nil && emptyHTTPBodyObject(body.AttributeExpr) {
 		return &AttributeExpr{Type: Empty}
 	}
 	userType := &UserTypeExpr{
@@ -285,10 +291,8 @@ func buildHTTPResponseBody(name string, attr *AttributeExpr, resp *HTTPResponseE
 	views := make([]*ViewExpr, len(rt.Views))
 	for i, v := range rt.Views {
 		mv := NewMappedAttributeExpr(v.AttributeExpr)
-		removeAttributes(mv, resp.Headers)
-		removeResponseCookieAttributes(mv, resp.Cookies)
-		if resp.ErrorNameFromStatus {
-			removeAttribute(mv, TaggedAttribute(attr, "struct:error:name"))
+		if resp != nil {
+			resp.excludeBodyFields(mv)
 		}
 		nv := *v
 		nv.AttributeExpr = mv.Attribute()
@@ -316,10 +320,8 @@ func buildHTTPResponseBody(name string, attr *AttributeExpr, resp *HTTPResponseE
 // of the response resp holds: those that resp maps to no header or cookie.
 func responseBodyObject(attr *AttributeExpr, resp *HTTPResponseExpr) *MappedAttributeExpr {
 	body := projectHTTPBody(attr)
-	removeAttributes(body, resp.Headers)
-	removeResponseCookieAttributes(body, resp.Cookies)
-	if resp.ErrorNameFromStatus {
-		removeAttribute(body, TaggedAttribute(attr, "struct:error:name"))
+	if resp != nil {
+		resp.excludeBodyFields(body)
 	}
 	return body
 }
@@ -337,7 +339,7 @@ func explicitHTTPResponseBody(body *AttributeExpr, name, suffix string, svc *HTT
 }
 
 func primitiveHTTPResponseBody(attr *AttributeExpr, resp *HTTPResponseExpr, name string) *AttributeExpr {
-	if !resp.Headers.IsEmpty() || len(resp.Cookies) > 0 {
+	if resp != nil && (!resp.Headers.IsEmpty() || len(resp.Cookies) > 0) {
 		return &AttributeExpr{Type: Empty}
 	}
 	attr = DupAtt(attr)
@@ -532,14 +534,6 @@ func removeAttributes(attr, sub *MappedAttributeExpr) {
 	o := AsObject(sub.Type)
 	for _, nat := range *o {
 		removeAttribute(attr, nat.Name)
-	}
-}
-
-func removeResponseCookieAttributes(attr *MappedAttributeExpr, cookies []*HTTPResponseCookieExpr) {
-	for _, cookie := range cookies {
-		if name := cookie.AttributeName(); name != "" {
-			removeAttribute(attr, name)
-		}
 	}
 }
 

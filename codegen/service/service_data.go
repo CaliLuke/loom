@@ -104,6 +104,9 @@ type (
 
 	// MethodData describes a single service method.
 	MethodData struct {
+		// HTTPMetadataValues retains each handshake/informational response occurrence
+		// independently from the four method payload/result roles and native errors.
+		HTTPMetadataValues map[*expr.HTTPResponseExpr]*ValueData
 		// Name is the method name.
 		Name string
 		// Description is the method description.
@@ -202,7 +205,8 @@ type (
 	MethodTransportData struct {
 		// IsSSE indicates whether an HTTP or JSON-RPC endpoint uses server-sent events.
 		IsSSE bool
-		// IsJSONRPC indicates if the endpoint is a JSON-RPC endpoint.
+		// IsJSONRPC records that the method has a JSON-RPC mapping. Transport
+		// generators must classify their own endpoint occurrence independently.
 		IsJSONRPC bool
 		// IsJSONRPCSSE indicates if the JSON-RPC endpoint uses SSE transport.
 		IsJSONRPCSSE bool
@@ -220,9 +224,10 @@ type (
 		// payload and request body reader when SkipRequestBodyEncodeDecode is
 		// used.
 		RequestStruct string
+		// HasResponseMetadata selects the typed mixed client result and metadata carrier.
+		HasResponseMetadata bool
 		// ResponseStruct is the name of the data structure containing the
-		// result and response body reader when SkipResponseBodyEncodeDecode is
-		// used.
+		// result and response body reader, or typed mixed result and metadata.
 		ResponseStruct string
 		// FileResponseStruct is the server-only response carrier used by file endpoints.
 		FileResponseStruct string
@@ -276,6 +281,8 @@ type (
 		StreamingResultEx any
 		// StreamingResultValue retains the effective streaming result occurrence.
 		StreamingResultValue *ValueData
+		// StreamingViewedResult captures the effective streaming result view independently of the unary result.
+		StreamingViewedResult *ViewedResultTypeData
 		// ServerStream indicates that the service method receives a payload
 		// stream or sends a result stream or both.
 		ServerStream *StreamData
@@ -295,7 +302,9 @@ type (
 	// a streaming endpoint implements. It is initialized if a method defines a
 	// streaming payload or result or both.
 	StreamData struct {
-		serverPlan *serverStreamPlan
+		// HandshakeRef is the shared native HTTP SSE response metadata type.
+		HandshakeRef string
+		serverPlan   *serverStreamPlan
 		// Interface is the name of the stream interface.
 		Interface string
 		// VarName is the name of the struct type that implements the stream
@@ -474,7 +483,9 @@ type (
 
 	// StreamInterceptorData is the stream data for an interceptor.
 	StreamInterceptorData struct {
-		serverPlan *serverStreamPlan
+		// HandshakeRef is the native metadata returned by the wrapped HTTP SSE stream.
+		HandshakeRef string
+		serverPlan   *serverStreamPlan
 		// WrapperName names the package struct implementing this stream wrapper.
 		WrapperName string
 		// Interface is the name of the stream interface.

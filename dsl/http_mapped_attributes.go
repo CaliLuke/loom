@@ -24,6 +24,8 @@ func headers(exp eval.Expression) *expr.MappedAttributeExpr {
 			e.Headers = expr.NewEmptyMappedAttributeExpr()
 		}
 		return e.Headers
+	case *expr.HTTPInformationalExpr:
+		return e.Headers
 	case *expr.HTTPResponseExpr:
 		if e.Headers == nil {
 			e.Headers = expr.NewEmptyMappedAttributeExpr()

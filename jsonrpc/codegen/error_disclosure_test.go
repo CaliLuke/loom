@@ -50,10 +50,19 @@ func jsonrpcErrorDisclosureDSL(mapped bool) func() {
 					}
 					if mapped {
 						dsl.Error("public")
+						dsl.Error("omitted")
+						dsl.Error("explicit_zero")
+						dsl.Error("callback_zero")
 					}
 					dsl.JSONRPC(func() {
 						if mapped {
 							dsl.Response("public", 4403)
+							dsl.Response("omitted", func() {
+							})
+							dsl.Response("explicit_zero", 0)
+							dsl.Response("callback_zero", func() {
+								dsl.Code(0)
+							})
 						}
 						if name == "events" {
 							dsl.ServerSentEvents()
@@ -111,21 +120,41 @@ func TestPublicMessages(t *testing.T) {
 	public.Message = "public detail"
 	safe := loom.WithErrorRemedy(loom.NewServiceError(secret, "public", false, false, true), &loom.ErrorRemedy{SafeMessage: "safe detail"})
 	outerSafe := &safeWrapper{error: fmt.Errorf("private wrapper: %w", public)}
-	for _, tc := range []struct {
-		name    string
-		err     error
-		message string
-		owned bool
-	}{
-		{"plain", secret, "internal server error", false},
-		{"wrapped", fmt.Errorf("private query: %w", secret), "internal server error", false},
-		{"public wrapper", fmt.Errorf("private query: %w", public), "public detail", true},
-		{"safe", safe, "safe detail", true},
-		{"outer safe", outerSafe, "outer safe detail", true},
-		{"join", errors.Join(public, secret), "internal server error", false},
-		{"reverse join", errors.Join(secret, public), "internal server error", false},
-		{"single join", errors.Join(nil, public), "public detail", true},
-	} {
+	type disclosureCase struct {
+		name          string
+		err           error
+		message       string
+		owned         bool
+		errorName     string
+		code          int
+		problemStatus int
+	}
+	cases := []disclosureCase{
+		{"plain", secret, "internal server error", false, "public", 4403, 4403},
+		{"wrapped", fmt.Errorf("private query: %w", secret), "internal server error", false, "public", 4403, 4403},
+		{"public wrapper", fmt.Errorf("private query: %w", public), "public detail", true, "public", 4403, 4403},
+		{"safe", safe, "safe detail", true, "public", 4403, 4403},
+		{"outer safe", outerSafe, "outer safe detail", true, "public", 4403, 4403},
+		{"join", errors.Join(public, secret), "internal server error", false, "public", 4403, 4403},
+		{"reverse join", errors.Join(secret, public), "internal server error", false, "public", 4403, 4403},
+		{"single join", errors.Join(nil, public), "public detail", true, "public", 4403, 4403},
+	}
+	if mapped {
+		for _, mapping := range []struct {
+			name          string
+			code          int
+			problemStatus int
+		}{
+			{"omitted", -32603, -32603},
+			{"explicit_zero", 0, 500},
+			{"callback_zero", 0, 500},
+		} {
+			err := loom.NewServiceError(secret, mapping.name, false, false, true)
+			err.Message = "public detail"
+			cases = append(cases, disclosureCase{mapping.name, err, "public detail", true, mapping.name, mapping.code, mapping.problemStatus})
+		}
+	}
+	for _, tc := range cases {
 		for _, transport := range []string{"unary", "events", "socket"} {
 			for _, send := range []bool{false, true} {
 				if transport == "unary" && send {
@@ -205,12 +234,15 @@ func TestPublicMessages(t *testing.T) {
 					require.True(t, ok)
 					wantCode := float64(-32603)
 					if mapped && tc.owned {
-						wantCode = 4403
+						wantCode = float64(tc.code)
+					}
+					require.Equal(t, wantCode, problem["code"])
+					if mapped && tc.owned {
 						data, ok := problem["data"].(map[string]any)
 						require.True(t, ok)
 						require.Equal(t, tc.message, data["detail"])
-						require.Equal(t, "public", data["code"])
-						require.Equal(t, float64(4403), data["status"])
+						require.Equal(t, tc.errorName, data["code"])
+						require.Equal(t, float64(tc.problemStatus), data["status"])
 						require.NotEmpty(t, data["instance"])
 						if tc.name == "outer safe" {
 							require.Equal(t, "retry later", data["retry_hint"])
@@ -218,7 +250,6 @@ func TestPublicMessages(t *testing.T) {
 							require.NotContains(t, data, "retry_hint")
 						}
 					}
-					require.Equal(t, wantCode, problem["code"])
 					require.Equal(t, tc.message, problem["message"])
 					select {
 					case original := <-called:

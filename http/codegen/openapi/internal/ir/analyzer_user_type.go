@@ -41,7 +41,19 @@ func (a *Analyzer) analyzeUserTypeOverlay(attr *expr.AttributeExpr, t expr.UserT
 	componentMeta, occurrenceMeta := userTypeOverlayMetadata(attr.Meta)
 	baseAttr := &expr.AttributeExpr{Type: t, Meta: componentMeta}
 	expr.CopyObjectOpenness(baseAttr, attr)
-	base := a.analyzeUserType(baseAttr, t, context, noRef, binding)
+	var base *Schema
+	if negated := negatedDeclarationAnnotations(occurrenceMeta, t); len(negated) > 0 {
+		// A reference cannot negate an annotation its declaration asserts. The
+		// occurrence owns an inline expansion of the declaration that carries
+		// the authored value; the shared component and its name are unchanged.
+		declaration := componentAttribute(baseAttr, t)
+		for key, values := range negated {
+			declaration.Meta[key] = values
+		}
+		base = a.analyzeNamedUnderlyingSchema(declaration, t, context, true)
+	} else {
+		base = a.analyzeUserType(baseAttr, t, context, noRef, binding)
+	}
 	schema := &Schema{AllOf: []*Schema{base}}
 	if base.Ref != "" {
 		schema = &Schema{Ref: base.Ref}
@@ -56,6 +68,9 @@ func (a *Analyzer) analyzeUserTypeOverlay(attr *expr.AttributeExpr, t expr.UserT
 	occurrence := *attr
 	occurrence.Meta = occurrenceMeta
 	a.applySchemaAttributeDetails(schema, &occurrence, "", context)
+	if base.Ref == "" {
+		releaseInheritedAnnotations(base, &occurrence)
+	}
 	if hasEncodingSourceOverlay(attr, t) {
 		schema = a.applyEncodingSourceType(schema, attr)
 	}
@@ -77,6 +92,62 @@ func userTypeOverlayMetadata(meta expr.MetaExpr) (component, occurrence expr.Met
 		target[key] = append([]string(nil), values...)
 	}
 	return component, occurrence
+}
+
+// negatedDeclarationAnnotations returns the boolean annotations the occurrence
+// authors as false while the declaration chain asserts them as true.
+func negatedDeclarationAnnotations(occurrence expr.MetaExpr, declaration expr.UserType) expr.MetaExpr {
+	negated := make(expr.MetaExpr)
+	for _, key := range []string{"openapi:deprecated", "openapi:readOnly", "openapi:writeOnly"} {
+		value, authored := occurrence.Last(key)
+		if !authored || metaBoolValue(value) {
+			continue
+		}
+		if inherited, ok := inheritedDeclarationMeta(declaration, key); ok && metaBoolValue(inherited) {
+			negated[key] = append([]string(nil), occurrence[key]...)
+		}
+	}
+	return negated
+}
+
+// inheritedDeclarationMeta returns the nearest value of key along a named
+// declaration chain.
+func inheritedDeclarationMeta(declaration expr.UserType, key string) (string, bool) {
+	seen := make(map[expr.UserType]bool)
+	for declaration != nil && !seen[declaration] {
+		seen[declaration] = true
+		attribute := declaration.Attribute()
+		if value, ok := attribute.Meta.Last(key); ok {
+			return value, true
+		}
+		next, ok := attribute.Type.(expr.UserType)
+		if !ok {
+			break
+		}
+		declaration = next
+	}
+	return "", false
+}
+
+// releaseInheritedAnnotations removes from an inline base the annotations that
+// the overlaying occurrence authors. The wrapper owns them, so an authored
+// value, including an explicit false, replaces the inherited one instead of
+// sitting beside it. Assertions stay on the base.
+func releaseInheritedAnnotations(base *Schema, occurrence *expr.AttributeExpr) {
+	if occurrence.Title != "" {
+		base.Title = ""
+	}
+	if occurrence.Description != "" {
+		base.Description = ""
+	}
+	if occurrence.DefaultValue != nil {
+		base.DefaultValue = nil
+	}
+	for key, field := range map[string]*bool{"openapi:readOnly": &base.ReadOnly, "openapi:writeOnly": &base.WriteOnly, "openapi:deprecated": &base.Deprecated} {
+		if _, authored := occurrence.Meta[key]; authored {
+			*field = false
+		}
+	}
 }
 
 func componentAttribute(attr *expr.AttributeExpr, t expr.UserType) *expr.AttributeExpr {
@@ -198,7 +269,7 @@ func (a *Analyzer) componentName(attr *expr.AttributeExpr, t expr.UserType, fing
 		case a.acquireCanonicalComparison(schema, attr, t, typeName, acquisition, metaName, binding):
 			return typeName, true
 		default:
-			typeName = a.ClaimExplicitName(typeName, fingerprint)
+			typeName = a.ClaimExplicitName(typeName, acquisition)
 		}
 	} else {
 		typeName = a.Uniquify(typeName, fingerprint)
@@ -223,7 +294,7 @@ func (a *Analyzer) analyzeUserType(attr *expr.AttributeExpr, t expr.UserType, co
 
 	s := &Schema{}
 	fingerprint := a.componentFingerprint(attr, t)
-	acquisition := a.componentAcquisitionFingerprint(attr, fingerprint)
+	acquisition := a.componentAcquisitionFingerprint(attr, t, fingerprint)
 
 	refs, ok := a.schemasByFingerprint[acquisition]
 	if !noRef && ok {

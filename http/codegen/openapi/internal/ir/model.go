@@ -228,11 +228,13 @@ type (
 		asyncComponents map[string]*Schema
 		asyncAnalyzer   *Analyzer
 		prepared        *transportir.Endpoint
+		event           *sseEventOutcome
+		unaryMedia      map[*transportir.ResponseStatus]map[string]*Schema
 		requestMedia    map[string]*Schema
 		responseMedia   map[*transportir.ResponseStatus]map[string]*Schema
 		locations       map[*expr.AttributeExpr]*Schema
 		RequestBody     *Schema
-		ResponseBodies  map[int][]*Schema
+		ResponseBodies  map[string][]*Schema
 	}
 
 	// Schema represents a renderer-neutral schema node.

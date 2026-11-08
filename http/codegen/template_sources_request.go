@@ -21,7 +21,7 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 			return loomhttp.ErrInvalidType("{{ .ServiceName }}", "{{ .Method.Name }}", "{{ .Payload.Ref }}", v)
 		}
 		{{- end }}
-		{{- if and .Payload.Request.ClientPayloadAbsent (not .Method.IsJSONRPC) }}
+		{{- if and .Payload.Request.ClientPayloadAbsent (not .IsJSONRPC) }}
 		if {{ .Payload.Request.ClientPayloadAbsent }} {
 			{{- if .Payload.Request.ClientPayloadOptional }}
 			return nil
@@ -32,7 +32,7 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 		{{- end }}
 	{{- range .Payload.Request.Headers }}
 {{- if .Styled }}
-{{ renderStyledEncode .Element "p" "header" }}
+{{ renderStyledEncode .Element "p" "header" "req.Header" }}
 {{- else }}
 			{{- if .FieldPointer }}
 		if p{{ if .FieldName }}.{{ .FieldName }}{{ end }} != nil {
@@ -62,7 +62,7 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 	{{- end }}
 	{{- range .Payload.Request.Cookies }}
 {{- if .Styled }}
-{{ renderStyledEncode .Element "p" "cookie" }}
+{{ renderStyledEncode .Element "p" "cookie" "" }}
 {{- else }}
 			{{- if .FieldPointer }}
 		if p{{ if .FieldName }}.{{ .FieldName }}{{ end }} != nil {
@@ -87,7 +87,7 @@ var parameterBuilder loomhttp.RawPairsBuilder
 	{{- end }}
 	{{- range .Payload.Request.QueryParams }}
 {{- if .Styled }}
-{{ renderStyledEncode .Element "p" "query" }}
+{{ renderStyledEncode .Element "p" "query" "" }}
 {{- else if .MapQueryParams }}
 		for key, value := range p{{ if .FieldName }}.{{ .FieldName }}{{ end }} {
 			{{ with integerElementText .AttributeData "key" "keyStr" "key" }}{{ . }}{{ else }}{{ template "partial_client_type_conversion" (typeConversionData .Type.KeyType.Type (aliasedType .FieldType).KeyType.Type "keyStr" "key") }}{{ end }}
@@ -165,8 +165,8 @@ var parameterBuilder loomhttp.RawPairsBuilder
 		if err := encoder(req).Encode(p); err != nil {
 			return loomhttp.ErrEncodingError("{{ .ServiceName }}", "{{ .Method.Name }}", err)
 		}
-	{{- else if or .Payload.Request.ClientBody .Payload.Request.JSONRPCID .Method.IsJSONRPC }}
-		{{- if and .Method.IsJSONRPC (or .Payload.Request.OptionalBodyAttribute (not .Payload.Request.ClientBody)) }}
+	{{- else if or .Payload.Request.ClientBody .Payload.Request.JSONRPCID .IsJSONRPC }}
+		{{- if and .IsJSONRPC (or .Payload.Request.OptionalBodyAttribute (not .Payload.Request.ClientBody)) }}
 		body := &jsonrpc.Request{
 			JSONRPC: "2.0",
 			Method:  "{{ .Method.Name }}",
@@ -188,7 +188,7 @@ var parameterBuilder loomhttp.RawPairsBuilder
 		{{- if and .Payload.Request.OptionalBodyAttribute .Payload.Request.ClientBodyAbsent }}
 		if !({{ .Payload.Request.ClientBodyAbsent }}) {
 		{{- end }}
-		{{- if .Method.IsJSONRPC }}
+		{{- if .IsJSONRPC }}
 		b{{ if and .Payload.Request.ClientBody.Init .Payload.Request.ClientBody.Init.ClientErrorAware }}, conversionError{{ end }} := {{ .Payload.Request.ClientBodyValue }}
 		{{- if and .Payload.Request.ClientBody.Init .Payload.Request.ClientBody.Init.ClientErrorAware }}
 		if conversionError != nil {
@@ -209,7 +209,7 @@ var parameterBuilder loomhttp.RawPairsBuilder
 		}
 		{{- end }}
 		{{- end }}
-		{{- if .Method.IsJSONRPC }}
+		{{- if .IsJSONRPC }}
 		body := &jsonrpc.Request{
 			JSONRPC: "2.0",
 			Method:  "{{ .Method.Name }}",
@@ -217,7 +217,7 @@ var parameterBuilder loomhttp.RawPairsBuilder
 		}
 		{{- end }}
 		{{- end }}
-		{{- if .Method.IsJSONRPC }}
+		{{- if .IsJSONRPC }}
 		{{- if .Payload.Request.JSONRPCID }}
  if err := jsonrpc.SetClientRequestID(req, body, p.{{ .Payload.Request.JSONRPCID.FieldName }}, {{ .Payload.Request.JSONRPCID.ClientPresence }}); err != nil {
   return loomhttp.ErrEncodingError("{{ .ServiceName }}", "{{ .Method.Name }}", err)
@@ -278,7 +278,7 @@ defer func() {
 			return loomhttp.ErrEncodingError("{{ .ServiceName }}", "{{ .Method.Name }}", err)
 		}
 		{{- end }}
-		{{- if and .Payload.Request.OptionalBodyAttribute .Payload.Request.ClientBodyAbsent (not .Method.IsJSONRPC) }}
+		{{- if and .Payload.Request.OptionalBodyAttribute .Payload.Request.ClientBodyAbsent (not .IsJSONRPC) }}
 		}
 		{{- end }}
 	{{- end }}

@@ -74,6 +74,8 @@ func clientEncodeDecodeImports(genpkg, svcName string, data *ServiceData) []*cod
 
 func clientEncodeDecodeSections(svc *expr.HTTPServiceExpr, services *ServicesData, e *EndpointData) []codegen.Section {
 	sections := []codegen.Section{requestBuilderSection(e)}
+	sections = append(sections, informationalClientSections(e, services.Get(svc.Name()))...)
+	sections = append(sections, sseHandshakeClientSections(e, services.Get(svc.Name()))...)
 	if section := clientRequestEncoderSection(svc, services, e); section != nil {
 		sections = append(sections, section)
 	}
@@ -144,6 +146,14 @@ func clientResponseDecoderSection(svc *expr.HTTPServiceExpr, services *ServicesD
 	}
 	fm := transDecoderTmplFuncs(svc, services)
 	fm["buildResponseData"] = buildResponseData
+	fm["responsePayloads"] = responsePayloads
+	fm["responseConstructorArgRefs"] = responseConstructorArgRefs
+	fm["finalSelectorValues"] = finalSelectorValues
+	fm["responseSelectorValue"] = responseSelectorValue
+	fm["renderDecodedStatusValidation"] = renderDecodedStatusValidation
+	fm["renderResponseMetadataFields"] = func(response *ResponseData, serviceName string, method *service.MethodData, headers, cookies string) (string, error) {
+		return renderResponseMetadataFields(response, serviceName, method, services.Get(svc.Name()), headers, cookies)
+	}
 	// A response default that cannot be materialized keeps the client
 	// validation envelope, with the server fault as its cause.
 	fm["defaultErrorReturn"] = func(expression string) string {
@@ -178,6 +188,12 @@ func clientFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData
 		{Path: genpkg + "/" + svcName, Name: data.Service.PkgName},
 		{Path: genpkg + "/" + svcName + "/" + "views", Name: data.Service.ViewsPkg},
 	}, data.Service.UserTypeImports...)
+	for _, endpoint := range data.Endpoints {
+		if endpoint.SSE != nil && !endpoint.IsJSONRPC {
+			imports = append(imports, &codegen.ImportSpec{Path: "mime"})
+			break
+		}
+	}
 	data, imports = services.FileData(svc.Name(), imports)
 	sections := []codegen.Section{codegen.Header(title, "client", imports)}
 	sections = append(sections, clientStructSection(data))

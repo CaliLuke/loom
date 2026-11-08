@@ -51,10 +51,10 @@ func TestBuildBodyTypesDeduplicatesSharedErrorBodiesProjectedByHeader(t *testing
 
 	bodies, types := buildBodyTypes(root.API, root.Types, root.ResultTypes)
 	serviceBodies := bodies["sharedErrorResponses"]
-	wantRef := serviceBodies["first"].ResponseBodies[400][0].Ref
+	wantRef := serviceBodies["first"].ResponseBodies["400"][0].Ref
 
 	for _, methodName := range []string{"first", "second"} {
-		for _, status := range []int{400, 401, 403} {
+		for _, status := range []string{"400", "401", "403"} {
 			require.Equal(t, wantRef, serviceBodies[methodName].ResponseBodies[status][0].Ref)
 		}
 	}
@@ -66,7 +66,7 @@ func TestBuildBodyTypesDeduplicatesSharedErrorBodiesProjectedByHeader(t *testing
 		}
 	}
 	require.Equal(t, 1, variantCount)
-	projected := derefSchema(t, serviceBodies["first"].ResponseBodies[400][0], types)
+	projected := derefSchema(t, serviceBodies["first"].ResponseBodies["400"][0], types)
 	require.NotContains(t, projected.Properties, "loomError")
 	require.Contains(t, projected.Properties, "message")
 }
@@ -159,7 +159,7 @@ func TestBuildBodyTypesUsesExplicitOpenAPITypenameAsCanonicalBodyComponentName(t
 	})
 
 	bodies, types := buildBodyTypes(root.API, root.Types, root.ResultTypes)
-	responseRef := bodies["auth-service"]["session"].ResponseBodies[200][0].Ref
+	responseRef := bodies["auth-service"]["session"].ResponseBodies["200"][0].Ref
 
 	require.Equal(t, "#/components/schemas/AuthSessionResponseBody", responseRef)
 	require.Contains(t, types, "AuthSessionResponseBody")
@@ -239,11 +239,11 @@ func TestBuildBodyTypesSplitsRequestAndResponseSchemasFromDirectionalMetadata(t 
 
 	bodies, types := buildBodyTypes(root.API, root.Types, root.ResultTypes)
 	requestRef := bodies["accounts"]["create"].RequestBody.Ref
-	responseRef := bodies["accounts"]["create"].ResponseBodies[201][0].Ref
+	responseRef := bodies["accounts"]["create"].ResponseBodies["201"][0].Ref
 
 	require.NotEqual(t, requestRef, responseRef)
 	requestSchema := derefSchema(t, bodies["accounts"]["create"].RequestBody, types)
-	responseSchema := derefSchema(t, bodies["accounts"]["create"].ResponseBodies[201][0], types)
+	responseSchema := derefSchema(t, bodies["accounts"]["create"].ResponseBodies["201"][0], types)
 
 	require.NotContains(t, requestSchema.Properties, "id")
 	require.Contains(t, requestSchema.Properties, "email")
@@ -290,8 +290,8 @@ func TestBuildBodyTypesUsesViewRequirednessOverrides(t *testing.T) {
 	})
 
 	bodies, types := buildBodyTypes(root.API, root.Types, root.ResultTypes)
-	inherited := derefSchema(t, bodies["view-requiredness"]["inherited"].ResponseBodies[200][0], types)
-	overridden := derefSchema(t, bodies["view-requiredness"]["overridden"].ResponseBodies[200][0], types)
+	inherited := derefSchema(t, bodies["view-requiredness"]["inherited"].ResponseBodies["200"][0], types)
+	overridden := derefSchema(t, bodies["view-requiredness"]["overridden"].ResponseBodies["200"][0], types)
 	require.Contains(t, inherited.Required, "canonical_required")
 	require.NotContains(t, inherited.Required, "canonical_optional")
 	require.NotContains(t, overridden.Required, "canonical_required")

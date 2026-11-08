@@ -34,6 +34,7 @@ func TestComponentAnnotationsSurviveRepresentationRegistration(t *testing.T) {
 					})
 				})
 			})
+			require.Len(t, root.Services[0].Methods[0].Payload.ExtractUserExamples(), 1, "one authored callback supplies one example")
 			service, err := representation.PrepareService(root.API.HTTP.Services[0], nil, nil)
 			require.NoError(t, err)
 			calls := 0
@@ -67,10 +68,7 @@ func TestComponentAnnotationsSurviveRepresentationRegistration(t *testing.T) {
 				require.Nil(t, request.Example)
 			} else {
 				require.Equal(t, map[string]any{"bytes": "aGk="}, request.Example, "the authored request value has its own annotation authority")
-				require.NotEmpty(t, request.Examples)
-				for _, example := range request.Examples {
-					require.Equal(t, map[string]any{"bytes": "aGk="}, example)
-				}
+				require.Empty(t, request.Examples, "one authored example uses the singular annotation")
 			}
 			require.Equal(t, "base64", a.schemas["Data"].Properties["bytes"].ContentEncoding)
 		})
@@ -216,7 +214,7 @@ func streamingAnnotationBinding(t *testing.T, root *expr.RootExpr) (string, *Sch
 	beforeRoot, beforeChild := copyComponentAnnotation(owned.Example), copyComponentAnnotation(owned.Properties["count"].Example)
 	for _, service := range orderedStringKeys(bodies.Services) {
 		for _, method := range orderedStringKeys(bodies.Services[service]) {
-			analyzeAsyncSchemas(a, bodies.Services[service][method].prepared)
+			analyzeAsyncSchemas(a, bodies.Services[service][method].prepared, bodies.Services[service][method].event)
 		}
 	}
 	owners := snapshotAnnotationOwners(a)
@@ -279,13 +277,11 @@ func TestComponentAnnotationControlledWrapperReuse(t *testing.T) {
 					}
 				}
 				for _, endpoint := range prepared.Endpoints {
-					analyzeEndpointBodies(analyzer, endpoint)
-					analyzeAsyncSchemas(analyzer, endpoint)
+					analyzeAsyncSchemas(analyzer, endpoint, analyzeEndpointBodies(analyzer, endpoint).event)
 				}
 				firstCalls := calls
 				for _, endpoint := range prepared.Endpoints {
-					analyzeEndpointBodies(analyzer, endpoint)
-					analyzeAsyncSchemas(analyzer, endpoint)
+					analyzeAsyncSchemas(analyzer, endpoint, analyzeEndpointBodies(analyzer, endpoint).event)
 				}
 				require.Equal(t, firstCalls, calls, "the same authority and context never invokes callbacks twice")
 				analyzer.finalizeRepresentations()

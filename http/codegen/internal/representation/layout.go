@@ -32,13 +32,20 @@ func ServiceLayouts(endpoints []*transportir.Endpoint) (Layout, Layout) {
 		client.RecordRoot(endpoint.Request.Body, false, false, true)
 		server.RecordRoot(endpoint.Request.StreamingBody, true, true, false)
 		client.RecordRoot(endpoint.Request.StreamingBody, false, false, true)
-		for _, response := range serviceResponses(endpoint) {
+		for _, response := range responseOccurrences(endpoint.Response) {
+			if response.Unary != nil {
+				server.RecordRoot(response.Unary.Body, false, false, true)
+				client.RecordRoot(response.Unary.Body, true, true, false)
+			}
 			server.RecordRoot(response.Body, false, false, true)
 			client.RecordRoot(response.Body, true, true, false)
 		}
 	}
 	for _, endpoint := range endpoints {
-		for _, response := range serviceResponses(endpoint) {
+		for _, response := range responseOccurrences(endpoint.Response) {
+			if response.Unary != nil {
+				server.RecordNested(response.Unary.Body, false, false, true)
+			}
 			server.RecordNested(response.Body, false, false, true)
 		}
 	}
@@ -49,7 +56,10 @@ func ServiceLayouts(endpoints []*transportir.Endpoint) (Layout, Layout) {
 	for _, endpoint := range endpoints {
 		client.RecordNested(endpoint.Request.Body, false, false, true)
 		client.RecordNested(endpoint.Request.StreamingBody, false, false, true)
-		for _, response := range serviceResponses(endpoint) {
+		for _, response := range responseOccurrences(endpoint.Response) {
+			if response.Unary != nil {
+				client.RecordNested(response.Unary.Body, true, true, false)
+			}
 			client.RecordNested(response.Body, true, true, false)
 		}
 	}
@@ -109,8 +119,12 @@ func (l Layout) RecordNested(attribute *expr.AttributeExpr, presence, pointer, d
 	})
 }
 
-func serviceResponses(endpoint *transportir.Endpoint) []*transportir.ResponseStatus {
-	return append(append([]*transportir.ResponseStatus(nil), endpoint.Response.Responses...), endpoint.Response.ErrorResponses...)
+func responseOccurrences(response *transportir.Response) []*transportir.ResponseStatus {
+	responses := append(append([]*transportir.ResponseStatus(nil), response.Responses...), response.ErrorResponses...)
+	for _, info := range response.Informational {
+		responses = append(responses, info.Response)
+	}
+	return responses
 }
 
 func layoutPriority(presence, pointer bool) uint8 {

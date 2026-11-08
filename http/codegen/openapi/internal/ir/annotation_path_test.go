@@ -28,7 +28,7 @@ func TestBytesPreservesEntireBaselineAnnotationPath(t *testing.T) {
 			root := codegen.RunDSL(t, commontestdata.DeclarationAuthorityBytesDSL)
 			a, bodies := annotationBodies(t, root, neutral)
 			endpoint := bodies.Services["declaration-authority"]["ordinary"]
-			binding := endpoint.ResponseBodies[200][0]
+			binding := endpoint.ResponseBodies["200"][0]
 			require.NotNil(t, binding)
 			before := map[string]annotationPathBinding{}
 			for _, field := range []string{"entries", "items"} {
@@ -98,7 +98,7 @@ func annotationBodies(t *testing.T, root *expr.RootExpr, declarations bool, opti
 	analyzeServiceBodies(a, root.API, bodies)
 	for _, service := range orderedStringKeys(bodies.Services) {
 		for _, method := range orderedStringKeys(bodies.Services[service]) {
-			analyzeAsyncSchemas(a, bodies.Services[service][method].prepared)
+			analyzeAsyncSchemas(a, bodies.Services[service][method].prepared, bodies.Services[service][method].event)
 		}
 	}
 	require.NoError(t, a.Err())

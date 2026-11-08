@@ -15,7 +15,13 @@ func (r *ResponseData) ProblemSourcePreparation(errorVariable string) string {
 	if !r.EncodePlan.NeedsProblemSource {
 		return ""
 	}
-	value := fmt.Sprintf("loomhttp.NewProblemResponse(ctx, %s, %d, %s, %s)", errorVariable, r.Code, r.ProblemTypeOverride, r.ProblemTitleOverride)
+	var status string
+	if r.JSONRPCCode != nil {
+		status = fmt.Sprint(*r.JSONRPCCode)
+	} else {
+		status = responseWireStatus(r)
+	}
+	value := fmt.Sprintf("loomhttp.NewProblemResponse(ctx, %s, %s, %s, %s)", errorVariable, status, r.ProblemTypeOverride, r.ProblemTitleOverride)
 	if !r.ErrorPayload {
 		return "problem := " + value
 	}

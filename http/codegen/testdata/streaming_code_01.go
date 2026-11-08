@@ -120,7 +120,9 @@ func NewCreateHandler(
 				return
 			}
 			stream := &CreateServerStream{
-				writer: loomhttp.NewSSEStreamWriter(w, ctx, loomtransport.TransportHTTP, writePolicy),
+				writer: loomhttp.NewSSEStreamWriter(w, ctx, loomtransport.TransportHTTP, writePolicy, loomhttp.WithSSEExchange(lifecycle.Exchange()), loomhttp.WithSSEHandshake(func(ctx context.Context) (loomhttp.SSEHandshake, error) {
+					return prepareCreateHandshake(ctx)
+				})),
 			}
 			defer stream.writer.End()
 			v := &mixedresultsservice.CreateEndpointInput{
@@ -129,6 +131,8 @@ func NewCreateHandler(
 			}
 			_, err = endpoint(ctx, v)
 			if err != nil {
+				lifecycle.HandlerFailed(err, stream.writer.ClaimFailure(), encodeError, errhandler)
+			} else if err := stream.writer.FinalizeSuccess(ctx); err != nil {
 				lifecycle.HandlerFailed(err, stream.writer.ClaimFailure(), encodeError, errhandler)
 			}
 		} else {
@@ -161,7 +165,8 @@ func NewCreateHandler(
 // interface and drops all events. It is used for mixed results endpoints in
 // unary (non-SSE) mode so service implementations can use the stream parameter
 // without nil checks.
-type discardCreateServerStream struct{}
+type discardCreateServerStream struct {
+}
 
 // Send discards the event.
 func (s *discardCreateServerStream) Send(v *mixedresultsservice.Event) error {
@@ -191,6 +196,9 @@ func (s *StreamingResultMethodServerStream) SendWithContext(ctx context.Context,
 		// upgrade is done here so that authorization logic in the endpoint is executed
 		// before calling the actual service method which may call Send().
 		s.once.Do(func() {
+			if exchange := loomhttp.ExchangeFromContext(s.r.Context()); exchange != nil {
+				exchange.BeginFinal(loomhttp.FinalUpgrade)
+			}
 			var conn *websocket.Conn
 			conn, err = s.upgrader.Upgrade(s.w, s.r, nil)
 			if err != nil {
@@ -251,6 +259,9 @@ func (s *StreamingResultWithViewsMethodServerStream) SendWithContext(ctx context
 		// upgrade is done here so that authorization logic in the endpoint is executed
 		// before calling the actual service method which may call Send().
 		s.once.Do(func() {
+			if exchange := loomhttp.ExchangeFromContext(s.r.Context()); exchange != nil {
+				exchange.BeginFinal(loomhttp.FinalUpgrade)
+			}
 			respHdr := make(http.Header)
 			respHdr.Add("loom-view", s.view)
 			var conn *websocket.Conn
@@ -659,6 +670,9 @@ func (s *StreamingResultWithExplicitViewMethodServerStream) SendWithContext(ctx 
 		// upgrade is done here so that authorization logic in the endpoint is executed
 		// before calling the actual service method which may call Send().
 		s.once.Do(func() {
+			if exchange := loomhttp.ExchangeFromContext(s.r.Context()); exchange != nil {
+				exchange.BeginFinal(loomhttp.FinalUpgrade)
+			}
 			var conn *websocket.Conn
 			conn, err = s.upgrader.Upgrade(s.w, s.r, nil)
 			if err != nil {
@@ -717,6 +731,9 @@ func (s *StreamingResultCollectionWithViewsMethodServerStream) SendWithContext(c
 		// upgrade is done here so that authorization logic in the endpoint is executed
 		// before calling the actual service method which may call Send().
 		s.once.Do(func() {
+			if exchange := loomhttp.ExchangeFromContext(s.r.Context()); exchange != nil {
+				exchange.BeginFinal(loomhttp.FinalUpgrade)
+			}
 			respHdr := make(http.Header)
 			respHdr.Add("loom-view", s.view)
 			var conn *websocket.Conn
@@ -865,6 +882,9 @@ func (s *StreamingResultCollectionWithExplicitViewMethodServerStream) SendWithCo
 		// upgrade is done here so that authorization logic in the endpoint is executed
 		// before calling the actual service method which may call Send().
 		s.once.Do(func() {
+			if exchange := loomhttp.ExchangeFromContext(s.r.Context()); exchange != nil {
+				exchange.BeginFinal(loomhttp.FinalUpgrade)
+			}
 			var conn *websocket.Conn
 			conn, err = s.upgrader.Upgrade(s.w, s.r, nil)
 			if err != nil {
@@ -1015,6 +1035,9 @@ func (s *StreamingResultPrimitiveMethodServerStream) SendWithContext(ctx context
 		// upgrade is done here so that authorization logic in the endpoint is executed
 		// before calling the actual service method which may call Send().
 		s.once.Do(func() {
+			if exchange := loomhttp.ExchangeFromContext(s.r.Context()); exchange != nil {
+				exchange.BeginFinal(loomhttp.FinalUpgrade)
+			}
 			var conn *websocket.Conn
 			conn, err = s.upgrader.Upgrade(s.w, s.r, nil)
 			if err != nil {
@@ -1109,6 +1132,9 @@ func (s *StreamingResultPrimitiveArrayMethodServerStream) SendWithContext(ctx co
 		// upgrade is done here so that authorization logic in the endpoint is executed
 		// before calling the actual service method which may call Send().
 		s.once.Do(func() {
+			if exchange := loomhttp.ExchangeFromContext(s.r.Context()); exchange != nil {
+				exchange.BeginFinal(loomhttp.FinalUpgrade)
+			}
 			var conn *websocket.Conn
 			conn, err = s.upgrader.Upgrade(s.w, s.r, nil)
 			if err != nil {

@@ -50,6 +50,9 @@ func (promoter *sharedTypePromoter) walkRoot(root *expr.RootExpr) {
 			promoter.walk(method.StreamingPayload, nil)
 			promoter.walk(method.Result, nil)
 			promoter.walk(method.StreamingResult, nil)
+			for _, carrier := range httpMetadataCarriers(root, method) {
+				promoter.walk(carrier.attribute, nil)
+			}
 			for _, methodError := range method.Errors {
 				promoter.walk(methodError.AttributeExpr, nil)
 			}

@@ -168,7 +168,7 @@ func preparedStandaloneOpenAPIExample(
 	generator *expr.ExampleGenerator,
 ) any {
 	t.Helper()
-	target, err := representation.PrepareStandaloneExamples(attribute, generator)
+	target, err := representation.PrepareStandaloneValues(attribute, generator, true)
 	require.NoError(t, err)
 	require.True(t, target.ExamplesPrepared)
 	require.NotNil(t, target.Representative)

@@ -24,8 +24,9 @@ type TickClientStream interface {
 type (
 	// TickStreamImpl implements the TickClientStream interface.
 	TickStreamImpl struct {
-		ctx    context.Context
-		reader *loomhttp.SSEStreamReader
+		ctx      context.Context
+		reader   *loomhttp.SSEStreamReader
+		response *http.Response
 	}
 )
 
@@ -35,8 +36,9 @@ var _ TickClientStream = (*TickStreamImpl)(nil)
 // NewTickStream creates a new TickClientStream.
 func NewTickStream(ctx context.Context, resp *http.Response, decoder func(*http.Response) loomhttp.Decoder) TickClientStream {
 	return &TickStreamImpl{
-		ctx:    ctx,
-		reader: loomhttp.NewSSEStreamReader(resp.Body),
+		ctx:      ctx,
+		reader:   loomhttp.NewSSEStreamReader(resp.Body),
+		response: resp,
 	}
 }
 
@@ -89,8 +91,9 @@ type TockClientStream interface {
 type (
 	// TockStreamImpl implements the TockClientStream interface.
 	TockStreamImpl struct {
-		ctx    context.Context
-		reader *loomhttp.SSEStreamReader
+		ctx      context.Context
+		reader   *loomhttp.SSEStreamReader
+		response *http.Response
 	}
 )
 
@@ -100,8 +103,9 @@ var _ TockClientStream = (*TockStreamImpl)(nil)
 // NewTockStream creates a new TockClientStream.
 func NewTockStream(ctx context.Context, resp *http.Response, decoder func(*http.Response) loomhttp.Decoder) TockClientStream {
 	return &TockStreamImpl{
-		ctx:    ctx,
-		reader: loomhttp.NewSSEStreamReader(resp.Body),
+		ctx:      ctx,
+		reader:   loomhttp.NewSSEStreamReader(resp.Body),
+		response: resp,
 	}
 }
 
@@ -154,8 +158,9 @@ type GuardedClientStream interface {
 type (
 	// GuardedStreamImpl implements the GuardedClientStream interface.
 	GuardedStreamImpl struct {
-		ctx    context.Context
-		reader *loomhttp.SSEStreamReader
+		ctx      context.Context
+		reader   *loomhttp.SSEStreamReader
+		response *http.Response
 	}
 )
 
@@ -165,8 +170,9 @@ var _ GuardedClientStream = (*GuardedStreamImpl)(nil)
 // NewGuardedStream creates a new GuardedClientStream.
 func NewGuardedStream(ctx context.Context, resp *http.Response, decoder func(*http.Response) loomhttp.Decoder) GuardedClientStream {
 	return &GuardedStreamImpl{
-		ctx:    ctx,
-		reader: loomhttp.NewSSEStreamReader(resp.Body),
+		ctx:      ctx,
+		reader:   loomhttp.NewSSEStreamReader(resp.Body),
+		response: resp,
 	}
 }
 

@@ -244,44 +244,30 @@ func buildResponses(endpointIR *transportir.Endpoint, bodies *EndpointBodies, ra
 	alternatives := make(map[string][]responseAlternative)
 	statusBodies := cloneResponseBodies(bodies)
 	for index, resp := range endpointIR.Response.Responses {
-		statusCode := resp.StatusCode
+		selector := resp.Selector
 		if endpointIR.Stream.IsStreaming && !endpointIR.Stream.IsSSE {
 			if _, ok := responses[strconv.Itoa(expr.StatusSwitchingProtocols)]; !ok {
-				statusBodies[expr.StatusSwitchingProtocols] = statusBodies[resp.StatusCode]
-				delete(statusBodies, resp.StatusCode)
-				statusCode = expr.StatusSwitchingProtocols
+				statusBodies["101"] = statusBodies[resp.Selector.OpenAPIKey()]
+				delete(statusBodies, resp.Selector.OpenAPIKey())
+				selector = expr.HTTPStatusSelector{Code: expr.StatusSwitchingProtocols}
 			}
 		}
-		websocketHandshake := endpointIR.Stream.IsStreaming && !endpointIR.Stream.IsSSE && statusCode == expr.StatusSwitchingProtocols
-		response, err := buildResponse(resp, statusCode, statusBodies, rand, closeObjects, endpointServiceName(endpointIR), websocketHandshake, bodies.locations, bodies.responseMedia[resp])
+		websocketHandshake := endpointIR.Stream.IsStreaming && !endpointIR.Stream.IsSSE && selector == (expr.HTTPStatusSelector{Code: expr.StatusSwitchingProtocols})
+		response, err := buildResponse(resp, selector, statusBodies, rand, closeObjects, endpointServiceName(endpointIR), websocketHandshake, bodies.locations, bodies.responseMedia[resp], bodies.eventFor(resp), bodies.unaryMedia[resp])
 		if err != nil {
 			return nil, err
 		}
-		status := strconv.Itoa(statusCode)
+		status := selector.OpenAPIKey()
 		alternatives[status] = append(alternatives[status], responseAlternative{fmt.Sprintf("success-%d", index), response})
 		responses[status] = response
 	}
 	for _, errResp := range endpointIR.Response.ErrorResponses {
-		resp, err := buildResponse(errResp, errResp.StatusCode, statusBodies, rand, closeObjects, endpointServiceName(endpointIR), false, bodies.locations, bodies.responseMedia[errResp])
+		resp, err := buildResponse(errResp, errResp.Selector, statusBodies, rand, closeObjects, endpointServiceName(endpointIR), false, bodies.locations, bodies.responseMedia[errResp], nil, nil)
 		if err != nil {
 			return nil, err
 		}
-		desc := resp.Description
-		if value, ok := errResp.Meta.Last("openapi:description:errorName"); !ok || value != "false" {
-			desc = errResp.Error.Name
-			if resp.Description != "" {
-				desc += ": " + resp.Description
-			}
-		}
-		desc = appendErrorRemedyDescription(desc, errResp.Error)
-		resp.Description = desc
-		if errResp.Error.Type == expr.ErrorResult && len(errResp.Body.ExtractUserExamples()) == 0 {
-			for _, content := range resp.Content {
-				content.Example = nil
-				content.Examples = nil
-			}
-		}
-		status := strconv.Itoa(errResp.StatusCode)
+		describeErrorResponse(errResp, resp)
+		status := errResp.Selector.OpenAPIKey()
 		alternatives[status] = append(alternatives[status], responseAlternative{errResp.Error.Name, resp})
 	}
 	for _, status := range slices.Sorted(maps.Keys(alternatives)) {
@@ -292,20 +278,57 @@ func buildResponses(endpointIR *transportir.Endpoint, bodies *EndpointBodies, ra
 		}
 		responses[status] = response
 	}
+	if err := addInformationalResponses(endpointIR, bodies, rand, closeObjects, responses); err != nil {
+		return nil, err
+	}
 	addFileResponseProtocolResponses(endpointIR, responses)
 	return responses, nil
 }
 
+// describeErrorResponse prefixes the error name and remedy and drops synthesized
+// examples of the built-in error result.
+func describeErrorResponse(errResp *transportir.ResponseStatus, resp *Response) {
+	desc := resp.Description
+	if value, ok := errResp.Meta.Last("openapi:description:errorName"); !ok || value != "false" {
+		desc = errResp.Error.Name
+		if resp.Description != "" {
+			desc += ": " + resp.Description
+		}
+	}
+	resp.Description = appendErrorRemedyDescription(desc, errResp.Error)
+	if errResp.Error.Type == expr.ErrorResult && len(errResp.Body.ExtractUserExamples()) == 0 {
+		for _, content := range resp.Content {
+			content.Example = nil
+			content.Examples = nil
+		}
+	}
+}
+
+// addInformationalResponses documents each interim declaration under its own
+// informational key: headers and description, never content.
+func addInformationalResponses(endpointIR *transportir.Endpoint, bodies *EndpointBodies, rand *expr.ExampleGenerator, closeObjects bool, responses map[string]*Response) error {
+	for _, info := range endpointIR.Response.Informational {
+		response, err := buildResponse(info.Response, info.Response.Selector, nil, rand, closeObjects, endpointServiceName(endpointIR), false, bodies.locations, nil, nil, nil)
+		if err != nil {
+			return err
+		}
+		responses[info.Response.Selector.OpenAPIKey()] = response
+	}
+	return nil
+}
+
 func buildResponse(
 	resp *transportir.ResponseStatus,
-	statusCode int,
-	bodies map[int][]*Schema,
+	selector expr.HTTPStatusSelector,
+	bodies map[string][]*Schema,
 	rand *expr.ExampleGenerator,
 	closeObjects bool,
 	currentService string,
 	websocketHandshake bool,
 	prepared map[*expr.AttributeExpr]*Schema,
 	mediaSchemas map[string]*Schema,
+	event *sseEventOutcome,
+	unaryMedia map[string]*Schema,
 ) (*Response, error) {
 	headers := headersFromIR(resp.Headers, rand, closeObjects, prepared)
 	if len(resp.MediaVariants) > 0 {
@@ -324,10 +347,17 @@ func buildResponse(
 
 	desc := resp.Description
 	if desc == "" && len(resp.Meta["openapi:reference:response"]) == 0 {
-		desc = fmt.Sprintf("%s response.", http.StatusText(statusCode))
+		if code, exact := selector.Exact(); exact {
+			desc = fmt.Sprintf("%s response.", http.StatusText(code))
+		} else {
+			desc = responseComponentDescription(selector.OpenAPIKey())
+		}
 	}
-	content, err := buildResponseContent(resp, statusCode, bodies, closeObjects, websocketHandshake, mediaSchemas)
+	content, err := buildResponseContent(resp, selector, bodies, closeObjects, websocketHandshake, mediaSchemas, event)
 	if err != nil {
+		return nil, err
+	}
+	if content, err = addUnaryContent(content, resp, unaryMedia, closeObjects); err != nil {
 		return nil, err
 	}
 	return &Response{
@@ -348,27 +378,33 @@ func buildResponse(
 
 func buildResponseContent(
 	resp *transportir.ResponseStatus,
-	statusCode int,
-	bodies map[int][]*Schema,
+	selector expr.HTTPStatusSelector,
+	bodies map[string][]*Schema,
 	closeObjects bool,
 	websocketHandshake bool,
 	mediaSchemas map[string]*Schema,
+	event *sseEventOutcome,
 ) (map[string]*MediaType, error) {
 	if len(resp.MediaVariants) > 0 {
 		return buildMediaVariantContent(resp.MediaVariants, mediaSchemas, closeObjects, schemaUsageResponse)
 	}
 	body := attributeForSchemaUsage(resp.DocumentBody, schemaUsageResponse)
+	if event != nil {
+		body = event.attribute
+	}
 	contentTypes := resp.ContentTypes
 	var content map[string]*MediaType
 	switch {
-	case websocketHandshake || resp.IsWebSocket:
+	case websocketHandshake:
 		content = nil
 	case body != nil && body.Type != expr.Empty:
 		content = make(map[string]*MediaType, len(contentTypes))
 		for _, contentType := range contentTypes {
-			schema := firstResponseBody(bodies[statusCode])
+			schema := firstResponseBody(bodies[selector.OpenAPIKey()])
 			target := resp.BodyValue
-			if prepared, exists := mediaSchemas[contentType]; exists {
+			if event != nil {
+				target = event.target
+			} else if prepared, exists := mediaSchemas[contentType]; exists {
 				schema = prepared
 				target = resp.DocumentValues[contentType]
 			} else if prepared, exists := resp.BodyValues[contentType]; exists {
@@ -484,40 +520,6 @@ func endpointServiceName(endpointIR *transportir.Endpoint) string {
 	return endpointIR.Service.Name
 }
 
-func initExamples(target interface {
-	setExample(any)
-	setExamples(map[string]*ExampleRef)
-}, attr *expr.AttributeExpr, closeObjects bool, prepared *transportir.ValueTarget) {
-	if attr == nil {
-		return
-	}
-	if disabled, ok := attr.Meta.Last("openapi:example"); ok && disabled == "false" {
-		return
-	}
-	if objectContainsSuppressedOpenAPIExample(attr, closeObjects, map[string]struct{}{}, map[expr.DataType]struct{}{}) {
-		return
-	}
-	if isUnionWrapperObjectType(attr.Type) {
-		return
-	}
-	if closeObjects && isUnionType(attr.Type) {
-		return
-	}
-	requirePreparedExampleTarget(prepared)
-	if !initPreparedExamples(target, attr, prepared) {
-		panic("OpenAPI example surface did not consume its prepared value target")
-	}
-}
-
-func requirePreparedExampleTarget(prepared *transportir.ValueTarget) {
-	if prepared == nil {
-		panic("OpenAPI example surface is missing its prepared value target")
-	}
-	if !prepared.ExamplesPrepared {
-		panic("OpenAPI example surface value target has not prepared examples")
-	}
-}
-
 func buildExample(example *expr.ExampleExpr, value any) *Example {
 	summary := example.Summary
 	if authored, ok := example.Meta.Last("openapi:example:summary"); ok {
@@ -602,39 +604,15 @@ func firstResponseBody(schemas []*Schema) *Schema {
 	return schemas[0]
 }
 
-func cloneResponseBodies(bodies *EndpointBodies) map[int][]*Schema {
+func cloneResponseBodies(bodies *EndpointBodies) map[string][]*Schema {
 	if bodies == nil || len(bodies.ResponseBodies) == 0 {
 		return nil
 	}
-	cloned := make(map[int][]*Schema, len(bodies.ResponseBodies))
+	cloned := make(map[string][]*Schema, len(bodies.ResponseBodies))
 	for status, schemas := range bodies.ResponseBodies {
 		cloned[status] = append([]*Schema(nil), schemas...)
 	}
 	return cloned
-}
-
-func (m *MediaType) setExample(value any) {
-	m.Example = value
-}
-
-func (m *MediaType) setExamples(value map[string]*ExampleRef) {
-	m.Examples = value
-}
-
-func (h *Header) setExample(value any) {
-	h.Example = value
-}
-
-func (h *Header) setExamples(value map[string]*ExampleRef) {
-	h.Examples = value
-}
-
-func (p *Parameter) setExample(value any) {
-	p.Example = value
-}
-
-func (p *Parameter) setExamples(value map[string]*ExampleRef) {
-	p.Examples = value
 }
 
 func wrapResponses(responses map[string]*Response) map[string]*ResponseRef {

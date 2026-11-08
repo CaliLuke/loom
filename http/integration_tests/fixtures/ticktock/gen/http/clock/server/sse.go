@@ -64,7 +64,8 @@ func (s *TickServerStream) SendWithContext(ctx context.Context, v *clock.TickToc
 	})
 }
 
-// Close prevents later SSE control or event writes.
+// Close completes the SSE response successfully and prevents later control or
+// event writes.
 func (s *TickServerStream) Close() error {
 	return s.writer.Close()
 }
@@ -118,7 +119,8 @@ func (s *TockServerStream) SendWithContext(ctx context.Context, v *clock.TickToc
 	})
 }
 
-// Close prevents later SSE control or event writes.
+// Close completes the SSE response successfully and prevents later control or
+// event writes.
 func (s *TockServerStream) Close() error {
 	return s.writer.Close()
 }
@@ -172,7 +174,8 @@ func (s *GuardedServerStream) SendWithContext(ctx context.Context, v *clock.Tick
 	})
 }
 
-// Close prevents later SSE control or event writes.
+// Close completes the SSE response successfully and prevents later control or
+// event writes.
 func (s *GuardedServerStream) Close() error {
 	return s.writer.Close()
 }

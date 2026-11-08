@@ -55,3 +55,22 @@ func TestUnionResponseBodyGeneratedHTTP(t *testing.T) {
 	runGoCommand(t, dir, "vet", "./...")
 	runGoCommand(t, dir, "test", "-race", "./...")
 }
+
+func TestUnionResponseStatusNames(t *testing.T) {
+	root := RunHTTPDSL(t, testdata.UnionResponseStatusDSL)
+	service := CreateHTTPServices(root).Get("required_named")
+	responses := service.Endpoints[0].Result.Responses
+	require.Len(t, responses, 2)
+	for _, response := range responses {
+		suffix := "OK"
+		if response.LiteralCode() == 299 {
+			suffix = "Status299"
+		} else {
+			require.Equal(t, 200, response.LiteralCode())
+		}
+		require.Equal(t, "Show"+suffix+"ResponseBody", response.ClientBody.VarName)
+		require.Contains(t, response.ResultInit.Name, suffix)
+		require.True(t, response.ResultInit.ReturnIsUnionValue)
+	}
+	require.Equal(t, "http.StatusBadRequest", service.Endpoints[0].Errors[0].Errors[0].Response.LiteralStatus())
+}

@@ -14,6 +14,9 @@ func (s *BidirectionalStreamingResultCollectionWithViewsMethodServerStream) Send
 		// upgrade is done here so that authorization logic in the endpoint is executed
 		// before calling the actual service method which may call Send().
 		s.once.Do(func() {
+			if exchange := loomhttp.ExchangeFromContext(s.r.Context()); exchange != nil {
+				exchange.BeginFinal(loomhttp.FinalUpgrade)
+			}
 			respHdr := make(http.Header)
 			respHdr.Add("loom-view", s.view)
 			var conn *websocket.Conn

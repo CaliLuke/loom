@@ -122,7 +122,7 @@ func serverSSESection(ed *EndpointData) codegen.Section {
 }
 
 func writeSSEResultSetup(b *strings.Builder, ed *EndpointData) {
-	if ed.Method.ViewedResult != nil {
+	if ed.SSE.ViewedResult != nil {
 		if len(ed.SSE.Projections) > 0 {
 			b.WriteString("\tvar view string\n")
 			fmt.Fprintf(b, "\tswitch v.%s {\n", ed.SSE.EventField)
@@ -130,17 +130,17 @@ func writeSSEResultSetup(b *strings.Builder, ed *EndpointData) {
 				fmt.Fprintf(b, "\tcase %q:\n\t\tview = %q\n", projection.EventType, projection.View)
 			}
 			fmt.Fprintf(b, "\tdefault:\n\t\treturn fmt.Errorf(\"invalid SSE projection discriminator %%q\", v.%s)\n\t}\n", ed.SSE.EventField)
-			fmt.Fprintf(b, "\tres, err := %s.%s(v, view)\n", ed.ServicePkgName, ed.Method.ViewedResult.Init.Name)
+			fmt.Fprintf(b, "\tres, err := %s.%s(v, view)\n", ed.ServicePkgName, ed.SSE.ViewedResult.Init.Name)
 			b.WriteString("\tif err != nil {\n\t\treturn err\n\t}\n")
 			return
 		}
-		viewName := ed.Method.ViewedResult.ViewName
+		viewName := ed.SSE.ViewedResult.ViewName
 		if viewName == "" {
-			fmt.Fprintf(b, "\tres, err := %s.%s(v, s.view)\n", ed.ServicePkgName, ed.Method.ViewedResult.Init.Name)
+			fmt.Fprintf(b, "\tres, err := %s.%s(v, s.view)\n", ed.ServicePkgName, ed.SSE.ViewedResult.Init.Name)
 			b.WriteString("\tif err != nil {\n\t\treturn err\n\t}\n")
 			return
 		}
-		fmt.Fprintf(b, "\tres, err := %s.%s(v, %q)\n", ed.ServicePkgName, ed.Method.ViewedResult.Init.Name, viewName)
+		fmt.Fprintf(b, "\tres, err := %s.%s(v, %q)\n", ed.ServicePkgName, ed.SSE.ViewedResult.Init.Name, viewName)
 		b.WriteString("\tif err != nil {\n\t\treturn err\n\t}\n")
 		return
 	}
@@ -150,7 +150,7 @@ func writeSSEResultSetup(b *strings.Builder, ed *EndpointData) {
 func writeSSEPayloadSetup(b *strings.Builder, ed *EndpointData) {
 	b.WriteString("\n\tvar payload any\n")
 	if len(ed.SSE.ResponseBodies) > 0 {
-		writeServerStreamBodySelection(b, ed.SSE.ResponseBodies, ed.Method.ViewedResult, func(body *TypeData) {
+		writeServerStreamBodySelection(b, ed.SSE.ResponseBodies, ed.SSE.ViewedResult, func(body *TypeData) {
 			if ed.SSE.DataField != "" && !sseBodyHasDataField(body, ed.SSE.DataField) {
 				encoding := representation.MappedSSEEncoding(ed.SSE.DataFieldTypeRef, ed.SSE.DataPointer)
 				if encoding.Codec == expr.ValueCodecText || encoding.Codec == expr.ValueCodecRaw {
@@ -207,7 +207,7 @@ func writeSSEPayloadEncoding(b *strings.Builder, ed *EndpointData) {
 func writeSSEMessageSetup(b *strings.Builder, ed *EndpointData) {
 	b.WriteString("\tmsg := loomhttp.SSEMessage{Data: data}\n")
 	resultVar := "res"
-	if ed.Method.ViewedResult != nil {
+	if ed.SSE.ViewedResult != nil {
 		resultVar = "v"
 	}
 	if ed.SSE.IDField != "" {
@@ -241,6 +241,14 @@ func writeSSEMessageField(b *strings.Builder, local, source string, pointer bool
 func addServerSSESection(stmt *jen.Statement, ed *EndpointData) {
 	stmt.Line()
 	addServerSSEType(stmt, ed)
+	if ed.SSE.HandshakeRef != "" {
+		codegen.Doc(stmt, "SetResponse validates and stores metadata before the stream opens.")
+		stmt.Func().Params(jen.Id("s").Op("*").Id(ed.SSE.StructName)).Id("SetResponse").Params(jen.Id("response").Add(codegen.TypeRef(ed.SSE.HandshakeRef))).Error().Block(
+			jen.Return(jen.Id("s").Dot("writer").Dot("SetHandshake").Call(
+				jen.Func().Params().Params(codegen.TypeRef("loomhttp.SSEHandshake"), jen.Error()).Block(jen.Return(jen.Id(ed.SSE.PrepareHandshake).Call(jen.Id("s").Dot("writer").Dot("Context").Call(), jen.Id("response")))),
+			)),
+		)
+	}
 	stmt.Line()
 	codegen.Doc(stmt, ed.SSE.SendDesc)
 	stmt.Func().
@@ -280,7 +288,7 @@ func addServerSSESection(stmt *jen.Statement, ed *EndpointData) {
 			addRawWebSocketGroup(group, renderServerSSESendWithContextBody(ed))
 		})
 	stmt.Line()
-	codegen.Doc(stmt, "Close prevents later SSE control or event writes.")
+	codegen.Doc(stmt, "Close completes the SSE response successfully and prevents later control or event writes.")
 	stmt.Func().
 		Params(jen.Id("s").Op("*").Id(ed.SSE.StructName)).
 		Id("Close").
@@ -316,7 +324,7 @@ func addServerSSESetViewMethod(stmt *jen.Statement, ed *EndpointData) {
 }
 
 func serverSSEUsesDynamicView(ed *EndpointData) bool {
-	return ed.Method.ViewedResult != nil && ed.Method.ViewedResult.ViewName == ""
+	return ed.SSE.ViewedResult != nil && ed.SSE.ViewedResult.ViewName == ""
 }
 
 func renderServerSSESendWithContextBody(ed *EndpointData) string {

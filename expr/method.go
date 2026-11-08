@@ -174,11 +174,11 @@ func validateErrorTypeDiscriminators(errors []*ErrorExpr) *eval.ValidationErrors
 			continue
 		}
 		for j := i + 1; j < len(errors); j++ {
-			if !sameErrorType(e.Type, errors[j].Type) {
+			if !sameNativeType(e.Type, errors[j].Type) {
 				continue
 			}
 			for k := j; k < len(errors); k++ {
-				if sameErrorType(e.Type, errors[k].Type) {
+				if sameNativeType(e.Type, errors[k].Type) {
 					reported[k] = true
 				}
 			}
@@ -196,7 +196,7 @@ func validateErrorTypeDiscriminators(errors []*ErrorExpr) *eval.ValidationErrors
 	return verr
 }
 
-func sameErrorType(left, right DataType) bool {
+func sameNativeType(left, right DataType) bool {
 	leftUserType, leftIsUserType := left.(UserType)
 	rightUserType, rightIsUserType := right.(UserType)
 	if leftIsUserType || rightIsUserType {

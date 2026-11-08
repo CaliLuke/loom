@@ -236,7 +236,9 @@ func serviceUsesURLPackage(data *ServiceData) bool {
 
 func serverEncodeDecodeSections(svc *expr.HTTPServiceExpr, services *ServicesData, e *EndpointData) []codegen.Section {
 	sections := []codegen.Section{}
-	if e.Redirect == nil && (!IsWebSocketEndpoint(e) || e.Method.IsJSONRPC) {
+	sections = append(sections, informationalServerSections(e, services.Get(svc.Name()))...)
+	sections = append(sections, sseHandshakeServerSections(e, services.Get(svc.Name()))...)
+	if e.Redirect == nil && (!IsWebSocketEndpoint(e) || e.IsJSONRPC) && (!IsSSEEndpoint(e) || e.HasMixedResults) {
 		sections = append(sections, codegen.NewTextTemplateSection("response-encoder", responseEncoderSource, transTmplFuncs(svc, services), e))
 	}
 	if mustDecodeRequest(e) {
@@ -280,16 +282,26 @@ func transTmplFuncs(s *expr.HTTPServiceExpr, services *ServicesData) map[string]
 			_, ok := dt.(expr.UserType)
 			return ok
 		},
-		"conversionData":               conversionData,
-		"scalarElementData":            scalarElementData,
-		"renderHeaderConversion":       renderHeaderConversion,
-		"isIntegerValue":               isIntegerValue,
-		"integerSliceAssign":           integerSliceAssign,
-		"integerPointerAssign":         integerPointerAssign,
-		"integerElementText":           integerElementText,
-		"isStoredIntegerValue":         isStoredIntegerValue,
-		"integerDecodeCheck":           integerDecodeCheck,
-		"renderIntegerValue":           renderIntegerValue,
+		"conversionData":              conversionData,
+		"scalarElementData":           scalarElementData,
+		"renderHeaderConversion":      renderHeaderConversion,
+		"isIntegerValue":              isIntegerValue,
+		"integerSliceAssign":          integerSliceAssign,
+		"integerPointerAssign":        integerPointerAssign,
+		"integerElementText":          integerElementText,
+		"isStoredIntegerValue":        isStoredIntegerValue,
+		"integerDecodeCheck":          integerDecodeCheck,
+		"renderIntegerValue":          renderIntegerValue,
+		"renderResponseHeaders":       renderResponseHeaders,
+		"renderResponseCookies":       renderResponseCookies,
+		"responsePayloads":            responsePayloads,
+		"renderFinalSuccessSelection": renderFinalSuccessSelection,
+		"renderFinalMetadataPreparation": func(response *ResponseData) string {
+			return renderFinalMetadataPreparation(response, services.Get(s.Name()))
+		},
+		"renderFinalErrorStatus":       renderFinalErrorStatus,
+		"responseSelectorValue":        responseSelectorValue,
+		"responseWireStatus":           responseWireStatus,
 		"renderStyledEncode":           renderStyledEncode,
 		"renderStyledFormEncode":       renderStyledFormEncode,
 		"formRootRequest":              formRootRequest,

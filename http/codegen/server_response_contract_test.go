@@ -5,10 +5,13 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/dave/jennifer/jen"
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/codegen"
 	. "github.com/CaliLuke/loom/dsl"
+	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 	"github.com/CaliLuke/loom/internal/loomsource"
 )
 
@@ -24,7 +27,9 @@ func TestServerResponseContractCases(t *testing.T) {
 	require.Contains(t, generated, "func ShowResponseContractCases() []loomhttp.ResponseContractCase")
 	require.Contains(t, generated, `ID: "widgets.show.success.202.outcome=accepted"`)
 	require.Contains(t, generated, "Kind: loomhttp.ResponseContractSuccess")
-	require.Contains(t, generated, "StatusCode: 202")
+	require.Contains(t, generated, "Selector: loomhttp.StatusSelector{Code: 202}, Domain: []int{202}")
+	require.Contains(t, generated, "Selector: loomhttp.StatusSelector{Code: 404}, Domain: []int{404}")
+	require.NotContains(t, generated, "StatusCode:")
 	require.Contains(t, generated, `ContentTypes: []string{"application/json"}`)
 	require.Contains(t, generated, `RequiredHeaders: []string{"X-Version"}`)
 	require.Contains(t, generated, `RequiredCookies: []string{"widget_session"}`)
@@ -50,7 +55,9 @@ func TestServerResponseContractCasesIncludeWebSocket(t *testing.T) {
 	generated := codegen.SectionCode(t, sections[0])
 	require.Contains(t, generated, `ID: "events.watch.success.101"`)
 	require.Contains(t, generated, "Transport: loomhttp.ResponseContractWebSocket")
-	require.Contains(t, generated, "StatusCode: 101")
+	require.Contains(t, generated, "Selector: loomhttp.StatusSelector{Code: 101}, Domain: []int{101}")
+	require.Contains(t, generated, "Selector: loomhttp.StatusSelector{Code: 401}, Domain: []int{401}")
+	require.NotContains(t, generated, "StatusCode:")
 	require.Contains(t, generated, "WebSocket: &loomhttp.WebSocketResponseContract{")
 	require.Contains(t, generated, `Direction:           "server"`)
 	require.Contains(t, generated, `OutboundMessageType: "WatchResult"`)
@@ -105,11 +112,42 @@ func TestResponseContractCasesReturnsFreshManifest(t *testing.T) {
 	if widgetserver.ResponseContractCases()[0].ID == "mutated" {
 		t.Fatal("response contract manifest shares mutable storage")
 	}
+	if len(first[0].Domain) != 1 || first[0].Domain[0] != 202 {
+		t.Fatalf("response contract domain is %v, want [202]", first[0].Domain)
+	}
+	first[0].Domain[0] = 0
+	if widgetserver.ResponseContractCases()[0].Domain[0] != 202 {
+		t.Fatal("response contract manifest shares domain storage")
+	}
 }
 `), 0o600))
 
 	runGoCommand(t, dir, "mod", "tidy")
 	runGoCommand(t, dir, "test", "./...")
+}
+
+func TestResponseContractCaseFieldsRenderKinds(t *testing.T) {
+	tests := []struct {
+		kind transportir.ResponseContractCaseKind
+		want string
+	}{
+		{transportir.ResponseContractSuccess, "Kind: loomhttp.ResponseContractSuccess"},
+		{transportir.ResponseContractError, "Kind: loomhttp.ResponseContractError"},
+		{transportir.ResponseContractInformational, "Kind: loomhttp.ResponseContractInformational"},
+	}
+	for _, test := range tests {
+		t.Run(string(test.kind), func(t *testing.T) {
+			generated := jen.Add(codegen.TypeRef("loomhttp.ResponseContractCase")).Values(responseContractCaseFields(&ResponseContractCaseData{
+				ID:        "widgets.show." + string(test.kind) + ".202",
+				Kind:      string(test.kind),
+				Transport: string(transportir.ResponseContractHTTP),
+				Selector:  expr.HTTPStatusSelector{Code: 202},
+				Domain:    []int{202},
+			})...).GoString()
+			require.Contains(t, generated, test.want)
+			require.Contains(t, generated, "Selector: loomhttp.StatusSelector{Code: 202}, Domain: []int{202}")
+		})
+	}
 }
 
 func responseContractServerDSL() {

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -19,14 +20,17 @@ type (
 		ctx      context.Context
 		writer   http.ResponseWriter
 		observer *loomtransport.RequestObserver
+		exchange *ExchangeWriter
 		service  string
 		method   string
 	}
 
 	stagedResponseWriter struct {
-		header http.Header
-		body   bytes.Buffer
-		status int
+		header   http.Header
+		exchange *ExchangeWriter
+		err      error
+		body     bytes.Buffer
+		status   int
 	}
 
 	deferredStatusWriter struct {
@@ -48,10 +52,13 @@ func NewHandlerLifecycle(
 	ctx = context.WithValue(ctx, loom.MethodKey, method)
 	ctx = context.WithValue(ctx, loom.ServiceKey, service)
 	observer, writer := loomtransport.BeginHTTPRequest(ctx, w, service, method, r)
+	exchange := &ExchangeWriter{writer: writer, major: r.ProtoMajor, minor: r.ProtoMinor}
+	ctx = context.WithValue(ctx, exchangeContextKey{}, exchange)
 	return &HandlerLifecycle{
 		ctx:      loomtransport.WithRequestObserver(ctx, observer),
 		writer:   writer,
 		observer: observer,
+		exchange: exchange,
 		service:  service,
 		method:   method,
 	}
@@ -67,8 +74,15 @@ func (l *HandlerLifecycle) Writer() http.ResponseWriter {
 	return l.writer
 }
 
-// End completes request observation and preserves panic propagation.
+// Exchange returns the single exchange writer associated with this lifecycle.
+func (l *HandlerLifecycle) Exchange() *ExchangeWriter {
+	return l.exchange
+}
+
+// End closes informational admission and completes request observation while
+// preserving panic propagation. It does not commit a response or publish success.
 func (l *HandlerLifecycle) End() {
+	l.exchange.BeginFinal(FinalResult)
 	defer l.observer.End()
 	if recovered := recover(); recovered != nil {
 		panic(recovered)
@@ -94,6 +108,7 @@ func (l *HandlerLifecycle) HandlerFailed(
 	encodeError func(context.Context, http.ResponseWriter, error) error,
 	handleFailure func(context.Context, http.ResponseWriter, error),
 ) {
+	l.exchange.BeginFinal(FinalError)
 	l.observer.Fail(loomtransport.ReasonHandlerError)
 	if committed || l.responseCommitted() {
 		l.handleFailure(err, handleFailure)
@@ -121,6 +136,7 @@ func (l *HandlerLifecycle) EncodeResponse(
 	encodeError func(context.Context, http.ResponseWriter, error) error,
 	handleFailure func(context.Context, http.ResponseWriter, error),
 ) bool {
+	l.exchange.BeginFinal(FinalResult)
 	initialHeaders := l.writer.Header().Clone()
 	if err := encodeResponse(l.ctx, l.writer); err != nil {
 		l.observer.Fail(loomtransport.ReasonResponseWriteFailed)
@@ -143,6 +159,7 @@ func (l *HandlerLifecycle) WriteRawBody(
 	encodeError func(context.Context, http.ResponseWriter, error) error,
 	handleFailure func(context.Context, http.ResponseWriter, error),
 ) {
+	l.exchange.BeginFinal(FinalRaw)
 	defer func() {
 		if err := body.Close(); err != nil {
 			l.ResponseFailed(err, handleFailure)
@@ -164,10 +181,14 @@ func (l *HandlerLifecycle) WriteRawBody(
 	}
 
 	initialHeaders := l.writer.Header().Clone()
-	staged := &stagedResponseWriter{header: initialHeaders.Clone()}
-	if err := encodeResponse(l.ctx, staged); err != nil {
+	staged := &stagedResponseWriter{header: initialHeaders.Clone(), exchange: l.exchange}
+	encodeErr := encodeResponse(l.ctx, staged)
+	if staged.err != nil {
+		encodeErr = errors.Join(staged.err, encodeErr)
+	}
+	if encodeErr != nil {
 		l.observer.Fail(loomtransport.ReasonResponseWriteFailed)
-		l.encodeError(err, encodeError, handleFailure)
+		l.encodeError(encodeErr, encodeError, handleFailure)
 		return
 	}
 	replaceHeaders(l.writer.Header(), staged.header)
@@ -203,6 +224,7 @@ func (l *HandlerLifecycle) ServeFile(
 	encodeError func(context.Context, http.ResponseWriter, error) error,
 	handleFailure func(context.Context, http.ResponseWriter, error),
 ) {
+	l.exchange.BeginFinal(FinalFile)
 	if file == nil || file.Content == nil {
 		err := fmt.Errorf("%s.%s returned nil file response content", l.service, l.method)
 		l.HandlerFailed(err, false, encodeError, handleFailure)
@@ -229,6 +251,7 @@ func (l *HandlerLifecycle) encodeError(
 	encode func(context.Context, http.ResponseWriter, error) error,
 	handleFailure func(context.Context, http.ResponseWriter, error),
 ) {
+	l.exchange.BeginFinal(FinalError)
 	initialHeaders := l.writer.Header().Clone()
 	encodeErr := encode(l.ctx, l.writer, err)
 	if encodeErr == nil {
@@ -276,6 +299,12 @@ func (w *stagedResponseWriter) Header() http.Header {
 }
 
 func (w *stagedResponseWriter) WriteHeader(status int) {
+	if status >= http.StatusContinue && status < http.StatusOK {
+		if w.err == nil {
+			w.err = w.exchange.Send(status, w.header)
+		}
+		return
+	}
 	if status < http.StatusOK || w.status != 0 {
 		return
 	}
@@ -283,6 +312,9 @@ func (w *stagedResponseWriter) WriteHeader(status int) {
 }
 
 func (w *stagedResponseWriter) Write(data []byte) (int, error) {
+	if w.err != nil {
+		return 0, w.err
+	}
 	return w.body.Write(data)
 }
 

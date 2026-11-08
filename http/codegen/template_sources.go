@@ -94,6 +94,12 @@ func {{ .HandlerInit }}(
 		{{- end }}
 		w = lifecycle.Writer()
 	{{- if .HasMixedResults }}
+		{{- if .Method.HasResponseMetadata }}
+		metadata := loomhttp.NewResponseMetadata(func(ctx context.Context) (loomhttp.SSEHandshake, error) {
+			{{ .SSE.ImplicitHandshake }}
+		})
+		defer metadata.Close()
+		{{- end }}
 
 		// Content negotiation for mixed results (standard HTTP vs SSE)
 		acceptHeader := strings.Join(r.Header.Values("Accept"), ",")
@@ -124,7 +130,9 @@ func {{ .HandlerInit }}(
 			}
 		{{- end }}
 			stream := &{{ .SSE.StructName }}{
-				writer: loomhttp.NewSSEStreamWriter(w, ctx, loomtransport.TransportHTTP, writePolicy),
+				writer: loomhttp.NewSSEStreamWriter(w, ctx, loomtransport.TransportHTTP, writePolicy, loomhttp.WithSSEExchange(lifecycle.Exchange()), {{ if .Method.HasResponseMetadata }}loomhttp.WithSSEResponseMetadata(metadata){{ else }}loomhttp.WithSSEHandshake(func(ctx context.Context) (loomhttp.SSEHandshake, error) {
+					{{ .SSE.ImplicitHandshake }}
+				}){{ end }}),
 			}
 			defer stream.writer.End()
 			v := &{{ .ServicePkgName }}.{{ .Method.ServerStream.EndpointStruct }}{
@@ -135,6 +143,8 @@ func {{ .HandlerInit }}(
 			}
 			_, err = endpoint(ctx, v)
 			if err != nil {
+				lifecycle.HandlerFailed(err, stream.writer.ClaimFailure(), encodeError, errhandler)
+			} else if err := stream.writer.FinalizeSuccess(ctx); err != nil {
 				lifecycle.HandlerFailed(err, stream.writer.ClaimFailure(), encodeError, errhandler)
 			}
 		} else {
@@ -156,7 +166,7 @@ func {{ .HandlerInit }}(
 			// In the standard (non-SSE) mode, Stream discards events and the service
 			// must return the synchronous result.
 			v := &{{ .ServicePkgName }}.{{ .Method.ServerStream.EndpointStruct }}{
-				Stream: &discard{{ .Method.VarName }}ServerStream{},
+				Stream: &discard{{ .Method.VarName }}ServerStream{ {{ if .Method.HasResponseMetadata }}ctx: ctx, metadata: metadata,{{ end }} },
 			{{- if .Payload.Ref }}
 				Payload: payload,
 			{{- end }}
@@ -164,6 +174,9 @@ func {{ .HandlerInit }}(
 			res, err := endpoint(ctx, v)
 		{{- end }}
 			if err != nil {
+				{{- if .Method.HasResponseMetadata }}
+				metadata.Close()
+				{{- end }}
 				lifecycle.HandlerFailed(err, false, encodeError, errhandler)
 				return
 			}
@@ -173,8 +186,16 @@ func {{ .HandlerInit }}(
 				return encodeResponse(ctx, w, {{ if and .Method.SkipResponseBodyEncodeDecode .Result.Ref }}o.Result{{ else }}res{{ end }})
 			}, encodeError, errhandler)
 		{{- else }}
+			{{- if .Method.HasResponseMetadata }}
+			lifecycle.Exchange().BeginFinal(loomhttp.FinalResult)
+			prepared, metadataError := metadata.Capture(ctx)
+			if metadataError != nil {
+				lifecycle.HandlerFailed(metadataError, false, encodeError, errhandler)
+				return
+			}
+			{{- end }}
 			lifecycle.EncodeResponse(func(ctx context.Context, w http.ResponseWriter) error {
-				return encodeResponse(ctx, w, res)
+				return encodeResponse(ctx, w, res{{ if .Method.HasResponseMetadata }}, prepared{{ end }})
 			}, encodeError, errhandler)
 		{{- end }}
 		}
@@ -228,7 +249,9 @@ func {{ .HandlerInit }}(
 		}
 		{{- end }}
 		stream := &{{ .SSE.StructName }}{
-			writer: loomhttp.NewSSEStreamWriter(w, ctx, loomtransport.TransportHTTP, writePolicy),
+			writer: loomhttp.NewSSEStreamWriter(w, ctx, loomtransport.TransportHTTP, writePolicy, loomhttp.WithSSEExchange(lifecycle.Exchange()), loomhttp.WithSSEHandshake(func(ctx context.Context) (loomhttp.SSEHandshake, error) {
+					{{ .SSE.ImplicitHandshake }}
+				})),
 		}
 		defer stream.writer.End()
 		v := &{{ .ServicePkgName }}.{{ .Method.ServerStream.EndpointStruct }}{
@@ -242,6 +265,7 @@ func {{ .HandlerInit }}(
 		data := &{{ .ServicePkgName }}.{{ .Method.RequestStruct }}{ {{ if .Payload.Ref }}Payload: payload, {{ end }}Body: r.Body }
 		res, err := endpoint(ctx, data)
 	{{- else if .Redirect }}
+		lifecycle.Exchange().BeginFinal(loomhttp.FinalRedirect)
 		http.Redirect(w, r, "{{ .Redirect.URL }}", {{ .Redirect.StatusCode }})
 	{{- else }}
 		res, err := endpoint(ctx, {{ if .Payload.Ref }}payload{{ else }}nil{{ end }})
@@ -266,6 +290,11 @@ func {{ .HandlerInit }}(
 				return
 			}
 		{{- end }}
+	{{- if and (isSSEEndpoint .) (not .HasMixedResults) }}
+		if err := stream.writer.FinalizeSuccess(ctx); err != nil {
+			lifecycle.HandlerFailed(err, stream.writer.ClaimFailure(), encodeError, errhandler)
+		}
+	{{- end }}
 	{{- if .Method.FileResponse }}
 		o := res.(*{{ .ServicePkgName }}.{{ .Method.FileResponseStruct }})
 		lifecycle.ServeFile(r, o.File, {{ with (index .Result.Responses 0) }}{{ if .ContentType }}{{ printf "%q" .ContentType }}{{ else }}""{{ end }}{{ else }}""{{ end }}, func(ctx context.Context, w http.ResponseWriter) error {
@@ -295,7 +324,21 @@ func {{ .HandlerInit }}(
 // interface and drops all events. It is used for mixed results endpoints in
 // unary (non-SSE) mode so service implementations can use the stream parameter
 // without nil checks.
-type discard{{ .Method.VarName }}ServerStream struct{}
+type discard{{ .Method.VarName }}ServerStream struct{
+	{{- if .Method.HasResponseMetadata }}
+	ctx context.Context
+	metadata *loomhttp.ResponseMetadata
+	{{- end }}
+}
+{{- if .Method.HasResponseMetadata }}
+
+// SetResponse prepares metadata without publishing or sealing the discarded stream.
+func (s *discard{{ .Method.VarName }}ServerStream) SetResponse(response {{ .SSE.HandshakeRef }}) error {
+	return s.metadata.Set(func() (loomhttp.SSEHandshake, error) {
+		return {{ .SSE.PrepareHandshake }}(s.ctx, response)
+	})
+}
+{{- end }}
 
 // {{ .SSE.SendName }} discards the event.
 func (s *discard{{ .Method.VarName }}ServerStream) {{ .SSE.SendName }}(v {{ .SSE.EventTypeRef }}) error {

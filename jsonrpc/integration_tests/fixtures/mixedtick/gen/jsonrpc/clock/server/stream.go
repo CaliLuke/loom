@@ -116,7 +116,7 @@ func (s *TickServerStream) mappedErrorResponse(ctx context.Context, id any, err 
 	errorResponse := loom.ResolveErrorResponse(err)
 	code := jsonrpc.InternalError
 	//nolint:errorlint // Response ownership is already resolved.
-	if serviceError, ok := errorResponse.Owner.(*loom.ServiceError); ok {
+	if serviceError := errorResponse.ServiceError; serviceError != nil {
 		code = jsonrpc.CodeForServiceError(serviceError)
 	}
 	return jsonrpc.MakeErrorResponse(id, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))

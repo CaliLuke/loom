@@ -40,19 +40,14 @@ func validateReconstruction(source, body *AttributeExpr, bindings []string, labe
 }
 
 func responseReconstructionBindings(response *HTTPResponseExpr) []string {
+	if response.bindings == nil {
+		response.captureBindings(nil)
+	}
 	var bindings []string
-	if response.Headers != nil {
-		if object := AsObject(response.Headers.Type); object != nil {
-			for _, field := range *object {
-				bindings = append(bindings, field.Name)
-			}
-		}
+	for _, binding := range response.bindings.bindings {
+		bindings = append(bindings, binding.sources...)
 	}
-	for _, cookie := range response.Cookies {
-		if !cookie.IsEmpty() {
-			bindings = append(bindings, cookie.AttributeName())
-		}
-	}
+
 	if response.TagBinding != nil {
 		bindings = append(bindings, response.TagBinding.Key)
 	}
@@ -88,7 +83,7 @@ func (r *HTTPResponseExpr) validateResultReconstruction(e *HTTPEndpointExpr, err
 	if ordered := e.OrderedResponses(); e.IsJSONRPC() && (len(ordered) == 0 || ordered[0] != r) {
 		return
 	}
-	source := e.MethodExpr.Result
+	source := r.responseSource(e.MethodExpr.Result)
 	if source == nil {
 		return
 	}
@@ -96,7 +91,7 @@ func (r *HTTPResponseExpr) validateResultReconstruction(e *HTTPEndpointExpr, err
 	bindings := responseReconstructionBindings(r)
 	result, viewed := source.Type.(*ResultTypeExpr)
 	if !viewed {
-		validateReconstruction(source, body, bindings, "result", r, errors)
+		r.validateResponseReconstruction(source, body, bindings, "result", errors)
 		return
 	}
 	for _, view := range result.Views {
@@ -108,6 +103,6 @@ func (r *HTTPResponseExpr) validateResultReconstruction(e *HTTPEndpointExpr, err
 			// The result/view owner reports malformed projections.
 			continue
 		}
-		validateReconstruction(projected.AttributeExpr, body, bindings, "result in view "+view.Name, r, errors)
+		r.validateResponseReconstruction(projected.AttributeExpr, body, bindings, "result in view "+view.Name, errors)
 	}
 }

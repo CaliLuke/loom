@@ -367,7 +367,7 @@ func streamMappedErrorCase(prefix string, item *httpcodegen.ErrorData) string {
 	parts := []string{fmt.Sprintf("\tcase %q:\n", item.Name)}
 	if response.EncodePlan == nil || !response.EncodePlan.HasBody {
 		return strings.Join(append(parts,
-			fmt.Sprintf("\t\t%s%d, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))\n", prefix, response.Code),
+			fmt.Sprintf("\t\t%s%d, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))\n", prefix, *response.JSONRPCCode),
 		), "")
 	}
 
@@ -378,14 +378,14 @@ func streamMappedErrorCase(prefix string, item *httpcodegen.ErrorData) string {
 		"\t\t//nolint:errorlint // Response ownership is already resolved.\n",
 		fmt.Sprintf("\t\t%s, ok := errorResponse.Owner.(%s)\n", source, item.Ref),
 		"\t\tif !ok {\n",
-		fmt.Sprintf("\t\t\t%s%d, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))\n", prefix, response.Code),
+		fmt.Sprintf("\t\t\t%s%d, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))\n", prefix, *response.JSONRPCCode),
 		"\t\t}\n",
 	)
 	if initialization != "" {
 		parts = append(parts, codegen.Indent(initialization+"\n", "\t\t"))
 	}
 	parts = append(parts,
-		fmt.Sprintf("\t\t%s%d, loom.ErrorSafeMessage(err), %s)\n", prefix, response.Code, data),
+		fmt.Sprintf("\t\t%s%d, loom.ErrorSafeMessage(err), %s)\n", prefix, *response.JSONRPCCode, data),
 	)
 	return strings.Join(parts, "")
 }
@@ -433,7 +433,7 @@ func writeStreamMappedError(g *jen.Group, item *httpcodegen.ErrorData, targetID 
 			jen.Id("s").Dot("sendError").Call(
 				jen.Id("ctx"),
 				targetID,
-				jen.Lit(response.Code),
+				jen.Lit(*response.JSONRPCCode),
 				jen.Id("loom").Dot("ErrorSafeMessage").Call(jen.Id("err")),
 				jen.Qual("github.com/CaliLuke/loom/jsonrpc", "NewErrorData").Call(jen.Id("err")),
 			),
@@ -456,7 +456,7 @@ func writeStreamMappedError(g *jen.Group, item *httpcodegen.ErrorData, targetID 
 		jen.Id("s").Dot("sendError").Call(
 			jen.Id("ctx"),
 			targetID,
-			jen.Lit(response.Code),
+			jen.Lit(*response.JSONRPCCode),
 			jen.Id("loom").Dot("ErrorSafeMessage").Call(jen.Id("err")),
 			data,
 		),

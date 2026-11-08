@@ -37,7 +37,7 @@ func renderFormFieldsEncode(body *TypeData, ordinary, styled []*FormFieldData, t
 			if field.Codec.Style == httpencoding.Content {
 				code.WriteString(renderFormContentUnionEncode(element, target))
 			} else {
-				code.WriteString(renderTextUnionEncode(element, target, "form"))
+				code.WriteString(renderTextUnionEncode(element, target, "form", ""))
 			}
 			code.WriteString("return nil\n}(); parameterError != nil {\nreturn \"\", parameterError\n}\n")
 			continue

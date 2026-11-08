@@ -14,6 +14,7 @@ func renderWebsocketUpgrade(endpoint *EndpointData, function string, recv bool, 
 	b.WriteString(codegen.Comment("Upgrade the HTTP connection to a websocket connection only once. Connection upgrade is done here so that authorization logic in the endpoint is executed before calling the actual service method which may call " + function + "()."))
 	b.WriteString("\n")
 	b.WriteString("\ts.once.Do(func() {\n")
+	b.WriteString("\t\tif exchange := loomhttp.ExchangeFromContext(s.r.Context()); exchange != nil {\n\t\t\texchange.BeginFinal(loomhttp.FinalUpgrade)\n\t\t}\n")
 	if endpoint.Method.ViewedResult != nil && function == "Send" && endpoint.Method.ViewedResult.ViewName == "" {
 		b.WriteString("\t\trespHdr := make(http.Header)\n")
 		b.WriteString("\t\trespHdr.Add(\"loom-view\", s.view)\n")

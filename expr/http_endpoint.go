@@ -77,6 +77,10 @@ type (
 		// Responses is the list of all the possible success HTTP
 		// responses.
 		Responses []*HTTPResponseExpr
+		// Informational lists independently typed interim response declarations.
+		Informational []*HTTPInformationalExpr
+		// NoSuccess declares an error-only operation with no success response.
+		NoSuccess bool
 		// HTTPErrors is the list of all the possible error HTTP
 		// responses.
 		HTTPErrors []*HTTPErrorExpr
@@ -147,10 +151,7 @@ func (e *HTTPEndpointExpr) EvalName() string {
 
 // IsJSONRPC returns true if the endpoint is a JSON-RPC endpoint.
 func (e *HTTPEndpointExpr) IsJSONRPC() bool {
-	if _, ok := e.Meta["jsonrpc"]; ok {
-		return true
-	}
-	_, ok := e.MethodExpr.Meta["jsonrpc"]
+	_, ok := e.Meta["jsonrpc"]
 	return ok
 }
 
@@ -194,8 +195,8 @@ func (e *HTTPEndpointExpr) Prepare() {
 	e.initTransportAttributes()
 	e.inheritTransportAttributes()
 	e.ensureRouteParams()
-	e.ensureDefaultResponse()
 	e.inheritSSE()
+	e.ensureDefaultResponse()
 	e.inheritHTTPErrors()
 	e.forceWebSocketRouteMethod()
 	e.prepareResponses()
@@ -261,7 +262,7 @@ func (r *RouteExpr) Validate() *eval.ValidationErrors {
 	if r.Method == "HEAD" && !r.Endpoint.FileResponse {
 		disallowBody := func(resp *HTTPResponseExpr) {
 			if httpResponseBody(r.Endpoint, resp).Type != Empty {
-				verr.Add(r, "HTTP status %d: Response body defined for HEAD method which does not allow response body.", resp.StatusCode)
+				verr.Add(r, "HTTP status %d: Response body defined for HEAD method which does not allow response body.", resp.Status.Code)
 			}
 		}
 		for _, resp := range r.Endpoint.Responses {

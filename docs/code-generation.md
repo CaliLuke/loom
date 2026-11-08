@@ -432,10 +432,41 @@ OpenAPI 3.2 Media Type `description` requires `--allow-lossy` because the Loom
 HTTP DSL has no media-level description. `prefixEncoding` remains a strict
 error.
 
-An operation must define exactly one primary successful response. The importer
-uses its single 2xx response when present. If no 2xx response exists, it uses a
-single 3xx response instead, so redirect-only operations import without
-inventing a 2xx response. Other responses remain method errors.
+Response keys may be exact codes, uppercase `1XX` through `5XX`, or `default`.
+The importer classifies them without inventing statuses:
+
+- Success responses are every `2XX`-class key (exact `2xx` codes and `2XX`).
+  If there are none, every `3XX`-class key succeeds, so redirect-only
+  operations import without an invented 2xx response. If neither exists,
+  `default` is the sole success. Every other final key is a method error.
+- An operation with errors and no success key renders `NoSuccessResponse()`.
+- A single exact success keeps its existing rendering. A class, a sole
+  `default` or several success keys use status mode: the result gains an
+  `http_status` `StatusField`. Several bodies become `status_200`,
+  `status_2xx`, `status_default` and similar branch members.
+- Class and `default` errors gain `http_status` and are named `Status4XX`,
+  `StatusDefault` and similar.
+- Exact 100, 102 through 199 and `1XX` become header-only `Informational`
+  declarations named `<Operation>Status100`, `<Operation>Status103` or
+  `<Operation>Status1XX`; `1XX`
+  gains `StatusField("http_status")`.
+
+The importer rejects lowercase or partial keys such as `2xx` or `20X`, invalid
+classes such as `6XX`, protocol-upgrade status `101`, informational responses
+with `content`, and
+a `responses` object with no response code.
+
+An OpenAPI 3.2 success response whose only media entry is `text/event-stream`
+with an `itemSchema` imports as `ServerSentEvents()`. The `itemSchema` must be
+an inline closed object that requires only `data`, a string with
+`contentMediaType: application/json` and a `contentSchema`. That
+`contentSchema` becomes the `StreamingResult`. Status and headers become a
+separate handshake type, with `http_status` in status mode. Several success
+responses must reference the same event schema with equal local constraints and
+examples. `itemSchema` in OpenAPI 3.0 or 3.1,
+extra media entries, a whole-body `schema`, examples, encodings or media
+extensions beside `itemSchema`, and other envelope shapes are rejected.
+Regenerate after re-importing.
 
 For a single non-JSON success response, the importer keeps the media type and
 schema as an OpenAPI-only body. It uses `FileResponse()` for a compatible

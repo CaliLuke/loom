@@ -155,7 +155,7 @@ func NewTickHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*ht
 				code := jsonrpc.InternalError
 				errorResponse := loom.ResolveErrorResponse(err)
 				// nolint:errorlint // Response ownership is already resolved.
-				if serviceError, ok := errorResponse.Owner.(*loom.ServiceError); ok {
+				if serviceError := errorResponse.ServiceError; serviceError != nil {
 					code = jsonrpc.CodeForServiceError(serviceError)
 				}
 				return strm.sendError(ctx, req.ID, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
@@ -217,7 +217,7 @@ func NewTockHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*ht
 				code := jsonrpc.InternalError
 				errorResponse := loom.ResolveErrorResponse(err)
 				// nolint:errorlint // Response ownership is already resolved.
-				if serviceError, ok := errorResponse.Owner.(*loom.ServiceError); ok {
+				if serviceError := errorResponse.ServiceError; serviceError != nil {
 					code = jsonrpc.CodeForServiceError(serviceError)
 				}
 				return strm.sendError(ctx, req.ID, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))

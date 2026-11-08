@@ -559,9 +559,15 @@ matrix. It distinguishes preserved, conditional, lossy, and rejected input.
 
 Path parameters retain their authored attribute names so route placeholders
 and `Param(...)` mappings stay identical, including snake_case names. Generated
-Go fields remain idiomatic. An operation uses its single 2xx response as the
-primary success, or a single 3xx when no 2xx exists, so redirect-only contracts
-do not need a synthetic 2xx.
+Go fields remain idiomatic. Import keeps exact, `1XX`-`5XX` and `default`
+response keys without inventing statuses. Its 2XX-class keys succeed; without
+them, its 3XX-class keys succeed, so redirect-only contracts need no synthetic
+2xx; otherwise `default` is the sole success. Other final keys are errors, and
+an error-only operation renders `NoSuccessResponse()`. Several or non-exact
+successes use status mode with an `http_status` field. Interim 100, 102-199 and
+`1XX` keys render as `Informational`. A 3.2 `text/event-stream` `itemSchema`
+event envelope imports as SSE with a separate handshake type. Re-import and
+regenerate to adopt these mappings.
 
 An unconstrained OpenAPI schema `{}` imports as `Any` in each schema
 location, including a named component. Regeneration preserves the empty schema.
@@ -1126,9 +1132,17 @@ together; these rules also cover JSON-RPC HTTP metadata, not gRPC metadata.
 
 ## HTTP Bodies and Parameters
 
-HTTP methods require one untagged application response. Use `Tag` on every
-additional response; multiple untagged declarations are rejected instead of
-silently ignored. Designed errors and FileResponse protocol statuses remain
+HTTP success responses select either by `Tag` (exact keys only, with exactly
+one untagged fallback) or by status. Several untagged success responses, or a
+`Status2XX`-`Status5XX`/`StatusFallback` key, require the same `StatusField`
+on every success branch: a required, non-nullable `Int` without a default. Set
+that field to choose the published status; a status outside the selected key's
+domain fails as a framework error before headers are written. Exact keys win
+over classes, then the fallback, regardless of declaration order. A key is
+either success or error, never both. Class or fallback errors need a custom
+error type with its own status field. Use `NoSuccessResponse()` for an
+error-only operation with an empty result. JSON-RPC rejects these selectors.
+Designed errors and FileResponse protocol statuses remain
 separate. Update ambiguous designs before regenerating. Tagged responses retain
 authored first-match priority; default placement never changes it. Regenerate
 servers to adopt this ordering correction. `Tag` names an existing String-kind
@@ -1137,6 +1151,19 @@ field or wire name is overridden. Absent and null fields do not match. Selected
 responses reconstruct the correctly typed value in generated clients. Regenerate
 clients and servers after upgrading to adopt typed Tag binding.
 
+- Declare interim responses with `Informational(name, status, Type, fn)` using
+  an exact 100 or 102-199 status, or `Status1XX` (which needs `StatusField`).
+  Exact 100 can be imported, exported and observed but cannot be sent; net/http
+  owns automatic `100 Continue`. Status 101 belongs to protocol upgrades. Send
+  the other interim values from the service with the generated HTTP
+  server function `Send<Method><Name>(ctx, value)` before returning, using the
+  request context. Handle its errors: `ErrInformationalClosed` after final work
+  starts, `ErrInformationalUnsupported` on HTTP/1.0, `ErrInformationalLimit`
+  after eight sends, or `*loomhttp.StatusViolationError` for invalid values.
+  Observe them on the client with `With<Method><Name>(ctx, fn)`. A callback's
+  returned error aborts the request; a nil callback disables that declaration,
+  and no callbacks means no tracing or budgets. See
+  [informational responses](../../../docs/http-guide.md#informational-responses).
 - A method may share its name with a type nested in its object or union body.
   Loom allocates distinct transport type names, including WebSocket bodies;
   a numeric suffix on a generated body type does not change schema names or
@@ -1769,6 +1796,33 @@ before an intentional direct mux route. The same source-comment form accepts
 infer conflicts from dynamic method or path expressions.
 
 ## Generated SSE Client Streams
+
+A separate typed HTTP handshake owns status, headers and cookies. Supply required
+metadata with the server stream's `SetResponse` before opening or sending; invalid
+metadata fails before a response is written. Setters fail after opening or
+termination. A zero-event SSE success still has a body-bearing handshake and
+cannot use 204 or 304. A single exact success publishes its literal status;
+several success keys or a class/fallback key require `SetResponse` to select
+one.
+
+The HTTP server stream's `Close` is successful completion: it publishes the
+handshake if the stream has not opened and returns any publication error, which
+the service should return. Never call `Close` as error cleanup; return the
+error instead. The generated handler's cleanup never publishes a response.
+Generated clients require a `text/event-stream` Content-Type (parameters
+allowed) and expose the decoded metadata through `Response()` even for zero
+events. Browser `EventSource` accepts only status 200, so browser-facing SSE
+APIs should declare exact `Response(StatusOK)`. Regenerate servers and clients
+to adopt these semantics.
+
+For typed mixed methods, regenerate the service and transport packages together.
+The unary service client returns `(result, metadata, error)`, while the stream's
+`Response()` returns that same metadata type. The unary `Result` remains whole;
+events use `StreamingResult`, with independent views. Do not copy handshake
+fields into the result or remove matching body members. Generic client
+interceptors receive the generated result-and-metadata carrier. Untyped methods
+keep their previous client return shape. See
+[status-selected responses](../../../docs/http-guide.md#status-selected-responses).
 
 Use the service client with either HTTP or JSON-RPC SSE. `Recv()` retains the
 opening context; `RecvWithContext(ctx)` supplies a per-operation context. Client

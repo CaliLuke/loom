@@ -46,17 +46,21 @@ func (d *SemanticData) Services() *ServicesData {
 // Each call returns detached records over the same captured occurrences. It
 // returns nil for a method from another design. No Go analysis is performed.
 func (d *SemanticData) Method(method *expr.MethodExpr) *MethodData {
-	if _, ok := d.values[serviceValueKey{method, "payload"}]; !ok {
+	if _, ok := d.values[serviceValueKey{method: method, role: "payload"}]; !ok {
 		return nil
 	}
 	result := &MethodData{}
-	result.PayloadValue = d.value(method, "payload")
-	result.ResultValue = d.value(method, "result")
-	result.StreamingPayloadValue = d.value(method, "streaming-payload")
-	result.StreamingResultValue = d.value(method, "streaming-result")
+	result.PayloadValue = d.value(serviceValueKey{method: method, role: "payload"})
+	result.ResultValue = d.value(serviceValueKey{method: method, role: "result"})
+	result.StreamingPayloadValue = d.value(serviceValueKey{method: method, role: "streaming-payload"})
+	result.StreamingResultValue = d.value(serviceValueKey{method: method, role: "streaming-result"})
 	result.ErrorValues = make(map[string]*ValueData, len(method.Errors))
 	for _, failure := range method.Errors {
-		result.ErrorValues[failure.Name] = d.value(method, "error:"+failure.Name)
+		result.ErrorValues[failure.Name] = d.value(serviceValueKey{method: method, role: "error:" + failure.Name})
+	}
+	result.HTTPMetadataValues = make(map[*expr.HTTPResponseExpr]*ValueData)
+	for _, carrier := range httpMetadataCarriers(d.root, method) {
+		result.HTTPMetadataValues[carrier.response] = d.value(serviceValueKey{method: method, role: carrier.role, response: carrier.response})
 	}
 	return result
 }
@@ -75,17 +79,20 @@ func (d *SemanticData) captureMethod(method *expr.MethodExpr) {
 		{"payload", method.Payload}, {"result", method.Result},
 		{"streaming-payload", method.StreamingPayload}, {"streaming-result", method.StreamingResult},
 	} {
-		d.values[serviceValueKey{method, pair.role}] = captureValueData(d.context, pair.attribute)
+		d.values[serviceValueKey{method: method, role: pair.role}] = captureValueData(d.context, pair.attribute)
 	}
 	for _, failure := range method.Errors {
-		d.values[serviceValueKey{method, "error:" + failure.Name}] = captureValueData(d.context, failure.AttributeExpr)
+		d.values[serviceValueKey{method: method, role: "error:" + failure.Name}] = captureValueData(d.context, failure.AttributeExpr)
+	}
+	for _, carrier := range httpMetadataCarriers(d.root, method) {
+		d.values[serviceValueKey{method: method, role: carrier.role, response: carrier.response}] = captureValueData(d.context, carrier.attribute)
 	}
 }
 
-func (d *SemanticData) value(method *expr.MethodExpr, role string) *ValueData {
-	value, ok := d.values[serviceValueKey{method, role}]
+func (d *SemanticData) value(key serviceValueKey) *ValueData {
+	value, ok := d.values[key]
 	if !ok {
-		panic(fmt.Errorf("service value %s.%s (%s) does not belong to this generation", method.Service.Name, method.Name, role))
+		panic(fmt.Errorf("service value %s.%s (%s) does not belong to this generation", key.method.Service.Name, key.method.Name, key.role))
 	}
 	if value == nil {
 		return nil

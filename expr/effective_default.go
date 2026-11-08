@@ -35,6 +35,7 @@ func selectEffectiveDefault(context *ValueContext, graph *valueOccurrenceGraph, 
 	copy := *layer.defaultValue
 	copy.raw = copyValueRaw(copy.raw)
 	node.constraints.defaultValue = &copy
+	node.constraints.defaultOwner = defaultValueOwner(layer.attribute)
 	node.constraints.defaultSource = constraintSource(context, graph, layer)
 	return nil
 }
@@ -61,4 +62,13 @@ func resolveEffectiveDefault(context *ValueContext, graph *valueOccurrenceGraph,
 			effectiveConstraintPrefix(node), layer.defaultValue.raw, effectiveLayerName(layer), effectiveLayerName(node))
 	}
 	return result, nil
+}
+
+// applyEffectiveDefault materializes the selected value and its authored owner
+// together. Lowering a constraint does not author a new default assignment.
+func applyEffectiveDefault(attribute *AttributeExpr, constraints EffectiveConstraints) {
+	if value, present := constraints.Default(); present {
+		attribute.DefaultValue = value
+		attribute.defaultOwner = constraints.defaultOwner
+	}
 }

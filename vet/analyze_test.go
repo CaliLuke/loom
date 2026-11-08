@@ -660,7 +660,7 @@ func httpError(name string, status int, meta expr.MetaExpr, remedy *expr.ErrorRe
 	return &expr.HTTPErrorExpr{
 		ErrorExpr: errorExpr,
 		Name:      name,
-		Response:  &expr.HTTPResponseExpr{StatusCode: status},
+		Response:  &expr.HTTPResponseExpr{Status: expr.HTTPStatusSelector{Code: status}},
 	}
 }
 

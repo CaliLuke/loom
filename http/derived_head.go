@@ -8,6 +8,7 @@ import (
 )
 
 type derivedHeadResponseWriter struct {
+	writer          http.ResponseWriter
 	header          http.Header
 	committedHeader http.Header
 	status          int
@@ -17,9 +18,11 @@ type derivedHeadResponseWriter struct {
 // DerivedHeadHandler adapts an ordinary unary GET handler to HEAD. It executes
 // the complete handler so headers, cookies, authentication, and application
 // effects stay aligned with GET, while counting and suppressing the body.
+// Non-upgrade informational responses are forwarded immediately with isolated
+// headers; the final response remains buffered until the handler returns.
 func DerivedHeadHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		writer := &derivedHeadResponseWriter{header: w.Header().Clone()}
+		writer := &derivedHeadResponseWriter{writer: w, header: w.Header().Clone()}
 		next.ServeHTTP(writer, r)
 		status := writer.status
 		if status == 0 {
@@ -45,10 +48,20 @@ func (w *derivedHeadResponseWriter) Header() http.Header {
 }
 
 func (w *derivedHeadResponseWriter) WriteHeader(status int) {
-	if status < http.StatusOK || w.status != 0 {
+	if w.status != 0 {
 		return
 	}
-	w.commit(status)
+	if status >= http.StatusContinue && status < http.StatusOK && status != http.StatusSwitchingProtocols {
+		header := w.writer.Header()
+		snapshot := header.Clone()
+		defer replaceHeaders(header, snapshot)
+		replaceHeaders(header, w.header)
+		w.writer.WriteHeader(status)
+		return
+	}
+	if status >= http.StatusOK {
+		w.commit(status)
+	}
 }
 
 func (w *derivedHeadResponseWriter) Write(body []byte) (int, error) {
@@ -87,10 +100,10 @@ func (w *derivedHeadResponseWriter) sniffContentType(body []byte) {
 	w.header.Set("Content-Type", http.DetectContentType(body))
 }
 
+// replaceHeaders replaces every map entry, including noncanonical keys.
+// source must be detached from destination; copied value slices stay detached.
 func replaceHeaders(destination, source http.Header) {
-	for key := range destination {
-		destination.Del(key)
-	}
+	clear(destination)
 	for key, values := range source {
 		destination[key] = append([]string(nil), values...)
 	}

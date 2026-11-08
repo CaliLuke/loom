@@ -8,6 +8,7 @@ import (
 	"mime"
 	"net/http"
 	"net/textproto"
+	"slices"
 	"strings"
 
 	"github.com/gorilla/websocket"
@@ -15,7 +16,8 @@ import (
 
 type (
 	// ResponseContractCaseKind identifies whether a generated response contract
-	// case describes a successful result or a service error.
+	// case describes a successful result, an informational response or a
+	// service error.
 	ResponseContractCaseKind string
 
 	// ResponseContractTransport identifies the wire protocol validated by a
@@ -28,12 +30,18 @@ type (
 	ResponseContractCase struct {
 		// ID is stable while the service response contract is unchanged.
 		ID string
-		// Kind identifies a successful result or service error response.
+		// Kind identifies a successful result, informational or service error
+		// response.
 		Kind ResponseContractCaseKind
 		// Transport identifies the response protocol.
 		Transport ResponseContractTransport
-		// StatusCode is the exact declared HTTP status code.
-		StatusCode int
+		// Selector is the declared status selector that owns this response. It
+		// describes the case; ValidateResponseContract does not consult it.
+		Selector StatusSelector
+		// Domain lists the HTTP statuses this case accepts, as resolved by the
+		// generator for Selector among the operation's declared selectors. An
+		// exact selector has its single status as the domain.
+		Domain []int
 		// ErrorName is the declared service error name. It is also the expected
 		// Loom-Error value unless ErrorNameFromStatus is true.
 		ErrorName string
@@ -144,6 +152,9 @@ const (
 	ResponseContractSuccess ResponseContractCaseKind = "success"
 	// ResponseContractError identifies an error response contract case.
 	ResponseContractError ResponseContractCaseKind = "error"
+	// ResponseContractInformational identifies an interim informational
+	// response contract case.
+	ResponseContractInformational ResponseContractCaseKind = "informational"
 	// ResponseContractHTTP identifies an ordinary HTTP response contract.
 	ResponseContractHTTP ResponseContractTransport = "http"
 	// ResponseContractSSE identifies a Server-Sent Events response contract.
@@ -153,15 +164,19 @@ const (
 )
 
 // ValidateResponseContract validates the transport-owned wire invariants in
-// contract against resp. Applications remain responsible for arranging the
-// service state and request that produce the response.
+// contract against resp. The response status must belong to contract.Domain.
+// Applications remain responsible for arranging the service state and request
+// that produce the response.
 func ValidateResponseContract(resp *http.Response, contract ResponseContractCase) error {
 	prefix := fmt.Sprintf("response contract %q", contract.ID)
 	if resp == nil {
 		return fmt.Errorf("%s: response is nil", prefix)
 	}
-	if resp.StatusCode != contract.StatusCode {
-		return fmt.Errorf("%s: status is %d, want %d", prefix, resp.StatusCode, contract.StatusCode)
+	if !slices.Contains(contract.Domain, resp.StatusCode) {
+		if len(contract.Domain) == 1 {
+			return fmt.Errorf("%s: status is %d, want %d", prefix, resp.StatusCode, contract.Domain[0])
+		}
+		return fmt.Errorf("%s: status is %d, want one of %v", prefix, resp.StatusCode, contract.Domain)
 	}
 	if err := validateResponseContractContentType(resp.Header, contract.ContentTypes); err != nil {
 		return fmt.Errorf("%s: %w", prefix, err)

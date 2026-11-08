@@ -1,7 +1,9 @@
 package ir
 
 import (
+	"fmt"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/internal/representation"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 )
 
@@ -57,8 +59,21 @@ func (a *Analyzer) acquireAsyncPreparedBaseline(
 	defer func() {
 		a.suppressExamples, a.asyncAcquisition = prior, priorAcquisition
 	}()
+	if target == nil {
+		var err error
+		target, err = representation.PrepareStandaloneValues(attr, nil, false)
+		if err != nil {
+			if a.err == nil {
+				a.err = fmt.Errorf("%s: prepare async schema annotations: %w", context, err)
+			}
+			return &asyncSchema{attribute: attr, sampler: sampler, context: context}
+		}
+	}
+	byteProjectionIdentity(attr, plan)
+	schema := a.analyzePreparedSchemaPositions(attr, context, target, plan)
+	a.occurrences = append(a.occurrences, schemaOccurrenceAnalysis{schema, a})
 	return &asyncSchema{
-		schema: a.analyzeOccurrence(attr, context, plan), attribute: attr, sampler: sampler,
+		schema: schema, attribute: attr, sampler: sampler,
 		context: context, target: target, constructions: a.constructions,
 	}
 }

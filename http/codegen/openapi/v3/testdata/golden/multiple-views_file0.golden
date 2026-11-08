@@ -20,7 +20,7 @@
         "type": "object"
       },
       "TestEndpointTinyResponseBodyTiny": {
-        "description": "TestEndpointTinyResponseBody result type (tiny view)",
+        "description": "Result result type (tiny view)",
         "example": {
           "string": ""
         },

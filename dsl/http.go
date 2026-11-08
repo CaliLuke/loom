@@ -8,6 +8,23 @@ import (
 )
 
 const (
+	// Status1XX selects informational statuses except the 101 upgrade.
+	Status1XX = expr.Status1XX
+	// Status2XX selects final successful statuses.
+	Status2XX = expr.Status2XX
+	// Status3XX selects final redirection statuses.
+	Status3XX = expr.Status3XX
+	// Status4XX selects final client error statuses.
+	Status4XX = expr.Status4XX
+	// Status5XX selects final server error statuses.
+	Status5XX = expr.Status5XX
+	// StatusFallback selects otherwise unclaimed final statuses.
+	StatusFallback = expr.StatusFallback
+	// StatusEarlyHints is the informational Early Hints status.
+	StatusEarlyHints = 103
+)
+
+const (
 	StatusContinue           = expr.StatusContinue
 	StatusSwitchingProtocols = expr.StatusSwitchingProtocols
 	StatusProcessing         = expr.StatusProcessing

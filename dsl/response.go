@@ -12,8 +12,9 @@ import (
 // While a service method may only define a single result type, Response may
 // appear multiple times to define multiple success HTTP responses. In this case
 // the Tag expression makes it possible to identify a result type attribute and
-// a corresponding string value used to select the proper success response (each
-// success response is associated with a different tag value). JSON-RPC and
+// a corresponding string value used to select the proper success response.
+// Without Tags, multiple HTTP success responses select by a shared StatusField.
+// HTTP status classes and StatusFallback also require StatusField. JSON-RPC and
 // gRPC responses may only define one success response.
 //
 // Response may appear in a service expression to define error responses common
@@ -22,7 +23,13 @@ import (
 // cases Response must appear in the transport specific DSL (i.e. in a HTTP,
 // JSON-RPC or gRPC subexpression).
 //
-// Response accepts one to three arguments. Success response accepts a status
+// Response accepts a selector and an optional mapping callback. HTTP SSE may
+// also pass a handshake type between the selector and callback, separate from
+// StreamingResult event values. Other transports do not accept handshake types.
+// HTTP selectors are exact status integers, Status2XX through Status5XX, or
+// StatusFallback. Use Informational for interim statuses.
+//
+// Success response accepts a status
 // code as first argument. If the first argument is a status code then a
 // function may be given as the second argument. This function may provide a
 // description and describes how to map the result type attributes to transport
@@ -131,7 +138,9 @@ func Response(val any, args ...any) {
 			appendHTTPOrJSONRPCError(name, true, val, args, t, &t.HTTPErrors)
 			return
 		}
-		t.Responses = append(t.Responses, httpEndpointResponse(t, val, args...))
+		if response := httpEndpointResponse(t, val, args...); response != nil {
+			t.Responses = append(t.Responses, response)
+		}
 	case *expr.GRPCEndpointExpr:
 		if ok {
 			appendGRPCError(name, true, val, args, t, &t.GRPCErrors)
@@ -151,7 +160,11 @@ func Response(val any, args ...any) {
 func Code(code int) {
 	switch t := eval.Current().(type) {
 	case *expr.HTTPResponseExpr:
-		t.StatusCode = code
+		if t.JSONRPCError != nil {
+			t.JSONRPCError.Code = code
+		} else {
+			t.Status = expr.HTTPStatusSelector{Code: code}
+		}
 	case *expr.GRPCResponseExpr:
 		t.StatusCode = code
 	default:
@@ -232,20 +245,23 @@ func responseNameArgs(val any, args []any) (string, bool, any, []any) {
 }
 
 func httpEndpointResponse(parent *expr.HTTPEndpointExpr, val any, args ...any) *expr.HTTPResponseExpr {
-	code, fn := parseResponseArgs(val, args...)
-	if code == 0 {
-		code = expr.StatusOK
+	if parent.IsJSONRPC() {
+		if _, class := val.(expr.HTTPStatusClass); class {
+			eval.ReportError("JSON-RPC responses do not accept HTTP status classes")
+			return &expr.HTTPResponseExpr{Status: expr.HTTPStatusSelector{Code: expr.StatusOK}, Parent: parent}
+		}
 	}
-	resp := &expr.HTTPResponseExpr{
-		StatusCode: code,
-		Parent:     parent,
+	status, handshake, fn, ok := parseHTTPResponseArgs(val, expr.StatusOK, true, args...)
+	if !ok {
+		return nil
 	}
+	resp := &expr.HTTPResponseExpr{Status: status, Parent: parent, Handshake: handshake}
 	executeResponseDSL(fn, resp)
 	return resp
 }
 
 func grpcEndpointResponse(parent *expr.GRPCEndpointExpr, val any, args ...any) *expr.GRPCResponseExpr {
-	code, fn := parseResponseArgs(val, args...)
+	code, fn, _ := parseResponseArgs(val, args...)
 	resp := &expr.GRPCResponseExpr{
 		StatusCode: code,
 		Parent:     parent,
@@ -266,7 +282,7 @@ func grpcError(n string, p eval.Expression, args ...any) *expr.GRPCErrorExpr {
 	)
 	val = args[0]
 	args = args[1:]
-	code, fn = parseResponseArgs(val, args...)
+	code, fn, _ = parseResponseArgs(val, args...)
 	if code == 0 {
 		code = CodeUnknown
 	}
@@ -281,9 +297,10 @@ func grpcError(n string, p eval.Expression, args ...any) *expr.GRPCErrorExpr {
 	}
 }
 
-func parseResponseArgs(val any, args ...any) (code int, fn func()) {
+func parseResponseArgs(val any, args ...any) (code int, fn func(), supplied bool) {
 	switch t := val.(type) {
 	case int:
+		supplied = true
 		code = t
 		if len(args) > 1 {
 			eval.TooManyArgError()
@@ -322,14 +339,24 @@ func httpOrJSONRPCError(n string, p eval.Expression, args ...any) *expr.HTTPErro
 	)
 	val = args[0]
 	args = args[1:]
-	code, fn = parseResponseArgs(val, args...)
-	if code == 0 {
-		code = expr.StatusBadRequest
-	}
-	resp := &expr.HTTPResponseExpr{
-		StatusCode: code,
-		Parent:     p,
-		ErrorName:  n,
+	resp := &expr.HTTPResponseExpr{Parent: p, ErrorName: n}
+	if expr.IsJSONRPCScope(p) {
+		if _, class := val.(expr.HTTPStatusClass); class {
+			eval.ReportError("JSON-RPC error responses do not accept HTTP status classes")
+			return nil
+		}
+		var supplied bool
+		code, fn, supplied = parseResponseArgs(val, args...)
+		if !supplied {
+			code = expr.RPCInternalError
+		}
+		resp.JSONRPCError = &expr.JSONRPCErrorMapping{Code: code}
+	} else {
+		var ok bool
+		resp.Status, _, fn, ok = parseHTTPResponseArgs(val, expr.StatusBadRequest, false, args...)
+		if !ok {
+			return nil
+		}
 	}
 	executeResponseDSL(fn, resp)
 	return &expr.HTTPErrorExpr{
@@ -341,5 +368,70 @@ func httpOrJSONRPCError(n string, p eval.Expression, args ...any) *expr.HTTPErro
 func executeResponseDSL(fn func(), target eval.Expression) {
 	if fn != nil {
 		eval.Execute(fn, target)
+	}
+}
+
+func parseHTTPResponseArgs(
+	val any,
+	defaultCode int,
+	allowValue bool,
+	args ...any,
+) (expr.HTTPStatusSelector, *expr.AttributeExpr, func(), bool) {
+	status := expr.HTTPStatusSelector{Code: defaultCode}
+	maximum := 1
+	if allowValue {
+		maximum = 2
+	}
+	if len(args) > maximum {
+		eval.TooManyArgError()
+		return status, nil, nil, false
+	}
+	switch v := val.(type) {
+	case int:
+		status = expr.HTTPStatusSelector{Code: v}
+	case expr.HTTPStatusClass:
+		status = expr.HTTPStatusSelector{Class: v}
+	case func():
+		if len(args) != 0 {
+			eval.TooManyArgError()
+			return status, nil, nil, false
+		}
+		return status, nil, v, true
+	default:
+		eval.InvalidArgError("HTTP status code, class or function", val)
+		return status, nil, nil, false
+	}
+	if len(args) == 0 {
+		return status, nil, nil, true
+	}
+	switch v := args[0].(type) {
+	case func():
+		if len(args) != 1 {
+			eval.TooManyArgError()
+			return status, nil, nil, false
+		}
+		return status, nil, v, true
+	case expr.DataType:
+		if !allowValue {
+			eval.ReportError("typed handshake is only valid on an SSE success Response")
+			return status, nil, nil, false
+		}
+		var fn func()
+		if len(args) == 2 {
+			var ok bool
+			fn, ok = args[1].(func())
+			if !ok {
+				eval.InvalidArgError("function", args[1])
+				return status, nil, nil, false
+			}
+		}
+		return status, &expr.AttributeExpr{Type: v}, fn, true
+	default:
+		expected := "function"
+		if allowValue {
+			expected = "handshake type or function"
+		}
+		eval.InvalidArgError(expected, args[0])
+		return status, nil, nil, false
 	}
 }

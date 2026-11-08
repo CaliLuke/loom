@@ -324,6 +324,10 @@ func buildStreamRecvMethods(group *jen.Group, stream *StreamData) {
 }
 
 func buildOptionalStreamMethods(group *jen.Group, stream *StreamData) {
+	if stream.HandshakeRef != "" {
+		groupDoc(group, "Response returns the validated response metadata received when the stream opened.")
+		group.Id("Response").Params().Add(codegen.TypeRef(stream.HandshakeRef))
+	}
 	if stream.MustClose {
 		groupDoc(group, "Close closes the stream.")
 		group.Id("Close").Params().Error()

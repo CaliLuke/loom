@@ -1,6 +1,6 @@
 func decodeDivideError(decoder func(*http.Response) loomhttp.Decoder, resp *http.Response, wire *jsonrpc.RawErrorResponse) error {
 	switch wire.Code {
-	case jsonrpc.InternalError:
+	case -32603:
 		return jsonrpc.DecodeErrorResponse("calc", "divide", wire, resp, []jsonrpc.ErrorCandidate{{Name: "timeout", Decode: func(resp *http.Response) (error, error) {
 			var (
 				body DivideTimeoutResponseBody
@@ -16,7 +16,7 @@ func decodeDivideError(decoder func(*http.Response) loomhttp.Decoder, resp *http
 			}
 			return NewDivideTimeout(&body), nil
 		}}})
-	case jsonrpc.ServerError:
+	case -32000:
 		return jsonrpc.DecodeErrorResponse("calc", "divide", wire, resp, []jsonrpc.ErrorCandidate{{Name: "insufficient_funds", Decode: func(resp *http.Response) (error, error) {
 			var (
 				body DivideInsufficientFundsResponseBody

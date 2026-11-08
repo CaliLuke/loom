@@ -194,6 +194,10 @@ consumer validation.
   identities before inferred components and reserves their names. Versioned
   serializers preserve absent versus explicitly empty reference annotations.
   Keep the reusable-reference model and cross-kind round-trip tests aligned.
+  Schema boolean annotation emission and DSL block selection share
+  `Schema.hasBooleanAnnotation`: authored false remains local metadata, while
+  absence does not override a contributor. Keep the importer annotation-presence
+  model and compiled native declaration ownership tests aligned.
 
 
 - `expr.AttributeExpr.ObjectOpenness` is the only reader of authored object
@@ -1805,6 +1809,15 @@ filter, and serialization rules belong here.
 - Keep method-level error identities collision-safe across operations. Two
   responses with the same HTTP status must not share a generated error type
   when their schemas belong to different operation contracts.
+- `classifyOperationResponses` (`internal/openapiimport/plan_responses.go`) is the
+  one operation response plan. It parses keys with `expr.ParseOpenAPIStatusKey`
+  and assigns success, error, informational, SSE-handshake and body-mode roles
+  before name allocation. Planning, naming and rendering consume that plan; never
+  reclassify in a renderer. Exact-200 file ownership excludes every class key.
+  `analyzer.sseResponse` alone consumes the OpenAPI 3.2 `itemSchema` event
+  envelope. Only its `contentSchema` enters ordinary schema analysis. Generic
+  admission keeps rejecting content keywords elsewhere. The grammar ledger records
+  `Codes`/`Default` and `ItemSchema` as conditional.
 - For a newly supported import construct, cover analysis, rendered source, DSL
   evaluation, and regenerated contract shape. Keep unsupported variants as
   source-specific diagnostics.
@@ -1857,12 +1870,58 @@ filter, and serialization rules belong here.
   model and generated wire tests cover representation and member availability.
 
 - `expr.HTTPEndpointExpr.validateResponses` owns the unique untagged application
-  response requirement. Generators must not discard ambiguous authored responses;
+  response requirement in Tag mode. Generators must not discard ambiguous authored responses;
   transport and OpenAPI analysis consume the same validated expression set.
   `transportir.buildResponse` stably places tagged alternatives before the
   default; renderers consume that order without reordering or swapping entries.
   The [response-order model](../../../http/codegen/internal/transportir/tla/response_order/README.md)
   checks priority preservation and selection; generated wire tests check Go.
+
+- `expr.HTTPStatusSelector` is the one status selector owner:
+  `HTTPResponseExpr.Status` has no parallel concrete status field.
+  `ParseOpenAPIStatusKey`, `OpenAPIKey`, phases, final and informational
+  selection, and runtime domains live in `expr/http_status_selector.go`.
+  `http/status_selector.go` is the dependency-neutral runtime copy (`StatusSelector`,
+  `SelectFinal`, `SelectInformational`, `FinalStatusDomain`, `CheckFinalStatus`)
+  used by generated code and `ResponseContractCase.Selector`/`Domain`;
+  `TestStatusSelectorMatchesExpr` keeps them equal. Never reimplement precedence
+  in a generator, importer or exporter.
+- `HTTPEndpointExpr.validateResponseSelection` owns key ownership, Tag/status/
+  error-only mode, `StatusField` admission (source, competing mappings, views,
+  domain intersection), SSE handshake carrier identity, `NoSuccessResponse` and
+  `Informational` rules. The status location belongs to the response-owned
+  binding plan, never the request `ensureWireBindings` plan. Constructors assign
+  the status through the shared constructor contract, after body, header and
+  cookie inputs and before validation. A class or fallback built-in Problem error needs
+  real native status storage; `ProblemResponse.Status` never qualifies.
+- `http.ExchangeWriter` is the per-request interim/final owner, obtained from
+  `HandlerLifecycle` or `ExchangeFromContext`. `Send` snapshots, replaces and
+  restores the header map under its mutex. Every final start calls
+  `BeginFinal(FinalKind)` before reading or preparing final headers: result,
+  error, SSE open, upgrade, file, raw and redirect. `CaptureResponse` remains the
+  physical-commit owner. Generated `Send<Method><Name>` emitters validate the
+  declared domain and headers, then call `Send`; they add no second budget.
+- `http.ObserveInformational` is the per-`Do` client admission owner. The
+  generated request path builds the full declared observer slice from context
+  options and calls it once per `Do`; it installs no hook when every callback is
+  nil. Budgets reset at `GotFirstResponseByte` only. The first Loom error is
+  stored before cancellation and never cleared. The golang/go#76669
+  cancellation workaround is removed when
+  `TestHTTPTraceComposeDiscardsNewHookError` fails on a toolchain bump.
+- `SSEStreamWriter` owns SSE terminal state and handshake publication. Generated
+  `SetResponse` calls `SetHandshake`; the shared `ResponseMetadata` owner seals
+  metadata for SSE open and for the unary discard adapter of typed mixed methods.
+  `FinalizeSuccess` is successful publication, used by generated nil returns and
+  by `Close` with the request context. `Suppress` is the JSON-RPC notification
+  path. `End` stays cleanup-only and panic-preserving. `ClaimFailure` stays the
+  failure transition. Wrappers hold no terminal state. JSON event decoding goes
+  through `SSEEventResponse`; generated SSE clients select the final key, then
+  require the `mime.ParseMediaType` essence `text/event-stream` before stream
+  construction.
+- Typed mixed `Result`+`StreamingResult` methods return one client carrier,
+  `<Method>ResponseData{Result, Metadata}`, through the shared client-return and
+  interceptor owners. JSON-RPC and gRPC keep their admission rules; no transport
+  fabricates HTTP metadata.
 
 - Length diagnostics receive only field identity, actual length, bound and
   comparison direction. `pkg.InvalidLengthError` owns their diagnostic contract;

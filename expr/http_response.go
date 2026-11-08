@@ -2,6 +2,7 @@ package expr
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/CaliLuke/loom/eval"
@@ -83,21 +84,37 @@ const (
 )
 
 type (
+	// JSONRPCErrorMapping retains the numeric code of a named JSON-RPC error mapping.
+	JSONRPCErrorMapping struct {
+		// Code is the authored JSON-RPC error number, including zero.
+		Code int
+	}
+
 	// HTTPResponseExpr defines a HTTP response including its status code,
 	// headers and result type.
 	HTTPResponseExpr struct {
-		// HTTP status
-		StatusCode int
+		// Status selects the HTTP response independently from JSON-RPC error codes.
+		Status HTTPStatusSelector
+		// StatusField is the native Int member carrying the response status.
+		StatusField string
+		// Handshake is the typed SSE opening value, separate from event values.
+		Handshake *AttributeExpr
+		// JSONRPCError is present only for a named JSON-RPC error. Status must
+		// be unset when this record is present, including when its Code is zero.
+		JSONRPCError *JSONRPCErrorMapping
 		// Response description
 		Description string
 		// Headers describe the HTTP response headers.
 		Headers *MappedAttributeExpr
-		// wireBindings retains the validated response mapping operations.
-		wireBindings *httpWireBindingPlan
+		// bindings retains this response occurrence's captured transport plan.
+		bindings *httpResponseBindingPlan
 		// Cookies describe the HTTP response cookies.
 		Cookies []*HTTPResponseCookieExpr
 		// Response body if any
 		Body *AttributeExpr
+		// UnaryBody is the finalized whole Result body of a typed mixed response.
+		// It is independent of Handshake metadata and the StreamingResult event.
+		UnaryBody *AttributeExpr
 		// MediaTypes maps response media contracts to branches of the selected body union.
 		MediaTypes []*HTTPMediaTypeExpr
 		// OpenAPIBody describes a documentation-only response body used by
@@ -151,33 +168,45 @@ func (r *HTTPResponseExpr) Prepare() {
 // and the result type definition if any is valid.
 func (r *HTTPResponseExpr) Validate(e *HTTPEndpointExpr) *eval.ValidationErrors {
 	verr := new(eval.ValidationErrors)
+	r.validateProtocol(false, verr)
 	r.validateWireBindings(verr)
-	r.validateTag(e.MethodExpr.Result, verr)
-	resultType := newHTTPResponseResultType(e)
+	r.validateTag(r.responseSource(e.MethodExpr.Result), verr)
+	resultType := newHTTPResponseResultType(r.responseSource(e.MethodExpr.Result))
 
 	r.validateStatusAndBody(e, verr)
 	r.validateTextContentType(e, verr)
 	r.validateHeadersAndCookies(e, resultType, verr)
-	body, _ := responseBodySource(e.MethodExpr.Result, r)
+	body, _ := responseBodySource(r.responseSource(e.MethodExpr.Result), r)
 	validateBodyParameterMetadata(body, "body", r, verr, make(map[*AttributeExpr]bool))
 	r.validateBodyAndLinks(e, resultType, verr)
 	r.validateResultReconstruction(e, verr)
-	r.validateMediaTypes(e, e.MethodExpr.Result, verr)
+	r.validateMediaTypes(e, r.responseSource(e.MethodExpr.Result), verr)
 	return verr
 }
 
 func (r *HTTPResponseExpr) validateStatusAndBody(e *HTTPEndpointExpr, verr *eval.ValidationErrors) {
-	if r.StatusCode == 0 {
-		verr.Add(r, "HTTP response status not defined")
+	status, valid := r.Status.Exact()
+	if !valid || bodyAllowedForStatus(status) {
 		return
 	}
-	if bodyAllowedForStatus(r.StatusCode) || e.MethodExpr.IsStreaming() {
+	// Non-SSE streams retain their transport-owned upgrade/envelope contract.
+	if e.MethodExpr.IsStreaming() && (e.SSE == nil || e.IsJSONRPC()) {
 		return
 	}
-	ep, ok := r.Parent.(*HTTPEndpointExpr)
-	if ok && httpResponseBody(ep, r).Type != Empty {
-		verr.Add(r, "Response body defined for status code %d which does not allow response body.", r.StatusCode)
+	if r.hasWireBody(e, r.responseSource(e.MethodExpr.Result)) {
+		verr.Add(r, "Response body defined for status code %d which does not allow response body.", r.Status.Code)
 	}
+}
+
+// hasWireBody classifies the response occurrence's wire payload independently
+// from metadata reconstruction. Every successful HTTP SSE opening is body-bearing,
+// even when no event is sent. Errors on that endpoint retain their own body.
+func (r *HTTPResponseExpr) hasWireBody(e *HTTPEndpointExpr, source *AttributeExpr) bool {
+	if e.SSE != nil && !e.IsJSONRPC() && slices.Contains(e.Responses, r) {
+		return true
+	}
+	body, _ := responseBodySource(source, r)
+	return body != nil && body.Type != Empty
 }
 
 func (r *HTTPResponseExpr) validateTextContentType(e *HTTPEndpointExpr, verr *eval.ValidationErrors) {
@@ -187,7 +216,7 @@ func (r *HTTPResponseExpr) validateTextContentType(e *HTTPEndpointExpr, verr *ev
 	if r.OpenAPIBody != nil && r.OpenAPIBody.Type != String && r.OpenAPIBody.Type != Bytes {
 		verr.Add(r, "Result type must be String or Bytes when ContentType is '%s'", r.ContentType)
 	}
-	if r.OpenAPIBody == nil && e.MethodExpr.Result.Type != nil && e.MethodExpr.Result.Type != String && e.MethodExpr.Result.Type != Bytes && r.Body == nil {
+	if r.OpenAPIBody == nil && r.responseSource(e.MethodExpr.Result).Type != nil && r.responseSource(e.MethodExpr.Result).Type != String && r.responseSource(e.MethodExpr.Result).Type != Bytes && r.Body == nil {
 		verr.Add(r, "Result type must be String or Bytes when ContentType is '%s'", r.ContentType)
 	}
 	if r.Body != nil && r.Body.Type != String && r.Body.Type != Bytes {
@@ -196,13 +225,11 @@ func (r *HTTPResponseExpr) validateTextContentType(e *HTTPEndpointExpr, verr *ev
 }
 
 func (r *HTTPResponseExpr) validateHeadersAndCookies(e *HTTPEndpointExpr, resultType *httpResponseResultType, verr *eval.ValidationErrors) {
-	if !r.Headers.IsEmpty() {
-		r.validateHeaders(e, resultType, verr)
-	}
+	r.validateHeaders(e, resultType, verr)
 	if len(r.Cookies) > 0 {
 		r.validateCookieSecurity(verr)
 		r.validateCookies(
-			e.MethodExpr.Result,
+			r.responseSource(e.MethodExpr.Result),
 			resultType.AttributeType,
 			"result type",
 			resultType.InView,
@@ -232,13 +259,16 @@ func (r *HTTPResponseExpr) validateCookieSecurity(verr *eval.ValidationErrors) {
 }
 
 func (r *HTTPResponseExpr) validateHeaders(e *HTTPEndpointExpr, resultType *httpResponseResultType, verr *eval.ValidationErrors) {
-	validateHeaderCollections(r.Headers, e.MethodExpr.Result, r, verr)
-	validateResponseHeaderCodecs(r.Headers, e.MethodExpr.Result, r, verr)
+	if r.Headers.IsEmpty() {
+		return
+	}
+	validateHeaderCollections(r.Headers, r.responseSource(e.MethodExpr.Result), r, verr)
+	validateResponseHeaderCodecs(r.Headers, r.responseSource(e.MethodExpr.Result), r, verr)
 	verr.Merge(r.Headers.Validate("HTTP response headers", r))
 	switch {
-	case isEmpty(e.MethodExpr.Result):
+	case isEmpty(r.responseSource(e.MethodExpr.Result)):
 		verr.Add(r, "response defines headers but result is empty")
-	case IsObject(e.MethodExpr.Result.Type):
+	case IsObject(r.responseSource(e.MethodExpr.Result).Type):
 		mobj := AsObject(r.Headers.Type)
 		for _, header := range *mobj {
 			t := resultType.AttributeType(header.Name)
@@ -359,15 +389,15 @@ type httpResponseResultType struct {
 	InView        string
 }
 
-func newHTTPResponseResultType(e *HTTPEndpointExpr) *httpResponseResultType {
-	rt, isrt := e.MethodExpr.Result.Type.(*ResultTypeExpr)
+func newHTTPResponseResultType(source *AttributeExpr) *httpResponseResultType {
+	rt, isrt := source.Type.(*ResultTypeExpr)
 	resultType := &httpResponseResultType{}
 	resultType.AttributeType = func(name string) DataType {
-		if !IsObject(e.MethodExpr.Result.Type) {
+		if !IsObject(source.Type) {
 			return nil
 		}
 		if isrt {
-			if view, ok := e.MethodExpr.Result.Meta.Last(ViewMetaKey); ok {
+			if view, ok := source.Meta.Last(ViewMetaKey); ok {
 				v := rt.View(view)
 				if v == nil {
 					return nil
@@ -384,7 +414,7 @@ func newHTTPResponseResultType(e *HTTPEndpointExpr) *httpResponseResultType {
 				}
 			}
 		}
-		_, att := e.MethodExpr.Result.FindAttribute(name)
+		_, att := source.FindAttribute(name)
 		if att == nil || att.Type == nil {
 			return nil
 		}
@@ -511,7 +541,8 @@ func ensureValidation(att *AttributeExpr) *ValidationExpr {
 // Dup creates a copy of the response expression.
 func (r *HTTPResponseExpr) Dup() *HTTPResponseExpr {
 	res := HTTPResponseExpr{
-		StatusCode:          r.StatusCode,
+		Status:              r.Status,
+		StatusField:         r.StatusField,
 		Description:         r.Description,
 		ContentType:         r.ContentType,
 		Parent:              r.Parent,
@@ -519,6 +550,13 @@ func (r *HTTPResponseExpr) Dup() *HTTPResponseExpr {
 		ErrorNameFromStatus: r.ErrorNameFromStatus,
 		StatusErrorName:     r.StatusErrorName,
 		Meta:                r.Meta,
+	}
+	if r.Handshake != nil {
+		res.Handshake = DupAtt(r.Handshake)
+	}
+	if r.JSONRPCError != nil {
+		copy := *r.JSONRPCError
+		res.JSONRPCError = &copy
 	}
 	if len(r.MediaTypes) > 0 {
 		res.MediaTypes = make([]*HTTPMediaTypeExpr, len(r.MediaTypes))
@@ -531,6 +569,9 @@ func (r *HTTPResponseExpr) Dup() *HTTPResponseExpr {
 	}
 	if r.Body != nil {
 		res.Body = DupAtt(r.Body)
+	}
+	if r.UnaryBody != nil {
+		res.UnaryBody = DupAtt(r.UnaryBody)
 	}
 	if r.OpenAPIBody != nil {
 		res.OpenAPIBody = DupAtt(r.OpenAPIBody)

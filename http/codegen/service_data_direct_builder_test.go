@@ -374,15 +374,16 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 		require.NotEmpty(t, endpointIR.Response.ErrorResponses)
 
 		errorIR := endpointIR.Response.ErrorResponses[0]
+		require.True(t, errorIR.Selector.IsExact())
 		errors := services.buildErrorsDataFromIR(endpointIR, svcData)
 		require.Len(t, errors, 1)
 		require.Len(t, errors[0].Errors, 1)
 
 		errResp := errors[0].Errors[0].Response
 		require.NotNil(t, errResp)
-		require.Equal(t, statusCodeToHTTPConst(errorIR.StatusCode), errors[0].StatusCode)
-		require.Equal(t, statusCodeToHTTPConst(errorIR.StatusCode), errResp.StatusCode)
-		require.Equal(t, errorIR.StatusCode, errResp.Code)
+		require.Equal(t, statusCodeToHTTPConst(errorIR.Selector.Code), errors[0].Errors[0].Response.LiteralStatus())
+		require.Equal(t, statusCodeToHTTPConst(errorIR.Selector.Code), errResp.LiteralStatus())
+		require.Equal(t, errorIR.Selector.Code, errResp.LiteralCode())
 		require.Equal(t, errorIR.Headers[0].HTTPName, errResp.Headers[0].HTTPName)
 		require.Equal(t, errorIR.Cookies[0].HTTPName, errResp.Cookies[0].HTTPName)
 		require.NotNil(t, errResp.ClientBody)
@@ -842,4 +843,91 @@ func mixedTransportServiceDataDSL() {
 			})
 		})
 	})
+}
+
+func TestDualTransportErrorProjection(t *testing.T) {
+	root := RunHTTPDSL(t, func() {
+		failure := Type("DualFailure", func() {
+			ErrorName("name", String)
+			Attribute("message", String)
+			Required("name")
+		})
+		Service("dual", func() {
+			Error("boom", failure)
+			JSONRPC(func() {
+				POST("/rpc")
+			})
+			Method("read", func() {
+				Result(String)
+				HTTP(func() {
+					GET("/read")
+					Response("boom", 403, func() {
+						Header("message:X-Message")
+					})
+				})
+				JSONRPC(func() {
+					Response("boom", 4403)
+				})
+			})
+		})
+	})
+	httpExpr := root.API.HTTP.Service("dual").Endpoint("read")
+	rpcExpr := root.API.JSONRPC.Service("dual").Endpoint("read")
+	httpIR := transportir.BuildEndpoint(httpExpr)
+	rpcIR := transportir.BuildEndpoint(rpcExpr)
+	require.False(t, httpIR.IsJSONRPC)
+	require.True(t, rpcIR.IsJSONRPC)
+	httpError := httpIR.Response.ErrorResponses[0]
+	rpcError := rpcIR.Response.ErrorResponses[0]
+	require.Equal(t, 403, httpError.Selector.Code)
+	require.Nil(t, httpError.Error.JSONRPCCode)
+	require.Equal(t, 4403, *rpcError.Error.JSONRPCCode)
+	require.Nil(t, httpError.Body.Find("message"))
+	require.NotNil(t, rpcError.Body.Find("message"))
+	require.Len(t, httpError.Headers, 1)
+	require.Empty(t, rpcError.Headers)
+
+	http := CreateHTTPServices(root).Get("dual").Endpoint("read")
+	rpc := NewServicesData(service.NewServicesData(root), &root.API.JSONRPC.HTTPExpr).Get("dual").Endpoint("read")
+	require.False(t, http.IsJSONRPC)
+	require.True(t, rpc.IsJSONRPC)
+	require.Len(t, http.Errors, 1)
+	require.Len(t, rpc.Errors, 1)
+	require.Equal(t, "http.StatusForbidden", http.Errors[0].Errors[0].Response.LiteralStatus())
+	require.Equal(t, 4403, *rpc.Errors[0].JSONRPCCode)
+	httpData := http.Errors[0].Errors[0].Response
+	rpcData := rpc.Errors[0].Errors[0].Response
+	require.Equal(t, 403, httpData.LiteralCode())
+	require.Equal(t, 4403, *rpcData.JSONRPCCode)
+	require.Len(t, httpData.Headers, 1)
+	require.Empty(t, rpcData.Headers)
+	require.NotNil(t, httpData.ClientBody)
+	require.NotNil(t, rpcData.ClientBody)
+	require.Equal(t, []string{"name"}, rpc.Errors[0].Errors[0].Selector)
+}
+
+func TestResponseStatusLiteral(t *testing.T) {
+	for _, code := range []int{200, 299} {
+		require.Equal(t, code, (&ResponseData{Selector: expr.HTTPStatusSelector{Code: code}}).LiteralCode())
+	}
+	for _, selector := range []expr.HTTPStatusSelector{{Class: expr.Status2XX}, {Class: expr.StatusFallback}, {}, {Code: 200, Class: expr.Status2XX}} {
+		require.PanicsWithValue(t, "HTTP literal emission requires an exact status selector", func() {
+			(&ResponseData{Selector: selector}).LiteralCode()
+		})
+	}
+}
+
+func TestSharedErrorSelectorGroups(t *testing.T) {
+	_, _, service := firstHTTPBuildContext(t, testdata.OpenAPISharedErrorHeaderDSL)
+	groups := service.Endpoints[0].Errors
+	require.Len(t, groups, 3)
+	byStatus := make(map[string][]string, len(groups))
+	for _, group := range groups {
+		for _, err := range group.Errors {
+			byStatus[group.Errors[0].Response.LiteralStatus()] = append(byStatus[group.Errors[0].Response.LiteralStatus()], err.Name)
+		}
+	}
+	require.ElementsMatch(t, []string{"bad_request", "invalid_input"}, byStatus["http.StatusBadRequest"])
+	require.Equal(t, []string{"unauthorized"}, byStatus["http.StatusUnauthorized"])
+	require.Equal(t, []string{"forbidden"}, byStatus["http.StatusForbidden"])
 }

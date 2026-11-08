@@ -157,3 +157,74 @@ and exercises empty/nonempty supplied values and optional absence, plus the
 collision shape. Existing located-package/import-alias and selected-body
 HTTP/JSON-RPC controls remain green. This does not establish arbitrary custom
 codec/default behavior or change invalid-design admission.
+
+Physical-field correspondence also requires the selected attribute, not just its
+expression type. `TestInitStructFieldsPhysicalPrimitive` and
+`TestResponseStatusNativeReplacement` cover plain wire integers converted to
+native replacements and viewed pointer fields. Response constructor arguments
+retain the actual destination occurrence; wire status remains a plain `int`.
+The shared initializer compares primitive physical references before copying and
+uses the target attribute/context for conversion. The existing model abstracts
+these physical references and does not prove arbitrary authored Go replacements;
+the implementation tests and generated replacement module check that boundary.
+
+Integer constructor conversions preserve values: known builtin widening is
+infallible on both 32- and 64-bit Go integer layouts; other integer storage uses
+a round-trip and sign check through the existing TransformPlan error channel.
+A conversion failure preserves the first error and cannot publish a truncated
+result. Named native aliases keep their physical declaration identity. The
+analysis cannot inspect external Go declarations: opaque replacements must be
+integer and Go-convertible; this is not arbitrary custom-type validation.
+`TestInitPrimitiveRepresentability` executes signed/unsigned boundaries, pointer
+absence and first-error controls; known nonnumeric storage is rejected during
+constructor analysis. The generated int8 status witness rejects 200 instead of
+returning -56. Safe int64 replacement keeps its infallible constructor signature.
+
+
+Integer-storage contract clarification: conversions of integer expressions
+between different physical representations require integer storage. Known Go
+basic float, complex, string and boolean replacements receive an owning
+constructor-analysis diagnostic. Unknown external replacements carry an explicit
+`const _ = ^NativeType(0)` capability assertion using the selected NameScope
+reference: Go compilation establishes their integer contract, not generator
+inspection of external declarations. Identical-representation copies and
+float-expression conversion semantics are unchanged.
+
+Accepted examples: `Int` stored as `int64` widens safely; `Int` stored as `int8`
+accepts 127 and returns a conversion error for 200; a Go-defined external integer
+alias compiles and receives the same checked value conversion. Rejected examples:
+`Int64` stored as `float64` gets the analysis diagnostic; an opaque external
+float alias fails its integer capability assertion when the generated code is
+compiled. Authors must select an integer storage type for integer conversion;
+this correction does not introduce support for arbitrary custom representations.
+
+The actual earlier initializer was executed with signed and unsigned maxima:
+float64 rounded them to 2^63 and 2^64, while conversion back saturated to the
+source maximum, defeating a simple round-trip/sign guard. The retained
+implementation regression rejects those known float contracts rather than
+claiming a generic float representability proof. `TestInitIntegerStorageContract`
+and `TestInitOpaqueIntegerCapability` cover the analysis and compilation
+boundaries; existing signed/unsigned, alias, pointer and first-error controls
+continue to exercise the integer conversion itself.
+
+### Physical source contract and CLI field plans
+
+`InitArgData.Attribute` must describe the local value that is actually declared,
+including replacement metadata. A bare logical `Type` is sufficient only when it
+fully describes that storage. HTTP payload parameters, headers/cookies and CLI
+arguments retain the captured physical occurrence and context; destinations retain
+the selected native occurrence. gRPC metadata and CLI already forward their
+physical attributes through the same initializer. Problem document construction
+retains the actual selected body and header attributes and propagates the returned
+plan's error awareness.
+
+The CLI builder owns its field initialization plan independently of the payload
+body plan. Either plan can require `transformErr`, and the builder returns its
+first error instead of discarding it. `TestPayloadBuilderOwnsFieldErrorPlan`
+compiles and executes an emitted int-to-int8 failure without a body conversion.
+`TestConstructorSourceStorageGenerated` checks narrow and opaque integer aliases
+through generated query/header decoding, response header reconstruction and CLI
+inputs. The opaque specimen uses `net/http.ConnState`; `time.Duration` has no
+default JSON-v2 representation and is not a successful CLI runtime control.
+These tests check actual declarations and propagation, not arbitrary external
+representation semantics or a new JSON contract.

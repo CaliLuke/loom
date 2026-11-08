@@ -38,7 +38,7 @@ func (e *HTTPEndpointExpr) validateMediaTypes(verr *eval.ValidationErrors) {
 	if len(e.MediaTypes) == 0 {
 		return
 	}
-	_, rpc := e.MethodExpr.Meta["jsonrpc"]
+	rpc := e.IsJSONRPC()
 	if e.RequestContentType != nil || e.OpenAPIRequestBody != nil || e.FormRequest ||
 		e.MultipartRequest || e.SkipRequestBodyEncodeDecode || e.MethodExpr.IsStreaming() || rpc {
 		verr.Add(e, "MediaType requires an ordinary typed HTTP body without ContentType, documentation-only body, form, multipart, raw or streaming framing")
@@ -50,9 +50,11 @@ func (r *HTTPResponseExpr) validateMediaTypes(e *HTTPEndpointExpr, source *Attri
 	if len(r.MediaTypes) == 0 {
 		return
 	}
-	_, rpc := e.MethodExpr.Meta["jsonrpc"]
-	if r.ContentType != "" || r.OpenAPIBody != nil || e.SkipResponseBodyEncodeDecode ||
-		e.FileResponse || e.MethodExpr.IsStreaming() || rpc {
+	rpc := e.IsJSONRPC()
+	// Endpoint raw/file/streaming framing owns successful bodies only. Named
+	// errors still use their ordinary encoded body and media contract.
+	successFraming := r.ErrorName == "" && (e.SkipResponseBodyEncodeDecode || e.FileResponse || e.MethodExpr.IsStreaming())
+	if r.ContentType != "" || r.OpenAPIBody != nil || successFraming || rpc {
 		verr.Add(r, "MediaType requires an ordinary typed HTTP body without ContentType, documentation-only body, raw or streaming framing")
 	}
 	validateHTTPMediaTypes(r, buildHTTPResponseBody(e.Name(), source, r, e.Service), source, r.MediaTypes, r.Headers, verr)

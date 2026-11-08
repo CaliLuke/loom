@@ -66,6 +66,15 @@ func AnalyzePartial(source Source, selection Selection, allowLossy bool) (analys
 		analysis.Blocked = append(analysis.Blocked, diagnostics...)
 	}
 	rawDiagnostics, analysis.Omitted = splitDocumentOmissions(rawDiagnostics)
+	// Partial import may omit unsupported root metadata. Keep supported server
+	// entries and use the strict planner's same admission decision for omissions.
+	servers, serverOmissions := partitionServers(document.OpenAPIVersion, document.Servers)
+	if len(serverOmissions) > 0 {
+		detached := *document
+		detached.Servers = servers
+		document = &detached
+		analysis.Omitted = append(analysis.Omitted, serverOmissions...)
+	}
 	retained := analysis.selectOperations(document, rawDiagnostics, allowLossy)
 	analysis.Blocked = uniqueDiagnostics(analysis.Blocked)
 	analysis.Warnings = uniqueDiagnostics(analysis.Warnings)

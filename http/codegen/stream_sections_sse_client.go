@@ -51,10 +51,7 @@ func renderSSEClientProcessEvent(implName string, ed *EndpointData) string {
 		b.WriteString(renderSSEParseAssignment("event."+ed.SSE.DataField, ed.SSE.DataFieldTypeRef, ed.SSE.DataPointer))
 	case ed.SSE.EventIsStruct:
 		b.WriteString("\t// Decode JSON into the struct pointer directly\n")
-		b.WriteString("\trespBody := &http.Response{\n")
-		b.WriteString("\t\tStatusCode: http.StatusOK,\n")
-		b.WriteString("\t\tBody:       io.NopCloser(bytes.NewReader([]byte(dataContent))),\n")
-		b.WriteString("\t}\n")
+		b.WriteString("\trespBody := loomhttp.SSEEventResponse(s.response, dataContent)\n")
 		b.WriteString("\terr = s.decoder(respBody).Decode(event)\n")
 		b.WriteString("\tif err != nil {\n")
 		b.WriteString("\t\treturn\n")
@@ -62,7 +59,7 @@ func renderSSEClientProcessEvent(implName string, ed *EndpointData) string {
 	default:
 		// Whole-event primitive and collection data is JSON: strings are JSON
 		// strings and bytes are base64 JSON strings.
-		b.WriteString("\trespBody := &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(dataContent))}\n")
+		b.WriteString("\trespBody := loomhttp.SSEEventResponse(s.response, dataContent)\n")
 		b.WriteString("\tif err = s.decoder(respBody).Decode(&event); err != nil {\n")
 		b.WriteString("\t\treturn\n")
 		b.WriteString("\t}\n")
@@ -80,10 +77,7 @@ func renderSSEProjectionClientDecode(b *strings.Builder, ed *EndpointData) {
 	}
 	b.WriteString("\tdefault:\n\t\treturn event, fmt.Errorf(\"invalid SSE projection discriminator %q\", parsed.Type)\n\t}\n")
 	fmt.Fprintf(b, "\tprojected := new(%s)\n", strings.TrimPrefix(ed.SSE.ProjectedTypeRef, "*"))
-	b.WriteString("\trespBody := &http.Response{\n")
-	b.WriteString("\t\tStatusCode: http.StatusOK,\n")
-	b.WriteString("\t\tBody:       io.NopCloser(strings.NewReader(parsed.Data)),\n")
-	b.WriteString("\t}\n")
+	b.WriteString("\trespBody := loomhttp.SSEEventResponse(s.response, parsed.Data)\n")
 	b.WriteString("\tif err = s.decoder(respBody).Decode(projected); err != nil {\n\t\treturn\n\t}\n")
 	fmt.Fprintf(b, "\tvres := &%s{Projected: projected, View: view}\n", strings.TrimPrefix(ed.SSE.ViewedResultRef, "*"))
 	fmt.Fprintf(b, "\tif err = %s(vres); err != nil {\n\t\treturn\n\t}\n", ed.SSE.ViewedValidateRef)
@@ -148,7 +142,7 @@ func renderSSEParseAssignment(target, typeRef string, pointer bool) string {
 // renderSSEDecodeAssignment writes the statements that decode the JSON event
 // data into target with the decoder. A null decodes to a nil pointer target.
 func renderSSEDecodeAssignment(b *strings.Builder, target string) {
-	b.WriteString("\trespBody := &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(dataContent))}\n")
+	b.WriteString("\trespBody := loomhttp.SSEEventResponse(s.response, dataContent)\n")
 	fmt.Fprintf(b, "\tif err = s.decoder(respBody).Decode(&%s); err != nil {\n", target)
 	b.WriteString("\t\treturn\n")
 	b.WriteString("\t}\n")
@@ -160,6 +154,10 @@ func addSSEClientSection(stmt *jen.Statement, ed *EndpointData) {
 	addSSEClientInterface(stmt, ed, streamName)
 	addSSEClientImplStruct(stmt, ed, streamName, implName)
 	addSSEClientConstructor(stmt, ed, streamName, implName)
+	if ed.SSE.HandshakeRef != "" {
+		codegen.Doc(stmt, "Response returns the validated metadata received when the stream opened.")
+		stmt.Func().Params(jen.Id("s").Op("*").Id(implName)).Id("Response").Params().Add(codegen.TypeRef(ed.SSE.HandshakeRef)).Block(jen.Return(jen.Id("s").Dot("metadata")))
+	}
 	stmt.Line()
 	codegen.Doc(stmt, ed.Method.ClientStream.RecvDesc+" It uses the context the stream was opened with.")
 	stmt.Func().Params(jen.Id("s").Op("*").Id(implName)).

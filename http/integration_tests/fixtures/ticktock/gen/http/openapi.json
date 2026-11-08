@@ -67,7 +67,9 @@
             },
             "response": {
               "contentType": "text/event-stream",
-              "status": 200
+              "statuses": [
+                "200"
+              ]
             }
           },
           "messages": {
@@ -123,7 +125,9 @@
             },
             "response": {
               "contentType": "text/event-stream",
-              "status": 200
+              "statuses": [
+                "200"
+              ]
             }
           },
           "messages": {
@@ -179,7 +183,9 @@
             },
             "response": {
               "contentType": "text/event-stream",
-              "status": 200
+              "statuses": [
+                "200"
+              ]
             }
           },
           "messages": {

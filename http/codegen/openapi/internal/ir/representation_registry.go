@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/internal/representation"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 )
 
@@ -59,6 +60,12 @@ func (a *Analyzer) analyzePreparedSchemaPositions(
 	}
 	if target.Error != nil {
 		panic(fmt.Errorf("OpenAPI representation: %w", target.Error))
+	}
+	if err := representation.PrepareTargetValues(target, attribute, nil, false); err != nil {
+		if a.err == nil {
+			a.err = fmt.Errorf("%s: prepare OpenAPI schema annotations: %w", context, err)
+		}
+		return nil
 	}
 	previous := a.preparedExamples
 	a.preparedExamples = target

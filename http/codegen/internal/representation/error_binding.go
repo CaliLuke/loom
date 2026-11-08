@@ -22,7 +22,7 @@ func bindErrorSources(endpoint *transportir.Endpoint, method *expr.MethodExpr, d
 			bindings[failure.AttributeExpr] = value
 		}
 	}
-	for _, response := range serviceResponses(endpoint) {
+	for _, response := range responseOccurrences(endpoint.Response) {
 		if response.Error == nil {
 			continue
 		}

@@ -66,6 +66,9 @@ func serverType(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData
 	for _, tdata := range data.ServerBodyAttributeTypes {
 		sections.appendTypeData("server-body-attributes", tdata, false, data)
 	}
+	for _, tdata := range data.outgoingHeaderValidationTypes {
+		sections.appendTypeData("server-outgoing-header-validation", tdata, false, data)
+	}
 
 	for _, u := range data.ServerUnionTypes {
 		sections.sections = append(sections.sections, unionTypeSection("server-union-type", u))
@@ -107,12 +110,17 @@ func newServerTypeSections(header codegen.Section, pkgs *codegen.NameScope) *ser
 
 func (s *serverTypeSections) appendEndpointTypes(adata *EndpointData, data *ServiceData) {
 	s.appendTypeData("request-body-type-decl", adata.Payload.Request.ServerBody, false, data)
-	if adata.ServerWebSocket != nil && !adata.Method.IsJSONRPC {
+	if adata.ServerWebSocket != nil && !adata.IsJSONRPC {
 		s.appendTypeData("request-stream-payload-type-decl", adata.ServerWebSocket.Payload, false, data)
 	}
-	for _, resp := range adata.Result.Responses {
+	for _, resp := range responsePayloads(adata) {
 		for _, tdata := range resp.ServerBody {
 			s.appendTypeData("response-server-body", tdata, true, data)
+		}
+	}
+	if adata.SSE != nil {
+		for _, body := range adata.SSE.ResponseBodies {
+			s.appendTypeData("response-event-body", body, true, data)
 		}
 	}
 	for _, gerr := range adata.Errors {

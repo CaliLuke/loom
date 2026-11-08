@@ -20,7 +20,8 @@ import (
 const generationDeterminismHelperPath = "LOOM_GENERATION_DETERMINISM_HELPER_PATH"
 
 // generationDeterminismDSLs lists designs whose generated imports come from
-// several packages, custom Go types, and parameter serialization grammars.
+// several packages, custom Go types, parameter serialization grammars, and
+// response selection, informational metadata, and SSE handshake contracts.
 var generationDeterminismDSLs = []struct {
 	name string
 	dsl  func()
@@ -56,6 +57,11 @@ var generationDeterminismDSLs = []struct {
 	{"StyledMediaContractsDSL", httptestdata.StyledMediaContractsDSL},
 	{"ParameterPropertyNamesDSL", httptestdata.ParameterPropertyNamesDSL},
 	{"ParameterMetadataDSL", httptestdata.ParameterMetadataDSL},
+	{"ResponseStatusSelectionDSL", httptestdata.ResponseStatusSelectionDSL},
+	{"InformationalServerDSL", httptestdata.InformationalServerDSL},
+	{"SSEMultiExactHandshakeDSL", func() {
+		httptestdata.ConstructorOwnership("metadata-multi-exact", false, false)
+	}},
 }
 
 // TestGeneratedFilesAreByteStableAcrossIndependentProcesses generates the
@@ -114,4 +120,37 @@ func renderGenerationDeterminismDump(t *testing.T) []byte {
 		}
 	}
 	return dump.Bytes()
+}
+
+// TestGenerationDeterminismHandshakeFixture checks the new multi-exact variant
+// and preserves the singleton inputs already used by generated wire tests.
+func TestGenerationDeterminismHandshakeFixture(t *testing.T) {
+	for _, tc := range []struct {
+		mode     string
+		statuses []int
+	}{
+		{"metadata", []int{201}},
+		{"metadata-handshake", []int{201}},
+		{"metadata-multi-exact", []int{201, 202}},
+	} {
+		t.Run(tc.mode, func(t *testing.T) {
+			root := codegen.RunDSL(t, func() {
+				httptestdata.ConstructorOwnership(tc.mode, false, false)
+			})
+			require.Len(t, root.API.HTTP.Services, 1)
+			endpoint := root.API.HTTP.Services[0].Endpoint("watch")
+			require.NotNil(t, endpoint)
+			require.NotNil(t, endpoint.SSE)
+			require.Len(t, endpoint.Responses, len(tc.statuses))
+			for i, response := range endpoint.Responses {
+				status, exact := response.Status.Exact()
+				require.True(t, exact)
+				require.Equal(t, tc.statuses[i], status)
+				require.Equal(t, "status", response.StatusField)
+				require.NotNil(t, response.Handshake)
+				require.True(t, response.Handshake.IsRequired("status"))
+				require.Equal(t, endpoint.Responses[0].Handshake.Type, response.Handshake.Type)
+			}
+		})
+	}
 }

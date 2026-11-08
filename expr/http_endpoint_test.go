@@ -627,7 +627,7 @@ func TestHTTPEndpointPrepareAdditionalCoverage(t *testing.T) {
 		if len(e.HTTPErrors) != 1 {
 			t.Fatalf("got %d HTTP errors, expected 1", len(e.HTTPErrors))
 		}
-		if e.HTTPErrors[0].Name != "bad_request" || e.HTTPErrors[0].Response.StatusCode != StatusBadRequest {
+		if e.HTTPErrors[0].Name != "bad_request" || e.HTTPErrors[0].Response.Status.Code != StatusBadRequest {
 			t.Fatalf("unexpected inherited service error %#v", e.HTTPErrors[0])
 		}
 	})
@@ -638,7 +638,7 @@ func TestHTTPEndpointPrepareAdditionalCoverage(t *testing.T) {
 		if len(e.HTTPErrors) != 1 {
 			t.Fatalf("got %d HTTP errors, expected 1", len(e.HTTPErrors))
 		}
-		if e.HTTPErrors[0].Name != "bad_request" || e.HTTPErrors[0].Response.StatusCode != StatusBadRequest {
+		if e.HTTPErrors[0].Name != "bad_request" || e.HTTPErrors[0].Response.Status.Code != StatusBadRequest {
 			t.Fatalf("unexpected inherited API error %#v", e.HTTPErrors[0])
 		}
 	})
@@ -656,8 +656,8 @@ func TestHTTPEndpointPrepareAdditionalCoverage(t *testing.T) {
 		if len(e.Responses) != 1 {
 			t.Fatalf("got %d responses, expected 1", len(e.Responses))
 		}
-		if e.Responses[0].StatusCode != StatusNoContent {
-			t.Fatalf("got response status %d, expected %d", e.Responses[0].StatusCode, StatusNoContent)
+		if e.Responses[0].Status.Code != StatusNoContent {
+			t.Fatalf("got response status %d, expected %d", e.Responses[0].Status.Code, StatusNoContent)
 		}
 	})
 
@@ -667,8 +667,8 @@ func TestHTTPEndpointPrepareAdditionalCoverage(t *testing.T) {
 		if len(e.Responses) != 1 {
 			t.Fatalf("got %d responses, expected 1", len(e.Responses))
 		}
-		if e.Responses[0].StatusCode != StatusMovedPermanently {
-			t.Fatalf("got response status %d, expected %d", e.Responses[0].StatusCode, StatusMovedPermanently)
+		if e.Responses[0].Status.Code != StatusMovedPermanently {
+			t.Fatalf("got response status %d, expected %d", e.Responses[0].Status.Code, StatusMovedPermanently)
 		}
 	})
 

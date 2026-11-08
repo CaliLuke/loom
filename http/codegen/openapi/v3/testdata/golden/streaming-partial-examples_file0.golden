@@ -80,7 +80,7 @@
                         "$ref": "#/components/schemas/RealtimeSSEEvent",
                         "example": {
                           "data": {
-                            "message": "Non et."
+                            "message": "Dicta et est."
                           },
                           "event": "abc123"
                         }
@@ -112,7 +112,9 @@
             },
             "response": {
               "contentType": "text/event-stream",
-              "status": 200
+              "statuses": [
+                "200"
+              ]
             }
           },
           "messages": {
@@ -128,11 +130,11 @@
                 "properties": {
                   "data": {
                     "example": {
-                      "message": "Saepe impedit cum asperiores."
+                      "message": "Architecto sint delectus hic voluptatem."
                     },
                     "properties": {
                       "message": {
-                        "example": "Quia ut autem at.",
+                        "example": "Ut quo aspernatur et necessitatibus ipsum eos.",
                         "type": "string"
                       }
                     },
@@ -254,7 +256,9 @@
             },
             "response": {
               "contentType": "",
-              "status": 101
+              "statuses": [
+                "101"
+              ]
             }
           },
           "messages": {

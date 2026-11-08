@@ -241,6 +241,7 @@ func (r *RootExpr) Validate() error {
 	for _, rt := range r.ResultTypes {
 		verr.Merge(validateStructMeta("", rt.Attribute().Meta, rt))
 	}
+	verr.Merge(r.validateHTTPJSONRPCMethods())
 	verr.Merge(r.validateHTTPMounts())
 	verr.Merge(r.validateRelocatedUserTypes())
 	verr.Merge(r.validateGeneratedDirs())

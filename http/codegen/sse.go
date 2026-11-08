@@ -23,6 +23,15 @@ type (
 	// SSEData contains the data needed to render struct type that
 	// implements the server and client stream interface for SSE.
 	SSEData struct {
+		// HandshakeRef is the native metadata carrier, empty for a metadata-free singleton.
+		HandshakeRef string
+		// ImplicitHandshake is the first-open resolver body used when the service
+		// supplied no metadata. Required metadata rejects; otherwise absent members
+		// receive their authored defaults before shared preparation.
+		ImplicitHandshake string
+		// PrepareHandshake and DecodeHandshake name the shared metadata codecs.
+		PrepareHandshake string
+		DecodeHandshake  string
 		// StructName is the name of the generated struct which encapsulates the
 		// server implementation.
 		StructName string
@@ -92,6 +101,8 @@ type (
 		// each event, including every result view. It is nil when the event is
 		// encoded directly, as for primitives, unconverted collections, or mixed results.
 		ResponseBodies []*TypeData
+		// ViewedResult is the captured event occurrence view, independent of the unary result.
+		ViewedResult *service.ViewedResultTypeData
 		// Projections map SSE event discriminator values to result views.
 		Projections []*SSEProjectionData
 		// ProjectedTypeRef is the generated view projection type reference.
@@ -106,7 +117,7 @@ type (
 )
 
 // initSSEData initializes the SSE related data in ed.
-func initSSEData(ed *EndpointData, endpointIR *transportir.Endpoint, sd *ServiceData) {
+func (sds *ServicesData) initSSEData(ed *EndpointData, endpointIR *transportir.Endpoint, sd *ServiceData) {
 	if endpointIR == nil || endpointIR.Stream == nil || !endpointIR.Stream.IsSSE {
 		return
 	}
@@ -117,6 +128,7 @@ func initSSEData(ed *EndpointData, endpointIR *transportir.Endpoint, sd *Service
 	eventAttr, eventType := sseEventType(ed, endpointIR, sd, caps)
 
 	ed.SSE = &SSEData{
+		ViewedResult:        md.StreamingViewedResult,
 		StructName:          md.ServerStream.VarName,
 		Interface:           fmt.Sprintf("%s.%s", svc.PkgName, md.ServerStream.Interface), // nolint: namescope -- svc.PkgName is the exact import alias used in the emitted server file
 		SendName:            md.ServerStream.SendName,
@@ -132,6 +144,7 @@ func initSSEData(ed *EndpointData, endpointIR *transportir.Endpoint, sd *Service
 		NotificationMethod:  endpointIR.Stream.SSE.NotificationMethod,
 		RequestIDPointer:    endpointIR.Stream.SSE.RequestIDPointer,
 	}
+	initSSEHandshake(ed, sd)
 	if name := endpointIR.Stream.SSE.RequestIDField; name != "" {
 		_, attr := endpointIR.Request.Payload.FindAttribute(name)
 		ed.SSE.RequestIDField = codegen.GoifyAtt(attr, name, true)
@@ -143,21 +156,66 @@ func initSSEData(ed *EndpointData, endpointIR *transportir.Endpoint, sd *Service
 			View:      projection.View,
 		})
 	}
-	if len(ed.SSE.Projections) > 0 && md.ViewedResult != nil {
-		projected := expr.AsObject(md.ViewedResult.Type.Attribute().Type).Attribute("projected")
+	if len(ed.SSE.Projections) > 0 && ed.SSE.ViewedResult != nil {
+		projected := expr.AsObject(ed.SSE.ViewedResult.Type.Attribute().Type).Attribute("projected")
 		ed.SSE.ProjectedTypeRef = sd.Service.ViewScope.GoFullTypeRef(projected, svc.ViewsPkg)
-		ed.SSE.ViewedResultRef = md.ViewedResult.FullRef
-		ed.SSE.ViewedValidateRef = svc.ViewsPkg + "." + md.ViewedResult.Validate.Name
-		ed.SSE.ResultInitRef = svc.PkgName + "." + md.ViewedResult.ResultInit.Name
+		ed.SSE.ViewedResultRef = ed.SSE.ViewedResult.FullRef
+		ed.SSE.ViewedValidateRef = svc.ViewsPkg + "." + ed.SSE.ViewedResult.Validate.Name
+		ed.SSE.ResultInitRef = svc.PkgName + "." + ed.SSE.ViewedResult.ResultInit.Name
 	}
 
-	// Mixed results SSE uses the streaming result type for events, not the unary
-	// HTTP response body type. Disable HTTP response body conversion in the SSE
-	// stream implementation and marshal the event value directly.
-	if caps.HasMixedResults {
-		return
+	if ed.SSE.ViewedResult != nil && (caps.HasMixedResults || ed.SSE.HandshakeRef != "") {
+		stream := service.BuildStreamDescriptor(svc, md, nil, eventAttr)
+		views, _ := viewedResponseBodyViews("", ed.SSE.ViewedResult, eventAttr)
+		for _, view := range views {
+			body := sds.buildResponseBodyType(expr.DupAtt(eventAttr), stream.Result.Effective.Attribute,
+				codegen.UserTypeLocation(eventAttr.Type), endpointIR.Name, true, view, sd, endpointIR.Stream.ResponseValue)
+			if body != nil {
+				ed.SSE.ResponseBodies = append(ed.SSE.ResponseBodies, body)
+			}
+		}
+	} else if !caps.HasMixedResults {
+		ed.SSE.ResponseBodies = sseResponseBodies(ed)
 	}
-	ed.SSE.ResponseBodies = sseResponseBodies(ed)
+}
+
+// initSSEHandshake captures the native metadata carrier and its opening obligations.
+func initSSEHandshake(ed *EndpointData, sd *ServiceData) {
+	ed.SSE.PrepareHandshake = httpEndpointSymbol(sd.Scope, ed.Method.VarName, "prepare-handshake")
+	ed.SSE.DecodeHandshake = httpEndpointSymbol(sd.Scope, ed.Method.VarName, "decode-handshake")
+	ed.SSE.ImplicitHandshake = "return " + ed.SSE.PrepareHandshake + "(ctx)"
+	for _, response := range ed.Result.Responses {
+		if response.Handshake {
+			context := outgoingHeaderContext(sd, response.Carrier)
+			ed.SSE.HandshakeRef = context.Scope.Ref(response.Carrier, context.Pkg(response.Carrier))
+			required := response.statusBinding != nil
+			for _, header := range response.Headers {
+				required = required || header.Required
+			}
+			for _, cookie := range response.Cookies {
+				required = required || cookie.Required
+			}
+			ed.SSE.ImplicitHandshake = implicitSSEHandshake(ed.SSE.PrepareHandshake, response.Carrier, context, required)
+			break
+		}
+	}
+}
+
+// implicitSSEHandshake renders the resolver for absent metadata. Absence is not
+// a zero native carrier: the shared default owner materializes authored member
+// defaults and leaves other optional members absent. Explicit values never pass here.
+func implicitSSEHandshake(prepare string, carrier *expr.AttributeExpr, context *codegen.AttributeContext, required bool) string {
+	if required {
+		return "return loomhttp.SSEHandshake{}, &loomhttp.StatusViolationError{}"
+	}
+	value, err := context.DefaultValue(carrier, map[string]any{}, codegen.DefaultValueOptions{MaterializeMembers: true})
+	if err != nil {
+		panic(codegen.NewError(nil, carrier, fmt.Errorf("implicit handshake defaults: %w", err)))
+	}
+	if !value.ErrorAware {
+		return "return " + prepare + "(ctx, " + value.Expression + ")"
+	}
+	return "transformErr := new(error)\nvalue := " + value.Expression + "\nif *transformErr != nil {\nreturn loomhttp.SSEHandshake{}, *transformErr\n}\nreturn " + prepare + "(ctx, value)"
 }
 
 // sseResponseBodies returns the server response body family used to convert each event,

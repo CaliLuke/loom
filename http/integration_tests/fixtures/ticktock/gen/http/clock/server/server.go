@@ -117,7 +117,9 @@ func NewTickHandler(
 		w = lifecycle.Writer()
 		var err error
 		stream := &TickServerStream{
-			writer: loomhttp.NewSSEStreamWriter(w, ctx, loomtransport.TransportHTTP, writePolicy),
+			writer: loomhttp.NewSSEStreamWriter(w, ctx, loomtransport.TransportHTTP, writePolicy, loomhttp.WithSSEExchange(lifecycle.Exchange()), loomhttp.WithSSEHandshake(func(ctx context.Context) (loomhttp.SSEHandshake, error) {
+				return prepareTickHandshake(ctx)
+			})),
 		}
 		defer stream.writer.End()
 		v := &clock.TickEndpointInput{
@@ -128,6 +130,9 @@ func NewTickHandler(
 			lifecycle.HandlerFailed(err, stream.writer.ClaimFailure(), encodeError, errhandler)
 			return
 		}
+		if err := stream.writer.FinalizeSuccess(ctx); err != nil {
+			lifecycle.HandlerFailed(err, stream.writer.ClaimFailure(), encodeError, errhandler)
+		}
 	})
 }
 
@@ -135,7 +140,7 @@ func NewTickHandler(
 // for Tick. Callers remain responsible for exercising the application
 // scenarios that produce each response.
 func TickResponseContractCases() []loomhttp.ResponseContractCase {
-	return []loomhttp.ResponseContractCase{{ID: "clock.Tick.success.200", Kind: loomhttp.ResponseContractSuccess, Transport: loomhttp.ResponseContractSSE, StatusCode: 200, ContentTypes: []string{"text/event-stream"}, SSE: &loomhttp.SSEResponseContract{
+	return []loomhttp.ResponseContractCase{{ID: "clock.Tick.success.200", Kind: loomhttp.ResponseContractSuccess, Transport: loomhttp.ResponseContractSSE, Selector: loomhttp.StatusSelector{Code: 200}, Domain: []int{200}, ContentTypes: []string{"text/event-stream"}, SSE: &loomhttp.SSEResponseContract{
 		DataEncoding:      "text",
 		DataField:         "data",
 		Direction:         "server",
@@ -181,7 +186,9 @@ func NewTockHandler(
 		w = lifecycle.Writer()
 		var err error
 		stream := &TockServerStream{
-			writer: loomhttp.NewSSEStreamWriter(w, ctx, loomtransport.TransportHTTP, writePolicy),
+			writer: loomhttp.NewSSEStreamWriter(w, ctx, loomtransport.TransportHTTP, writePolicy, loomhttp.WithSSEExchange(lifecycle.Exchange()), loomhttp.WithSSEHandshake(func(ctx context.Context) (loomhttp.SSEHandshake, error) {
+				return prepareTockHandshake(ctx)
+			})),
 		}
 		defer stream.writer.End()
 		v := &clock.TockEndpointInput{
@@ -192,6 +199,9 @@ func NewTockHandler(
 			lifecycle.HandlerFailed(err, stream.writer.ClaimFailure(), encodeError, errhandler)
 			return
 		}
+		if err := stream.writer.FinalizeSuccess(ctx); err != nil {
+			lifecycle.HandlerFailed(err, stream.writer.ClaimFailure(), encodeError, errhandler)
+		}
 	})
 }
 
@@ -199,7 +209,7 @@ func NewTockHandler(
 // for Tock. Callers remain responsible for exercising the application
 // scenarios that produce each response.
 func TockResponseContractCases() []loomhttp.ResponseContractCase {
-	return []loomhttp.ResponseContractCase{{ID: "clock.Tock.success.200", Kind: loomhttp.ResponseContractSuccess, Transport: loomhttp.ResponseContractSSE, StatusCode: 200, ContentTypes: []string{"text/event-stream"}, SSE: &loomhttp.SSEResponseContract{
+	return []loomhttp.ResponseContractCase{{ID: "clock.Tock.success.200", Kind: loomhttp.ResponseContractSuccess, Transport: loomhttp.ResponseContractSSE, Selector: loomhttp.StatusSelector{Code: 200}, Domain: []int{200}, ContentTypes: []string{"text/event-stream"}, SSE: &loomhttp.SSEResponseContract{
 		DataEncoding:      "text",
 		DataField:         "data",
 		Direction:         "server",
@@ -250,7 +260,9 @@ func NewGuardedHandler(
 			return
 		}
 		stream := &GuardedServerStream{
-			writer: loomhttp.NewSSEStreamWriter(w, ctx, loomtransport.TransportHTTP, writePolicy),
+			writer: loomhttp.NewSSEStreamWriter(w, ctx, loomtransport.TransportHTTP, writePolicy, loomhttp.WithSSEExchange(lifecycle.Exchange()), loomhttp.WithSSEHandshake(func(ctx context.Context) (loomhttp.SSEHandshake, error) {
+				return prepareGuardedHandshake(ctx)
+			})),
 		}
 		defer stream.writer.End()
 		v := &clock.GuardedEndpointInput{
@@ -262,6 +274,9 @@ func NewGuardedHandler(
 			lifecycle.HandlerFailed(err, stream.writer.ClaimFailure(), encodeError, errhandler)
 			return
 		}
+		if err := stream.writer.FinalizeSuccess(ctx); err != nil {
+			lifecycle.HandlerFailed(err, stream.writer.ClaimFailure(), encodeError, errhandler)
+		}
 	})
 }
 
@@ -269,7 +284,7 @@ func NewGuardedHandler(
 // contracts for Guarded. Callers remain responsible for exercising the
 // application scenarios that produce each response.
 func GuardedResponseContractCases() []loomhttp.ResponseContractCase {
-	return []loomhttp.ResponseContractCase{{ID: "clock.Guarded.success.200", Kind: loomhttp.ResponseContractSuccess, Transport: loomhttp.ResponseContractSSE, StatusCode: 200, ContentTypes: []string{"text/event-stream"}, SSE: &loomhttp.SSEResponseContract{
+	return []loomhttp.ResponseContractCase{{ID: "clock.Guarded.success.200", Kind: loomhttp.ResponseContractSuccess, Transport: loomhttp.ResponseContractSSE, Selector: loomhttp.StatusSelector{Code: 200}, Domain: []int{200}, ContentTypes: []string{"text/event-stream"}, SSE: &loomhttp.SSEResponseContract{
 		DataEncoding:      "text",
 		DataField:         "data",
 		Direction:         "server",
@@ -281,7 +296,7 @@ func GuardedResponseContractCases() []loomhttp.ResponseContractCase {
 		MessageType:       "TickTockEvent",
 		RetryField:        "",
 		Terminal:          "eof",
-	}}, {ID: "clock.Guarded.error.unauthorized.401", Kind: loomhttp.ResponseContractError, Transport: loomhttp.ResponseContractHTTP, StatusCode: 401, ErrorName: "unauthorized", ContentTypes: []string{"application/problem+json"}}}
+	}}, {ID: "clock.Guarded.error.unauthorized.401", Kind: loomhttp.ResponseContractError, Transport: loomhttp.ResponseContractHTTP, Selector: loomhttp.StatusSelector{Code: 401}, Domain: []int{401}, ErrorName: "unauthorized", ContentTypes: []string{"application/problem+json"}}}
 }
 
 // ResponseContractCases returns every supported declared HTTP wire-response

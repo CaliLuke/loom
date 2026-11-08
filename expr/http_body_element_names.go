@@ -34,7 +34,11 @@ type (
 // of attr when the attribute holds the attributes of attr that resp maps to no
 // header or cookie. It returns nil when the response has no body.
 func responseBodySource(attr *AttributeExpr, resp *HTTPResponseExpr) (*AttributeExpr, DataType) {
-	if resp == nil || attr == nil || attr.Type == Empty {
+	if resp == nil {
+		return nil, nil
+	}
+	attr = resp.responseSource(attr)
+	if attr == nil || attr.Type == Empty || resp.Handshake != nil || resp.Status.Phase() == PhaseInformational {
 		return nil, nil
 	}
 	if resp.Body != nil {
@@ -46,7 +50,11 @@ func responseBodySource(attr *AttributeExpr, resp *HTTPResponseExpr) (*Attribute
 		}
 		return attr, nil
 	}
-	return responseBodyObject(attr, resp).Attribute(), attr.Type
+	body := responseBodyObject(attr, resp).Attribute()
+	if emptyHTTPBodyObject(body) {
+		return nil, attr.Type
+	}
+	return body, attr.Type
 }
 
 // bodyFieldName returns the JSON name of the field of a body declared with the

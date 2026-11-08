@@ -23,6 +23,8 @@ type (
 		root                              *yaml.Node
 		numbers                           map[string]numericSource
 		schemaPositions                   map[string]struct{}
+		operations                        map[string]bool
+		typedRoots                        map[string]bool
 	}
 	targetKey struct {
 		doc     sourceID
@@ -109,22 +111,7 @@ func resolveLoadedDescription(entry *document, loader *descriptionLoader) (*reso
 			}
 		}
 	}
-	for {
-		beforeDocs, beforeEdges, beforeAliases := len(r.result.registry.docs), len(r.result.edges), len(r.result.registry.alias)
-		for i := 0; i < len(r.result.edges); i++ {
-			e := r.result.edges[i]
-			if e.target != nil || e.entry != "" {
-				continue
-			}
-			if err := r.resolveEdge(e); err != nil {
-				return descriptionFatal(err)
-			}
-		}
-		if beforeDocs == len(r.result.registry.docs) && beforeEdges == len(r.result.edges) && beforeAliases == len(r.result.registry.alias) {
-			break
-		}
-	}
-	if err := r.checkReferenceDepth(); err != nil {
+	if err := r.resolveClosure(); err != nil {
 		return descriptionFatal(err)
 	}
 	var diagnostics Diagnostics
@@ -397,4 +384,30 @@ func (r *descriptionResolver) portable(doc *document) string {
 		}
 	}
 	return string(doc.canonical)
+}
+
+// resolveClosure owns loading, typed discovery and depth checks in one fixed point.
+func (r *descriptionResolver) resolveClosure() error {
+	for {
+		beforeDocs, beforeEdges, beforeAliases := len(r.result.registry.docs), len(r.result.edges), len(r.result.registry.alias)
+		for i := 0; i < len(r.result.edges); i++ {
+			e := r.result.edges[i]
+			if e.target != nil || e.entry != "" {
+				continue
+			}
+			if err := r.resolveEdge(e); err != nil {
+				return err
+			}
+		}
+		if err := r.scanSSEOperations(); err != nil {
+			return err
+		}
+		if beforeDocs == len(r.result.registry.docs) && beforeEdges == len(r.result.edges) && beforeAliases == len(r.result.registry.alias) {
+			break
+		}
+	}
+	if err := r.checkReferenceDepth(); err != nil {
+		return err
+	}
+	return nil
 }

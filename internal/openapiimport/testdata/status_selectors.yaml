@@ -1,0 +1,195 @@
+openapi: 3.2.0
+info: {title: Status selectors, version: "1"}
+paths:
+  /exact_class_default:
+    get:
+      operationId: exact_class_default
+      responses:
+        "200":
+          description: exact_class_default 200
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Value"
+        "4XX":
+          description: exact_class_default 4XX
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Value"
+        "default":
+          description: exact_class_default default
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Value"
+  /class_default:
+    get:
+      operationId: class_default
+      responses:
+        "2XX":
+          description: class_default 2XX
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Value"
+        "default":
+          description: class_default default
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Value"
+  /exact_class:
+    get:
+      operationId: exact_class
+      responses:
+        "200":
+          description: exact_class 200
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Value"
+        "2XX":
+          description: exact_class 2XX
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Value"
+  /fallback:
+    get:
+      operationId: fallback
+      responses:
+        "default":
+          description: fallback default
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Value"
+  /not_found_default:
+    get:
+      operationId: not_found_default
+      responses:
+        "404":
+          description: not_found_default 404
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Value"
+        "default":
+          description: not_found_default default
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Value"
+  /errors_only:
+    get:
+      operationId: errors_only
+      responses:
+        "4XX":
+          description: errors_only 4XX
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Value"
+  /exact_errors:
+    get:
+      operationId: exact_errors
+      responses:
+        "200":
+          description: exact_errors 200
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Value"
+        "404":
+          description: exact_errors 404
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Value"
+        "4XX":
+          description: exact_errors 4XX
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Value"
+  /hints:
+    get:
+      operationId: hints
+      responses:
+        "103":
+          description: hints 103
+          headers:
+            Link:
+              required: true
+              schema: {type: string}
+        "200":
+          description: hints 200
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Value"
+  /progress:
+    get:
+      operationId: progress
+      responses:
+        "1XX":
+          description: progress 1XX
+          headers:
+            Link:
+              required: true
+              schema: {type: string}
+        "200":
+          description: progress 200
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Value"
+  /redirect:
+    get:
+      operationId: redirect
+      responses:
+        "301":
+          description: redirect 301
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Value"
+        "3XX":
+          description: redirect 3XX
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Value"
+  /multiple:
+    get:
+      operationId: multiple
+      responses:
+        "200":
+          description: multiple 200
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Value"
+        "201":
+          description: multiple 201
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Value"
+  /empty_classes:
+    get:
+      operationId: empty_classes
+      responses:
+        "2XX":
+          description: empty_classes 2XX
+        "4XX":
+          description: empty_classes 4XX
+components:
+  schemas:
+    Value:
+      type: object
+      properties:
+        http_status: {type: string}
+        body: {type: string}
+      required: [body]

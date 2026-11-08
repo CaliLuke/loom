@@ -39,10 +39,25 @@ type Document struct {
 	SecurityDefined bool
 	// Security contains root security requirement alternatives in source order.
 	Security SecurityRequirements
+	// Servers contains root server definitions in source order.
+	Servers []Server
 	// Components contains normalized reusable definitions.
 	Components Components
 	// Operations contains HTTP operations in deterministic path-and-method order.
 	Operations []Operation
+}
+
+// Server retains one root Server Object in source order. Names and descriptions
+// retain authored presence; URL retains its exact source spelling.
+type Server struct {
+	sourcePath  string
+	sourceError string
+	// URL is the absolute HTTP or HTTPS endpoint URI.
+	URL string
+	// Name is the authored OpenAPI 3.2 display name, or nil when absent.
+	Name *string
+	// Description is the authored description, or nil when absent.
+	Description *string
 }
 
 // Tag contains OpenAPI metadata for one declared tag.
@@ -155,7 +170,11 @@ type SecurityRequirementScheme struct {
 // NamedSchema is a reusable schema and its deterministic Go identifier.
 type NamedSchema struct {
 	origin declarationOrigin
-	// Name is the authored OpenAPI component key.
+	// constructionOnly names a retained contributor for a native Type constructor,
+	// without claiming an authored OpenAPI declaration identity.
+	constructionOnly bool
+	// Name is the normalized declaration key. Authored components retain their
+	// OpenAPI key; construction-only declarations use an allocated internal key.
 	Name string
 	// GoName is the deterministic collision-safe Go identifier.
 	GoName string
@@ -197,6 +216,7 @@ type NamedHeader struct {
 
 // Operation is a normalized HTTP operation.
 type Operation struct {
+	asyncSchemas []sseAsyncSchema
 	// sourcePath is the exact operation occurrence in the bundled description.
 	// It is independent of the HTTP method and original document provenance.
 	sourcePath string
@@ -287,9 +307,9 @@ type RequestBody struct {
 	Extensions map[string]any
 }
 
-// StatusResponse associates an HTTP response with its status code.
+// StatusResponse associates an HTTP response with its authored status selector key.
 type StatusResponse struct {
-	// Status is a concrete three-digit HTTP status code.
+	// Status is an exact HTTP code, uppercase 1XX–5XX, or "default".
 	Status string
 	// Response is the normalized response definition.
 	Response Response
@@ -298,6 +318,8 @@ type StatusResponse struct {
 // Response describes an HTTP response. Ref is set instead of the remaining
 // fields for a component reference.
 type Response struct {
+	stream *sseEvent
+
 	// ReferenceDescription retains a present description override on Ref.
 	ReferenceDescription *string
 	// ReferenceSummary retains a present summary override on Ref.
@@ -349,6 +371,11 @@ type Header struct {
 // phase. Ref may be accompanied by supported assertions and annotations
 // authored beside $ref or a single-reference allOf wrapper.
 type Schema struct {
+	contentKeywords    []string
+	examplesPresent    bool
+	emptyExamples      bool
+	annotationPresence uint16
+
 	// Discriminator retains a validated hint without changing schema validation.
 	Discriminator       *Discriminator
 	sourcePath          string
@@ -387,7 +414,9 @@ type Schema struct {
 	Title string
 	// Description is the schema description.
 	Description string
-	// Bases contains local object schemas extended by this schema.
+	// Bases retains conjunctive contributors independently of local assertions.
+	// Object contributors use Extend; one inline non-null primitive contributor
+	// uses its recorded native construction declaration.
 	Bases []*Schema
 	// Properties contains object properties sorted by wire name.
 	Properties []NamedProperty

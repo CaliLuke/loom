@@ -21,19 +21,9 @@ import (
 	loom "github.com/CaliLuke/loom/pkg"
 )
 
-// EncodeTickResponse returns an encoder for responses returned by the clock
-// Tick endpoint.
-func EncodeTickResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
-	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, ok := v.(*clock.TickResult)
-		if !ok {
-			return loomhttp.ErrInvalidType("clock", "Tick", "*clock.TickResult", v)
-		}
-		enc := encoder(ctx, w)
-		body := NewTickResponseBody(res)
-		w.WriteHeader(http.StatusOK)
-		return enc.Encode(body)
-	}
+// prepareTickHandshake prepares immutable stream response metadata before publication.
+func prepareTickHandshake(ctx context.Context) (loomhttp.SSEHandshake, error) {
+	return loomhttp.SSEHandshake{Status: 200}, nil
 }
 
 // DecodeTickRequest returns a decoder for requests sent to the clock Tick
@@ -98,19 +88,9 @@ func DecodeTickRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.
 	}
 }
 
-// EncodeTockResponse returns an encoder for responses returned by the clock
-// Tock endpoint.
-func EncodeTockResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
-	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, ok := v.(*clock.TockResult)
-		if !ok {
-			return loomhttp.ErrInvalidType("clock", "Tock", "*clock.TockResult", v)
-		}
-		enc := encoder(ctx, w)
-		body := NewTockResponseBody(res)
-		w.WriteHeader(http.StatusOK)
-		return enc.Encode(body)
-	}
+// prepareTockHandshake prepares immutable stream response metadata before publication.
+func prepareTockHandshake(ctx context.Context) (loomhttp.SSEHandshake, error) {
+	return loomhttp.SSEHandshake{Status: 200}, nil
 }
 
 // DecodeTockRequest returns a decoder for requests sent to the clock Tock

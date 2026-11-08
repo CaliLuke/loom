@@ -12,7 +12,7 @@ func TestJSONRPCRequestSourceIdentity(t *testing.T) {
 		t.Run(strconv.Itoa(int(kind)), func(t *testing.T) {
 			payload := &AttributeExpr{Type: &Object{{Name: "request", Attribute: &AttributeExpr{Type: String}}}}
 			streaming := &AttributeExpr{Type: &Object{{Name: "message", Attribute: &AttributeExpr{Type: String}}}}
-			endpoint := &HTTPEndpointExpr{MethodExpr: &MethodExpr{Payload: payload, StreamingPayload: streaming, Stream: kind, Meta: MetaExpr{"jsonrpc": {}}}}
+			endpoint := &HTTPEndpointExpr{Meta: MetaExpr{"jsonrpc": {}}, MethodExpr: &MethodExpr{Payload: payload, StreamingPayload: streaming, Stream: kind, Meta: MetaExpr{"jsonrpc": {}}}}
 			want := payload
 			if kind == ClientStreamKind || kind == BidirectionalStreamKind {
 				want = streaming
@@ -27,6 +27,7 @@ func TestJSONRPCRequestSourceIdentity(t *testing.T) {
 func TestJSONRPCRequestSourceNormalization(t *testing.T) {
 	payload := &AttributeExpr{Type: &Object{{Name: "token", Attribute: &AttributeExpr{Type: String}}}}
 	endpoint := &HTTPEndpointExpr{
+		Meta: MetaExpr{"jsonrpc": {}},
 		MethodExpr: &MethodExpr{
 			Payload: payload, StreamingPayload: &AttributeExpr{Type: Empty}, Result: &AttributeExpr{Type: String},
 			Stream: ServerStreamKind, Meta: MetaExpr{"jsonrpc": {}},

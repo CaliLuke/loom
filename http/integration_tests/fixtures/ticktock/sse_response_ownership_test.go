@@ -31,12 +31,12 @@ func TestGeneratedSSEResponseOwnership(t *testing.T) {
 		status                       int
 		guarded                      bool
 	}{
-		{"unexpected status", "application/json", "unexpected status", http.StatusBadGateway, false},
+		{"unexpected status", "application/json", "invalid response code 502", http.StatusBadGateway, false},
 		{"unexpected content type", "application/json", "unexpected content type", http.StatusOK, false},
 		{"typed endpoint content type", "application/json", "unexpected content type", http.StatusOK, true},
 		{"typed endpoint rejection", "application/problem+json", "denied", http.StatusUnauthorized, true},
 		{"stream", "text/event-stream", "", http.StatusOK, false},
-		{"stream without content type", "", "", http.StatusOK, false},
+		{"stream without content type", "", "unexpected content type", http.StatusOK, false},
 	} {
 		for _, closeFails := range []bool{false, true} {
 			t.Run(tc.name+map[bool]string{false: "/close succeeds", true: "/close fails"}[closeFails], func(t *testing.T) {
@@ -57,6 +57,17 @@ func TestGeneratedSSEResponseOwnership(t *testing.T) {
 				if tc.wantError != "" {
 					require.Nil(t, result)
 					require.ErrorContains(t, err, tc.wantError)
+					if tc.status == http.StatusBadGateway {
+						var invalid *loomhttp.ClientError
+						require.ErrorAs(t, err, &invalid)
+						require.Equal(t, "invalid_response", invalid.Name)
+						require.Equal(t, "clock", invalid.Service)
+						require.Equal(t, "Tick", invalid.Method)
+						require.True(t, invalid.Fault)
+						require.False(t, invalid.Temporary)
+						require.False(t, invalid.Timeout)
+						require.Contains(t, invalid.Message, "invalid response code 502")
+					}
 					if closeFails {
 						require.ErrorIs(t, err, body.closeErr)
 					}

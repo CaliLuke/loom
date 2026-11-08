@@ -66,6 +66,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 
@@ -184,7 +185,7 @@ func TestServerIdentity(t *testing.T) {
 				}
 				found := false
 				for _, contract := range contracts[mode] {
-					if contract.StatusCode != failure.status {
+					if !slices.Contains(contract.Domain, failure.status) {
 						continue
 					}
 					found = true

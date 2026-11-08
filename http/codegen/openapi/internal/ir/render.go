@@ -6,7 +6,7 @@ type (
 	// RenderedEndpointBodies is the rendered endpoint body set used by v3 adapters.
 	RenderedEndpointBodies struct {
 		RequestBody    *openapi.Schema
-		ResponseBodies map[int][]*openapi.Schema
+		ResponseBodies map[string][]*openapi.Schema
 	}
 )
 
@@ -111,7 +111,7 @@ func renderEndpointBodies(bodies *EndpointBodies) *RenderedEndpointBodies {
 		RequestBody: RenderSchema(bodies.RequestBody),
 	}
 	if len(bodies.ResponseBodies) > 0 {
-		rendered.ResponseBodies = make(map[int][]*openapi.Schema, len(bodies.ResponseBodies))
+		rendered.ResponseBodies = make(map[string][]*openapi.Schema, len(bodies.ResponseBodies))
 		for status, schemas := range bodies.ResponseBodies {
 			rendered.ResponseBodies[status] = renderSchemaSlice(schemas)
 		}

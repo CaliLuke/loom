@@ -1,11 +1,24 @@
 package testdata
 
-import . "github.com/CaliLuke/loom/dsl"
+import (
+	. "github.com/CaliLuke/loom/dsl"
+	"github.com/CaliLuke/loom/expr"
+)
 
 // UnionResponseBodyDSL selects union fields as success and custom error bodies,
 // covering field presence, named unions, mapped names, and viewed results.
 var UnionResponseBodyDSL = func() {
 	API("unionresponse", func() {})
+	unionResponseBodyDSL(false)
+}
+
+// UnionResponseStatusDSL selects a union at known and extension statuses.
+// It omits API metadata so transport specimens can compose it with other services.
+var UnionResponseStatusDSL = func() {
+	unionResponseBodyDSL(true)
+}
+
+func unionResponseBodyDSL(statuses bool) {
 	leaf := Type("Leaf", func() {
 		Attribute("name", String)
 		Required("name")
@@ -36,13 +49,19 @@ var UnionResponseBodyDSL = func() {
 		{name: "required_viewed", required: true, viewed: true},
 		{name: "optional_viewed", viewed: true},
 	} {
+		if statuses && c.name != "required_named" {
+			continue
+		}
 		attributes := func() {
+			if statuses {
+				Attribute("kind", String)
+			}
 			key := "choice"
 			if c.mapped {
 				key = "choice:wire_choice"
 			}
 			choice := OneOf(leaf, other)
-			if c.named {
+			if c.named && !statuses {
 				choice = named
 			}
 			Attribute(key, choice, func() {
@@ -64,20 +83,32 @@ var UnionResponseBodyDSL = func() {
 				})
 			})
 		}
-		Service(c.name, func() {
-			Method("show", func() {
-				Result(result)
-				Error("bad", envelope)
-				HTTP(func() {
-					GET("/" + c.name)
-					Response(StatusOK, func() {
+		unionResponseService(c.name, result, envelope, statuses)
+	}
+}
+
+func unionResponseService(name string, result any, envelope expr.UserType, statuses bool) {
+	Service(name, func() {
+		Method("show", func() {
+			Result(result)
+			Error("bad", envelope)
+			HTTP(func() {
+				GET("/" + name)
+				Response(StatusOK, func() {
+					if statuses {
+						Tag("kind", "known")
+					}
+					Body("choice")
+				})
+				if statuses {
+					Response(299, func() {
 						Body("choice")
 					})
-					Response("bad", StatusBadRequest, func() {
-						Body("choice")
-					})
+				}
+				Response("bad", StatusBadRequest, func() {
+					Body("choice")
 				})
 			})
 		})
-	}
+	})
 }

@@ -8,6 +8,8 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+
+	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 )
 
 type responseAlternative struct {
@@ -225,4 +227,44 @@ func mergeResponseHeaders(target map[string]*HeaderRef, alternative responseAlte
 		}
 	}
 	return nil
+}
+
+// addUnaryContent adds the whole unary Result representation of a typed mixed
+// success beside its event stream. Both share the response's status and
+// metadata; each media type keeps its own body role.
+func addUnaryContent(content map[string]*MediaType, resp *transportir.ResponseStatus, schemas map[string]*Schema, closeObjects bool) (map[string]*MediaType, error) {
+	unary := resp.Unary
+	if unary == nil {
+		return content, nil
+	}
+	var media map[string]*MediaType
+	if len(unary.MediaVariants) > 0 {
+		var err error
+		if media, err = buildMediaVariantContent(unary.MediaVariants, schemas, closeObjects, schemaUsageResponse); err != nil {
+			return nil, err
+		}
+	} else {
+		body := attributeForSchemaUsage(unary.Body, schemaUsageResponse)
+		media = make(map[string]*MediaType, len(unary.ContentTypes))
+		for _, contentType := range unary.ContentTypes {
+			target := unary.BodyValue
+			if prepared, exists := unary.BodyValues[contentType]; exists {
+				target = prepared
+			}
+			media[contentType] = buildMediaType(body, schemas[contentType], closeObjects, resp.BinaryBody, target)
+		}
+	}
+	if content == nil {
+		content = make(map[string]*MediaType, len(media))
+	}
+	for contentType, mediaType := range media {
+		if _, exists := content[contentType]; exists {
+			return nil, fmt.Errorf("unary and event representations both claim media type %q", contentType)
+		}
+		if !resp.EmitExamples {
+			mediaType.Example, mediaType.Examples = nil, nil
+		}
+		content[contentType] = mediaType
+	}
+	return content, nil
 }

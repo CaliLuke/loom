@@ -101,7 +101,7 @@ func TestSchemaExamplesRespectSourceScope(t *testing.T) {
 				}
 			}
 			rand := expr.NewRandom("scoped")
-			target, err := representation.PrepareStandaloneExamples(attribute, rand)
+			target, err := representation.PrepareStandaloneValues(attribute, rand, true)
 			require.NoError(t, err)
 			parameter := paramFor(attribute, target, "color", "query", rand).Value
 			if len(wantSchema) == 1 {

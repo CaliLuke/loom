@@ -26,6 +26,9 @@ func (sd *ServiceData) constructorReservations(client bool) constructorNames {
 		}
 	} else {
 		names.add(sd.ServerStruct, sd.MountPointStruct, sd.ServerInit, sd.MountServer, "ResponseContractCases")
+		for _, validation := range sd.outgoingHeaderValidationTypes {
+			names.addType(validation)
+		}
 		for _, file := range sd.FileServers {
 			names.add(file.MountHandler)
 		}
@@ -91,10 +94,17 @@ func (names constructorNames) addCLI(sd *ServiceData) {
 }
 
 func (names constructorNames) addEndpoint(ep *EndpointData, client bool) {
+	for _, info := range ep.Informational {
+		if client {
+			names.add(info.Observe)
+		} else {
+			names.add(info.Send)
+		}
+	}
 	for _, route := range ep.Routes {
 		names.add(route.PathInit.Name)
 	}
-	if !ep.Method.IsJSONRPC && IsWebSocketEndpoint(ep) {
+	if !ep.IsJSONRPC && IsWebSocketEndpoint(ep) {
 		names.add("ConnConfigurer", "NewConnConfigurer")
 	}
 	if client {
@@ -131,7 +141,7 @@ func (names constructorNames) addClient(ep *EndpointData) {
 	}
 	if ep.SSE != nil {
 		names.add(ep.Method.VarName + "ClientStream")
-		if !ep.Method.IsJSONRPC {
+		if !ep.IsJSONRPC {
 			names.add(ep.Method.VarName+"StreamImpl", "New"+ep.Method.VarName+"Stream")
 		}
 	}

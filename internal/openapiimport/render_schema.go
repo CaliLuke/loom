@@ -101,6 +101,16 @@ func (r *renderer) schemaExpression(schema *Schema, path string) (string, bool, 
 	if schema.Ref != "" {
 		return r.schemaReferenceExpression(schema.Ref, path)
 	}
+	if primitiveContributorType(schema.Type) && len(schema.Bases) > 0 {
+		if len(schema.Bases) == 1 {
+			for _, named := range r.schemas {
+				if named.constructionOnly && named.Schema == schema.Bases[0] {
+					return r.schemaReferenceExpression(componentDeclaration(named.Name), path+"/bases/0")
+				}
+			}
+		}
+		return "", false, fmt.Errorf("render OpenAPI design: %s primitive contributor has no unique prepared constructor", path)
+	}
 	if len(schema.OneOf) > 0 {
 		return r.oneOfExpression(schema, path)
 	}
@@ -239,6 +249,9 @@ func booleanSchemaExpression(format, path string) (string, bool, error) {
 }
 
 func (r *renderer) schemaBlock(schema *Schema, path string, errorType bool, description *string) error {
+	if primitiveContributorType(schema.Type) {
+		return r.schemaAttributeBlock(schema, path, description)
+	}
 	if schema.Type == "object" && schema.AdditionalProperties != nil && schema.AdditionalProperties.Allowed != nil && !*schema.AdditionalProperties.Allowed {
 		r.line("Meta(%q, %q)", "openapi:additionalProperties", "false")
 	}
@@ -376,14 +389,14 @@ func (r *renderer) schemaAnnotations(schema *Schema, description *string) error 
 	if schema.Title != "" {
 		r.line("Title(%q)", schema.Title)
 	}
-	if schema.Deprecated {
-		r.line("Meta(%q, %q)", "openapi:deprecated", "true")
+	if schema.hasBooleanAnnotation(schemaAnnotationDeprecated, schema.Deprecated) {
+		r.line("Meta(%q, %q)", "openapi:deprecated", strconv.FormatBool(schema.Deprecated))
 	}
-	if schema.ReadOnly {
-		r.line("Meta(%q, %q)", "openapi:readOnly", "true")
+	if schema.hasBooleanAnnotation(schemaAnnotationReadOnly, schema.ReadOnly) {
+		r.line("Meta(%q, %q)", "openapi:readOnly", strconv.FormatBool(schema.ReadOnly))
 	}
-	if schema.WriteOnly {
-		r.line("Meta(%q, %q)", "openapi:writeOnly", "true")
+	if schema.hasBooleanAnnotation(schemaAnnotationWriteOnly, schema.WriteOnly) {
+		r.line("Meta(%q, %q)", "openapi:writeOnly", strconv.FormatBool(schema.WriteOnly))
 	}
 	return r.emitExtensions("schema", schema.Extensions)
 }
@@ -456,7 +469,9 @@ func (r *renderer) hasSchemaBlock(schema *Schema) bool {
 	if !schema.inheritedFormat && schema.Format == "" && (schema.Type == "integer" || schema.Type == "number") {
 		return true
 	}
-	return schema.Nullable || schema.Deprecated || schema.ReadOnly || schema.WriteOnly || schema.Default != nil || len(schema.Examples) > 0 ||
+	return schema.Nullable || schema.hasBooleanAnnotation(schemaAnnotationDeprecated, schema.Deprecated) ||
+		schema.hasBooleanAnnotation(schemaAnnotationReadOnly, schema.ReadOnly) ||
+		schema.hasBooleanAnnotation(schemaAnnotationWriteOnly, schema.WriteOnly) || schema.Default != nil || len(schema.Examples) > 0 ||
 		len(schema.Extensions) > 0
 }
 

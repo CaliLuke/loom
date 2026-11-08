@@ -52,7 +52,7 @@ func TestBuildBodyTypesNamesInlineResultBodySelections(t *testing.T) {
 			require.NotPanics(t, func() {
 				explicit = BuildBodyTypes(explicitRoot.API, explicitRoot.Types, explicitRoot.ResultTypes)
 			})
-			ref := explicit.Services[tc.service][tc.method].ResponseBodies[200][0].Ref
+			ref := explicit.Services[tc.service][tc.method].ResponseBodies["200"][0].Ref
 			assert.Equal(t, toRef(tc.wantName), ref)
 			component := explicit.Components[tc.wantName]
 			require.NotNil(t, component)
@@ -64,7 +64,7 @@ func TestBuildBodyTypesNamesInlineResultBodySelections(t *testing.T) {
 
 			implicitRoot := codegen.RunDSL(t, tc.implicit)
 			implicit := BuildBodyTypes(implicitRoot.API, implicitRoot.Types, implicitRoot.ResultTypes)
-			assert.Equal(t, ref, implicit.Services[tc.service][tc.method].ResponseBodies[200][0].Ref)
+			assert.Equal(t, ref, implicit.Services[tc.service][tc.method].ResponseBodies["200"][0].Ref)
 			assert.Equal(t, component, implicit.Components[tc.wantName])
 		})
 	}
@@ -126,7 +126,7 @@ func TestBuildBodyTypesKeepsInlineBodyNameAndReuse(t *testing.T) {
 			require.NotPanics(t, func() {
 				bodies = BuildBodyTypes(root.API, root.Types, root.ResultTypes)
 			})
-			assert.Equal(t, toRef(tc.wantName), bodies.Services["Svc"]["do"].ResponseBodies[200][0].Ref)
+			assert.Equal(t, toRef(tc.wantName), bodies.Services["Svc"]["do"].ResponseBodies["200"][0].Ref)
 			component := bodies.Components[tc.wantName]
 			require.NotNil(t, component)
 			assert.Len(t, component.Properties, len(tc.want))
@@ -233,7 +233,7 @@ func TestBuildBodyTypesReusesTypeOfDeclaredBody(t *testing.T) {
 					bodies = BuildBodyTypes(root.API, root.Types, root.ResultTypes)
 				})
 				require.NotNil(t, bodies)
-				responses := bodies.Services["Svc"]["do"].ResponseBodies[tc.status]
+				responses := bodies.Services["Svc"]["do"].ResponseBodies[fmt.Sprint(tc.status)]
 				require.Len(t, responses, 1)
 				assert.Equal(t, toRef(tc.wantName), responses[0].Ref)
 				for name := range bodies.Components {
@@ -274,7 +274,7 @@ func TestDeclaredBodyCanonicalAcrossMethods(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			endpoint := bodies.Services["Svc"][name]
 			require.NotNil(t, endpoint)
-			assert.Equal(t, toRef("RT"), endpoint.ResponseBodies[200][0].Ref)
+			assert.Equal(t, toRef("RT"), endpoint.ResponseBodies["200"][0].Ref)
 			response := endpoint.prepared.Response.Responses[0]
 			target := response.DocumentValues["application/json"]
 			require.NotNil(t, target)

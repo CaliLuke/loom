@@ -182,6 +182,11 @@ concrete Content-Type field. The generated client/server select a codec for the
 selected branch; unknown codecs require an application factory. Single-media
 behavior is unchanged. See [HTTP media contracts](http-media-contracts.md).
 
+Response keys and SSE event envelopes follow the classification in
+[Code Generation](code-generation.md#import-openapi-loom-import-openapi): success, error, error-only,
+informational and handshake roles derive from the key set, not from invented
+statuses.
+
 The following table summarizes fixed fields on objects that the importer
 reads. Specification extensions are patterns, not fixed fields.
 
@@ -196,8 +201,8 @@ reads. Specification extensions are patterns, not fixed fields.
 | Components | Supported schemas, parameters, request bodies, responses, headers, security schemes, and examples | None | Links, callbacks, path items, media types, and `x-*` component entries |
 | Parameter | Identity, location, requiredness, schema, description, supported style and `explode` combinations, `allowReserved`, named query-map JSON `content`, and supported `x-*` | `deprecated`, unsupported examples | Incompatible serialization or content |
 | Request Body | `description`, `required`, supported content, and supported `x-*` | None | unresolved, cyclic, or wrong-kind `$ref` plans |
-| Media Type | Distinct per-media schemas and examples, ranges, admitted styled and JSON form field encoding, and multipart part content types | OpenAPI 3.2 `description` | `itemSchema`, unsupported encoding fields, `prefixEncoding`, and `x-*` |
-| Responses | Concrete status-code entries | None | `default` and `x-*` |
+| Media Type | Distinct per-media schemas and examples, ranges, admitted styled and JSON form field encoding, multipart part content types, and an OpenAPI 3.2 `text/event-stream` success `itemSchema` event envelope | OpenAPI 3.2 `description` | Other `itemSchema` uses, `itemEncoding`, unsupported encoding fields, `prefixEncoding`, and `x-*` |
+| Responses | Exact codes, uppercase `1XX`-`5XX`, `default`, and header-only 100/102-199/`1XX` informational entries | None | `101`, informational `content`, malformed keys, and `x-*` |
 | Response | `summary`, `description`, supported headers and content, and supported `x-*` | None | Unresolved, cyclic, or wrong-kind `$ref` plans and links |
 | Header | `description`, `required`, schema, `style: simple` with either `explode` value, and `allowReserved` | `deprecated`, unsupported examples | Other serialization, content, unresolved/cyclic/wrong-kind `$ref`, and `x-*` |
 | Security Scheme | API keys, HTTP basic, HTTP bearer, and supported OAuth 2.0 flows and scopes | None | OpenID Connect, bearer formats, device authorization |
@@ -344,6 +349,13 @@ every member: its declared properties, explicit `additionalProperties`, or the
 properties of its references and inherited bases. A property declared only by a
 non-matching branch does not count. Other examples receive a lossy `examples`
 diagnostic at their authored location and are omitted with `--allow-lossy`.
+
+Authored `false` values for `deprecated`, `readOnly`, and `writeOnly` remain
+distinct from absent annotations in the rendered design. Local annotations and
+contributor annotations retain their separate owners, including primitive
+`allOf` contributors. Re-import and regenerate designs to restore explicit false
+annotations omitted by earlier imports. Nullable composition keeps the
+annotation-combination rules described below.
 
 Imported patterns must preserve ECMAScript acceptance in Loom's Go validators.
 The portable subset supports ordinary BMP Unicode literals, positive character

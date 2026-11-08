@@ -29,7 +29,7 @@ func TestHTTPResponseDefaultUniqueness(t *testing.T) {
 		{"two defaults", func() {
 			Response(StatusOK)
 			Response(StatusCreated)
-		}, "exactly one response must define no Tag; found 2"},
+		}, "status-selected responses require StatusField"},
 		{"tag and two defaults", func() {
 			Response(StatusOK)
 			Response(StatusCreated, func() {

@@ -17,49 +17,19 @@ import (
 	loom "github.com/CaliLuke/loom/pkg"
 )
 
-// EncodeTickResponse returns an encoder for responses returned by the clock
-// Tick endpoint.
-func EncodeTickResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
-	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, ok := v.(*clock.TickTockEvent)
-		if !ok {
-			return loomhttp.ErrInvalidType("clock", "Tick", "*clock.TickTockEvent", v)
-		}
-		enc := encoder(ctx, w)
-		body := NewTickResponseBody(res)
-		w.WriteHeader(http.StatusOK)
-		return enc.Encode(body)
-	}
+// prepareTickHandshake prepares immutable stream response metadata before publication.
+func prepareTickHandshake(ctx context.Context) (loomhttp.SSEHandshake, error) {
+	return loomhttp.SSEHandshake{Status: 200}, nil
 }
 
-// EncodeTockResponse returns an encoder for responses returned by the clock
-// Tock endpoint.
-func EncodeTockResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
-	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, ok := v.(*clock.TickTockEvent)
-		if !ok {
-			return loomhttp.ErrInvalidType("clock", "Tock", "*clock.TickTockEvent", v)
-		}
-		enc := encoder(ctx, w)
-		body := NewTockResponseBody(res)
-		w.WriteHeader(http.StatusOK)
-		return enc.Encode(body)
-	}
+// prepareTockHandshake prepares immutable stream response metadata before publication.
+func prepareTockHandshake(ctx context.Context) (loomhttp.SSEHandshake, error) {
+	return loomhttp.SSEHandshake{Status: 200}, nil
 }
 
-// EncodeGuardedResponse returns an encoder for responses returned by the clock
-// Guarded endpoint.
-func EncodeGuardedResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
-	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, ok := v.(*clock.TickTockEvent)
-		if !ok {
-			return loomhttp.ErrInvalidType("clock", "Guarded", "*clock.TickTockEvent", v)
-		}
-		enc := encoder(ctx, w)
-		body := NewGuardedResponseBody(res)
-		w.WriteHeader(http.StatusOK)
-		return enc.Encode(body)
-	}
+// prepareGuardedHandshake prepares immutable stream response metadata before publication.
+func prepareGuardedHandshake(ctx context.Context) (loomhttp.SSEHandshake, error) {
+	return loomhttp.SSEHandshake{Status: 200}, nil
 }
 
 // DecodeGuardedRequest returns a decoder for requests sent to the clock
@@ -105,7 +75,7 @@ func EncodeGuardedError(encoder func(context.Context, http.ResponseWriter) loomh
 				return encodeError(ctx, w, v)
 			}
 			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "application/problem+json")
-			problem := loomhttp.NewProblemResponse(ctx, v, 401, "", "")
+			problem := loomhttp.NewProblemResponse(ctx, v, http.StatusUnauthorized, "", "")
 			enc := encoder(ctx, w)
 			var body any
 			if formatter != nil {

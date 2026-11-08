@@ -1,6 +1,7 @@
 package openapiv3
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -194,7 +195,7 @@ func TestBuildBodyTypes(t *testing.T) {
 			requestBody := met.RequestBody
 			for s, r := range met.ResponseBodies {
 				if len(r) != 1 {
-					t.Errorf("got %d response bodies for %d, expected 1", len(r), s)
+					t.Errorf("got %d response bodies for %s, expected 1", len(r), s)
 					return
 				}
 			}
@@ -205,11 +206,11 @@ func TestBuildBodyTypes(t *testing.T) {
 				return
 			}
 			for s, r := range c.ExpectedResponseTypes {
-				if len(met.ResponseBodies[s]) != 1 {
-					t.Errorf("got %d response bodies for code %d, expected 1", len(met.ResponseBodies[s]), s)
+				if len(met.ResponseBodies[strconv.Itoa(s)]) != 1 {
+					t.Errorf("got %d response bodies for code %d, expected 1", len(met.ResponseBodies[strconv.Itoa(s)]), s)
 					return
 				}
-				matchesSchema(t, "response", met.ResponseBodies[s][0], types, r)
+				matchesSchema(t, "response", met.ResponseBodies[strconv.Itoa(s)][0], types, r)
 			}
 			for name, forced := range c.ExpectedExtraTypes {
 				got, ok := types[name]
@@ -338,7 +339,7 @@ func TestBuildBodyTypesUnionIncludesDiscriminatorMappingsForRequestAndResponse(t
 	bodies, types := buildBodyTypes(root.API, root.Types, root.ResultTypes)
 	methodBodies := bodies["union-service"]["show"]
 	requestSchema := derefSchema(t, methodBodies.RequestBody, types)
-	responseSchema := derefSchema(t, methodBodies.ResponseBodies[200][0], types)
+	responseSchema := derefSchema(t, methodBodies.ResponseBodies["200"][0], types)
 
 	assertUnionSchema(t, requestSchema, types, "type", "value", []string{"JSONResult", "TextResult"})
 	assertUnionSchema(t, responseSchema, types, "type", "value", []string{"JSONResult", "TextResult"})

@@ -96,7 +96,7 @@ func preparedOperationValue(
 	generator *expr.ExampleGenerator,
 ) *transportir.ValueTarget {
 	t.Helper()
-	target, err := representation.PrepareStandaloneExamples(attribute, generator)
+	target, err := representation.PrepareStandaloneValues(attribute, generator, true)
 	require.NoError(t, err)
 	return target
 }

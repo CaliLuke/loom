@@ -66,6 +66,9 @@ func (a *analyzer) schemaAllOf(schema *Schema, source *base.Schema, path string)
 	if len(source.AllOf) == 0 {
 		return false
 	}
+	if a.schemaPrimitiveContributor(schema, source, path) {
+		return true
+	}
 	if len(source.AllOf) == 1 && !hasUnsupportedSingleReferenceAllOfSiblings(source) {
 		proxy := source.AllOf[0]
 		if proxy != nil && proxy.IsReference() && !proxy.IsTransformedRefWithSiblings() {
@@ -147,4 +150,42 @@ func hasDirectAllOfSchemaShape(source *base.Schema) bool {
 		source.Pattern != "" || source.Minimum != nil || source.Maximum != nil || source.ExclusiveMinimum != nil ||
 		source.ExclusiveMaximum != nil || source.MinLength != nil || source.MaxLength != nil ||
 		source.MinItems != nil || source.MaxItems != nil || source.Default != nil
+}
+
+// schemaPrimitiveContributor retains one inline primitive conjunction as two
+// semantic layers. Native declaration allocation occurs only during preparation.
+func (a *analyzer) schemaPrimitiveContributor(schema *Schema, source *base.Schema, path string) bool {
+	if len(source.AllOf) != 1 || len(source.OneOf) > 0 || len(source.AnyOf) > 0 {
+		return false
+	}
+	proxy := source.AllOf[0]
+	if proxy == nil || proxy.IsReference() {
+		return false
+	}
+	contributor := proxy.Schema()
+	if contributor == nil || len(contributor.Type) != 1 || !primitiveContributorType(contributor.Type[0]) ||
+		len(contributor.AllOf) > 0 || len(contributor.OneOf) > 0 || len(contributor.AnyOf) > 0 ||
+		contributor.Nullable != nil && *contributor.Nullable {
+		return false
+	}
+	if len(source.Type) > 0 && !slices.Equal(source.Type, contributor.Type) ||
+		source.Nullable != nil && *source.Nullable || source.Format != "" && source.Format != contributor.Format ||
+		orderedmap.Len(source.Properties) > 0 || len(source.Required) > 0 || source.Items != nil || source.AdditionalProperties != nil {
+		return false
+	}
+	baseSchema := a.schema(proxy, path+"/allOf/0")
+	if baseSchema == nil || baseSchema.Nullable || baseSchema.Ref != "" || len(baseSchema.Bases) > 0 {
+		return false
+	}
+	schema.Bases = []*Schema{baseSchema}
+	schema.Type = baseSchema.Type
+	schema.inheritedFormat = source.Format == ""
+	if schema.inheritedFormat {
+		schema.Format = baseSchema.Format
+	}
+	return true
+}
+
+func primitiveContributorType(value string) bool {
+	return value == "string" || value == "integer" || value == "number" || value == "boolean"
 }

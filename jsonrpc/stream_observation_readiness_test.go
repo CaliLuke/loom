@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 
 	loomhttp "github.com/CaliLuke/loom/http"
@@ -91,6 +92,64 @@ func TestSSECompletionObservation(t *testing.T) {
 			} else {
 				require.Zero(t, suppressed)
 			}
+		})
+	}
+}
+
+// TestSSECompletionObservationConcurrent checks the protocol marker follows only
+// one admitted suppression, independent of cancellation and outside writer locks.
+func TestSSECompletionObservationConcurrent(t *testing.T) {
+	for _, canceled := range []bool{false, true} {
+		t.Run(map[bool]string{false: "live", true: "canceled"}[canceled], func(t *testing.T) {
+			var writer *loomhttp.SSEStreamWriter
+			var mu sync.Mutex
+			markers := 0
+			callbackClosed := make(chan error, 2)
+			ctx := loomtransport.WithObserver(context.Background(), loomtransport.ObserverFunc(func(_ context.Context, event loomtransport.Event) {
+				if event.Reason == loomtransport.ReasonStreamFinalResponseSuppressed {
+					mu.Lock()
+					markers++
+					mu.Unlock()
+					// Reentry completes only if protocol observation runs outside writer ownership.
+					callbackClosed <- writer.Close()
+				}
+			}))
+			ctx, cancel := context.WithCancel(ctx)
+			defer cancel()
+			rec := httptest.NewRecorder()
+			writer = loomhttp.NewSSEStreamWriter(rec, ctx, loomtransport.TransportJSONRPC, loomhttp.StreamWritePolicy{}, loomhttp.WithSSEHandshake(func(context.Context) (loomhttp.SSEHandshake, error) {
+				t.Error("suppressed completion resolved handshake")
+				return loomhttp.SSEHandshake{Status: 201}, nil
+			}))
+			if canceled {
+				cancel()
+			}
+			start := make(chan struct{})
+			done := make(chan error, 2)
+			for range 2 {
+				go func() {
+					<-start
+					done <- CompleteSSEStream(ctx, writer, false, func() *Response {
+						t.Error("notification response evaluated")
+						return nil
+					})
+				}()
+			}
+			close(start)
+			first, second := <-done, <-done
+			if first != nil {
+				first, second = second, first
+			}
+			require.NoError(t, first)
+			require.ErrorIs(t, second, loomhttp.ErrSSEStreamClosed)
+			require.NoError(t, <-callbackClosed)
+			mu.Lock()
+			require.Equal(t, 1, markers)
+			mu.Unlock()
+			require.False(t, writer.Started())
+			require.False(t, rec.Flushed)
+			require.Empty(t, rec.Header())
+			require.Empty(t, rec.Body.String())
 		})
 	}
 }

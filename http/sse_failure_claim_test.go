@@ -65,13 +65,19 @@ func TestSSEStreamWriterClaimFailure(t *testing.T) {
 		opened, failed, flushFailure bool
 	}{
 		{name: "fresh"},
+		{name: "suppressed", prepare: func(t *testing.T, s *SSEStreamWriter) {
+			require.NoError(t, s.Suppress())
+		}},
+		{name: "cleanup", prepare: func(_ *testing.T, s *SSEStreamWriter) {
+			s.End()
+		}},
 		{name: "opened", opened: true, prepare: func(t *testing.T, s *SSEStreamWriter) {
 			require.NoError(t, s.Open(t.Context()))
 		}},
-		{name: "silent close", prepare: func(t *testing.T, s *SSEStreamWriter) {
+		{name: "successful close", opened: true, prepare: func(t *testing.T, s *SSEStreamWriter) {
 			require.NoError(t, s.Close())
 		}},
-		{name: "silent completion", prepare: func(t *testing.T, s *SSEStreamWriter) {
+		{name: "empty completion", opened: true, prepare: func(t *testing.T, s *SSEStreamWriter) {
 			require.NoError(t, s.Complete(t.Context(), nil))
 		}},
 		{name: "completed", opened: true, prepare: func(t *testing.T, s *SSEStreamWriter) {

@@ -105,9 +105,9 @@ func AnalyzeResponseContractCases(endpoint *expr.HTTPEndpointExpr) *ResponseCont
 			dataType = responseContractTypeName(endpointError.AttributeExpr)
 		}
 		analysis.Cases = append(analysis.Cases, &ResponseContractCase{
-			ID:            responseContractCaseID(serviceName, methodName, ResponseContractError, endpointError.Name, endpointError.Response.StatusCode),
+			ID:            responseContractCaseID(serviceName, methodName, ResponseContractError, endpointError.Name, endpointError.Response.JSONRPCError.Code),
 			Kind:          ResponseContractError,
-			ErrorCode:     endpointError.Response.StatusCode,
+			ErrorCode:     endpointError.Response.JSONRPCError.Code,
 			ErrorName:     endpointError.Name,
 			ErrorDataType: dataType,
 			Stream:        successStream,

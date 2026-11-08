@@ -1,6 +1,9 @@
 package generator
 
 import (
+	"maps"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -52,8 +55,9 @@ func TestAsyncConsumerViewAuthority(t *testing.T) {
 	}
 }
 
-// These assertions preserve the inline consumer shape while using the shared
-// alias refinement and occurrence-nullability semantics.
+// An eligible SSE message is the completed common event outcome (#976 R7), so
+// it keeps the shared alias-refinement conjunction and nullable wrapper. These
+// assertions check the effective contract, not the superseded flat shape.
 func TestAsyncConsumerOwnsAliasPolicy(t *testing.T) {
 	for _, policy := range []string{"enum refinement", "occurrence nullable"} {
 		t.Run(policy, func(t *testing.T) {
@@ -91,14 +95,15 @@ func TestAsyncConsumerOwnsAliasPolicy(t *testing.T) {
 			spec := asyncAnnotationDocument(t, fixture, true)
 			properties := asyncAnnotationMap(t, asyncAnnotationMessage(t, spec, "/"), "properties")
 			value := asyncAnnotationMap(t, properties, "value")
-			require.NotContains(t, value, "allOf")
-			require.NotContains(t, value, "anyOf")
 			if policy == "enum refinement" {
-				require.Equal(t, []any{float64(2)}, value["enum"])
-				require.Equal(t, "integer", value["type"])
+				require.False(t, asyncNullable(value))
+				require.Equal(t, []any{float64(2)}, asyncEffectiveEnum(t, value))
+				require.Equal(t, "integer", asyncConjunctionType(t, value))
 			} else {
-				require.Equal(t, "string", value["type"])
+				require.True(t, asyncNullable(value), "the occurrence nullability is retained")
+				require.Equal(t, "string", asyncConjunctionType(t, asyncNonNull(t, value)))
 			}
+			requireAsyncMessageMatchesPayload(t, spec, "/")
 		})
 	}
 }
@@ -136,12 +141,100 @@ func TestAsyncConsumerCombinedPolicies(t *testing.T) {
 	}
 	spec := asyncAnnotationDocument(t, fixture, true)
 	schema := asyncAnnotationMessage(t, spec, "/")
-	require.NotContains(t, schema, "description")
 	properties := asyncAnnotationMap(t, schema, "properties")
-	require.Contains(t, properties, "extra", "inline shape does not inherit the ordinary tiny-view policy")
+	require.NotContains(t, properties, "extra", "the selected tiny view owns the event members")
+	require.NotContains(t, asyncAnnotationMap(t, schema, "example"), "extra", "examples sample only view members")
 	value := asyncAnnotationMap(t, properties, "value")
-	require.Equal(t, "integer", value["type"])
-	require.Equal(t, []any{float64(2)}, value["enum"])
-	require.NotContains(t, value, "allOf")
-	require.NotContains(t, value, "anyOf")
+	require.True(t, asyncNullable(value), "the occurrence nullability is retained")
+	refined := asyncNonNull(t, value)
+	require.Equal(t, "integer", asyncConjunctionType(t, refined))
+	require.Equal(t, []any{float64(2)}, asyncEffectiveEnum(t, refined))
+	requireAsyncMessageMatchesPayload(t, spec, "/")
+}
+
+// requireAsyncMessageMatchesPayload checks that the derived outbound message
+// documents the same completed event as the SSE payload: equal root examples,
+// description and member set.
+func requireAsyncMessageMatchesPayload(t *testing.T, spec map[string]any, path string) {
+	t.Helper()
+	message := asyncAnnotationMessage(t, spec, path)
+	payload := spec
+	for _, key := range []string{"paths", path, "get", "responses", "200", "content", "text/event-stream", "itemSchema", "properties", "data", "contentSchema"} {
+		payload = asyncAnnotationMap(t, payload, key)
+	}
+	resolved := payload
+	if ref, ok := payload["$ref"].(string); ok {
+		resolved = asyncAnnotationMap(t, asyncAnnotationMap(t, asyncAnnotationMap(t, spec, "components"), "schemas"), strings.TrimPrefix(ref, "#/components/schemas/"))
+	}
+	example := payload["example"]
+	if example == nil {
+		example = resolved["example"]
+	}
+	require.Equal(t, example, message["example"], "message and payload share one example outcome")
+	require.Equal(t, resolved["description"], message["description"])
+	require.ElementsMatch(t, slices.Collect(maps.Keys(asyncAnnotationMap(t, resolved, "properties"))), slices.Collect(maps.Keys(asyncAnnotationMap(t, message, "properties"))))
+}
+
+// asyncConjunction returns schema and every schema it conjoins through allOf.
+func asyncConjunction(t *testing.T, schema map[string]any) []map[string]any {
+	t.Helper()
+	result := []map[string]any{schema}
+	if members, ok := schema["allOf"].([]any); ok {
+		for _, member := range members {
+			result = append(result, asyncConjunction(t, member.(map[string]any))...)
+		}
+	}
+	return result
+}
+
+// asyncEffectiveEnum intersects every enum asserted by the conjunction.
+func asyncEffectiveEnum(t *testing.T, schema map[string]any) []any {
+	t.Helper()
+	var effective []any
+	for _, layer := range asyncConjunction(t, schema) {
+		values, ok := layer["enum"].([]any)
+		if !ok {
+			continue
+		}
+		if effective == nil {
+			effective = values
+			continue
+		}
+		effective = slices.DeleteFunc(slices.Clone(effective), func(value any) bool {
+			return !slices.Contains(values, value)
+		})
+	}
+	return effective
+}
+
+func asyncConjunctionType(t *testing.T, schema map[string]any) string {
+	t.Helper()
+	for _, layer := range asyncConjunction(t, schema) {
+		if kind, ok := layer["type"].(string); ok {
+			return kind
+		}
+	}
+	return ""
+}
+
+func asyncNullable(schema map[string]any) bool {
+	alternatives, _ := schema["anyOf"].([]any)
+	for _, alternative := range alternatives {
+		if arm, ok := alternative.(map[string]any); ok && arm["type"] == "null" {
+			return true
+		}
+	}
+	return false
+}
+
+func asyncNonNull(t *testing.T, schema map[string]any) map[string]any {
+	t.Helper()
+	alternatives, _ := schema["anyOf"].([]any)
+	for _, alternative := range alternatives {
+		if arm, ok := alternative.(map[string]any); ok && arm["type"] != "null" {
+			return arm
+		}
+	}
+	t.Fatalf("schema has no non-null alternative: %v", schema)
+	return nil
 }

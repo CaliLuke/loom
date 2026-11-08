@@ -39,7 +39,7 @@ func TestOpenAPISchemaUsesRetainedSemanticUnionSelection(t *testing.T) {
 		Source: source, Anchor: source, Codec: expr.ValueCodecJSON, Plan: schemaPlan,
 		AnchorPlan: documentationPlan, ExampleOccurrence: occurrence, ExamplePlan: documentationPlan,
 	}
-	require.NoError(t, representation.PrepareTargetExamples(target, attribute, generator))
+	require.NoError(t, representation.PrepareTargetValues(target, attribute, generator, true))
 
 	schema := NewAnalyzer(generator, false).analyzePreparedOccurrence(attribute, "retained", target)
 	require.Equal(t, value, schema.Example,

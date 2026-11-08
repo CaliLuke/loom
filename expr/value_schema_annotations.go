@@ -5,6 +5,14 @@ import (
 )
 
 type (
+	// DefaultValueOwner is a comparable framework-local identity of an authored
+	// default. Controlled copies retain it; a new Default assignment does not.
+	// It is not a public name, content hash, or serializable value.
+	DefaultValueOwner struct {
+		attribute  *AttributeExpr
+		assignment *valueDefaultAssignment
+	}
+
 	// JSONSchemaAnnotations retains checked defaults and enum clauses for one
 	// captured documentation occurrence. Values preserve declared scalar precision
 	// and selected union branches. Enum clauses remain conjunctive predicates;
@@ -22,10 +30,14 @@ type (
 	// value. ProjectionUnsupported denotes an explicit opaque codec boundary only;
 	// consumers must not treat that boundary as a builtin membership guarantee.
 	JSONSchemaValue struct {
+		owner       DefaultValueOwner
 		declaration EffectiveConstraintSource
 		declared    any
 		projection  ProjectionResult
 	}
+
+	// Nonzero size gives each assignment a distinct comparable allocation.
+	valueDefaultAssignment byte
 )
 
 // PrepareJSONSchemaAnnotations projects required schema values through a
@@ -48,6 +60,7 @@ func (c *ValueContext) PrepareJSONSchemaAnnotations(occurrence ValueOccurrence, 
 			return annotations, fmt.Errorf("default declared by %q: %w", effectiveLayerName(occurrence.node), err)
 		}
 		value.declaration = occurrence.EffectiveConstraints().DefaultSource()
+		value.owner = occurrence.EffectiveConstraints().defaultOwner
 		annotations.Default, annotations.HasDefault = value, true
 	}
 	if plan.root.validation == nil {
@@ -91,6 +104,12 @@ func (v JSONSchemaValue) Declaration() EffectiveConstraintSource {
 	return v.declaration
 }
 
+// DefaultOwner returns the authored owner retained by checked default preparation.
+// The zero identity denotes a value without an authored default owner.
+func (v JSONSchemaValue) DefaultOwner() DefaultValueOwner {
+	return v.owner
+}
+
 // Projection returns the immutable wire result or explicit codec boundary.
 func (v JSONSchemaValue) Projection() ProjectionResult {
 	return v.projection
@@ -131,4 +150,14 @@ func (c *ValueContext) checkDeclaredEnumAnnotation(occurrence ValueOccurrence, r
 	result := c.ResolveDeclaredShape(occurrence, c.SupplyValue(ValueInput{Raw: raw, ExplicitNull: raw == nil, Origin: "declared schema enum"}))
 	_, err = c.schemaAnnotationValue(result, plan)
 	return err
+}
+
+// defaultValueOwner retains authored assignment identity through controlled
+// copies. Direct finalized attributes without a DSL assignment use their
+// existing copy ancestry; no raw value is compared or serialized.
+func defaultValueOwner(attribute *AttributeExpr) DefaultValueOwner {
+	if attribute.defaultOwner != (DefaultValueOwner{}) {
+		return attribute.defaultOwner
+	}
+	return DefaultValueOwner{attribute: valueAttributeOrigin(attribute)}
 }

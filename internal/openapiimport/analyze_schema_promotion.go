@@ -14,6 +14,9 @@ func requestBodySchemaPath(base string, body RequestBody) string {
 }
 
 func responseSchemaPath(base string, response Response) string {
+	if response.stream != nil {
+		return response.stream.path
+	}
 	if response.ContentType == "" {
 		return base + "/content/schema"
 	}
@@ -87,11 +90,7 @@ func (a *analyzer) prepareObjectConstructors(document *Document) {
 			operation.RequestBody.Schema = a.prepareSchemaObjects(document, operation.RequestBody.Schema, operation.GoName+"Request",
 				requestBodySchemaPath(operationPath+"/requestBody", *operation.RequestBody), requestObjectRole(*operation.RequestBody), used)
 		}
-		for responseIndex := range operation.Responses {
-			response := &operation.Responses[responseIndex]
-			a.prepareResponseObjects(document, &response.Response, operation.GoName+"Response",
-				operationPath+"/responses/"+escapeJSONPointer(response.Status), operationResponseBodyMode(operation) != responseBodyEncoded, used)
-		}
+		a.prepareOperationResponses(document, operation, used)
 	}
 }
 
@@ -108,6 +107,7 @@ func (a *analyzer) prepareSchemaObjects(
 	if schema == nil || schema.Ref != "" {
 		return schema
 	}
+	a.preparePrimitiveContributor(document, schema, name, used)
 	for index := range schema.Properties {
 		property := &schema.Properties[index]
 		property.Schema = a.prepareSchemaObjects(document, property.Schema, name+codegen.Goify(property.Name, true),
@@ -168,9 +168,61 @@ func (a *analyzer) prepareResponseObjects(
 ) {
 	response.Schema = a.prepareSchemaObjects(document, response.Schema, name,
 		responseSchemaPath(path, *response), responseObjectRole(*response, raw), used)
+	a.prepareResponseHeaders(document, response, name, path, used)
+}
+
+func (a *analyzer) prepareResponseHeaders(document *Document, response *Response, name, path string, used map[string]struct{}) {
 	for index := range response.Headers {
 		header := &response.Headers[index]
 		header.Header.Schema = a.prepareSchemaObjects(document, header.Header.Schema, name+codegen.Goify(header.Name, true)+"Header",
 			path+"/headers/"+escapeJSONPointer(header.Name)+"/schema", objectField, used)
+	}
+}
+
+// preparePrimitiveContributor registers native construction identity without
+// changing the contributor edge or claiming an authored declaration name.
+func (a *analyzer) preparePrimitiveContributor(document *Document, schema *Schema, name string, used map[string]struct{}) {
+	if !primitiveContributorType(schema.Type) || len(schema.Bases) != 1 {
+		return
+	}
+	base := schema.Bases[0]
+	for _, named := range document.Components.Schemas {
+		if named.constructionOnly && named.Schema == base {
+			return
+		}
+	}
+	componentName := uniqueComponentName(name+"Base", used)
+	document.Components.Schemas = append(document.Components.Schemas, NamedSchema{
+		Name: componentName, Schema: base, constructionOnly: true,
+	})
+}
+
+// prepareOperationResponses shares preparation only after complete event
+// comparison. An authored declaration remains the common identity whenever one
+// exists, independently of whether an inline occurrence sorts before it.
+func (a *analyzer) prepareOperationResponses(document *Document, operation *Operation, used map[string]struct{}) {
+	path := operation.sourcePath
+	responses, diagnostics := classifyOperationResponses(operation, path, document.Components)
+	var event *Schema
+	if len(diagnostics) == 0 && responses.mode == responseBodySSE {
+		selected := responses.successes[0].source.Response
+		for _, planned := range responses.successes {
+			if planned.source.Response.stream.declaration != "" {
+				selected = planned.source.Response
+				break
+			}
+		}
+		event = a.prepareSchemaObjects(document, selected.Schema, operation.GoName+"Response",
+			selected.stream.path, responseObjectRole(selected, false), used)
+	}
+	for planned := range responses.responses() {
+		response := &operation.Responses[planned.sourceIndex]
+		responsePath := path + "/responses/" + escapeJSONPointer(response.Status)
+		if event != nil && response.Response.stream != nil {
+			response.Response.Schema = event
+			a.prepareResponseHeaders(document, &response.Response, operation.GoName+"Response", responsePath, used)
+		} else {
+			a.prepareResponseObjects(document, &response.Response, operation.GoName+"Response", responsePath, planned.rawBody, used)
+		}
 	}
 }

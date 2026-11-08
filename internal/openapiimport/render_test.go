@@ -586,8 +586,8 @@ paths:
           content:
             application/pdf:
               schema: {type: string, format: binary}
-        "400":
-          description: invalid signature
+        "201":
+          description: created signed document
           content:
             application/pdf:
               schema: {type: string, format: binary}
@@ -801,10 +801,7 @@ func TestRenderRejectsUnrepresentableModels(t *testing.T) {
 	}{
 		{name: "invalid package", edit: func(*Document) {}, want: `package name "bad-name" is not a Go identifier`},
 		{name: "OpenAPI 2.0 target", edit: func(d *Document) { d.OpenAPIVersion = "2.0" }, want: "only OpenAPI 3.0, 3.1, and 3.2 documents are renderable"},
-		{name: "no success response", edit: func(d *Document) { d.Operations[0].Responses[0].Status = "404" }, want: "must define exactly one 2xx response or, when absent, exactly one 3xx response"},
-		{name: "multiple success responses", edit: func(d *Document) {
-			d.Operations[0].Responses = append(d.Operations[0].Responses, StatusResponse{Status: "201"})
-		}, want: "must define exactly one 2xx response or, when absent, exactly one 3xx response"},
+		{name: "no final response", edit: func(d *Document) { d.Operations[0].Responses = nil }, want: "Responses must contain a response code"},
 		{name: "unresolved schema reference", edit: func(d *Document) {
 			d.Operations[0].Responses[0].Response.Schema = schemaRef("Missing")
 		}, want: `schema reference "#/components/schemas/Missing" does not resolve`},

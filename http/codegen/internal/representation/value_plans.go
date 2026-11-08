@@ -38,11 +38,8 @@ func buildValuePlan(value *transportir.ValueTarget, target *expr.AttributeExpr, 
 	// Rebuilding the target plans invalidates only attachments keyed by their
 	// nodes. Source and anchor results remain available for preparation to bind
 	// again without selecting or synthesizing another value.
-	result.Examples = nil
-	result.Representative = nil
-	result.ExamplesPrepared = false
-	result.ExampleSets = nil
-	result.Annotations = nil
+	clearTargetValues(&result)
+
 	target = TargetGraph(target)
 	var parameter *parameterContract
 	if contract != nil {
@@ -266,4 +263,14 @@ func (b *httpValuePlanBuilder) object(attribute *expr.AttributeExpr, actual *exp
 		}
 	}
 	return b.walk(attribute.AdditionalAttributes, context, false, reachable)
+}
+
+// clearTargetValues invalidates attachments keyed by replaced plan nodes.
+func clearTargetValues(target *transportir.ValueTarget) {
+	target.Examples = nil
+	target.Representative = nil
+	target.ExamplesPrepared = false
+	target.ExampleSets = nil
+	target.Annotations = nil
+	target.AnnotationsPrepared = false
 }

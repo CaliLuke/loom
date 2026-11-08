@@ -1,6 +1,9 @@
 package codegen
 
-import "github.com/CaliLuke/loom/http/codegen/internal/transportir"
+import (
+	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
+)
 
 type (
 	// ResponseContractCaseData contains the transport metadata required to
@@ -8,12 +11,14 @@ type (
 	ResponseContractCaseData struct {
 		// ID is the stable response contract case identifier.
 		ID string
-		// IsError reports whether the case describes a service error.
-		IsError bool
+		// Kind identifies a successful, informational or error case.
+		Kind string
 		// Transport identifies the response protocol.
 		Transport string
-		// StatusCode is the exact declared HTTP status code.
-		StatusCode int
+		// Selector is the declared status selector that owns the response.
+		Selector expr.HTTPStatusSelector
+		// Domain lists the HTTP statuses the response may use.
+		Domain []int
 		// ErrorName is the declared service error name.
 		ErrorName string
 		// ErrorNameFromStatus identifies responses that omit Loom-Error.

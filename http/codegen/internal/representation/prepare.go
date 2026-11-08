@@ -30,7 +30,7 @@ func PrepareService(source *expr.HTTPServiceExpr, semantic *service.Data, owner 
 			method = owner.Method(sourceMethod)
 		default:
 			var err error
-			method, err = captureMethod(context, sourceMethod)
+			method, err = captureMethod(context, sourceMethod, endpoint)
 			if err != nil {
 				return nil, fmt.Errorf("HTTP representation %s.%s: %w", source.Name(), endpoint.Name, err)
 			}
@@ -53,7 +53,7 @@ func PrepareService(source *expr.HTTPServiceExpr, semantic *service.Data, owner 
 	return prepared, nil
 }
 
-func captureMethod(context *expr.ValueContext, method *expr.MethodExpr) (*service.MethodData, error) {
+func captureMethod(context *expr.ValueContext, method *expr.MethodExpr, endpoint *transportir.Endpoint) (*service.MethodData, error) {
 	if method == nil {
 		return nil, fmt.Errorf("missing finalized method")
 	}
@@ -78,7 +78,27 @@ func captureMethod(context *expr.ValueContext, method *expr.MethodExpr) (*servic
 		}
 		result.ErrorValues[failure.Name] = value
 	}
+	result.HTTPMetadataValues = make(map[*expr.HTTPResponseExpr]*service.ValueData)
+	for _, response := range responseOccurrences(endpoint.Response) {
+		if !response.Handshake && !isInformationalResponse(endpoint, response) {
+			continue
+		}
+		value, err := captureValue(context, response.Carrier)
+		if err != nil {
+			return nil, err
+		}
+		result.HTTPMetadataValues[response.Occurrence] = value
+	}
 	return result, nil
+}
+
+func isInformationalResponse(endpoint *transportir.Endpoint, response *transportir.ResponseStatus) bool {
+	for _, info := range endpoint.Response.Informational {
+		if info.Response == response {
+			return true
+		}
+	}
+	return false
 }
 
 func captureValue(context *expr.ValueContext, attribute *expr.AttributeExpr) (*service.ValueData, error) {
@@ -112,7 +132,17 @@ func prepareSchemaTargets(endpoint *transportir.Endpoint, layout Layout) {
 	}
 	responseContext := schemaContext(false)
 	layout.Bind(responseContext)
-	for _, response := range serviceResponses(endpoint) {
+	for _, response := range responseOccurrences(endpoint.Response) {
+		if field := response.StatusField; field != nil {
+			field.Value = BuildValuePlan(field.Value, field.Attribute, responseContext, expr.ValuePlanSchema)
+		}
+		if unary := response.Unary; unary != nil {
+			prepareMediaTargets(unary.MediaVariants, responseContext)
+			unary.BodyValue = BuildValuePlan(unary.BodyValue, unary.Body, responseContext, expr.ValuePlanSchema)
+			for media, value := range unary.BodyValues {
+				unary.BodyValues[media] = BuildValuePlan(value, unary.Body, responseContext, expr.ValuePlanSchema)
+			}
+		}
 		prepareMediaTargets(response.MediaVariants, responseContext)
 		response.BodyValue = BuildValuePlan(response.BodyValue, response.Body, responseContext, expr.ValuePlanSchema)
 		for media, value := range response.BodyValues {

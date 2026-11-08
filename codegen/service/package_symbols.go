@@ -100,7 +100,7 @@ func (n *methodSymbols) allocatePackageSymbols(m *expr.MethodExpr, scope, adapte
 	if n.transport.SkipRequestBodyEncodeDecode {
 		n.transport.RequestStruct = scope.Unique(n.name + "RequestData")
 	}
-	if n.transport.SkipResponseBodyEncodeDecode || n.transport.FileResponse {
+	if n.transport.SkipResponseBodyEncodeDecode || n.transport.FileResponse || n.transport.HasResponseMetadata {
 		n.transport.ResponseStruct = scope.Unique(n.name + "ResponseData")
 	}
 	if n.transport.FileResponse {

@@ -99,9 +99,9 @@ func TestAuthErrorResponses(t *testing.T) {
 		endpoint := root.API.HTTP.Service("ValidMethodAuthErrorResponsesService").Endpoint("SecureMethod")
 		if assert.Len(t, endpoint.HTTPErrors, 2) {
 			assert.Equal(t, "unauthorized", endpoint.HTTPErrors[0].Name)
-			assert.Equal(t, expr.StatusUnauthorized, endpoint.HTTPErrors[0].Response.StatusCode)
+			assert.Equal(t, expr.StatusUnauthorized, endpoint.HTTPErrors[0].Response.Status.Code)
 			assert.Equal(t, "forbidden", endpoint.HTTPErrors[1].Name)
-			assert.Equal(t, expr.StatusForbidden, endpoint.HTTPErrors[1].Response.StatusCode)
+			assert.Equal(t, expr.StatusForbidden, endpoint.HTTPErrors[1].Response.Status.Code)
 		}
 	})
 
@@ -114,9 +114,9 @@ func TestAuthErrorResponses(t *testing.T) {
 		httpService := root.API.HTTP.Service("ValidServiceAuthErrorResponsesService")
 		if assert.Len(t, httpService.HTTPErrors, 2) {
 			assert.Equal(t, "unauthorized", httpService.HTTPErrors[0].Name)
-			assert.Equal(t, expr.StatusUnauthorized, httpService.HTTPErrors[0].Response.StatusCode)
+			assert.Equal(t, expr.StatusUnauthorized, httpService.HTTPErrors[0].Response.Status.Code)
 			assert.Equal(t, "forbidden", httpService.HTTPErrors[1].Name)
-			assert.Equal(t, expr.StatusForbidden, httpService.HTTPErrors[1].Response.StatusCode)
+			assert.Equal(t, expr.StatusForbidden, httpService.HTTPErrors[1].Response.Status.Code)
 		}
 	})
 
@@ -126,9 +126,9 @@ func TestAuthErrorResponses(t *testing.T) {
 		assert.NotNil(t, root.Error("forbidden"))
 		if assert.Len(t, root.API.HTTP.Errors, 2) {
 			assert.Equal(t, "unauthorized", root.API.HTTP.Errors[0].Name)
-			assert.Equal(t, expr.StatusUnauthorized, root.API.HTTP.Errors[0].Response.StatusCode)
+			assert.Equal(t, expr.StatusUnauthorized, root.API.HTTP.Errors[0].Response.Status.Code)
 			assert.Equal(t, "forbidden", root.API.HTTP.Errors[1].Name)
-			assert.Equal(t, expr.StatusForbidden, root.API.HTTP.Errors[1].Response.StatusCode)
+			assert.Equal(t, expr.StatusForbidden, root.API.HTTP.Errors[1].Response.Status.Code)
 		}
 	})
 
@@ -160,38 +160,35 @@ func TestAuthErrorResponses(t *testing.T) {
 		httpEndpoint := root.API.HTTP.Service("ValidMethodAuthErrorResponsesCustomMappingService").Endpoint("SecureMethod")
 		if assert.Len(t, httpEndpoint.HTTPErrors, 2) {
 			assert.Equal(t, "unauthorized", httpEndpoint.HTTPErrors[0].Name)
-			assert.Equal(t, expr.StatusPaymentRequired, httpEndpoint.HTTPErrors[0].Response.StatusCode)
+			assert.Equal(t, expr.StatusPaymentRequired, httpEndpoint.HTTPErrors[0].Response.Status.Code)
 			assert.Equal(t, "Custom auth challenge", httpEndpoint.HTTPErrors[0].Response.Description)
 			assert.Equal(t, "forbidden", httpEndpoint.HTTPErrors[1].Name)
-			assert.Equal(t, expr.StatusForbidden, httpEndpoint.HTTPErrors[1].Response.StatusCode)
+			assert.Equal(t, expr.StatusForbidden, httpEndpoint.HTTPErrors[1].Response.Status.Code)
 		}
 	})
 
-	t.Run("service mappings are reused by method helper", func(t *testing.T) {
-		root := expr.RunDSL(t, testdata.ValidMethodAuthErrorResponsesReuseServiceMappingDSL)
-		httpEndpoint := root.API.HTTP.Service("ValidMethodAuthErrorResponsesReuseServiceMappingService").Endpoint("SecureMethod")
-		if assert.Len(t, httpEndpoint.HTTPErrors, 2) {
-			assert.Equal(t, "unauthorized", httpEndpoint.HTTPErrors[0].Name)
-			assert.Equal(t, expr.StatusUnauthorized, httpEndpoint.HTTPErrors[0].Response.StatusCode)
-			assert.Equal(t, "Session expired", httpEndpoint.HTTPErrors[0].Response.Description)
-			assert.Equal(t, "forbidden", httpEndpoint.HTTPErrors[1].Name)
-			assert.Equal(t, expr.StatusForbidden, httpEndpoint.HTTPErrors[1].Response.StatusCode)
-			assert.Equal(t, "Plan upgrade required", httpEndpoint.HTTPErrors[1].Response.Description)
-		}
-	})
-
-	t.Run("api mappings are reused by method helper", func(t *testing.T) {
-		root := expr.RunDSL(t, testdata.ValidMethodAuthErrorResponsesReuseAPIMappingDSL)
-		httpEndpoint := root.API.HTTP.Service("ValidMethodAuthErrorResponsesReuseAPIMappingService").Endpoint("SecureMethod")
-		if assert.Len(t, httpEndpoint.HTTPErrors, 2) {
-			assert.Equal(t, "unauthorized", httpEndpoint.HTTPErrors[0].Name)
-			assert.Equal(t, expr.StatusUnauthorized, httpEndpoint.HTTPErrors[0].Response.StatusCode)
-			assert.Equal(t, "Session expired", httpEndpoint.HTTPErrors[0].Response.Description)
-			assert.Equal(t, "forbidden", httpEndpoint.HTTPErrors[1].Name)
-			assert.Equal(t, expr.StatusForbidden, httpEndpoint.HTTPErrors[1].Response.StatusCode)
-			assert.Equal(t, "Team membership required", httpEndpoint.HTTPErrors[1].Response.Description)
-		}
-	})
+	for _, test := range []struct {
+		name                 string
+		design               func()
+		service              string
+		forbiddenDescription string
+	}{
+		{"service mappings are reused by method helper", testdata.ValidMethodAuthErrorResponsesReuseServiceMappingDSL, "ValidMethodAuthErrorResponsesReuseServiceMappingService", "Plan upgrade required"},
+		{"api mappings are reused by method helper", testdata.ValidMethodAuthErrorResponsesReuseAPIMappingDSL, "ValidMethodAuthErrorResponsesReuseAPIMappingService", "Team membership required"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			root := expr.RunDSL(t, test.design)
+			endpoint := root.API.HTTP.Service(test.service).Endpoint("SecureMethod")
+			if assert.Len(t, endpoint.HTTPErrors, 2) {
+				assert.Equal(t, "unauthorized", endpoint.HTTPErrors[0].Name)
+				assert.Equal(t, expr.StatusUnauthorized, endpoint.HTTPErrors[0].Response.Status.Code)
+				assert.Equal(t, "Session expired", endpoint.HTTPErrors[0].Response.Description)
+				assert.Equal(t, "forbidden", endpoint.HTTPErrors[1].Name)
+				assert.Equal(t, expr.StatusForbidden, endpoint.HTTPErrors[1].Response.Status.Code)
+				assert.Equal(t, test.forbiddenDescription, endpoint.HTTPErrors[1].Response.Description)
+			}
+		})
+	}
 }
 
 func TestSessionSecurityLowersToMethodRequirements(t *testing.T) {

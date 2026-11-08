@@ -110,3 +110,61 @@ func buildPreparedExample(example transportir.ValueExample, value any) *Example 
 	}
 	return result
 }
+
+func initExamples(target interface {
+	setExample(any)
+	setExamples(map[string]*ExampleRef)
+}, attr *expr.AttributeExpr, closeObjects bool, prepared *transportir.ValueTarget) {
+	if attr == nil {
+		return
+	}
+	if disabled, ok := attr.Meta.Last("openapi:example"); ok && disabled == "false" {
+		return
+	}
+	if objectContainsSuppressedOpenAPIExample(attr, closeObjects, map[string]struct{}{}, map[expr.DataType]struct{}{}) {
+		return
+	}
+	if isUnionWrapperObjectType(attr.Type) {
+		return
+	}
+	if closeObjects && isUnionType(attr.Type) {
+		return
+	}
+	requirePreparedExampleTarget(prepared)
+	if !initPreparedExamples(target, attr, prepared) {
+		panic("OpenAPI example surface did not consume its prepared value target")
+	}
+}
+
+func requirePreparedExampleTarget(prepared *transportir.ValueTarget) {
+	if prepared == nil {
+		panic("OpenAPI example surface is missing its prepared value target")
+	}
+	if !prepared.ExamplesPrepared {
+		panic("OpenAPI example surface value target has not prepared examples")
+	}
+}
+
+func (m *MediaType) setExample(value any) {
+	m.Example = value
+}
+
+func (m *MediaType) setExamples(value map[string]*ExampleRef) {
+	m.Examples = value
+}
+
+func (h *Header) setExample(value any) {
+	h.Example = value
+}
+
+func (h *Header) setExamples(value map[string]*ExampleRef) {
+	h.Examples = value
+}
+
+func (p *Parameter) setExample(value any) {
+	p.Example = value
+}
+
+func (p *Parameter) setExamples(value map[string]*ExampleRef) {
+	p.Examples = value
+}

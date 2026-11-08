@@ -68,6 +68,7 @@ func (sds *ServicesData) analyze(httpSvc *expr.HTTPServiceExpr) (sd *ServiceData
 	}
 	sds.collectBodyAttributeTypes(sd)
 	sd.finalizeServerResponseValidation()
+	sd.finalizeOutgoingHeaderValidation()
 	closed, _ := sds.ServicesData.Root.API.Meta.Last("openapi:closed-objects")
 	sd.collectBodyUnionTypes(closed == "true")
 	sds.prepareCLIBodyInputs(sd, closed == "true")
@@ -235,12 +236,18 @@ func (sds *ServicesData) buildEndpointDataFromIR(endpointIR *transportir.Endpoin
 
 	endpoint := &EndpointData{
 		valueTransport:            endpointIR,
+		IsJSONRPC:                 endpointIR.IsJSONRPC,
 		Method:                    method,
 		ServiceName:               svc.Name,
 		ServiceVarName:            svc.VarName,
 		ServicePkgName:            svc.PkgName,
 		Payload:                   payload,
 		Result:                    sds.buildResultDataFromIR(endpointIR, sd),
+		Informational:             sds.buildInformationalData(endpointIR, sd),
+		FinalKeys:                 slices.Clone(endpointIR.Response.FinalKeys),
+		InformationalKeys:         slices.Clone(endpointIR.Response.InformationalKeys),
+		StatusSelected:            endpointIR.Response.StatusSelected,
+		NoSuccess:                 endpointIR.Response.NoSuccess,
 		Errors:                    sds.buildErrorsDataFromIR(endpointIR, sd),
 		HeaderSchemes:             hsch,
 		BodySchemes:               bosch,
@@ -264,6 +271,9 @@ func (sds *ServicesData) buildEndpointDataFromIR(endpointIR *transportir.Endpoin
 		Requirements:              reqs,
 		CORS:                      sd.CORS,
 	}
+	if !endpointIR.IsJSONRPC && len(endpoint.Informational) > 0 {
+		endpoint.InformationalObservers = httpEndpointSymbol(scope, method.VarName, "informational-observers")
+	}
 	if endpointIR.IsJSONRPC {
 		endpoint.ErrorDecoder = scope.Unique("decode" + method.VarName + "Error")
 	}
@@ -283,9 +293,10 @@ func buildResponseContractCaseData(endpoint *transportir.Endpoint) ([]*ResponseC
 	for _, contractCase := range analysis.Cases {
 		data := &ResponseContractCaseData{
 			ID:                  contractCase.ID,
-			IsError:             contractCase.Kind == transportir.ResponseContractError,
+			Kind:                string(contractCase.Kind),
 			Transport:           string(contractCase.Transport),
-			StatusCode:          contractCase.StatusCode,
+			Selector:            contractCase.Selector,
+			Domain:              append([]int(nil), contractCase.Domain...),
 			ErrorName:           contractCase.ErrorName,
 			ErrorNameFromStatus: contractCase.ErrorNameFromStatus,
 		}
@@ -348,7 +359,7 @@ func (sds *ServicesData) applyStreamingEndpointData(endpoint *EndpointData, endp
 		return
 	}
 	sds.initWebSocketData(endpoint, endpointIR, sd)
-	initSSEData(endpoint, endpointIR, sd)
+	sds.initSSEData(endpoint, endpointIR, sd)
 }
 
 func (sds *ServicesData) applyMultipartEndpointData(endpoint *EndpointData, endpointIR *transportir.Endpoint, method *service.MethodData, svc *service.Data, scope *codegen.NameScope) {

@@ -92,29 +92,37 @@ func analyzeHTTPErrorSemantics(root *expr.RootExpr, report *Report) {
 				if httpError == nil || httpError.ErrorExpr == nil || httpError.Response == nil {
 					continue
 				}
-				status := httpError.Response.StatusCode
-				if status >= 500 && status <= 599 && !hasMeta(httpError.Meta, "loom:error:fault") && !suppressed(httpError.Meta, RuleServerErrorFault) {
-					appendDiagnostic(
-						httpError,
-						status,
-						RuleServerErrorFault,
-						fmt.Sprintf("HTTP %d error %q must declare Fault()", status, httpError.Name),
-					)
-				}
-				if isRetryableStatus(status) && !hasRetryMetadata(httpError.ErrorExpr) && !suppressed(httpError.Meta, RuleRetryableError) {
-					appendDiagnostic(
-						httpError,
-						status,
-						RuleRetryableError,
-						fmt.Sprintf(
-							"HTTP %d error %q must declare Temporary() or Remedy(func() {\n    RetryHint(\"...\")\n})",
-							status,
-							httpError.Name,
-						),
-					)
-				}
+				analyzeHTTPErrorMapping(httpError, appendDiagnostic)
 			}
 		}
+	}
+}
+
+// analyzeHTTPErrorMapping projects one exact HTTP status before applying error rules.
+func analyzeHTTPErrorMapping(httpError *expr.HTTPErrorExpr, appendDiagnostic func(*expr.HTTPErrorExpr, int, string, string)) {
+	status, exact := httpError.Response.Status.Exact()
+	if !exact {
+		panic("HTTP vet requires an exact response status")
+	}
+	if status >= 500 && status <= 599 && !hasMeta(httpError.Meta, "loom:error:fault") && !suppressed(httpError.Meta, RuleServerErrorFault) {
+		appendDiagnostic(
+			httpError,
+			status,
+			RuleServerErrorFault,
+			fmt.Sprintf("HTTP %d error %q must declare Fault()", status, httpError.Name),
+		)
+	}
+	if isRetryableStatus(status) && !hasRetryMetadata(httpError.ErrorExpr) && !suppressed(httpError.Meta, RuleRetryableError) {
+		appendDiagnostic(
+			httpError,
+			status,
+			RuleRetryableError,
+			fmt.Sprintf(
+				"HTTP %d error %q must declare Temporary() or Remedy(func() {\n    RetryHint(\"...\")\n})",
+				status,
+				httpError.Name,
+			),
+		)
 	}
 }
 

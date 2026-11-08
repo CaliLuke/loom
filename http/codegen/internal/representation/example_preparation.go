@@ -81,12 +81,13 @@ func suppressGeneratedExampleMetadata(last func(string) (string, bool)) bool {
 	return false
 }
 
-// PrepareStandaloneExamples captures one documentation occurrence for a
-// schema analyzed outside a service method. It selects or synthesizes once and
-// builds separate structural and projecting plans over the same owner.
-func PrepareStandaloneExamples(
+// PrepareStandaloneValues captures checked annotations for a documentation
+// occurrence outside a service method. When examples is true it also prepares
+// examples through separate projecting plans over the same owner.
+func PrepareStandaloneValues(
 	attribute *expr.AttributeExpr,
 	generator *expr.ExampleGenerator,
+	examples bool,
 ) (*transportir.ValueTarget, error) {
 	if attribute == nil || attribute.Type == expr.Empty {
 		return nil, nil
@@ -113,62 +114,55 @@ func PrepareStandaloneExamples(
 		Source: data, Anchor: data, Codec: expr.ValueCodecJSON, Plan: schema,
 		AnchorPlan: documentation, ExampleOccurrence: occurrence, ExamplePlan: documentation,
 	}
-	if err := PrepareTargetExamples(target, attribute, generator); err != nil {
+	if err := PrepareTargetValues(target, attribute, generator, examples); err != nil {
 		return nil, err
 	}
 	return target, nil
 }
 
-// PrepareTargetExamples binds one target's selected authored group, or its
-// retained representative, to exact semantic-owner plans. It never reads raw
-// example values or selects a union branch in the documentation consumer.
-func PrepareTargetExamples(
+// PrepareTargetValues checks defaults and enums at each captured schema node.
+// When examples is true it also binds selected examples to exact semantic-owner
+// plans. Repeated phases reuse checked annotations without rerunning codecs.
+func PrepareTargetValues(
 	target *transportir.ValueTarget,
 	attribute *expr.AttributeExpr,
 	generator *expr.ExampleGenerator,
+	examples bool,
 ) error {
-	if target == nil || target.Representative != nil || len(target.Examples) > 0 {
+	if target == nil {
 		return nil
 	}
 	if target.Error != nil {
 		return target.Error
 	}
-	if target.ExamplesPrepared {
+	if target.AnnotationsPrepared && (!examples || target.ExamplesPrepared) {
 		return nil
 	}
-	target.ExamplesPrepared = true
-	if target.Source == nil || target.Anchor == nil || target.ExampleOccurrence.ID() == (expr.ValueIdentity{}) {
-		return fmt.Errorf("HTTP example target has no captured semantic occurrence")
-	}
-	if !target.Plan.Root().Valid() || !target.ExamplePlan.Root().Valid() || !target.AnchorPlan.Root().Valid() {
-		return fmt.Errorf("HTTP example target has no captured schema and example plans")
-	}
-	anchor, branchSelection, err := selectedValueOccurrence(target.Anchor.Occurrence, target.Selection)
+	examples = examples && !target.ExamplesPrepared && target.Representative == nil && len(target.Examples) == 0
+	position, err := targetValuePosition(target)
 	if err != nil {
 		return err
 	}
-	anchorProjection := target.AnchorPlan
-	if len(target.Selection) > 0 {
-		anchorProjection, err = target.AnchorPlan.ForOccurrence(anchor, target.AnchorPlan.Root())
-		if err != nil {
-			return fmt.Errorf("associate selected anchor occurrence: %w", err)
-		}
+
+	if examples {
+		target.ExampleSets = make(map[expr.ValuePlanNode]*transportir.ValueExampleSet)
 	}
-	position := targetExamplePosition{
-		schema: target.Plan.Root(), examplePlan: target.ExamplePlan.Root(), anchorPlan: target.AnchorPlan.Root(),
-		exampleProjection: target.ExamplePlan, anchorProjection: anchorProjection,
-		example: target.ExampleOccurrence, anchor: anchor, branchSelection: branchSelection,
+	if target.Annotations == nil {
+		target.Annotations = make(map[expr.ValuePlanNode]expr.JSONSchemaAnnotations)
 	}
-	target.ExampleSets = make(map[expr.ValuePlanNode]*transportir.ValueExampleSet)
-	target.Annotations = make(map[expr.ValuePlanNode]expr.JSONSchemaAnnotations)
 	if err := prepareTargetExamplePosition(target, position, suppressGeneratedExample(attribute), generator,
-		make(map[expr.ValuePlanNode]bool), nil); err != nil {
+		make(map[expr.ValuePlanNode]bool), nil, examples); err != nil {
 		return err
+	}
+	target.AnnotationsPrepared = true
+	if !examples {
+		return nil
 	}
 	root := target.ExampleSets[target.Plan.Root()]
 	if root == nil {
 		return fmt.Errorf("HTTP example target did not prepare its schema root")
 	}
+	target.ExamplesPrepared = true
 	target.Examples = root.Examples
 	target.Representative = root.Representative
 	return nil
@@ -185,6 +179,32 @@ type targetExamplePosition struct {
 	branchSelection   bool
 }
 
+// targetValuePosition binds the selected source, target and annotation plans once.
+func targetValuePosition(target *transportir.ValueTarget) (targetExamplePosition, error) {
+	if target.Source == nil || target.Anchor == nil || target.ExampleOccurrence.ID() == (expr.ValueIdentity{}) {
+		return targetExamplePosition{}, fmt.Errorf("HTTP example target has no captured semantic occurrence")
+	}
+	if !target.Plan.Root().Valid() || !target.ExamplePlan.Root().Valid() || !target.AnchorPlan.Root().Valid() {
+		return targetExamplePosition{}, fmt.Errorf("HTTP example target has no captured schema and example plans")
+	}
+	anchor, branchSelection, err := selectedValueOccurrence(target.Anchor.Occurrence, target.Selection)
+	if err != nil {
+		return targetExamplePosition{}, err
+	}
+	anchorProjection := target.AnchorPlan
+	if len(target.Selection) > 0 {
+		anchorProjection, err = target.AnchorPlan.ForOccurrence(anchor, target.AnchorPlan.Root())
+		if err != nil {
+			return targetExamplePosition{}, fmt.Errorf("associate selected anchor occurrence: %w", err)
+		}
+	}
+	return targetExamplePosition{
+		schema: target.Plan.Root(), examplePlan: target.ExamplePlan.Root(), anchorPlan: target.AnchorPlan.Root(),
+		exampleProjection: target.ExamplePlan, anchorProjection: anchorProjection,
+		example: target.ExampleOccurrence, anchor: anchor, branchSelection: branchSelection,
+	}, nil
+}
+
 func prepareTargetExamplePosition(
 	target *transportir.ValueTarget,
 	position targetExamplePosition,
@@ -192,6 +212,7 @@ func prepareTargetExamplePosition(
 	generator *expr.ExampleGenerator,
 	visited map[expr.ValuePlanNode]bool,
 	path []string,
+	examples bool,
 ) (err error) {
 	defer func() {
 		if err != nil {
@@ -202,17 +223,9 @@ func prepareTargetExamplePosition(
 		return nil
 	}
 	visited[position.schema] = true
-	annotations, err := target.Anchor.Context.PrepareJSONSchemaAnnotations(position.anchor, position.anchorProjection)
-	if err != nil {
+	if err := prepareTargetPositionValues(target, position, suppressGenerated, generator, path, examples); err != nil {
 		return err
 	}
-	target.Annotations[position.schema] = annotations
-	set, err := prepareTargetExampleSet(target, position, suppressGenerated,
-		examplegen.ForScope(generator, append([]string{"occurrence"}, path...)...))
-	if err != nil {
-		return err
-	}
-	target.ExampleSets[position.schema] = set
 
 	schemaUnderlying := position.schema.Underlying()
 	if schemaUnderlying.Valid() {
@@ -222,22 +235,54 @@ func prepareTargetExamplePosition(
 		}
 		next.schema = schemaUnderlying
 		return prepareTargetExamplePosition(target, next, suppressGeneratedExampleMetadata(schemaUnderlying.MetaLast), generator,
-			visited, appendExamplePath(path, "underlying"))
+			visited, appendExamplePath(path, "underlying"), examples)
 	}
-	if err := prepareTargetExampleMembers(target, position, generator, visited, path); err != nil {
+	if err := prepareTargetExampleMembers(target, position, generator, visited, path, examples); err != nil {
 		return err
 	}
 	if err := prepareTargetExampleChild(target, position.schema.Element(), position.examplePlan.Element(),
 		position.anchorPlan.Element(), position.example.Element(), position.anchor.Element(), generator, visited,
-		appendExamplePath(path, "element")); err != nil {
+		appendExamplePath(path, "element"), examples); err != nil {
 		return err
 	}
 	if err := prepareTargetExampleChild(target, position.schema.Key(), position.examplePlan.Key(),
 		position.anchorPlan.Key(), position.example.Key(), position.anchor.Key(), generator, visited,
-		appendExamplePath(path, "key")); err != nil {
+		appendExamplePath(path, "key"), examples); err != nil {
 		return err
 	}
-	return prepareTargetExampleBranches(target, position, generator, visited, path)
+	// Additional properties have no independently sampled example. Their
+	// declaration annotations still belong to this captured traversal.
+	if position.schema.Additional().Valid() {
+		example, _ := position.example.Additional()
+		anchor, _ := position.anchor.Additional()
+		if err := prepareTargetExampleChild(target, position.schema.Additional(), position.examplePlan.Additional(),
+			position.anchorPlan.Additional(), example, anchor, generator, visited,
+			appendExamplePath(path, "additional"), false); err != nil {
+			return err
+		}
+	}
+	return prepareTargetExampleBranches(target, position, generator, visited, path, examples)
+}
+
+// prepareTargetPositionValues owns checked annotations independently of optional examples.
+func prepareTargetPositionValues(target *transportir.ValueTarget, position targetExamplePosition, suppressGenerated bool, generator *expr.ExampleGenerator, path []string, examples bool) error {
+	if _, prepared := target.Annotations[position.schema]; !prepared {
+		annotations, err := target.Anchor.Context.PrepareJSONSchemaAnnotations(position.anchor, position.anchorProjection)
+		if err != nil {
+			return err
+		}
+		target.Annotations[position.schema] = annotations
+	}
+	if examples {
+		set, err := prepareTargetExampleSet(target, position, suppressGenerated,
+			examplegen.ForScope(generator, append([]string{"occurrence"}, path...)...))
+		if err != nil {
+			return err
+		}
+		target.ExampleSets[position.schema] = set
+	}
+
+	return nil
 }
 
 func prepareTargetExampleSet(
@@ -378,12 +423,13 @@ func prepareTargetExampleMembers(
 	generator *expr.ExampleGenerator,
 	visited map[expr.ValuePlanNode]bool,
 	path []string,
+	examples bool,
 ) error {
 	children := make([]targetExampleNamedChild, 0, len(position.schema.Members()))
 	for _, schemaMember := range position.schema.Members() {
 		children = append(children, targetExampleNamedChild{name: schemaMember.Name, schema: schemaMember.Node})
 	}
-	return prepareTargetExampleNamedChildren(target, position, generator, visited, path, "member", children)
+	return prepareTargetExampleNamedChildren(target, position, generator, visited, path, "member", children, examples)
 }
 
 func prepareTargetExampleBranches(
@@ -392,12 +438,13 @@ func prepareTargetExampleBranches(
 	generator *expr.ExampleGenerator,
 	visited map[expr.ValuePlanNode]bool,
 	path []string,
+	examples bool,
 ) error {
 	children := make([]targetExampleNamedChild, 0, len(position.schema.Branches()))
 	for _, schemaBranch := range position.schema.Branches() {
 		children = append(children, targetExampleNamedChild{name: schemaBranch.Tag, schema: schemaBranch.Node})
 	}
-	return prepareTargetExampleNamedChildren(target, position, generator, visited, path, "branch", children)
+	return prepareTargetExampleNamedChildren(target, position, generator, visited, path, "branch", children, examples)
 }
 
 type targetExampleNamedChild struct {
@@ -413,6 +460,7 @@ func prepareTargetExampleNamedChildren(
 	path []string,
 	kind string,
 	children []targetExampleNamedChild,
+	examples bool,
 ) error {
 	for _, child := range children {
 		examplePlan, anchorPlan, example, anchor, err := targetExampleNamedChildBindings(target, position, kind, child.name)
@@ -420,7 +468,7 @@ func prepareTargetExampleNamedChildren(
 			return err
 		}
 		if err := prepareTargetExampleChild(target, child.schema, examplePlan, anchorPlan,
-			example, anchor, generator, visited, appendExamplePath(path, kind, child.name)); err != nil {
+			example, anchor, generator, visited, appendExamplePath(path, kind, child.name), examples); err != nil {
 			return err
 		}
 	}
@@ -486,6 +534,7 @@ func prepareTargetExampleChild(
 	generator *expr.ExampleGenerator,
 	visited map[expr.ValuePlanNode]bool,
 	path []string,
+	examples bool,
 ) error {
 	if !schema.Valid() {
 		return nil
@@ -505,7 +554,7 @@ func prepareTargetExampleChild(
 		schema: schema, examplePlan: examplePlan, anchorPlan: anchorPlan,
 		exampleProjection: exampleProjection, anchorProjection: anchorProjection,
 		example: example, anchor: anchor,
-	}, suppressGeneratedExampleMetadata(schema.MetaLast), generator, visited, path)
+	}, suppressGeneratedExampleMetadata(schema.MetaLast), generator, visited, path, examples)
 }
 
 func valuePlanMember(plan expr.ValuePlanNode, name string) (expr.ValuePlanNode, bool) {

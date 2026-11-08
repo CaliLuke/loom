@@ -178,7 +178,7 @@ func NewInitializeHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder fu
 				code := jsonrpc.InternalError
 				errorResponse := loom.ResolveErrorResponse(err)
 				// nolint:errorlint // Response ownership is already resolved.
-				if serviceError, ok := errorResponse.Owner.(*loom.ServiceError); ok {
+				if serviceError := errorResponse.ServiceError; serviceError != nil {
 					code = jsonrpc.CodeForServiceError(serviceError)
 				}
 				encodeJSONRPCError(ctx, w, req, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err), encoder, errhandler)
@@ -195,7 +195,7 @@ func NewInitializeHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder fu
 				if errorResponse.Owner == nil {
 					code := jsonrpc.InternalError
 					// nolint:errorlint // Response ownership is already resolved.
-					if serviceError, ok := errorResponse.Owner.(*loom.ServiceError); ok {
+					if serviceError := errorResponse.ServiceError; serviceError != nil {
 						code = jsonrpc.CodeForServiceError(serviceError)
 					}
 					encodeJSONRPCError(ctx, w, req, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err), encoder, errhandler)
@@ -209,7 +209,7 @@ func NewInitializeHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder fu
 				default:
 					code := jsonrpc.InternalError
 					// nolint:errorlint // Response ownership is already resolved.
-					if serviceError, ok := errorResponse.Owner.(*loom.ServiceError); ok {
+					if serviceError := errorResponse.ServiceError; serviceError != nil {
 						code = jsonrpc.CodeForServiceError(serviceError)
 					}
 					encodeJSONRPCError(ctx, w, req, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err), encoder, errhandler)
@@ -262,7 +262,7 @@ func NewTickHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*ht
 				code := jsonrpc.InternalError
 				errorResponse := loom.ResolveErrorResponse(err)
 				// nolint:errorlint // Response ownership is already resolved.
-				if serviceError, ok := errorResponse.Owner.(*loom.ServiceError); ok {
+				if serviceError := errorResponse.ServiceError; serviceError != nil {
 					code = jsonrpc.CodeForServiceError(serviceError)
 				}
 				return strm.sendError(ctx, req.ID, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))

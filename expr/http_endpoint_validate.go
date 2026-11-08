@@ -11,6 +11,7 @@ import (
 // Validate validates the endpoint expression.
 func (e *HTTPEndpointExpr) Validate() error {
 	verr := new(eval.ValidationErrors)
+	e.captureResponseBindings()
 	e.ensureWireBindings().validate(e, verr)
 	if e.Name() == "" {
 		verr.Add(e, "Endpoint name cannot be empty")
@@ -42,7 +43,7 @@ func (e *HTTPEndpointExpr) Validate() error {
 
 	body := httpRequestBody(e)
 	if e.MethodExpr.IsStreaming() && body.Type != Empty {
-		_, isJSONRPC := e.MethodExpr.Meta["jsonrpc"]
+		isJSONRPC := e.IsJSONRPC()
 		if e.SSE == nil && !isJSONRPC {
 			verr.Add(e, "HTTP endpoint request body must be empty when the endpoint uses streaming. Payload attributes must be mapped to headers and/or params.")
 		}
@@ -55,7 +56,7 @@ func (e *HTTPEndpointExpr) validateNullableTransportLocations(verr *eval.Validat
 		return
 	}
 	if e.MethodExpr != nil && e.SSE == nil {
-		_, jsonrpc := e.MethodExpr.Meta["jsonrpc"]
+		jsonrpc := e.IsJSONRPC()
 		if !jsonrpc && IsNullable(e.MethodExpr.StreamingPayload) {
 			verr.Add(e, "HTTP WebSocket streaming payload root cannot be nullable: JSON null marks end of input; use nullable fields inside a non-null payload")
 		}
@@ -104,46 +105,28 @@ func validateNullableHTTPResponse(response *HTTPResponseExpr, verr *eval.Validat
 }
 
 func (e *HTTPEndpointExpr) validateResponses(verr *eval.ValidationErrors) {
+	e.validateResponseSelection(verr)
 	hasTags := false
 	untagged := 0
-	successResp := false
-	statusCounts := make(map[int]int, len(e.Responses))
-	for _, r := range e.Responses {
-		statusCounts[r.StatusCode]++
-	}
 	for _, r := range e.Responses {
 		verr.Merge(r.Validate(e))
-		if count := statusCounts[r.StatusCode]; count > 1 {
-			for i := 0; i < count-1; i++ {
-				verr.Add(r, "Multiple response definitions with status code %d", r.StatusCode)
-			}
-		}
-
 		if r.Tag[0] == "" {
 			untagged++
 		} else {
 			hasTags = true
 		}
-		if r.StatusCode < 400 {
-			if successResp && e.MethodExpr.Stream == ServerStreamKind {
-				verr.Add(r, "At most one success response can be defined for a streaming endpoint.")
-				if r.Body != nil && r.Body.Type == Empty {
-					verr.Add(r, "Response body empty but endpoint defines streaming WebSocket response.")
-				}
-			} else if successResp && e.SkipResponseBodyEncodeDecode {
-				verr.Add(r, "At most one success response can be defined for a endpoint using SkipResponseBodyEncodeDecode.")
-			}
-			successResp = true
-		}
 	}
 	if hasTags && untagged == 0 {
 		verr.Add(e, "All responses define a Tag, at least one response must define no Tag.")
 	}
-	if untagged > 1 {
+	if hasTags && untagged > 1 {
 		verr.Add(e, "exactly one response must define no Tag; found %d", untagged)
 	}
 	if hasTags && !IsObject(e.MethodExpr.Result.Type) {
 		verr.Add(e, "Some responses define a Tag but the method Result type is not an object.")
+	}
+	if len(e.Responses) > 1 && e.MethodExpr.IsStreaming() && (e.SSE == nil || !e.StatusSelected()) {
+		verr.Add(e, "At most one success response can be defined for a streaming endpoint except HTTP SSE status mode.")
 	}
 }
 
@@ -468,12 +451,12 @@ func (e *HTTPEndpointExpr) validateFileResponse(verr *eval.ValidationErrors) {
 	if _, ok := e.MethodExpr.Result.Type.(*ResultTypeExpr); ok {
 		verr.Add(e, "Endpoint cannot use FileResponse when method result type defines views.")
 	}
-	if len(e.Responses) != 1 || e.Responses[0].StatusCode != StatusOK || e.Responses[0].Tag[0] != "" {
+	if len(e.Responses) != 1 || e.Responses[0].Status.Code != StatusOK || e.Responses[0].Tag[0] != "" {
 		verr.Add(e, "FileResponse requires exactly one untagged 200 application response; ServeContent owns protocol response statuses.")
 	}
 	for _, httpError := range e.HTTPErrors {
-		if isFileProtocolStatus(httpError.Response.StatusCode) {
-			verr.Add(e, "FileResponse error response status %d conflicts with ServeContent protocol behavior.", httpError.Response.StatusCode)
+		if isFileProtocolStatus(httpError.Response.Status.Code) {
+			verr.Add(e, "FileResponse error response status %d conflicts with ServeContent protocol behavior.", httpError.Response.Status.Code)
 		}
 	}
 	for _, response := range e.Responses {
@@ -572,7 +555,7 @@ func (e *HTTPEndpointExpr) validateRedirect(verr *eval.ValidationErrors) {
 		return
 	}
 	for _, response := range e.Responses {
-		if response.StatusCode != e.Redirect.StatusCode {
+		if response.Status.Code != e.Redirect.StatusCode {
 			verr.Add(e, "Endpoint cannot use Response when using Redirect.")
 			return
 		}

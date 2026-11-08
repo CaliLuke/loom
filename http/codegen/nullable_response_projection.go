@@ -18,23 +18,25 @@ type nullableResponseProjection struct {
 	selected     bool
 	concreteBody bool
 	metadataOnly bool
+	statusBound  bool
 	metadata     bool
 	source       string
 	required     bool
 	concreteName string
 }
 
-func newNullableResponseProjection(attribute, body *expr.AttributeExpr, headers []*HeaderData, cookies []*CookieData, context *codegen.AttributeContext, viewed bool) *nullableResponseProjection {
+func newNullableResponseProjection(attribute, body *expr.AttributeExpr, headers []*HeaderData, cookies []*CookieData, context *codegen.AttributeContext, viewed, statusBound bool) *nullableResponseProjection {
 	selected := selectBodyField(attribute, body).Name
 	concreteBody := nullableResponseRequiresConcrete(attribute, body)
-	if !expr.IsNullable(attribute) || !expr.IsObject(attribute.Type) || (!concreteBody && len(headers)+len(cookies) == 0) {
+	if !expr.IsNullable(attribute) || !expr.IsObject(attribute.Type) || (!concreteBody && len(headers)+len(cookies) == 0 && !statusBound) {
 		return nil
 	}
 	plan := &nullableResponseProjection{
 		selected:     selected != "",
 		concreteBody: concreteBody,
 		metadataOnly: body == nil || body.Type == expr.Empty,
-		metadata:     len(headers)+len(cookies) > 0,
+		statusBound:  statusBound,
+		metadata:     len(headers)+len(cookies) > 0 || statusBound,
 		source:       responseNativeSource(viewed),
 		concreteName: context.Scope.Name(representation.ConcreteAttribute(attribute), context.DefaultPkg, context),
 	}
@@ -64,7 +66,10 @@ func (p *nullableResponseProjection) prepareConstructor(init *InitData, headers 
 	}
 	// Presence belongs to the received wire bindings, not to decoded values:
 	// defaults must not turn an explicit null body into a concrete parent.
-	presence := make([]string, 0, len(headers)+len(cookies))
+	presence := make([]string, 0, len(headers)+len(cookies)+1)
+	if p.statusBound {
+		presence = append(presence, "true")
+	}
 	for _, header := range headers {
 		presence = append(presence, fmt.Sprintf("len(resp.Header.Values(%q)) > 0", header.CanonicalName))
 	}
@@ -79,10 +84,10 @@ func (p *nullableResponseProjection) prepareConstructor(init *InitData, headers 
 
 // SourcePreparation binds the concrete native response value and checks its
 // presence before any body, header, cookie or status publication. onError owns
-// the caller's return shape; nil emits a direct error return. bodyCondition is
-// a Go expression selecting the declared body, or empty for unconditional body
-// selection. Replacement formatters do not bypass native metadata prerequisites.
-// Consumers run this preparation after binding the original res carrier.
+// the caller's return shape; nil emits a direct error return. bodyCondition selects
+// the declared body, or is empty for unconditional selection. Replacement bodies
+// never bypass native status, header or cookie prerequisites. Consumers run this
+// after binding the original res carrier; status-bound values are already prepared.
 func (plan *ResponseEncodePlan) SourcePreparation(onError func(string) string, bodyCondition string) string {
 	if onError == nil {
 		onError = func(value string) string {
@@ -93,22 +98,32 @@ func (plan *ResponseEncodePlan) SourcePreparation(onError func(string) string, b
 	if p == nil {
 		return plan.selectedPreparation(onError, bodyCondition)
 	}
-	prepare := "responseValue, responseHasValue := " + p.source + ".Value()\nif !" + p.source + ".Present() {\n" + onError("loom.ErrAbsentNullable") + "\n}\n"
-	if p.concreteBody || p.metadataOnly || p.required {
+	if p.statusBound {
+		// Status selection captured this native value before choosing a branch.
+		return plan.selectedPreparation(onError, bodyCondition)
+	}
+	return p.sourcePreparation(p.source, onError, bodyCondition) + plan.selectedPreparation(onError, bodyCondition)
+}
+
+// sourcePreparation captures one actual native value for status selection and
+// subsequent body/metadata projection. Branch selection never reacquires it.
+func (p *nullableResponseProjection) sourcePreparation(source string, onError func(string) string, bodyCondition string) string {
+	prepare := "responseValue, responseHasValue := " + source + ".Value()\nif !" + source + ".Present() {\n" + onError("loom.ErrAbsentNullable") + "\n}\n"
+	if p.concreteBody || p.metadataOnly || p.required || p.statusBound {
 		condition := "!responseHasValue"
 		if bodyCondition != "" && p.concreteBody && !p.metadata && !p.metadataOnly && !p.required {
 			condition = "(" + bodyCondition + ") && (" + condition + ")"
 		}
 		prepare += "if " + condition + " {\n" + onError(`fmt.Errorf("null response cannot supply selected body or required metadata")`) + "\n}\n"
 	}
-	return prepare + plan.selectedPreparation(onError, bodyCondition)
+	return prepare
 }
 
 func (p *nullableResponseProjection) encoderFields() (fieldSource, guard string) {
 	if p == nil {
 		return "", ""
 	}
-	if !p.concreteBody && !p.metadataOnly && !p.required {
+	if !p.concreteBody && !p.metadataOnly && !p.required && !p.statusBound {
 		guard = "responseHasValue"
 	}
 	return "responseValue", guard
@@ -120,7 +135,7 @@ func (p *nullableResponseProjection) appendReconstruction(group *jen.Group, fiel
 		jen.Op("*").Id("transformErr").Op("=").Id("loom").Dot("ErrAbsentNullable"),
 	)
 	group.If(jen.Op("!").Id("responseHasValue").Op("&&").Id("responseMetadataPresent")).Block(
-		jen.Op("*").Id("transformErr").Op("=").Qual("fmt", "Errorf").Call(jen.Lit("null response body cannot carry headers or cookies")),
+		jen.Op("*").Id("transformErr").Op("=").Qual("fmt", "Errorf").Call(jen.Lit("null response body cannot carry transport metadata")),
 	)
 	group.If(jen.Id("responseHasValue")).BlockFunc(func(concrete *jen.Group) {
 		appendHTTPRawBlock(concrete, fields)

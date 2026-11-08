@@ -249,16 +249,16 @@ func TestJSONRPCErrorDecodeSwitchBranches(t *testing.T) {
 			},
 		}
 	}
+	internalCode, serverCode := -32603, -32000
 	endpoint := &httpcodegen.EndpointData{
 		ServiceName: "calc",
 		Method:      &service.MethodData{Name: "divide"},
 		Errors: []*httpcodegen.ErrorGroupData{
 			{
-				StatusCode: "jsonrpc.InvalidParams",
-				Errors:     []*httpcodegen.ErrorData{},
+				Errors: []*httpcodegen.ErrorData{},
 			},
 			{
-				StatusCode: "jsonrpc.InternalError",
+				JSONRPCCode: &internalCode,
 				Errors: []*httpcodegen.ErrorData{
 					{
 						Name: "timeout",
@@ -274,7 +274,7 @@ func TestJSONRPCErrorDecodeSwitchBranches(t *testing.T) {
 				},
 			},
 			{
-				StatusCode: "jsonrpc.ServerError",
+				JSONRPCCode: &serverCode,
 				Errors: []*httpcodegen.ErrorData{
 					{
 						Name: "insufficient_funds",

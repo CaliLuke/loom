@@ -63,3 +63,36 @@ See [ACQUISITION-SLOTS.md](ACQUISITION-SLOTS.md) for the explicit ReserveC/BindC
 `acquisition_scope.go` removes provisional indexes on failure while preserving prior completed entries and the first error. It does not undo user callback side effects or promise reuse of an errored Analyzer. Comparison reads live completed body pointers rather than pre-drain shallow snapshots. Actual canonical Body selection, fresh allocation contexts and suffixed prepared bindings remain distinct; see [canonical claims](../canonical_body_binding/README.md) and [prepared claim binding](CLAIM-BINDING.md).
 
 Correspondence tests: `TestAcquisitionProtocol*` covers sharing, preferred/canonical orders and recursive local annotations; `TestAcquisitionCompletionBindings` records actual F/C/claim/handle relationships, nested-property exclusion, root/drain reuse and no new completion owners; `TestAcquisitionCompletionMappingBatch` covers two mappings and different byte constraints in both orders; rollback and comparison timing have direct tests; `TestNullableParentExplicitMapping` covers resolved child/backedge in both orders,3.1 and supported3.2, plus missing-fallback rejection. These bounded controls do not prove arbitrary graphs, schema equality, serializer correctness or sampler values.
+
+
+## Nested example-position memo
+
+`AnnotationPositions.tla` refines the acquired annotation binding at nested
+component positions. A declaration and its occurrence overlay can have the same
+context and structural fingerprint but different prepared example-plan nodes.
+Three captured positions contain `declaration`, `local`, `local`; each is read
+twice in every bounded traversal order. `AnnotationPositionCurrent.cfg` models
+the omitted node and fails `OwnValue` after declaration then occurrence (6 states,
+exit12). `AnnotationPositionOwned.cfg` includes the opaque node and passes all
+five invariants across271 states. `AnnotationPositionReach.cfg` deliberately
+fails `NoComplete` at six reads (182 states), proving the completed deduplication
+check is reached. These runs use the pinned TLC/Java above, one worker,256MiB.
+
+Run the same explicit command above with module `AnnotationPositions.tla` and
+the selected `AnnotationPosition*.cfg`. Current and Reach are expected negative
+controls, not CI gates. Prepared values are inputs; this companion abstracts
+codecs, sampling, actual graph extraction, annotation composition and naming.
+Memo identity is not semantic identity: completed outcomes with equal values
+still share a semantic class, and no pointer enters a public name.
+
+Correspondence: `componentAnnotationPosition.examplePlan` distinguishes the
+nested acquired binding in `applySchemaExample`; the outer acquired component
+scope and final complete-graph deduplication remain unchanged.
+`TestDerivedMessagePreservesAuthoredOccurrenceExample` preserves the authored
+local value in both event responses and the derived message. The generated
+producer first/second rounds cover Service's native wrapping, which exposes
+this cache even when raw inline analysis does not. Nullable occurrence examples
+remain on the whole occurrence during `effectiveFacts` comparison, separate
+from non-null component projection. The model does not prove this extraction;
+`TestEventCorrespondenceComparesFinalizedTargetGraph` and the producer regression
+check it directly.

@@ -755,6 +755,183 @@ carrier, including named, nullable and projected fields. Regenerate both clients
 and servers after upgrading; missing and non-string Tag fields now fail design
 admission instead of producing invalid Go.
 
+### Status-selected Responses
+
+Use an exact status integer, `Status2XX` through `Status5XX`, or
+`StatusFallback` as a response key. Exact keys take precedence over a matching
+class, followed by the fallback. A key belongs to success responses or named
+errors, never both. Named errors can share a key and retain their error identity.
+
+| Key | Final statuses it selects |
+| --- | --- |
+| Exact, such as `404` | that status |
+| `Status4XX` (likewise `Status2XX`, `Status3XX`, `Status5XX`) | the class, minus declared exact keys |
+| `StatusFallback` | 200 through 599, minus declared exact keys and classes |
+
+Declaration order never changes selection. A body-bearing response also
+excludes 204 and 304. The server checks a published status against its selected
+key before writing headers. A status outside that domain becomes a
+`*loomhttp.StatusViolationError` framework error, routed through the ordinary
+error encoder without a designed error name. The client selects one key per
+final status. A response that then fails decoding returns an error; Loom does
+not try another key.
+
+Multiple untagged success responses, or a non-exact success response, select
+from a native `StatusField` shared by all success branches. The field must be a
+required, non-nullable `Int` without a default. Its constraints must admit at
+least one status owned by the response key. A custom error can bind its own
+native status field; the transport Problem envelope does not supply native
+storage. JSON-RPC error numbers remain a separate protocol contract.
+
+```go
+HTTP(func() {
+    GET("/value")
+    Response(StatusOK, func() {
+        StatusField("http_status")
+        Body("existing")
+    })
+    Response(Status2XX, func() {
+        StatusField("http_status")
+        Body("created")
+    })
+})
+```
+
+The status field is excluded from inferred bodies. Mapping it to an explicit
+body, header or cookie is rejected. It must remain present in every admitted
+result view. Members owned by only one success branch are optional in native
+result storage, while the branch retains their original requiredness and any
+wire-local `Required` declarations. Payloads and shared type declarations retain
+their requirements. Tag selection remains available for exact keys; it cannot
+be mixed with class or fallback success keys.
+
+`Informational("hints", StatusEarlyHints, Hints, func() { Header("link:Link") })`
+declares a separately typed interim value. It carries headers, not a body, and
+its name and key are unique within the endpoint. Exact statuses 100 and 102
+through 199 may omit `StatusField`; `Status1XX` requires it. An exact 100 declaration is
+importable, exportable and observable, but has no permitted server emission:
+its generated `Send` returns a status violation. net/http owns automatic
+`100 Continue`; 101 belongs to protocol upgrades and cannot be declared.
+See [Informational Responses](#informational-responses) for sending and observing them.
+
+For an error-only non-streaming operation, declare `NoSuccessResponse()` with
+an empty result and at least one named error response. This suppresses the
+implicit success response. JSON-RPC does not support this declaration. A nil
+service error is then a framework violation, and a client receiving a final
+status outside the error keys returns an invalid-response error.
+
+An HTTP SSE response can pass a separate handshake type:
+`Response(StatusCreated, Handshake, func() { Header("subscription:X-Subscription") })`.
+Headers and their requirements come from that type, independently of
+`StreamingResult`. A singleton exact handshake needs no status field; multiple
+success keys or a class/fallback handshake require the same `StatusField` on
+all branches. All successful branches use the same native handshake type.
+The handshake supplies metadata, never the event body, and cannot use Tags.
+Call the generated stream's `SetResponse` before its first successful write when
+status or required metadata must be supplied. Without `SetResponse`, optional
+members use their authored defaults and other members are omitted; explicit
+zero values are published as supplied. Cookie policy for this implicit metadata
+receives the request context. A rejected replacement keeps the
+previous valid metadata. Missing or invalid metadata fails before response
+publication. Once the response opens or terminates, setters return an error.
+SSE success domains exclude 204 and 304 even when no event is sent.
+
+For a method with both `Result` and `StreamingResult`, the typed handshake owns
+status, headers and cookies for either negotiated success representation. The
+unary body is the whole `Result`; SSE events come from `StreamingResult`.
+Matching member names do not remove body fields or fill them from metadata.
+Their views are independent. On the non-streaming path, discarded stream sends
+and closes do not publish a response or prevent a later `SetResponse`.
+
+Regenerate service and transport packages together. A typed mixed service client
+returns `(result, metadata, error)` on its unary method; the streaming method
+returns a stream whose `Response()` exposes the same metadata type. Both result
+and metadata are validated before a successful unary return. Errors return zero
+values for both. Default, untyped methods retain their existing client shape.
+Typed mixed methods follow the existing HTTP-only streaming admission rules;
+separate HTTP and JSON-RPC methods can still share one service.
+
+Generated client interceptors on the unary method receive the response carrier
+`*<service>.<Method>ResponseData` from `next`, with separate `Result` and
+`Metadata` fields. They may modify either field, but must return that carrier.
+Any other result fails the call with an invalid typed response metadata carrier
+fault. Server service methods keep their `(result, error)` signature and set
+metadata through the stream's `SetResponse`.
+
+### Informational Responses
+
+An `Informational` declaration generates a typed server emitter and a typed
+client observer. Both are named after the method and declaration. For example,
+`read` with `hints` produces `SendReadHints` in the HTTP server package and
+`WithReadHints` in the HTTP client package:
+
+```go
+var Hints = Type("Hints", func() {
+    Attribute("trace", String)
+    Required("trace")
+})
+
+Method("read", func() {
+    Result(SelectionResult)
+    HTTP(func() {
+        GET("/read")
+        Informational("hints", StatusEarlyHints, Hints, func() {
+            Header("trace:X-Trace")
+        })
+        Response(StatusOK)
+    })
+})
+```
+
+```go
+// HTTP server package: func SendReadHints(ctx context.Context, v *selection.Hints) error
+if err := server.SendReadHints(ctx, &selection.Hints{Trace: "early"}); err != nil {
+    return nil, err
+}
+
+// HTTP client package: func WithReadHints(ctx context.Context, fn func(context.Context, *selection.Hints, error) error) context.Context
+ctx = client.WithReadHints(ctx, func(ctx context.Context, hints *selection.Hints, decodeErr error) error {
+    return decodeErr // a nonnil return aborts the request
+})
+res, err := c.Read(ctx)
+```
+
+The emitter must receive the request context or a context derived from it. It
+sends exactly the declared headers and never leaks or alters final response
+headers. It returns:
+
+- `loomhttp.ErrInformationalClosed` once final work has started (result or error
+  encoding, SSE open, WebSocket upgrade, file, raw or redirect), or when `ctx`
+  does not carry the request exchange;
+- `loomhttp.ErrInformationalUnsupported` for HTTP/1.0 requests;
+- `loomhttp.ErrInformationalLimit` after `loomhttp.MaxInformationalResponses`
+  (8) authored interim responses in the exchange;
+- `*loomhttp.StatusViolationError` for a value outside the declaration's status
+  domain or header constraints. Nothing is sent.
+
+Authored emission never sends 100 or 101. For `Expect: 100-continue`, net/http
+sends at most one automatic `100 Continue`, outside the authored budget.
+
+On the client, a callback runs synchronously, in arrival order, before the final
+response. It receives the decoded value and any metadata decoding error; only
+its returned error aborts the request. Treat headers as read-only. Exact keys
+take precedence over `Status1XX`, even when the exact observer is nil. A
+declared exact 100 observes automatic `100 Continue`; otherwise `Status1XX`
+selects it. If the selected channel's status field constraints exclude 100, the callback receives a decoding error.
+Undeclared statuses are ignored. A nil callback disables
+observation for that declaration. If no callback is registered, the request is
+unchanged: no trace hook and no budget are installed.
+
+With observation enabled, each transport exchange accepts at most eight non-100
+interim responses and one 100, including undeclared and intermediary responses.
+Redirects and retries start new exchanges. Exceeding a budget aborts with
+`loomhttp.ErrInformationalLimit`. After the first observer or budget error, no
+further Loom callbacks run. The call returns that error joined with any error
+from the transport and from closing the response body; use `errors.Is`. A
+`Got1xxResponse` hook that you installed with `httptrace` still runs once per
+interim response. Regenerate clients and servers to obtain emitters and
+observers.
+
 ### Mapped Wire Names
 
 Mappings split at the first colon: `Param("value:filter:mode")` names the query
@@ -1308,9 +1485,15 @@ func main() {
 
 For each supported unary, multipart, SSE, or WebSocket endpoint, the generated server package exposes a
 `<Method>ResponseContractCases` function and collects them in the service-wide
-`ResponseContractCases` manifest. Each case records the exact status, allowed
-base media types, error name, and required response headers and cookies
-declared by the design. SSE success cases also record the stream direction,
+`ResponseContractCases` manifest. Each case records its kind, the declared
+status `Selector`, the status `Domain` the response may use, allowed base media
+types, error name, and required response headers and cookies declared by the
+design. An exact status such as `202` has
+`Selector: loomhttp.StatusSelector{Code: 202}` and `Domain: []int{202}`, and a
+WebSocket success case has the `101` handshake as its domain.
+`ValidateResponseContract` checks the response status against `Domain` only.
+The former `StatusCode` field is removed: regenerate with `loom gen`, and read
+`Domain` or `Selector` in application code that inspected it. SSE success cases also record the stream direction,
 message type and encoding, SSE field mappings, required ID and event-type
 fields, allowed projection event types, and terminal completion contract.
 Declared errors that fail before the stream starts remain ordinary HTTP cases.
@@ -1808,8 +1991,10 @@ func (s *Service) Stream(ctx context.Context, stream sse.StreamServerStream) err
 }
 ```
 
-`Open` is lazy and idempotent: it flushes the normal `200 text/event-stream`
-headers once, while a typed send or comment also opens the stream when needed.
+`Open` is lazy and idempotent: it flushes the handshake status, its headers and
+`Content-Type: text/event-stream` once, while a typed send or comment also opens
+the stream when needed. The status is 200 unless the design selects another one
+(see [SSE Handshake Status and Completion](#sse-handshake-status-and-completion)).
 Comments reject carriage returns and line feeds, share the typed-event write
 lock, and are ignored as domain events by generated clients. Operations after
 closure return `loomhttp.ErrSSEStreamClosed`; canceled requests return their
@@ -1860,6 +2045,52 @@ A service method exposed over SSE and gRPC shares its client interface, includin
 `Close()`. On gRPC, this operation retains `CloseSend` semantics; cancel the
 original RPC context to terminate reception. Per-operation gRPC cancellation
 is a separate transport concern.
+
+### SSE Handshake Status and Completion
+
+The success responses described in
+[Status-selected Responses](#status-selected-responses) determine the status:
+
+- A single exact success, such as `Response(StatusCreated)`, publishes that
+  status. The stream has `SetResponse` only when the response passes a
+  handshake type.
+- Several success keys, or a `Status2XX`/`StatusFallback` key, require a
+  `SetResponse` value whose status field selects one of them. Loom never
+  guesses a status.
+
+The first of these operations publishes the handshake: `Open`, `SendComment`,
+an event send, `Close`, or a nil return from the service method. A nil return
+from an unopened stream publishes the handshake with zero events. Missing
+status-mode metadata, a missing required handshake header or an invalid value
+fails before anything is written. That failure takes the ordinary error path.
+An error returned before the stream opens uses the declared error responses.
+After the stream opens, a returned error terminates the stream; it cannot
+replace the committed status.
+
+The HTTP server stream's `Close` completes the stream successfully. On an
+unopened stream it publishes the handshake under the same rules, using the
+request context, and returns any publication error. Return that error from the
+service method. Calling `Close` after the stream has already finished, failed or
+closed does nothing and returns nil. To report a failure, return the error
+instead of calling `Close`. The generated handler's cleanup runs on every return
+and panic. It never publishes a response. Regenerate servers to adopt `Close` as
+successful completion; previously, it ended an unopened stream without a
+response.
+
+Generated clients select the final response key before constructing a stream.
+Error keys return errors. For a success key, `Content-Type` must parse as
+`text/event-stream`, with optional valid parameters such as `charset=utf-8`. A
+missing, malformed or different media type, including `text/event-stream-extra`,
+is rejected before the stream is created. A stream with a handshake type
+exposes the decoded metadata, including the actual status, through `Response()`,
+even when no event arrives. Each JSON event is decoded as `application/json` data, independent of
+the handshake status and of the request's media type. Raw field-level data
+keeps the codec described in [Event Data Encoding](#event-data-encoding).
+Regenerate clients to adopt this media check and status selection.
+
+Browser `EventSource` fails the connection unless the status is 200. Generated
+Go clients accept every declared success status, but an API consumed by
+browsers should declare exact `Response(StatusOK)` for its SSE success.
 
 Browser client:
 

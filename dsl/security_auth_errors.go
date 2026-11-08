@@ -55,7 +55,7 @@ func ensureHTTPAuthError(errors *[]*expr.HTTPErrorExpr, parent eval.Expression, 
 	*errors = append(*errors, &expr.HTTPErrorExpr{
 		Name: name,
 		Response: &expr.HTTPResponseExpr{
-			StatusCode:  code,
+			Status:      expr.HTTPStatusSelector{Code: code},
 			Description: description,
 			Parent:      parent,
 		},
@@ -81,7 +81,7 @@ func compatibleHTTPAuthError(errors []*expr.HTTPErrorExpr, name string, code int
 		if err == nil || err.Name != name || err.Response == nil {
 			continue
 		}
-		if err.Response.StatusCode == code {
+		if err.Response.Status.Code == code {
 			return err
 		}
 	}

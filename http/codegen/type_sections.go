@@ -86,8 +86,8 @@ func appendInitResult(group *jen.Group, init *InitData, code string, client bool
 func validateSection(name string, data *TypeData) codegen.Section {
 	return codegen.NewJenniferSection(name, func(stmt *jen.Statement) {
 		stmt.Line()
-		codegen.Doc(stmt, fmt.Sprintf("Validate%s runs the validations defined on %s", data.VarName, data.Name))
 		function := data.validationFunction
+		codegen.Doc(stmt, fmt.Sprintf("%s runs the validations defined on %s", function.Name, data.Name))
 		stmt.Add(codegen.Expr(function.Definition(data.ValidateDef)))
 		stmt.Line()
 	})

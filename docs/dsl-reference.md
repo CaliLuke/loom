@@ -2488,20 +2488,123 @@ header, param or cookie.
 
 ### Response Selection
 
-An HTTP method has exactly one untagged application response, used when no
-`Tag` matches the result. Loom supplies an implicit default if no responses are
-authored. Each additional response must select a result value with `Tag`;
-different status codes alone cannot select a response. Multiple untagged
-responses are rejected during design validation. Replace any formerly ignored
-response with an explicit tag or remove it, then regenerate.
+HTTP `Response` keys are status selectors:
 
-Tagged responses are tested in authored order; the first matching tag wins.
-The untagged default is always tested last, wherever its declaration appears.
-Regenerate to correct servers that previously changed priority when the default
-was declared before tagged alternatives.
+| Selector | Statuses |
+| --- | --- |
+| Exact integer, such as `StatusOK` or `404` | that final status |
+| `Status2XX`, `Status3XX`, `Status4XX`, `Status5XX` | the final class, minus declared exact keys |
+| `StatusFallback` (OpenAPI `default`) | 200 through 599, minus declared exact keys and classes |
+| `Status1XX` | interim 100 and 102 through 199; valid only in `Informational` |
+
+Exact keys take precedence over classes, then the fallback, regardless of
+declaration order. A key belongs to the success responses or to named errors,
+never both; named errors may share a key. Loom supplies an implicit default when
+no success response is authored. A success method then chooses one mode:
+
+- **Tag mode.** All success keys are exact. Tagged responses are tested in
+  authored order and the first matching tag wins. Exactly one untagged response
+  is used when no tag matches, and it is always tested last, wherever its
+  declaration appears.
+- **Status mode.** Several untagged success responses, or any class or fallback
+  success key, select by a shared `StatusField`.
+- **Error-only.** `NoSuccessResponse()` declares no success response.
+
+```go
+var Value = Type("Value", func() {
+    Attribute("name", String)
+})
+
+var Unexpected = Type("Unexpected", func() {
+    Attribute("http_status", Int)
+    Attribute("message", String)
+    Required("http_status", "message")
+})
+
+Method("read", func() {
+    Result(func() {
+        Attribute("http_status", Int)
+        Attribute("existing", Value)
+        Attribute("created", Value)
+        Required("http_status")
+    })
+    Error("unexpected", Unexpected)
+    HTTP(func() {
+        GET("/value")
+        Response(StatusOK, func() {
+            StatusField("http_status")
+            Body("existing")
+        })
+        Response(Status2XX, func() {
+            StatusField("http_status")
+            Body("created")
+        })
+        Response("unexpected", StatusFallback, func() {
+            StatusField("http_status")
+        })
+    })
+})
+```
+
+`StatusField(name)` binds a required, non-nullable native `Int` member without a
+default to the response status. It is valid in `Response` and `Informational`.
+The field is excluded from inferred bodies and cannot also be mapped to a body,
+header or cookie. All status-mode success branches bind the same field, which
+must survive every admitted result view, and its constraints must admit at
+least one status owned by the key. A class or fallback error key also needs it,
+on a custom error type with real native storage. The built-in Problem envelope
+does not provide one.
+
+`Informational(name, status, type, fn)` declares a named, header-only interim
+response with its own type. The status is exact 100 or 102 through 199, which may
+omit `StatusField`, or `Status1XX`, which requires it. The callback accepts
+`Header`, `StatusField` and `Description`. Names and keys are unique within the
+endpoint. Exact 100 declares observation and OpenAPI documentation only: its
+emission domain is empty, so its generated `Send` function rejects every value.
+net/http owns automatic `100 Continue`. Status 101 is reserved for upgrades.
+`StatusEarlyHints` is 103.
+
+`NoSuccessResponse()` requires an empty `Result`, a non-streaming method and at
+least one named error response.
+
+On an HTTP SSE endpoint, `Response` accepts a handshake type between the key and
+the callback. The type supplies status, headers and cookies separately from
+`StreamingResult`:
+
+```go
+Response(StatusCreated, StreamResponse, func() {
+    StatusField("http_status")
+    Header("trace:X-Trace")
+})
+Response(Status2XX, StreamResponse, func() {
+    StatusField("http_status")
+    Header("trace:X-Trace")
+})
+```
+
+A single exact success needs no status field. Several success keys, or a class
+or fallback key, use status mode. All SSE success responses use the same native
+handshake type.
+
+| Declaration | Result |
+| --- | --- |
+| `Response(Status4XX)` without `StatusField` | rejected |
+| One key used by a success and an error | rejected |
+| `Tag` combined with a class or fallback success key | rejected |
+| `Tag` on an SSE response | rejected |
+| SSE status, headers or cookies without a handshake type; handshake with a body | rejected |
+| Handshake type outside HTTP SSE | rejected |
+| SSE success responses with different native handshake types | rejected |
+| `Response(StatusEarlyHints)` or `Response(101)` | rejected; use `Informational` or WebSocket |
+| `Informational` with 100 | declared and observable; server emission rejected |
+| `Informational` with 101 | rejected; protocol upgrade |
+| Class or fallback keys with `FileResponse` or WebSocket | rejected |
+| `StatusField`, class/fallback keys, `Informational` or `NoSuccessResponse` in JSON-RPC | rejected |
 
 Designed error responses and FileResponse's protocol-owned statuses are separate
-from this application-response selection rule.
+from success selection. See [Status-selected
+Responses](http-guide.md#status-selected-responses) for generated behavior.
+Regenerate clients and servers after adopting status selection.
 
 ### Response Headers
 
@@ -2813,6 +2916,15 @@ var _ = Service("calc", func() {
     })
 })
 ```
+
+A method with streaming cannot declare both `HTTP` and `JSONRPC` mappings: their
+service stream interfaces and dispatch semantics differ. Use separate methods
+for those transports. Unary methods may declare both mappings when their HTTP
+mapping uses generated body encoding. A method using `SkipRequestBodyEncodeDecode`,
+`SkipResponseBodyEncodeDecode`, or `FileResponse` cannot also declare a `JSONRPC`
+mapping: its service signature requires HTTP-specific raw-body or file handling.
+Use separate methods for those contracts. Distinct HTTP and JSON-RPC methods,
+including streaming methods, may coexist in one service.
 
 JSON-RPC supports regular HTTP request/response, batch requests, WebSocket
 streaming, and SSE streaming. For SSE, use `ServerSentEvents` inside the

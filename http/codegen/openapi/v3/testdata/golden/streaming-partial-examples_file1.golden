@@ -28,7 +28,7 @@ paths:
                                         contentSchema:
                                             example:
                                                 data:
-                                                    message: Non et.
+                                                    message: Dicta et est.
                                                 event: abc123
                                             $ref: '#/components/schemas/RealtimeSSEEvent'
                                 required:
@@ -46,7 +46,8 @@ paths:
                         method: GET
                     response:
                         contentType: text/event-stream
-                        status: 200
+                        statuses:
+                            - "200"
                 messages:
                     outbound:
                         contentType: application/json
@@ -58,9 +59,9 @@ paths:
                                     properties:
                                         message:
                                             type: string
-                                            example: Quia ut autem at.
+                                            example: Ut quo aspernatur et necessitatibus ipsum eos.
                                     example:
-                                        message: Saepe impedit cum asperiores.
+                                        message: Architecto sint delectus hic voluptatem.
                                     required:
                                         - message
                                 event:
@@ -142,7 +143,8 @@ paths:
                         method: GET
                     response:
                         contentType: ""
-                        status: 101
+                        statuses:
+                            - "101"
                 messages:
                     outbound:
                         contentType: application/json

@@ -10,8 +10,8 @@ package client
 import (
 	"context"
 	"fmt"
+	"mime"
 	"net/http"
-	"strings"
 
 	loomhttp "github.com/CaliLuke/loom/http"
 	loom "github.com/CaliLuke/loom/pkg"
@@ -44,23 +44,33 @@ func NewClient(scheme string, host string, doer loomhttp.Doer, enc func(*http.Re
 // Tick returns an endpoint that makes HTTP requests to the clock service Tick
 // server.
 func (c *Client) Tick() loom.Endpoint {
+	var (
+		decodeResponse = DecodeTickResponse(c.decoder, c.RestoreResponseBody)
+	)
 	return func(ctx context.Context, v any) (any, error) {
 		req, err := c.BuildTickRequest(ctx, v)
 		if err != nil {
 			return nil, err
 		}
-		// For SSE endpoints, connect and return a stream
 		resp, err := c.TickDoer.Do(req)
 		if err != nil {
 			return nil, loomhttp.ErrRequestError("clock", "Tick", err)
 		}
-		return loomhttp.DecodeResponse(resp, false, true, func(resp *http.Response) (any, error) {
-			if resp.StatusCode != http.StatusOK {
-				return nil, fmt.Errorf("unexpected status from SSE endpoint: %d", resp.StatusCode)
+		selected, found := loomhttp.SelectFinal([]loomhttp.StatusSelector{loomhttp.StatusSelector{Code: 200}}, resp.StatusCode)
+		success := false
+		if found {
+			switch selected {
+			case loomhttp.StatusSelector{Code: 200}:
+				success = true
 			}
-			contentType := resp.Header.Get("Content-Type")
-			if contentType != "" && !strings.HasPrefix(contentType, "text/event-stream") {
-				return nil, fmt.Errorf("unexpected content type: %s (expected text/event-stream)", contentType)
+		}
+		if !success {
+			return decodeResponse(resp)
+		}
+		return loomhttp.DecodeResponse(resp, false, true, func(resp *http.Response) (any, error) {
+			mediaType, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+			if err != nil || mediaType != "text/event-stream" {
+				return nil, fmt.Errorf("unexpected content type %q (expected text/event-stream)", resp.Header.Get("Content-Type"))
 			}
 			return NewTickStream(ctx, resp, c.decoder), nil
 		})
@@ -70,23 +80,33 @@ func (c *Client) Tick() loom.Endpoint {
 // Tock returns an endpoint that makes HTTP requests to the clock service Tock
 // server.
 func (c *Client) Tock() loom.Endpoint {
+	var (
+		decodeResponse = DecodeTockResponse(c.decoder, c.RestoreResponseBody)
+	)
 	return func(ctx context.Context, v any) (any, error) {
 		req, err := c.BuildTockRequest(ctx, v)
 		if err != nil {
 			return nil, err
 		}
-		// For SSE endpoints, connect and return a stream
 		resp, err := c.TockDoer.Do(req)
 		if err != nil {
 			return nil, loomhttp.ErrRequestError("clock", "Tock", err)
 		}
-		return loomhttp.DecodeResponse(resp, false, true, func(resp *http.Response) (any, error) {
-			if resp.StatusCode != http.StatusOK {
-				return nil, fmt.Errorf("unexpected status from SSE endpoint: %d", resp.StatusCode)
+		selected, found := loomhttp.SelectFinal([]loomhttp.StatusSelector{loomhttp.StatusSelector{Code: 200}}, resp.StatusCode)
+		success := false
+		if found {
+			switch selected {
+			case loomhttp.StatusSelector{Code: 200}:
+				success = true
 			}
-			contentType := resp.Header.Get("Content-Type")
-			if contentType != "" && !strings.HasPrefix(contentType, "text/event-stream") {
-				return nil, fmt.Errorf("unexpected content type: %s (expected text/event-stream)", contentType)
+		}
+		if !success {
+			return decodeResponse(resp)
+		}
+		return loomhttp.DecodeResponse(resp, false, true, func(resp *http.Response) (any, error) {
+			mediaType, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+			if err != nil || mediaType != "text/event-stream" {
+				return nil, fmt.Errorf("unexpected content type %q (expected text/event-stream)", resp.Header.Get("Content-Type"))
 			}
 			return NewTockStream(ctx, resp, c.decoder), nil
 		})
@@ -109,18 +129,25 @@ func (c *Client) Guarded() loom.Endpoint {
 		if err != nil {
 			return nil, err
 		}
-		// For SSE endpoints, connect and return a stream
 		resp, err := c.GuardedDoer.Do(req)
 		if err != nil {
 			return nil, loomhttp.ErrRequestError("clock", "Guarded", err)
 		}
-		if resp.StatusCode != http.StatusOK {
+		selected, found := loomhttp.SelectFinal([]loomhttp.StatusSelector{loomhttp.StatusSelector{Code: 200}, loomhttp.StatusSelector{Code: 401}}, resp.StatusCode)
+		success := false
+		if found {
+			switch selected {
+			case loomhttp.StatusSelector{Code: 200}:
+				success = true
+			}
+		}
+		if !success {
 			return decodeResponse(resp)
 		}
 		return loomhttp.DecodeResponse(resp, false, true, func(resp *http.Response) (any, error) {
-			contentType := resp.Header.Get("Content-Type")
-			if contentType != "" && !strings.HasPrefix(contentType, "text/event-stream") {
-				return nil, fmt.Errorf("unexpected content type: %s (expected text/event-stream)", contentType)
+			mediaType, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+			if err != nil || mediaType != "text/event-stream" {
+				return nil, fmt.Errorf("unexpected content type %q (expected text/event-stream)", resp.Header.Get("Content-Type"))
 			}
 			return NewGuardedStream(ctx, resp, c.decoder), nil
 		})

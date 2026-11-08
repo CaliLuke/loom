@@ -22,7 +22,8 @@ type (
 	responseContractCaseSnapshot struct {
 		ID           string                                        `json:"id"`
 		Kind         transportir.ResponseContractCaseKind          `json:"kind"`
-		StatusCode   int                                           `json:"status_code"`
+		Selector     expr.HTTPStatusSelector                       `json:"selector"`
+		Domain       []int                                         `json:"domain"`
 		ErrorName    string                                        `json:"error_name,omitempty"`
 		TagName      string                                        `json:"tag_name,omitempty"`
 		TagValue     string                                        `json:"tag_value,omitempty"`
@@ -46,7 +47,8 @@ func TestAnalyzeResponseContractCases(t *testing.T) {
 	accepted := analysis.Cases[0]
 	require.Equal(t, "widgets.show.success.202.outcome=accepted", accepted.ID)
 	require.Equal(t, transportir.ResponseContractSuccess, accepted.Kind)
-	require.Equal(t, expr.StatusAccepted, accepted.StatusCode)
+	require.Equal(t, expr.HTTPStatusSelector{Code: expr.StatusAccepted}, accepted.Selector)
+	require.Equal(t, []int{expr.StatusAccepted}, accepted.Domain)
 	require.Equal(t, "outcome", accepted.TagName)
 	require.Equal(t, "accepted", accepted.TagValue)
 	require.Equal(t, []string{"application/json"}, accepted.ContentTypes)
@@ -68,8 +70,10 @@ func TestAnalyzeResponseContractCases(t *testing.T) {
 	gone := analysis.Cases[3]
 	require.Equal(t, "widgets.show.error.not_found.404", notFound.ID)
 	require.Equal(t, "widgets.show.error.gone.404", gone.ID)
-	require.Equal(t, expr.StatusNotFound, notFound.StatusCode)
-	require.Equal(t, expr.StatusNotFound, gone.StatusCode)
+	require.Equal(t, expr.HTTPStatusSelector{Code: expr.StatusNotFound}, notFound.Selector)
+	require.Equal(t, expr.HTTPStatusSelector{Code: expr.StatusNotFound}, gone.Selector)
+	require.Equal(t, []int{expr.StatusNotFound}, notFound.Domain)
+	require.Equal(t, []int{expr.StatusNotFound}, gone.Domain)
 	require.Equal(t, "not_found", notFound.ErrorName)
 	require.Equal(t, "gone", gone.ErrorName)
 	require.Equal(t, "X-Reason", notFound.Headers[0].HTTPName)
@@ -77,6 +81,22 @@ func TestAnalyzeResponseContractCases(t *testing.T) {
 	encoded, err := json.Marshal(responseContractSnapshotFor(analysis))
 	require.NoError(t, err)
 	testutil.AssertJSON(t, "testdata/golden/response_contract_cases.json.golden", encoded)
+}
+
+func TestAnalyzeResponseContractCasesDetachesDomains(t *testing.T) {
+	root := testcodegen.RunDSL(t, responseContractDSL)
+	endpoint := transportir.BuildEndpoint(root.API.HTTP.Services[0].HTTPEndpoints[0])
+
+	analysis := transportir.AnalyzeResponseContractCases(endpoint)
+	require.True(t, analysis.Supported())
+	require.Len(t, analysis.Cases, 4)
+	notFound, gone := analysis.Cases[2], analysis.Cases[3]
+	require.Equal(t, []int{expr.StatusNotFound}, notFound.Domain)
+	require.Equal(t, []int{expr.StatusNotFound}, gone.Domain)
+
+	notFound.Domain[0] = expr.StatusGone
+	require.Equal(t, []int{expr.StatusNotFound}, gone.Domain)
+	require.Equal(t, []int{expr.StatusNotFound}, transportir.AnalyzeResponseContractCases(endpoint).Cases[2].Domain)
 }
 
 func TestAnalyzeResponseContractCasesRejectsUnsupportedScopes(t *testing.T) {
@@ -289,7 +309,8 @@ func TestAnalyzeResponseContractCasesSupportsWebSocket(t *testing.T) {
 	require.Equal(t, "events.watch.success.101", success.ID)
 	require.Equal(t, transportir.ResponseContractSuccess, success.Kind)
 	require.Equal(t, transportir.ResponseContractWebSocketTransport, success.Transport)
-	require.Equal(t, expr.StatusSwitchingProtocols, success.StatusCode)
+	require.Equal(t, expr.HTTPStatusSelector{Code: expr.StatusSwitchingProtocols}, success.Selector)
+	require.Equal(t, []int{expr.StatusSwitchingProtocols}, success.Domain)
 	require.False(t, success.HasBody)
 	require.Empty(t, success.ContentTypes)
 	require.Equal(t, &transportir.ResponseContractWebSocket{
@@ -441,7 +462,8 @@ func TestAnalyzeResponseContractCasesDescribesWebSocketDirections(t *testing.T) 
 				Response: &transportir.Response{
 					Result: test.result,
 					Responses: []*transportir.ResponseStatus{{
-						StatusCode: expr.StatusOK,
+						Selector: expr.HTTPStatusSelector{Code: expr.StatusOK},
+						Domain:   []int{expr.StatusOK},
 					}},
 				},
 				Stream: test.stream,
@@ -469,8 +491,9 @@ func TestAnalyzeResponseContractCasesEscapesStableIDSegments(t *testing.T) {
 		MethodName: "show/item",
 		Request:    &transportir.Request{},
 		Response: &transportir.Response{Responses: []*transportir.ResponseStatus{{
-			StatusCode: expr.StatusAccepted,
-			Tag:        &expr.HTTPResponseTag{Key: "state=kind", Value: "ready.now"},
+			Selector: expr.HTTPStatusSelector{Code: expr.StatusAccepted},
+			Domain:   []int{expr.StatusAccepted},
+			Tag:      &expr.HTTPResponseTag{Key: "state=kind", Value: "ready.now"},
 		}}},
 	}
 
@@ -487,7 +510,8 @@ func TestAnalyzeResponseContractCasesTracksBodyApplicability(t *testing.T) {
 		Request:    &transportir.Request{},
 		Response: &transportir.Response{
 			Responses: []*transportir.ResponseStatus{{
-				StatusCode:   expr.StatusNoContent,
+				Selector:     expr.HTTPStatusSelector{Code: expr.StatusNoContent},
+				Domain:       []int{expr.StatusNoContent},
 				ContentTypes: []string{"application/json"},
 				Body:         &expr.AttributeExpr{Type: expr.Empty},
 			}},
@@ -508,13 +532,15 @@ func TestAnalyzeResponseContractCasesTreatsOnlyFileSuccessAsBody(t *testing.T) {
 		Response: &transportir.Response{
 			FileResponse: true,
 			Responses: []*transportir.ResponseStatus{{
-				StatusCode:   expr.StatusOK,
+				Selector:     expr.HTTPStatusSelector{Code: expr.StatusOK},
+				Domain:       []int{expr.StatusOK},
 				ContentTypes: []string{"*/*"},
 				Body:         &expr.AttributeExpr{Type: expr.Empty},
 			}},
 			ErrorResponses: []*transportir.ResponseStatus{{
 				Error:        &transportir.Error{Name: "not_found"},
-				StatusCode:   expr.StatusNotFound,
+				Selector:     expr.HTTPStatusSelector{Code: expr.StatusNotFound},
+				Domain:       []int{expr.StatusNotFound},
 				ContentTypes: []string{"application/json"},
 				Body:         &expr.AttributeExpr{Type: expr.Empty},
 				IsError:      true,
@@ -535,7 +561,8 @@ func responseContractSnapshotFor(analysis *transportir.ResponseContractAnalysis)
 		snapshot.Cases = append(snapshot.Cases, responseContractCaseSnapshot{
 			ID:           contractCase.ID,
 			Kind:         contractCase.Kind,
-			StatusCode:   contractCase.StatusCode,
+			Selector:     contractCase.Selector,
+			Domain:       contractCase.Domain,
 			ErrorName:    contractCase.ErrorName,
 			TagName:      contractCase.TagName,
 			TagValue:     contractCase.TagValue,
@@ -656,4 +683,35 @@ func responseContractWebSocketDSL() {
 			})
 		})
 	})
+}
+
+func TestResponseProtocolProjection(t *testing.T) {
+	root := testcodegen.RunDSL(t, func() {
+		dsl.Service("dual", func() {
+			dsl.Error("boom", dsl.ErrorResult)
+			dsl.JSONRPC(func() {
+				dsl.POST("/rpc")
+			})
+			dsl.Method("read", func() {
+				dsl.Result(dsl.String)
+				dsl.HTTP(func() {
+					dsl.GET("/read")
+					dsl.Response("boom", 403)
+				})
+				dsl.JSONRPC(func() {
+					dsl.Response("boom", 0)
+				})
+			})
+		})
+	})
+	http := transportir.BuildEndpoint(root.API.HTTP.Service("dual").Endpoint("read"))
+	rpc := transportir.BuildEndpoint(root.API.JSONRPC.Service("dual").Endpoint("read"))
+	require.False(t, http.IsJSONRPC)
+	require.True(t, rpc.IsJSONRPC)
+	require.Equal(t, 403, http.Response.ErrorResponses[0].Selector.Code)
+	require.Nil(t, http.Response.ErrorResponses[0].Error.JSONRPCCode)
+	require.Equal(t, 200, rpc.Response.Responses[0].Selector.Code)
+	require.Zero(t, rpc.Response.ErrorResponses[0].Selector)
+	require.NotNil(t, rpc.Response.ErrorResponses[0].Error.JSONRPCCode)
+	require.Zero(t, *rpc.Response.ErrorResponses[0].Error.JSONRPCCode)
 }

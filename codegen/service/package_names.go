@@ -90,7 +90,8 @@ func ownPackageUserType(root *expr.RootExpr, service *expr.ServiceExpr) expr.Use
 }
 
 // serviceAttributes returns the attributes of the payloads, results and
-// errors of the methods of service, its errors and its evaluated mappings.
+// errors of the methods of service, its HTTP metadata values, its errors and
+// its evaluated mappings.
 func serviceAttributes(root *expr.RootExpr, service *expr.ServiceExpr) []*expr.AttributeExpr {
 	atts := make([]*expr.AttributeExpr, 0, 4*len(service.Methods)+len(service.Errors))
 	for _, e := range service.Errors {
@@ -98,6 +99,9 @@ func serviceAttributes(root *expr.RootExpr, service *expr.ServiceExpr) []*expr.A
 	}
 	for _, m := range service.Methods {
 		atts = append(atts, m.Payload, m.StreamingPayload, m.Result, m.StreamingResult)
+		for _, carrier := range httpMetadataCarriers(root, m) {
+			atts = append(atts, carrier.attribute)
+		}
 		for _, e := range m.Errors {
 			atts = append(atts, e.AttributeExpr)
 		}

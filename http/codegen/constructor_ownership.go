@@ -57,6 +57,11 @@ func (sd *ServiceData) walkConstructors(client bool, visit func(*InitData, bool)
 				add(ws.Payload.Init, false)
 			}
 		}
+		if !client && ep.SSE != nil {
+			for _, body := range ep.SSE.ResponseBodies {
+				add(body.Init, true)
+			}
+		}
 		walkResponses(ep, func(response *ResponseData) {
 			if client {
 				add(response.ResultInit, false)
@@ -70,8 +75,14 @@ func (sd *ServiceData) walkConstructors(client bool, visit func(*InitData, bool)
 }
 
 func walkResponses(ep *EndpointData, visit func(*ResponseData)) {
+	for _, info := range ep.Informational {
+		visit(info.Response)
+	}
 	for _, response := range ep.Result.Responses {
 		visit(response)
+		if response.Unary != nil {
+			visit(response.Unary)
+		}
 	}
 	for _, group := range ep.Errors {
 		for _, err := range group.Errors {

@@ -1,6 +1,9 @@
 package testdata
 
-import . "github.com/CaliLuke/loom/dsl"
+import (
+	. "github.com/CaliLuke/loom/dsl"
+	"github.com/CaliLuke/loom/expr"
+)
 
 // EffectiveWireBindingsDSL exercises unambiguous request, response and security
 // mappings through the shared HTTP expression owner.
@@ -39,46 +42,10 @@ func effectiveWireBindingsDSL(transport, authorization string) func() {
 				})
 			}
 			wireBindingOrdinaryMethods(transport, endpoint)
-			for _, name := range []string{"either", "explicit", "and-key", "or-key", "shared-frame"} {
-				Method(name, func() {
-					switch name {
-					case "and-key":
-						Security(jwt, key)
-					case "or-key":
-						Security(jwt)
-						Security(key)
-					case "shared-frame":
-						Security(jwt, oauth)
-					default:
-						Security(basic)
-						Security(jwt)
-					}
-					Payload(func() {
-						Token("token", String, func() {
-							if name == "shared-frame" {
-								Meta("security:accesstoken")
-							}
-						})
-						if name == "and-key" || name == "or-key" {
-							APIKey("key", "key", String)
-						} else if name != "shared-frame" {
-							Username("username", String)
-							Password("password", String)
-						}
-						if name == "and-key" {
-							Required("token", "key")
-						}
-					})
-					endpoint("/"+name, func() {
-						if name == "explicit" {
-							Header("token:" + authorization)
-						}
-						if name == "and-key" || name == "or-key" {
-							Header("key:X-Api-Key")
-						}
-					})
-				})
+			if transport == "http" {
+				wireBindingDualMethod()
 			}
+			wireBindingSecurityMethods(authorization, endpoint, basic, jwt, key, oauth)
 		})
 	}
 }
@@ -178,4 +145,67 @@ func EffectiveWireBindingErrorsDSL() {
 			})
 		}
 	})
+}
+
+func wireBindingDualMethod() {
+	JSONRPC(func() {
+		POST("/rpc")
+	})
+	Method("dual", func() {
+		Payload(func() {
+			Attribute("value", String)
+			Required("value")
+		})
+		Result(String)
+		HTTP(func() {
+			POST("/dual")
+		})
+		JSONRPC(func() {
+		})
+	})
+}
+
+func wireBindingSecurityMethods(
+	authorization string, endpoint func(string, func()), basic, jwt, key, oauth *expr.SchemeExpr,
+) {
+	for _, name := range []string{"either", "explicit", "and-key", "or-key", "shared-frame"} {
+		Method(name, func() {
+			switch name {
+			case "and-key":
+				Security(jwt, key)
+			case "or-key":
+				Security(jwt)
+				Security(key)
+			case "shared-frame":
+				Security(jwt, oauth)
+			default:
+				Security(basic)
+				Security(jwt)
+			}
+			Payload(func() {
+				Token("token", String, func() {
+					if name == "shared-frame" {
+						Meta("security:accesstoken")
+					}
+				})
+				if name == "and-key" || name == "or-key" {
+					APIKey("key", "key", String)
+				} else if name != "shared-frame" {
+					Username("username", String)
+					Password("password", String)
+				}
+				if name == "and-key" {
+					Required("token", "key")
+				}
+			})
+			endpoint("/"+name, func() {
+				if name == "explicit" {
+					Header("token:" + authorization)
+				}
+				if name == "and-key" || name == "or-key" {
+					Header("key:X-Api-Key")
+				}
+			})
+		})
+	}
 }

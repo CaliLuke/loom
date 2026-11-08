@@ -32,7 +32,8 @@ func TestValidateResponseContract(t *testing.T) {
 			contract: ResponseContractCase{
 				ID:              "widgets.show.success.202",
 				Kind:            ResponseContractSuccess,
-				StatusCode:      http.StatusAccepted,
+				Selector:        StatusSelector{Code: http.StatusAccepted},
+				Domain:          []int{http.StatusAccepted},
 				ContentTypes:    []string{"application/json"},
 				RequiredHeaders: []string{"X-Version"},
 				RequiredCookies: []string{"widget_session"},
@@ -50,7 +51,8 @@ func TestValidateResponseContract(t *testing.T) {
 			contract: ResponseContractCase{
 				ID:           "widgets.show.error.not_found.404",
 				Kind:         ResponseContractError,
-				StatusCode:   http.StatusNotFound,
+				Selector:     StatusSelector{Code: http.StatusNotFound},
+				Domain:       []int{http.StatusNotFound},
 				ErrorName:    "not_found",
 				ContentTypes: []string{"application/problem+json"},
 			},
@@ -66,7 +68,7 @@ func TestValidateResponseContract(t *testing.T) {
 				StatusCode: http.StatusOK,
 				Header:     make(http.Header),
 			},
-			contract: ResponseContractCase{ID: "widgets.show.success.202", StatusCode: http.StatusAccepted},
+			contract: ResponseContractCase{ID: "widgets.show.success.202", Selector: StatusSelector{Code: http.StatusAccepted}, Domain: []int{http.StatusAccepted}},
 			wantErr:  `response contract "widgets.show.success.202": status is 200, want 202`,
 		},
 		{
@@ -77,7 +79,8 @@ func TestValidateResponseContract(t *testing.T) {
 			},
 			contract: ResponseContractCase{
 				ID:           "widgets.show.success.200",
-				StatusCode:   http.StatusOK,
+				Selector:     StatusSelector{Code: http.StatusOK},
+				Domain:       []int{http.StatusOK},
 				ContentTypes: []string{"application/json"},
 			},
 			wantErr:  `response contract "widgets.show.success.200": parse Content-Type "application/json; charset"`,
@@ -91,7 +94,8 @@ func TestValidateResponseContract(t *testing.T) {
 			},
 			contract: ResponseContractCase{
 				ID:           "widgets.show.success.200",
-				StatusCode:   http.StatusOK,
+				Selector:     StatusSelector{Code: http.StatusOK},
+				Domain:       []int{http.StatusOK},
 				ContentTypes: []string{"application/json; profile=widget"},
 			},
 			wantErr: `response contract "widgets.show.success.200": Content-Type is "text/plain", want one of [application/json]`,
@@ -104,7 +108,8 @@ func TestValidateResponseContract(t *testing.T) {
 			},
 			contract: ResponseContractCase{
 				ID:           "files.download.success.200",
-				StatusCode:   http.StatusOK,
+				Selector:     StatusSelector{Code: http.StatusOK},
+				Domain:       []int{http.StatusOK},
 				ContentTypes: []string{"*/*"},
 			},
 		},
@@ -116,7 +121,8 @@ func TestValidateResponseContract(t *testing.T) {
 			},
 			contract: ResponseContractCase{
 				ID:           "errors.show.success.200",
-				StatusCode:   http.StatusOK,
+				Selector:     StatusSelector{Code: http.StatusOK},
+				Domain:       []int{http.StatusOK},
 				ContentTypes: []string{"application/*"},
 			},
 		},
@@ -132,7 +138,8 @@ func TestValidateResponseContract(t *testing.T) {
 			contract: ResponseContractCase{
 				ID:           "widgets.show.error.not_found.404",
 				Kind:         ResponseContractError,
-				StatusCode:   http.StatusNotFound,
+				Selector:     StatusSelector{Code: http.StatusNotFound},
+				Domain:       []int{http.StatusNotFound},
 				ErrorName:    "not_found",
 				ContentTypes: []string{"application/problem+json"},
 			},
@@ -145,9 +152,10 @@ func TestValidateResponseContract(t *testing.T) {
 				Header:     http.Header{"Loom-Error": []string{"not_found"}},
 			},
 			contract: ResponseContractCase{
-				ID:         "widgets.show.success.200",
-				Kind:       ResponseContractSuccess,
-				StatusCode: http.StatusOK,
+				ID:       "widgets.show.success.200",
+				Kind:     ResponseContractSuccess,
+				Selector: StatusSelector{Code: http.StatusOK},
+				Domain:   []int{http.StatusOK},
 			},
 			wantErr: `response contract "widgets.show.success.200": Loom-Error is "not_found", want empty`,
 		},
@@ -159,7 +167,8 @@ func TestValidateResponseContract(t *testing.T) {
 			},
 			contract: ResponseContractCase{
 				ID:              "widgets.show.success.200",
-				StatusCode:      http.StatusOK,
+				Selector:        StatusSelector{Code: http.StatusOK},
+				Domain:          []int{http.StatusOK},
 				RequiredHeaders: []string{"X-Version"},
 			},
 			wantErr: `response contract "widgets.show.success.200": required header "X-Version" is missing`,
@@ -172,10 +181,48 @@ func TestValidateResponseContract(t *testing.T) {
 			},
 			contract: ResponseContractCase{
 				ID:              "widgets.show.success.200",
-				StatusCode:      http.StatusOK,
+				Selector:        StatusSelector{Code: http.StatusOK},
+				Domain:          []int{http.StatusOK},
 				RequiredCookies: []string{"widget_session"},
 			},
 			wantErr: `response contract "widgets.show.success.200": required cookie "widget_session" is missing`,
+		},
+		{
+			name: "supplied domain is authoritative",
+			response: &http.Response{
+				StatusCode: http.StatusCreated,
+				Header:     make(http.Header),
+			},
+			contract: ResponseContractCase{
+				ID:       "widgets.show.success.2XX",
+				Selector: StatusSelector{Class: 2},
+				Domain:   []int{http.StatusCreated},
+			},
+		},
+		{
+			name: "status outside supplied domain",
+			response: &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     make(http.Header),
+			},
+			contract: ResponseContractCase{
+				ID:       "widgets.show.success.2XX",
+				Selector: StatusSelector{Class: 2},
+				Domain:   []int{http.StatusCreated, http.StatusNonAuthoritativeInfo},
+			},
+			wantErr: `response contract "widgets.show.success.2XX": status is 200, want one of [201 203]`,
+		},
+		{
+			name: "empty domain",
+			response: &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     make(http.Header),
+			},
+			contract: ResponseContractCase{
+				ID:       "widgets.show.success.200",
+				Selector: StatusSelector{Code: http.StatusOK},
+			},
+			wantErr: `response contract "widgets.show.success.200": status is 200, want one of []`,
 		},
 	}
 
@@ -200,7 +247,8 @@ func TestValidateSSEResponseContract(t *testing.T) {
 		ID:           "events.watch.success.200",
 		Kind:         ResponseContractSuccess,
 		Transport:    ResponseContractSSE,
-		StatusCode:   http.StatusOK,
+		Selector:     StatusSelector{Code: http.StatusOK},
+		Domain:       []int{http.StatusOK},
 		ContentTypes: []string{"text/event-stream"},
 		SSE: &SSEResponseContract{
 			Direction:         "server",
@@ -272,10 +320,11 @@ func TestValidateSSEResponseContract(t *testing.T) {
 
 func TestValidateWebSocketResponseContract(t *testing.T) {
 	contract := ResponseContractCase{
-		ID:         "events.watch.success.101",
-		Kind:       ResponseContractSuccess,
-		Transport:  ResponseContractWebSocket,
-		StatusCode: http.StatusSwitchingProtocols,
+		ID:        "events.watch.success.101",
+		Kind:      ResponseContractSuccess,
+		Transport: ResponseContractWebSocket,
+		Selector:  StatusSelector{Code: http.StatusSwitchingProtocols},
+		Domain:    []int{http.StatusSwitchingProtocols},
 		WebSocket: &WebSocketResponseContract{
 			Direction:           "server",
 			OutboundMessageType: "WatchStreamingResult",
@@ -316,6 +365,9 @@ func TestValidateWebSocketResponseContract(t *testing.T) {
 		{name: "nil observation", mutate: func(observation *WebSocketResponseContractObservation, _ *ResponseContractCase) {
 			*observation = WebSocketResponseContractObservation{}
 		}, wantErr: "response is nil"},
+		{name: "handshake status mismatch", mutate: func(observation *WebSocketResponseContractObservation, _ *ResponseContractCase) {
+			observation.Response.StatusCode = http.StatusOK
+		}, wantErr: `response contract "events.watch.success.101": status is 200, want 101`},
 		{name: "wrong contract transport", mutate: func(_ *WebSocketResponseContractObservation, contract *ResponseContractCase) {
 			contract.Transport = ResponseContractHTTP
 		}, wantErr: "contract is not a WebSocket response"},
@@ -364,10 +416,11 @@ func TestValidateWebSocketResponseContract(t *testing.T) {
 
 func TestValidateWebSocketResponseContractFinalMessage(t *testing.T) {
 	contract := ResponseContractCase{
-		ID:         "events.collect.success.101",
-		Kind:       ResponseContractSuccess,
-		Transport:  ResponseContractWebSocket,
-		StatusCode: http.StatusSwitchingProtocols,
+		ID:        "events.collect.success.101",
+		Kind:      ResponseContractSuccess,
+		Transport: ResponseContractWebSocket,
+		Selector:  StatusSelector{Code: http.StatusSwitchingProtocols},
+		Domain:    []int{http.StatusSwitchingProtocols},
 		WebSocket: &WebSocketResponseContract{
 			Direction:           "client",
 			InboundMessageType:  "CollectStreamingPayload",

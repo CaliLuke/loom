@@ -116,7 +116,7 @@ func TestHTTPFileResponseValidation(t *testing.T) {
 					endpoint.Routes[1].Method,
 				})
 				require.Len(t, endpoint.Responses, 1)
-				require.Equal(t, StatusOK, endpoint.Responses[0].StatusCode)
+				require.Equal(t, StatusOK, endpoint.Responses[0].Status.Code)
 				return
 			}
 			err := expr.RunInvalidDSL(t, test.dsl)

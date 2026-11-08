@@ -42,6 +42,9 @@ func newServerStreamPlan(method *MethodData) *serverStreamPlan {
 	}
 	ctx := streamOperationParameter{name: "ctx", ref: "context.Context"}
 	p.addSendOperations(method)
+	if s.HandshakeRef != "" {
+		p.addOperation("SetResponse", "SetResponse validates and stores response metadata before the stream opens.", streamDelegate, streamOperationParameter{name: "response", ref: s.HandshakeRef})
+	}
 	if s.RecvTypeRef != "" && !method.IsJSONRPCWebSocket {
 		p.operations = append(p.operations,
 			serverStreamOperation{
@@ -63,7 +66,11 @@ func newServerStreamPlan(method *MethodData) *serverStreamPlan {
 	if !method.IsJSONRPCSSE && (method.IsJSONRPCWebSocket || s.MustClose) {
 		p.addOperation("Close", "Close closes the stream.", streamDelegate)
 	}
-	if method.ViewedResult != nil && method.ViewedResult.ViewName == "" {
+	viewed := method.StreamingViewedResult
+	if method.IsJSONRPCSSE || method.IsJSONRPCWebSocket {
+		viewed = method.ViewedResult
+	}
+	if viewed != nil && viewed.ViewName == "" {
 		doc := "SetView sets the view used to render the result before streaming."
 		if method.IsJSONRPCSSE {
 			doc = "SetView sets the view used to render subsequent stream results."

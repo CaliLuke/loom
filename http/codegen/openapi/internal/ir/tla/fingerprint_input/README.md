@@ -49,3 +49,56 @@ allocate 3,233/40,318 objects. One input capture/admission allocates 489/1,718
 under Go 1.27.3. The threshold detects growth without timing assertions. Actual
 annotation shapes still require independent planning, and new semantic overlays
 still require their own capture: no universal linear-time compiler claim follows.
+
+
+## Prepared component defaults
+
+`DefaultAcquisition` models the checked preparation/acquisition boundary.
+Three positions consume two authored owners: positions 1 and 2 share owner 1,
+while position 3 has owner 2. Requests revisit position 1. Builtin and opaque
+modes use the same ownership relation. The two builtin owners model different
+wire values; equal emitted wire bytes may share an implementation key. Opaque
+owners remain distinct even when their host values happen to be equal.
+Acquisition reads retained wire bytes or
+an authored opaque owner; it never serializes a host address or calls a codec.
+Preparation itself may call a codec, once per captured position. Optional example
+preparation reuses the checked annotations.
+
+Run with the pinned toolchain above, replacing the module with
+`DefaultAcquisition.tla` and the configuration with `DefaultPrepared.cfg`.
+Prepared passes six invariants (52 generated, 32 distinct states). Each negative
+configuration was run and returned exit 12:
+
+- `DefaultPosition.cfg` reproduces the rejected target/position identity and
+  violates `ReusedDefault`: the same authored default receives two keys.
+- `DefaultRaw.cfg` violates `CallbackFreeAcquisition`.
+- `DefaultReprepare.cfg` violates `SinglePreparation`.
+- `DefaultCollapse.cfg` violates `DistinctDefaults`.
+
+`PreparedBeforeAcquire` and `RepeatedIdentity` are consistency checks, not
+separately mutation-proven properties. The previous two-position model treated
+every position as a distinct owner and could not detect the public component
+splitting caused by position-based opaque keys; this model replaces that assumption.
+
+Implementation correspondence: `representation.PrepareTargetValues` caches
+checked projections per node; `JSONSchemaValue.DefaultOwner` retains authored
+assignment/copy identity across captures; `Analyzer.componentDefaultIdentity`
+uses emitted wire bytes or encounter ordinals keyed by that opaque owner.
+`analyzeReferenceSchema` prepares a cached annotation-only owner for allOf,
+discriminator mapping and bytes-base references before acquisition.
+`TestCheckedDefaultOwner`, `TestComponentOpaqueDefaultOwnerAcrossTargets`,
+`TestOpaqueDefaultDeclarationReuse`, `TestPlanFreeComponentDefaults` and
+`TestReferenceAnnotationPreparationCached` bind the ownership assumptions to
+actual code. `TestTemplatePublicationDefaultOwner`, `TestTemplateBodyDefaultOwner`
+and `TestComposedTemplateDefaultOwner` cover the publication correspondence:
+materializing a default transfers the selected authored owner with its value;
+local reassignment has a fresh owner even for an equal value. Shared
+`applyEffectiveDefault` owns that transfer for composition and templates.
+Existing callback and phase-cache tests remain in force.
+
+The model abstracts actual codecs, plan association, schema validation, graph
+traversal, rollback and final rendered schema equivalence. It does not imply
+one preparation across different captured targets or suppress legitimate custom
+example callbacks. Opaque identities are framework-local comparison tokens,
+not public names. Explicit Default reassignment owns a new token even when its
+raw value equals the old value; controlled copies preserve the existing token.

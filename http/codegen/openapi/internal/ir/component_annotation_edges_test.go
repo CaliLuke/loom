@@ -9,6 +9,7 @@ import (
 	commontestdata "github.com/CaliLuke/loom/codegen/testdata"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/internal/representation"
+	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
 )
 
@@ -35,18 +36,20 @@ func TestComponentAnnotationAuthoredByteAliasBindings(t *testing.T) {
 			}
 			prepared, err := representation.PrepareService(root.API.HTTP.Services[0], nil, nil)
 			require.NoError(t, err)
+			events := make(map[*transportir.Endpoint]*sseEventOutcome, len(prepared.Endpoints))
 			for _, endpoint := range prepared.Endpoints {
-				analyzeEndpointBodies(analyzer, endpoint)
+				events[endpoint] = analyzeEndpointBodies(analyzer, endpoint).event
 			}
 			for _, endpoint := range prepared.Endpoints {
-				analyzeAsyncSchemas(analyzer, endpoint)
+				analyzeAsyncSchemas(analyzer, endpoint, events[endpoint])
 			}
 			firstCalls := calls
+			events = make(map[*transportir.Endpoint]*sseEventOutcome, len(prepared.Endpoints))
 			for _, endpoint := range prepared.Endpoints {
-				analyzeEndpointBodies(analyzer, endpoint)
+				events[endpoint] = analyzeEndpointBodies(analyzer, endpoint).event
 			}
 			for _, endpoint := range prepared.Endpoints {
-				analyzeAsyncSchemas(analyzer, endpoint)
+				analyzeAsyncSchemas(analyzer, endpoint, events[endpoint])
 			}
 			require.Equal(t, firstCalls, calls, "revisiting the same roots must not sample a second time")
 			analyzer.finalizeRepresentations()

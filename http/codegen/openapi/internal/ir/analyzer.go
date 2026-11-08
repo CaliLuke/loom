@@ -55,30 +55,32 @@ type (
 		// projectedChildren lists, per hinted root component of a projection,
 		// the children its representations publish; publishedChildren records
 		// the representations already given them.
-		projectedChildren    map[string][]*projectedContributor
-		publishedChildren    map[[2]string]bool
-		asyncAcquisition     *asyncBaselineAcquisition
-		componentAnnotations map[componentAnnotationIdentity]map[componentAnnotationPosition]componentExamples
-		annotationOwner      map[componentAnnotationPosition]componentExamples
-		occurrences          []schemaOccurrenceAnalysis
-		registrations        []*Schema
-		plan                 expr.ValuePlanNode
-		examplePlan          expr.ValuePlanNode
-		constructingBaseline bool
-		constructions        map[*Schema]schemaConstruction
-		projectionPlans      map[schemaProjectionKey]*schemaProjection
-		projectionComponents map[schemaProjectionKey]*componentProjection
-		projectionMappings   map[*Discriminator]map[string]*projectedContributor
-		schemaNames          map[string]representationComponentName
-		schemas              map[string]*Schema
-		schemaFingerprints   map[string]string
-		schemaTypeIDs        map[string]string
-		schemasByFingerprint map[string][]schemaRef
-		unionBranchSchemas   map[string]string
-		closeObjects         bool
-		rand                 *expr.ExampleGenerator
-		preparedExamples     *transportir.ValueTarget
-		parameterSources     map[expr.ValuePlanNode]*expr.AttributeExpr
+		projectedChildren          map[string][]*projectedContributor
+		publishedChildren          map[[2]string]bool
+		asyncAcquisition           *asyncBaselineAcquisition
+		componentAnnotations       map[componentAnnotationIdentity]map[componentAnnotationPosition]componentExamples
+		annotationOwner            map[componentAnnotationPosition]componentExamples
+		opaqueAnnotationOwners     map[expr.DefaultValueOwner]int
+		referenceAnnotationTargets map[expr.DataType]*transportir.ValueTarget
+		occurrences                []schemaOccurrenceAnalysis
+		registrations              []*Schema
+		plan                       expr.ValuePlanNode
+		examplePlan                expr.ValuePlanNode
+		constructingBaseline       bool
+		constructions              map[*Schema]schemaConstruction
+		projectionPlans            map[schemaProjectionKey]*schemaProjection
+		projectionComponents       map[schemaProjectionKey]*componentProjection
+		projectionMappings         map[*Discriminator]map[string]*projectedContributor
+		schemaNames                map[string]representationComponentName
+		schemas                    map[string]*Schema
+		schemaFingerprints         map[string]string
+		schemaTypeIDs              map[string]string
+		schemasByFingerprint       map[string][]schemaRef
+		unionBranchSchemas         map[string]string
+		closeObjects               bool
+		rand                       *expr.ExampleGenerator
+		preparedExamples           *transportir.ValueTarget
+		parameterSources           map[expr.ValuePlanNode]*expr.AttributeExpr
 
 		exampleValue         func(*expr.AttributeExpr, any) (any, bool)
 		customExampleValue   bool
@@ -220,12 +222,9 @@ func (a *Analyzer) AnalyzeSchemaWithContext(attr *expr.AttributeExpr, context st
 }
 
 func (a *Analyzer) analyzeStandaloneSchema(attr *expr.AttributeExpr, context string, noref ...bool) *Schema {
-	if a.customExampleValue {
-		return a.analyzeSchema(attr, context, noref...)
-	}
-	target, err := representation.PrepareStandaloneExamples(
+	target, err := representation.PrepareStandaloneValues(
 		attr,
-		examplegen.ForScope(a.rand, "openapi-schema", context),
+		examplegen.ForScope(a.rand, "openapi-schema", context), !a.customExampleValue,
 	)
 	if err != nil {
 		a.err = fmt.Errorf("%s: prepare OpenAPI schema values: %w", context, err)
@@ -406,7 +405,7 @@ func (a *Analyzer) analyzeInlineBytes(s *Schema, attr *expr.AttributeExpr, conte
 	if bases := attr.Bases; len(bases) > 0 {
 		for index, base := range bases {
 			baseContext := childExampleContext(context, "base", strconv.Itoa(index))
-			s.AnyOf = append(s.AnyOf, a.analyzeSchema(&expr.AttributeExpr{Type: base}, baseContext, false))
+			s.AnyOf = append(s.AnyOf, a.analyzeReferenceSchema(base, baseContext, false))
 		}
 		return
 	}

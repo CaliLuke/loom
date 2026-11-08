@@ -43,11 +43,11 @@ func TestSchemaExampleSurfacesUseOpenAPIValues(t *testing.T) {
 						Type:         &expr.Array{ElemType: attr},
 						UserExamples: []*expr.ExampleExpr{{Value: []any{tc.attr.UserExamples[0].Value}}},
 					}
-					value, err := representation.PrepareStandaloneExamples(array, rand)
+					value, err := representation.PrepareStandaloneValues(array, rand, true)
 					require.NoError(t, err)
 					schema = paramFor(array, value, "values", "query", rand).Value.Schema.Items
 				case "response header":
-					value, err := representation.PrepareStandaloneExamples(attr, rand)
+					value, err := representation.PrepareStandaloneValues(attr, rand, true)
 					require.NoError(t, err)
 					headers := []*transportir.Header{{
 						Name: "value", HTTPName: "X-Value", Attribute: attr, Value: value,

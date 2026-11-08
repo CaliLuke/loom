@@ -30,7 +30,7 @@ var requestDecoderElementPartials = []templateSource{
 	{{- range .PathParams }}
 		{{- if .Styled }}
  if parameterError := func() error {
- {{ renderStyledDecode .Element "path" }}
+ {{ renderStyledDecode .Element "path" "" }}
  }(); parameterError != nil {
  {{ requestErrorReturn "parameterError" }}
  }
@@ -75,7 +75,7 @@ if {{ .DecodePlan.QueryErrorVar }} != nil {
  {{- $scalar := or .IsTextUnmarshaler (and (not .Slice) (not .Map) (not .MapQueryParams) (not .JSONField)) }}
  {{- if .Styled }}
  if parameterError := func() error {
- {{ renderStyledDecode .Element "query" }}
+ {{ renderStyledDecode .Element "query" "" }}
  }(); parameterError != nil {
  {{ requestErrorReturn "parameterError" }}
  }
@@ -300,7 +300,7 @@ if {{ .DecodePlan.QueryErrorVar }} != nil {
  {{- $scalar := and (not .Bearer.Framed) (or .IsTextUnmarshaler (not .Slice)) }}
  {{- if .Styled }}
  if parameterError := func() error {
- {{ renderStyledDecode .Element "header" }}
+ {{ renderStyledDecode .Element "header" "r.Header" }}
  }(); parameterError != nil {
  {{ requestErrorReturn "parameterError" }}
  }
@@ -372,7 +372,7 @@ if {{ .DecodePlan.QueryErrorVar }} != nil {
 {{- range .Cookies }}
  {{- if .Styled }}
  if parameterError := func() error {
- {{ renderStyledDecode .Element "cookie" }}
+ {{ renderStyledDecode .Element "cookie" "" }}
  }(); parameterError != nil {
  {{ requestErrorReturn "parameterError" }}
  }

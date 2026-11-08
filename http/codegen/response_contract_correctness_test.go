@@ -69,7 +69,8 @@ func TestBodylessContentTypeHeaderRemainsARequiredContractHeader(t *testing.T) {
 	runtimeContract := loomhttp.ResponseContractCase{
 		ID:              contract.ID,
 		Kind:            loomhttp.ResponseContractSuccess,
-		StatusCode:      contract.StatusCode,
+		Selector:        loomhttp.StatusSelector{Code: contract.Selector.Code, Class: int(contract.Selector.Class)},
+		Domain:          contract.Domain,
 		RequiredHeaders: contract.RequiredHeaders,
 	}
 	require.NoError(t, loomhttp.ValidateResponseContract(&http.Response{

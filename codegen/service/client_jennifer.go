@@ -90,7 +90,15 @@ func buildClientMethod(stmt *jen.Statement, method *EndpointMethodData, stream b
 	rawResponse := returnsRawResponse(method)
 	stmt.Func().Params(jen.Id("c").Op("*").Id(method.ClientVarName)).Id(name).
 		ParamsFunc(func(group *jen.Group) { addClientMethodParams(group, method) }).
-		ParamsFunc(func(group *jen.Group) { addClientMethodResults(group, resultType, rawResponse) }).
+		ParamsFunc(func(group *jen.Group) {
+			if !stream && method.HasResponseMetadata {
+				group.Id("res").Add(codegen.TypeRef(resultType))
+				group.Id("metadata").Add(codegen.TypeRef(method.ClientStream.HandshakeRef))
+				group.Id("err").Error()
+				return
+			}
+			addClientMethodResults(group, resultType, rawResponse)
+		}).
 		BlockFunc(func(group *jen.Group) { buildClientMethodBody(group, method, stream, resultType, rawResponse) })
 }
 
@@ -133,6 +141,15 @@ func buildClientMethodBody(group *jen.Group, method *EndpointMethodData, stream 
 		return
 	}
 	group.If(jen.Id("err").Op("!=").Nil()).Block(jen.Return())
+	if !stream && method.HasResponseMetadata {
+		group.List(jen.Id("response"), jen.Id("ok")).Op(":=").Id("ires").Assert(jen.Op("*").Id(method.ResponseStruct))
+		group.If(jen.Op("!").Id("ok").Op("||").Id("response").Op("==").Nil()).Block(
+			jen.Id("err").Op("=").Id("loom").Dot("Fault").Call(jen.Lit("invalid typed response metadata carrier")),
+			jen.Return(),
+		)
+		group.Return(jen.Id("response").Dot("Result"), jen.Id("response").Dot("Metadata"), jen.Nil())
+		return
+	}
 	if rawResponse {
 		buildRawClientMethodReturn(group, method)
 		return

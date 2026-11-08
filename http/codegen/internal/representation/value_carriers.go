@@ -38,12 +38,26 @@ func attachTargets(endpoint *transportir.Endpoint, method *service.MethodData, e
 		request.DocumentValue = DocumentTarget(method.PayloadValue, request.DocumentBody, "", true, schemaOnly)
 		request.DocumentValues = documentationTargets(request.DocumentValue, request.DocumentContentTypes)
 	}
-	for _, status := range append(append([]*transportir.ResponseStatus(nil), endpoint.Response.Responses...), endpoint.Response.ErrorResponses...) {
+	for _, status := range responseOccurrences(endpoint.Response) {
 		source := method.ResultValue
 		if status.Error != nil {
 			source = errors[status.Error.Attribute]
+		} else if value, found := method.HTTPMetadataValues[status.Occurrence]; found {
+			source = value
 		}
 		attachResponseTargets(endpoint, status, source, schemaOnly)
+		if unary := status.Unary; unary != nil {
+			codec, boundary := responseCodec(endpoint, status)
+			unary.BodyValue = ValueTarget(method.ResultValue, unary.Body, "", codec, schemaOnly)
+			attachMediaTargets(unary.MediaVariants, unary.BodyValue)
+			if unary.BodyValue != nil && boundary != "" {
+				unary.BodyValue.Boundary = boundary
+			}
+			unary.BodyValues = mediaTargets(unary.BodyValue, unary.ContentTypes)
+		}
+		if field := status.StatusField; field != nil {
+			field.Value = ValueTarget(source, field.Attribute, field.Name, expr.ValueCodecText, schemaOnly)
+		}
 		for _, header := range status.Headers {
 			header.Value = ValueTarget(source, header.Attribute, header.Name, expr.ValueCodecText, schemaOnly)
 		}

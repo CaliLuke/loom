@@ -227,7 +227,7 @@ func admitOpenAPITarget(doc *document, pointer, kind, entryVersion string) error
 // admitTargetDialect applies a source dialect to schema-bearing targets only.
 // Grammar traversal keeps examples and other literal data outside that policy.
 func admitTargetDialect(doc *document, node *yaml.Node, pointer, kind string) error {
-	if doc.key == "entry" || doc.dialect == "" {
+	if doc.key == "entry" || supportedSchemaDialect(doc.version, doc.dialect) {
 		return nil
 	}
 	walker := descriptionGrammarWalker{doc: doc}

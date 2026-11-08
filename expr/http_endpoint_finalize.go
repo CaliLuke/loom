@@ -18,7 +18,7 @@ func (e *HTTPEndpointExpr) normalizeJSONRPCServerStreamingPayload() {
 	// move the payload to streaming payload. This is because the payload is sent as
 	// JSON-RPC messages after the WebSocket connection is established, making it
 	// effectively a streaming payload from the transport perspective.
-	if _, isJSONRPC := e.MethodExpr.Meta["jsonrpc"]; !isJSONRPC || e.MethodExpr.Stream != ServerStreamKind || e.SSE != nil {
+	if !e.IsJSONRPC() || e.MethodExpr.Stream != ServerStreamKind || e.SSE != nil {
 		return
 	}
 	if e.MethodExpr.Payload.Type == Empty || e.MethodExpr.StreamingPayload.Type != Empty {
@@ -88,12 +88,20 @@ func (e *HTTPEndpointExpr) finalizeJSONRPCBodyState() {
 }
 
 func (e *HTTPEndpointExpr) finalizeResponsesAndErrors() {
+	e.finalizeResponseStorage()
 	for _, r := range e.Responses {
-		r.Finalize(e, e.MethodExpr.Result)
+		r.Finalize(e, r.responseSource(e.MethodExpr.Result))
 		r.Body = httpResponseBody(e, r)
 		r.Body.Finalize()
+		if r.Handshake != nil && e.MethodExpr.HasMixedResults() {
+			r.UnaryBody = buildHTTPResponseBody(e.Name()+"Unary"+r.Status.NameSuffix(), e.MethodExpr.Result, nil, e.Service)
+			r.UnaryBody.Finalize()
+		}
 	}
 
+	for _, info := range e.Informational {
+		info.Finalize(e, info.Value)
+	}
 	for _, herr := range e.HTTPErrors {
 		herr.Finalize(e)
 	}

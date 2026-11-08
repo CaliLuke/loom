@@ -43,7 +43,11 @@ func TestStreamObservationReadiness(t *testing.T) {
 					require.NoError(t, err)
 				}
 			}
-			require.NoError(t, stream.Close())
+			if tc.open {
+				require.NoError(t, stream.Close())
+			} else {
+				stream.End()
+			}
 			lifecycle.End()
 			opened, closed, failed := 0, 0, 0
 			for _, event := range events {
@@ -89,8 +93,8 @@ func TestSSEObservationCallbackOwnership(t *testing.T) {
 	ctx := loomtransport.WithObserver(context.Background(), loomtransport.ObserverFunc(func(_ context.Context, event loomtransport.Event) {
 		events = append(events, event)
 		if event.Kind == loomtransport.EventKindStreamFailure {
-			if stream.lock.TryLock() {
-				stream.lock.Unlock()
+			if stream.metadata.lock.TryLock() {
+				stream.metadata.lock.Unlock()
 			} else {
 				callbackLocked = true
 			}

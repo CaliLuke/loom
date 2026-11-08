@@ -27,6 +27,8 @@ func TestHTTPWireBindingGenerated(t *testing.T) {
 const wireBindingHarness = `package binding_test
 
 import (
+	"bytes"
+	"io"
 	"context"
 	"net/http"
 	"net/http/httptest"
@@ -76,6 +78,27 @@ func TestWireBindings(t *testing.T) {
 			require.Equal(t, tc.payload, decoded)
 		})
 	}
+}
+func TestDualProtocolHTTPPayload(t *testing.T) {
+	value := &svc.DualPayload{Value: "plain"}
+	req := httptest.NewRequest("POST", "/dual", nil)
+	require.NoError(t, client.EncodeDualRequest(loomhttp.RequestEncoder)(req, value))
+	body, err := io.ReadAll(req.Body)
+	require.NoError(t, err)
+	require.JSONEq(t, "{\"value\":\"plain\"}", string(body))
+	req.Body = io.NopCloser(bytes.NewReader(body))
+	decoded, err := server.DecodeDualRequest(loomhttp.NewMuxer(), loomhttp.RequestDecoder)(req)
+	require.NoError(t, err)
+	require.Equal(t, value, decoded)
+}
+func TestDualProtocolHTTPResponse(t *testing.T) {
+	recorder := httptest.NewRecorder()
+	require.NoError(t, server.EncodeDualResponse(loomhttp.ResponseEncoder)(context.Background(), recorder, "answer"))
+	require.Equal(t, http.StatusOK, recorder.Code)
+	require.JSONEq(t, "\"answer\"", recorder.Body.String())
+	decoded, err := client.DecodeDualResponse(loomhttp.ResponseDecoder, false)(recorder.Result())
+	require.NoError(t, err)
+	require.Equal(t, "answer", decoded)
 }
 func TestResponseWireBindings(t *testing.T) {
 	value := &svc.ResponseResult{A:"first", B:"second"}

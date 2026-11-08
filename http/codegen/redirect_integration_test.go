@@ -3,6 +3,7 @@ package codegen
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -131,6 +132,9 @@ func TestRedirectHandlerContext(t *testing.T) {
 			require.Contains(t, code, "defer lifecycle.End()")
 			require.Contains(t, code, "w = lifecycle.Writer()")
 			require.Contains(t, code, "http.Redirect(w, r,")
+			admission := strings.Index(code, "lifecycle.Exchange().BeginFinal(loomhttp.FinalRedirect)")
+			require.GreaterOrEqual(t, admission, 0)
+			require.Less(t, admission, strings.Index(code, "http.Redirect(w, r,"))
 		})
 	}
 }

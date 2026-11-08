@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -274,7 +275,8 @@ func TestRenderedSpecsPassContractLint(t *testing.T) {
 				require.Equal(t, "server", requireString(t, eventsAsync["direction"], "sse async direction"))
 				eventsHandshake := requireMap(t, eventsAsync["handshake"], "sse handshake")
 				eventsResponse := requireMap(t, eventsHandshake["response"], "sse handshake response")
-				require.Equal(t, 200, requireInt(t, eventsResponse["status"], "sse handshake status"))
+				require.Equal(t, []any{"200"}, requireSlice(t, eventsResponse["statuses"], "sse handshake statuses"))
+				require.NotContains(t, eventsResponse, "status")
 				require.Equal(t, "text/event-stream", requireString(t, eventsResponse["contentType"], "sse handshake content type"))
 			},
 		},
@@ -539,7 +541,7 @@ func lintRenderedContract(t *testing.T, spec map[string]any) {
 				}
 			}
 			if asyncRaw, ok := operation[openAPIAsyncExtension]; ok {
-				lintAsyncContract(t, path, strings.ToUpper(method), requireMap(t, asyncRaw, "async contract"))
+				lintAsyncContract(t, spec, path, strings.ToUpper(method), operation, requireMap(t, asyncRaw, "async contract"))
 			}
 		}
 	}
@@ -554,21 +556,40 @@ func lintRenderedContract(t *testing.T, spec map[string]any) {
 	})
 }
 
-func lintAsyncContract(t *testing.T, path string, method string, async map[string]any) {
+// lintAsyncContract checks the derived handshake selector list: sorted,
+// duplicate-free canonical keys, each an SSE success response of the operation.
+func lintAsyncContract(t *testing.T, spec map[string]any, path string, method string, operation map[string]any, async map[string]any) {
 	t.Helper()
 
 	transport := requireString(t, async["transport"], "async transport")
 	handshake := requireMap(t, async["handshake"], "async handshake")
 	response := requireMap(t, handshake["response"], "async handshake response")
-	status := requireInt(t, response["status"], "async handshake status")
+	require.NotContains(t, response, "status", "%s %s must not publish a scalar handshake status", method, path)
+	listed := requireSlice(t, response["statuses"], "async handshake statuses")
+	statuses := make([]string, 0, len(listed))
+	for _, status := range listed {
+		statuses = append(statuses, requireString(t, status, "async handshake status"))
+	}
+	require.NotEmpty(t, statuses)
+	require.True(t, slices.IsSorted(statuses) && len(slices.Compact(slices.Clone(statuses))) == len(statuses),
+		"%s %s handshake statuses must be sorted and unique: %v", method, path, statuses)
 	contentType := requireString(t, response["contentType"], "async handshake content type")
 
 	switch transport {
 	case "sse":
-		require.Equal(t, 200, status, "SSE %s %s must publish a 200 handshake", method, path)
+		responses := requireMap(t, operation["responses"], "async operation responses")
+		for _, status := range statuses {
+			success := requireMap(t, responses[status], "SSE handshake response "+status)
+			if ref, ok := success["$ref"].(string); ok {
+				require.True(t, refExists(spec, ref), "SSE %s %s response %s ref %q", method, path, status, ref)
+				continue
+			}
+			content := requireMap(t, success["content"], "SSE handshake content "+status)
+			require.Contains(t, content, "text/event-stream", "SSE %s %s response %s must document the event stream", method, path, status)
+		}
 		require.Equal(t, "text/event-stream", contentType, "SSE %s %s must publish text/event-stream", method, path)
 	case "websocket":
-		require.Equal(t, 101, status, "WebSocket %s %s must publish a 101 handshake", method, path)
+		require.Equal(t, []string{"101"}, statuses, "WebSocket %s %s must publish a 101 handshake", method, path)
 		require.Equal(t, "", contentType, "WebSocket %s %s must not publish a handshake content type", method, path)
 	default:
 		t.Fatalf("operation %s %s has unknown async transport %q", method, path, transport)
@@ -708,19 +729,6 @@ func requireString(t *testing.T, value any, label string) string {
 	str, ok := value.(string)
 	require.Truef(t, ok, "%s should be a string, got %T", label, value)
 	return str
-}
-
-func requireInt(t *testing.T, value any, label string) int {
-	t.Helper()
-	switch actual := value.(type) {
-	case float64:
-		return int(actual)
-	case int:
-		return actual
-	default:
-		t.Fatalf("%s should be a number, got %T", label, value)
-		return 0
-	}
 }
 
 func isHTTPOperation(method string) bool {

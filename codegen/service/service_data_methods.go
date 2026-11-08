@@ -29,8 +29,8 @@ func (d *ServicesData) buildMethodData(m *expr.MethodExpr, scope *codegen.NameSc
 	}
 	payloadExamples := examplegen.ForScope(d.Root.API.ExampleGenerator, "service", m.Service.Name, "method", m.Name, "payload")
 	resultExamples := examplegen.ForScope(d.Root.API.ExampleGenerator, "service", m.Service.Name, "method", m.Name, "result")
-	payloadData = buildMethodAttributeProjection(m.Payload, "payload", m.Service.Name, m.Name, d.methodValue(m, "payload", m.Payload, payloadExamples), scope)
-	resultData = buildMethodAttributeProjection(m.Result, "result", m.Service.Name, m.Name, d.methodValue(m, "result", m.Result, resultExamples), scope)
+	payloadData = buildMethodAttributeProjection(m.Payload, "payload", m.Service.Name, m.Name, d.methodValue(serviceValueKey{method: m, role: "payload"}, m.Payload, payloadExamples), scope)
+	resultData = buildMethodAttributeProjection(m.Result, "result", m.Service.Name, m.Name, d.methodValue(serviceValueKey{method: m, role: "result"}, m.Result, resultExamples), scope)
 	errors, errorLocs = buildMethodErrorData(m.Errors, scope)
 
 	data := &MethodData{
@@ -54,8 +54,18 @@ func (d *ServicesData) buildMethodData(m *expr.MethodExpr, scope *codegen.NameSc
 		data.ErrorValues = make(map[string]*ValueData, len(m.Errors))
 		for _, methodError := range m.Errors {
 			examples := examplegen.ForScope(d.Root.API.ExampleGenerator, "service", m.Service.Name, "method", m.Name, "error", methodError.Name)
-			data.ErrorValues[methodError.Name] = d.methodValue(m, "error:"+methodError.Name, methodError.AttributeExpr, examples)
+			data.ErrorValues[methodError.Name] = d.methodValue(serviceValueKey{method: m, role: "error:" + methodError.Name}, methodError.AttributeExpr, examples)
 		}
+	}
+	data.HTTPMetadataValues = make(map[*expr.HTTPResponseExpr]*ValueData)
+	for _, carrier := range httpMetadataCarriers(d.Root, m) {
+		name := carrier.name
+		if name == "" {
+			name = carrier.response.Status.OpenAPIKey()
+		}
+		examples := examplegen.ForScope(d.Root.API.ExampleGenerator, "service", m.Service.Name, "method", m.Name, carrier.role, name)
+		key := serviceValueKey{method: m, role: carrier.role, response: carrier.response}
+		data.HTTPMetadataValues[carrier.response] = d.methodValue(key, carrier.attribute, examples)
 	}
 	d.initStreamData(data, m, resultData.Name, resultData.Reference, scope)
 	return data
@@ -120,7 +130,14 @@ func (d *ServicesData) buildMethodTransportData(m *expr.MethodExpr) MethodTransp
 	_, isJSONRPC := m.Meta["jsonrpc"]
 	isJSONRPCSSE, isJSONRPCWebSocket := d.classifyJSONRPCStreamTransport(m, isJSONRPC)
 	skipRequestBodyEncodeDecode, skipResponseBodyEncodeDecode, fileResponse, httpSSE := d.httpTransportFlags(m)
+	metadata := false
+	if m.HasMixedResults() {
+		for _, carrier := range httpMetadataCarriers(d.Root, m) {
+			metadata = metadata || carrier.role == "handshake"
+		}
+	}
 	return MethodTransportData{
+		HasResponseMetadata:          metadata,
 		IsSSE:                        httpSSE || isJSONRPCSSE,
 		IsJSONRPC:                    isJSONRPC,
 		IsJSONRPCSSE:                 isJSONRPCSSE,
@@ -240,6 +257,13 @@ func (d *ServicesData) initStreamData(data *MethodData, m *expr.MethodExpr, rnam
 	if isAliasTypeDef(sentDef) {
 		svrStream.SendTypeIdentity = sentDef
 	}
+	for _, carrier := range httpMetadataCarriers(d.Root, m) {
+		if carrier.role == "handshake" {
+			ref := scope.GoFullTypeRef(carrier.attribute, scope.PackageName(codegen.UserTypeLocation(carrier.attribute.Type)))
+			svrStream.HandshakeRef, cliStream.HandshakeRef = ref, ref
+			break
+		}
+	}
 	data.ClientStream = cliStream
 	data.ServerStream = svrStream
 	data.StreamingPayload = spayload.Name
@@ -269,7 +293,7 @@ func (d *ServicesData) buildStreamingResultData(data *MethodData, m *expr.Method
 		return sresult
 	}
 	examples := examplegen.ForScope(d.Root.API.ExampleGenerator, "service", m.Service.Name, "method", m.Name, "streaming-result")
-	sresult = buildStreamAttributeData(result, m, scope, d.methodValue(m, "streaming-result", result, examples))
+	sresult = buildStreamAttributeData(result, m, scope, d.methodValue(serviceValueKey{method: m, role: "streaming-result"}, result, examples))
 	data.StreamingResult = sresult.Name
 	data.StreamingResultRef = sresult.Ref
 	data.StreamingResultDef = sresult.Def
@@ -285,7 +309,7 @@ func (d *ServicesData) buildStreamingPayloadData(m *expr.MethodExpr, scope *code
 		return streamAttributeData{}
 	}
 	examples := examplegen.ForScope(d.Root.API.ExampleGenerator, "service", m.Service.Name, "method", m.Name, "streaming-payload")
-	return buildStreamAttributeData(m.StreamingPayload, m, scope, d.methodValue(m, "streaming-payload", m.StreamingPayload, examples))
+	return buildStreamAttributeData(m.StreamingPayload, m, scope, d.methodValue(serviceValueKey{method: m, role: "streaming-payload"}, m.StreamingPayload, examples))
 }
 
 func buildStreamAttributeData(att *expr.AttributeExpr, m *expr.MethodExpr, scope *codegen.NameScope, value *ValueData) streamAttributeData {

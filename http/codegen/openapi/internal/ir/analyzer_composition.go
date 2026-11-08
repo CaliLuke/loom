@@ -42,8 +42,7 @@ func (a *Analyzer) analyzeCompositionReferences(schema *Schema, attribute *expr.
 		}
 		slot.base = declaration
 		slots = append(slots, slot)
-		result.AllOf = append(result.AllOf, a.analyzeSchemaPositions(&expr.AttributeExpr{Type: base}, context,
-			expr.ValuePlanNode{}, expr.ValuePlanNode{}))
+		result.AllOf = append(result.AllOf, a.analyzeReferenceSchema(base, context))
 	}
 	slots = append(slots, schemaSlot{location: schemaAllOf, index: len(result.AllOf)})
 	result.AllOf = append(result.AllOf, schema)

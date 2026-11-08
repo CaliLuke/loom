@@ -33,7 +33,7 @@ func (a *analyzer) requestContent(
 			if schema != nil && (isFormMediaType(contentType) || isMultipartMediaType(contentType)) {
 				schema.MediaEncoding = a.mediaEncoding(media, mediaPath)
 			}
-			examples = a.mediaExamples(media, schema, mediaPath)
+			examples = a.wireExamples(media.Example, media.Examples, schema, mediaPath)
 			if len(contentTypes) == 1 {
 				singleExamples = examples
 			}

@@ -30,7 +30,7 @@ func TestInitExamplesUsesOnlyPreparedTarget(t *testing.T) {
 		Type:         expr.String,
 		UserExamples: []*expr.ExampleExpr{{Value: "prepared"}},
 	}
-	prepared, err := representation.PrepareStandaloneExamples(attribute, expr.NewRandom("prepared"))
+	prepared, err := representation.PrepareStandaloneValues(attribute, expr.NewRandom("prepared"), true)
 	require.NoError(t, err)
 	target := &MediaType{}
 
@@ -78,7 +78,7 @@ func TestInitExamplesPreservesSingletonComponentMetadata(t *testing.T) {
 					Value:       "retained singleton value",
 				}},
 			}
-			prepared, err := representation.PrepareStandaloneExamples(attribute, expr.NewRandom("singleton-component"))
+			prepared, err := representation.PrepareStandaloneValues(attribute, expr.NewRandom("singleton-component"), true)
 			require.NoError(t, err)
 			target := &MediaType{}
 

@@ -339,10 +339,18 @@ func projectedResultValidation(rt *ResultTypeExpr, view *ViewExpr) *ValidationEx
 	return copy.Validation
 }
 
+// projectedResultDescription projects an authored description, or generates
+// one from the declaration name. A transport body copy is generated from the
+// name it had before its first rename (the name:original provenance), so the
+// generated text does not depend on the synthetic wrapper name.
 func projectedResultDescription(rt *ResultTypeExpr, view string) string {
 	desc := rt.Description
 	if desc == "" {
-		desc = rt.TypeName + " result type"
+		name := rt.TypeName
+		if original := rt.Meta["name:original"]; len(original) > 0 && original[0] != "" {
+			name = original[0]
+		}
+		desc = name + " result type"
 	}
 	return desc + " (" + view + " view)"
 }

@@ -83,19 +83,9 @@ func DecodeInitializeRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.
 	}
 }
 
-// EncodeTickResponse returns an encoder for responses returned by the clock
-// Tick endpoint.
-func EncodeTickResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
-	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, ok := v.(*clock.TickResult)
-		if !ok {
-			return loomhttp.ErrInvalidType("clock", "Tick", "*clock.TickResult", v)
-		}
-		enc := encoder(ctx, w)
-		body := NewTickResponseBody(res)
-		w.WriteHeader(http.StatusOK)
-		return enc.Encode(body)
-	}
+// prepareTickHandshake prepares immutable stream response metadata before publication.
+func prepareTickHandshake(ctx context.Context) (loomhttp.SSEHandshake, error) {
+	return loomhttp.SSEHandshake{Status: 200}, nil
 }
 
 // DecodeTickRequest returns a decoder for requests sent to the clock Tick

@@ -50,6 +50,7 @@ func TestAsyncBaselineReservesNewRecursiveCut(t *testing.T) {
 	analyzer := NewAnalyzer(expr.NewRandom("rootless-recursive"), false)
 	endpoint := inlineAsyncTestEndpoint(t, attribute)
 	prepared := analyzeAsyncSchema(analyzer, attribute, endpoint, false, "recursive")
+	require.NoError(t, analyzer.Err())
 	analyzer.finalizeRepresentations()
 	result := materializeAsyncSchema(prepared, analyzer.schemas).schema
 	child := result.Properties["child"]

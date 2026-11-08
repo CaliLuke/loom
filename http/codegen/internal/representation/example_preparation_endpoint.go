@@ -21,7 +21,7 @@ func PrepareEndpointExamples(endpoint *transportir.Endpoint, generator *expr.Exa
 	prefix := []string{"service", serviceName, "method", endpoint.MethodName, "openapi"}
 	prepare := func(target *transportir.ValueTarget, attribute *expr.AttributeExpr, parts ...string) error {
 		scope := append(append([]string(nil), prefix...), parts...)
-		if err := PrepareTargetExamples(target, attribute, examplegen.ForScope(generator, scope...)); err != nil {
+		if err := PrepareTargetValues(target, attribute, examplegen.ForScope(generator, scope...), true); err != nil {
 			return fmt.Errorf("prepare HTTP examples %v: %w", parts, err)
 		}
 		return nil
@@ -87,8 +87,26 @@ func prepareEndpointRequestExamples(
 }
 
 func prepareEndpointResponseExamples(response *transportir.Response, prepare endpointExamplePreparer) error {
-	for _, statusResponse := range append(append([]*transportir.ResponseStatus(nil), response.Responses...), response.ErrorResponses...) {
-		status := fmt.Sprint(statusResponse.StatusCode)
+	for _, statusResponse := range responseOccurrences(response) {
+		status := statusResponse.Selector.OpenAPIKey()
+		if statusResponse.Error != nil && statusResponse.Error.JSONRPCCode != nil {
+			status = fmt.Sprint(*statusResponse.Error.JSONRPCCode)
+		}
+		if unary := statusResponse.Unary; unary != nil {
+			if err := prepare(unary.BodyValue, unary.Body, "response-unary-body", status); err != nil {
+				return err
+			}
+			for _, variant := range unary.MediaVariants {
+				if err := prepare(variant.Value, variant.Body, "response-unary-media-variant", status, variant.ContentType); err != nil {
+					return err
+				}
+			}
+			for media, target := range unary.BodyValues {
+				if err := prepare(target, unary.Body, "response-unary-media", status, media); err != nil {
+					return err
+				}
+			}
+		}
 		for _, variant := range statusResponse.MediaVariants {
 			if err := prepare(variant.Value, variant.Body, "response-media-variant", status, variant.ContentType); err != nil {
 				return err

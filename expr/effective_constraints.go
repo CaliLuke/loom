@@ -12,6 +12,7 @@ type (
 	EffectiveConstraints struct {
 		validation    EffectiveValidation
 		defaultValue  *valueSourceSnapshot
+		defaultOwner  DefaultValueOwner
 		defaultSource EffectiveConstraintSource
 		enumValues    []valueSourceSnapshot
 		enumSource    EffectiveConstraintSource

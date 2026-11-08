@@ -128,10 +128,13 @@ func TestAsyncAnnotationFalseOverride(t *testing.T) {
 			value := asyncAnnotationMap(t, properties, "value")
 			if override {
 				assert.NotContains(t, asyncAnnotationFields(value), "deprecated")
-				assert.NotContains(t, value, "allOf", "parent inline metadata override has no inherited deprecated layer")
+				for _, layer := range asyncConjunction(t, value) {
+					assert.NotContains(t, layer, "deprecated", "the authored false leaves no inherited deprecated layer")
+				}
 			} else {
 				assert.Equal(t, true, value["deprecated"])
 			}
+			requireAsyncMessageMatchesPayload(t, spec, "/watch")
 		})
 	}
 }

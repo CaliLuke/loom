@@ -44,6 +44,8 @@ type (
 		Meta MetaExpr
 		// Optional member default value
 		DefaultValue any
+		// defaultOwner follows the authored assignment when its value is copied or lowered.
+		defaultOwner DefaultValueOwner
 		// Nullable reports whether the attribute occurrence accepts an explicit
 		// null value independently of whether its parent requires the field.
 		Nullable bool

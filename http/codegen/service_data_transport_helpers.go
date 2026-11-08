@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
@@ -63,15 +64,7 @@ func (sds *ServicesData) buildTransportAttributeData(
 	if pointer {
 		typeRef = "*" + typeRef
 	}
-	validateAttr := attr
-	validateTarget := varName
-	validateRequired := required
 	textUnmarshaler := isStringMetaType(attr)
-	if textUnmarshaler {
-		validateAttr = rawTextValidationAttribute(attr)
-		validateTarget = locals.Raw
-		validateRequired = true
-	}
 	return &AttributeData{
 		Name:              name,
 		Description:       attr.Description,
@@ -86,12 +79,20 @@ func (sds *ServicesData) buildTransportAttributeData(
 		TypeName:          scope.GoTypeName(attr),
 		TypeRef:           typeRef,
 		Pointer:           pointer,
-		Validate:          codegen.AttributeValidationCode(validateAttr, nil, validateCtx, validateRequired, expr.IsAlias(validateAttr.Type), validateTarget, name),
+		Validate:          transportAttributeValidation(attr, validateCtx, required, varName, locals.Raw, name),
 		IsTextUnmarshaler: textUnmarshaler,
 		DefaultValue:      attr.DefaultValue,
 		Example:           attr.Example(examples),
 		Locals:            locals,
 	}
+}
+
+func transportAttributeValidation(attribute *expr.AttributeExpr, context *codegen.AttributeContext, required bool, target, raw, name string) string {
+	if isStringMetaType(attribute) {
+		attribute = rawTextValidationAttribute(attribute)
+		target, required = raw, true
+	}
+	return codegen.AttributeValidationCode(attribute, nil, context, required, expr.IsAlias(attribute.Type), target, name)
 }
 
 func isStringMetaType(attr *expr.AttributeExpr) bool {
@@ -155,7 +156,7 @@ func (sds *ServicesData) extractHeaders(headersIR []*transportir.Header, svcAtt 
 			attr = svcAtt
 		}
 		stringSlice := transportStringSlice(attr)
-		hattr := makeHTTPType(attr)
+		hattr := makeHTTPMappedType(headerIR.Attribute, attr)
 		pointer := headerIR.PrimitivePointer
 		fieldName, field, fieldPointer := transportFieldBinding(name, attr, svcAtt, svcCtx)
 		headers = append(headers, &HeaderData{
@@ -166,6 +167,14 @@ func (sds *ServicesData) extractHeaders(headersIR []*transportir.Header, svcAtt 
 		header.Codec = headerIR.Codec
 		header.Styled = parameterUsesRuntime("header", headerIR.Codec)
 		configureStyledCarrier(header.Element, svcCtx)
+		native := makeHTTPType(attr)
+		if header.nativeContext != nil {
+			native = attr
+		}
+		nativeValidation := transportAttributeValidation(native, svcCtx, header.Required, header.VarName, header.Locals.Raw, header.Name)
+		if nativeValidation != "" && nativeValidation != header.Validate {
+			header.Validate = strings.TrimSpace(nativeValidation + "\n" + header.Validate)
+		}
 	}
 	return headers
 }

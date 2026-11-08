@@ -132,7 +132,7 @@ func BuildPayloadDescriptor(svc *Data, method *MethodData, payload *expr.Attribu
 // information for a method.
 func BuildResultDescriptor(svc *Data, method *MethodData, result *expr.AttributeExpr) ResultDescriptor {
 	pkg := svc.LocationPackageName(method.ResultLoc)
-	return buildResultDescriptorForPackage(svc, method, result, pkg)
+	return buildResultDescriptorForPackage(svc, method.ViewedResult, result, pkg)
 }
 
 // BuildErrorDescriptor returns the resolved error type information for an
@@ -158,7 +158,7 @@ func BuildStreamDescriptor(svc *Data, method *MethodData, payload, result *expr.
 		desc.Payload = buildTypeDescriptor(svc.Scope, payload, svc.attributePackageName(payload))
 	}
 	if desc.HasResult {
-		desc.Result = buildResultDescriptorForPackage(svc, method, result, svc.attributePackageName(result))
+		desc.Result = buildResultDescriptorForPackage(svc, method.StreamingViewedResult, result, svc.attributePackageName(result))
 	}
 	return desc
 }
@@ -182,7 +182,7 @@ func DescribeMethodCapabilities(method *MethodData) MethodCapabilityDescriptor {
 	}
 }
 
-func buildResultDescriptorForPackage(svc *Data, method *MethodData, result *expr.AttributeExpr, pkg string) ResultDescriptor {
+func buildResultDescriptorForPackage(svc *Data, viewed *ViewedResultTypeData, result *expr.AttributeExpr, pkg string) ResultDescriptor {
 	declared := buildTypeDescriptor(svc.Scope, result, pkg)
 	effective := declared
 	view := expr.DefaultView
@@ -196,16 +196,16 @@ func buildResultDescriptorForPackage(svc *Data, method *MethodData, result *expr
 		Effective: effective,
 		View:      view,
 	}
-	if method.ViewedResult == nil {
+	if viewed == nil {
 		return desc
 	}
 	desc.UsesViewedResult = true
-	desc.ViewedRef = method.ViewedResult.FullRef
+	desc.ViewedRef = viewed.FullRef
 	desc.Effective = TypeDescriptor{
-		Attribute: projectedViewedResultAttribute(method.ViewedResult),
+		Attribute: projectedViewedResultAttribute(viewed),
 		Package:   svc.ViewsPkg,
-		Name:      method.ViewedResult.FullName,
-		Ref:       method.ViewedResult.FullRef,
+		Name:      viewed.FullName,
+		Ref:       viewed.FullRef,
 	}
 	return desc
 }

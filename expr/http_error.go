@@ -29,6 +29,7 @@ func (e *HTTPErrorExpr) EvalName() string {
 // expression.
 func (e *HTTPErrorExpr) Validate() *eval.ValidationErrors {
 	verr := new(eval.ValidationErrors)
+	e.Response.validateProtocol(IsJSONRPCScope(e.Response.Parent), verr)
 	var ee *ErrorExpr
 	switch p := e.Response.Parent.(type) {
 	case *HTTPEndpointExpr:
@@ -43,7 +44,7 @@ func (e *HTTPErrorExpr) Validate() *eval.ValidationErrors {
 			verr.Add(e.Response, "Error %#v does not match an error defined in the service", e.Name)
 			return verr
 		}
-	case *RootExpr:
+	case *RootExpr, *HTTPExpr, *JSONRPCExpr:
 		ee = Root.Error(e.Name)
 		if ee == nil {
 			verr.Add(e.Response, "Error %#v does not match an error defined in the API", e.Name)
@@ -155,7 +156,7 @@ func (e *HTTPErrorExpr) designError() *ErrorExpr {
 		return p.MethodExpr.Error(e.Name)
 	case *HTTPServiceExpr:
 		return p.Error(e.Name)
-	case *RootExpr:
+	case *RootExpr, *HTTPExpr, *JSONRPCExpr:
 		return Root.Error(e.Name)
 	}
 	return nil

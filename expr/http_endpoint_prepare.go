@@ -104,16 +104,20 @@ func (e *HTTPEndpointExpr) ensureRouteParams() {
 }
 
 func (e *HTTPEndpointExpr) ensureDefaultResponse() {
-	if len(e.Responses) > 0 {
+	if len(e.Responses) > 0 || e.NoSuccess {
 		return
 	}
-	status := StatusOK
+	response := &HTTPResponseExpr{Status: HTTPStatusSelector{Code: StatusOK}}
+	response.Prepare()
+	// Establish occurrence ownership before classifying its wire body. Effective
+	// SSE inheritance has already been resolved by the endpoint's Prepare owner.
+	// Native Empty makes 204 eligible; the wire body can still prohibit it.
+	e.Responses = []*HTTPResponseExpr{response}
 	if e.Redirect != nil {
-		status = e.Redirect.StatusCode
-	} else if e.MethodExpr.Result.Type == Empty && !e.SkipResponseBodyEncodeDecode && !e.FileResponse {
-		status = StatusNoContent
+		response.Status.Code = e.Redirect.StatusCode
+	} else if e.MethodExpr.Result.Type == Empty && !e.SkipResponseBodyEncodeDecode && !e.FileResponse && !response.hasWireBody(e, e.MethodExpr.Result) {
+		response.Status.Code = StatusNoContent
 	}
-	e.Responses = []*HTTPResponseExpr{{StatusCode: status}}
 }
 
 func (e *HTTPEndpointExpr) inheritSSE() {

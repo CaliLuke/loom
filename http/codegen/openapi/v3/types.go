@@ -20,7 +20,7 @@ type (
 	// views.
 	EndpointBodies struct {
 		RequestBody    *openapi.Schema
-		ResponseBodies map[int][]*openapi.Schema
+		ResponseBodies map[string][]*openapi.Schema
 	}
 
 	// schemafier adapts the OpenAPI IR analyzer/renderer to the legacy v3 schema

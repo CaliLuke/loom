@@ -50,7 +50,7 @@ func TestNullableRootOtherTransportBoundaries(t *testing.T) {
 		name     string
 		endpoint *HTTPEndpointExpr
 	}{
-		{"JSON-RPC stream payload", &HTTPEndpointExpr{MethodExpr: &MethodExpr{
+		{"JSON-RPC stream payload", &HTTPEndpointExpr{Meta: MetaExpr{"jsonrpc": {}}, MethodExpr: &MethodExpr{
 			StreamingPayload: nullable,
 			Meta:             MetaExpr{"jsonrpc": []string{}},
 		}}},

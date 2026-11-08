@@ -81,13 +81,11 @@ func textUnionScalar(attribute *expr.AttributeExpr) string {
 	}
 }
 
-func renderTextUnionDecode(element *Element, location string) string {
+func renderTextUnionDecode(element *Element, location, headers string) string {
 	var out strings.Builder
 	switch location {
-	case "header":
-		out.WriteString("parameterHeaders := r.Header\n")
-	case "response-header":
-		out.WriteString("parameterHeaders := resp.Header\n")
+	case "header", "response-header":
+		fmt.Fprintf(&out, "parameterHeaders := %s\n", headers)
 	case "cookie":
 		out.WriteString("parameterCookies := r.Cookies()\n")
 	case "path":
@@ -103,7 +101,7 @@ func renderTextUnionDecode(element *Element, location string) string {
 	return out.String()
 }
 
-func renderTextUnionEncode(element *Element, source, location string) string {
+func renderTextUnionEncode(element *Element, source, location, header string) string {
 	var out strings.Builder
 	union := expr.AsUnion(element.Type)
 	codecs := element.Codec.Branches
@@ -136,10 +134,8 @@ func renderTextUnionEncode(element *Element, source, location string) string {
 	switch location {
 	case "query", "form":
 		fmt.Fprintf(&out, "if err := parameterBuilder.Add(%s, parameterCodec, parameterValue, parameterNamespace); err != nil {\nreturn err\n}\n", parameterWireName(element))
-	case "header":
-		fmt.Fprintf(&out, "req.Header.Set(%q, encoded)\n", element.HTTPName)
-	case "response-header":
-		fmt.Fprintf(&out, "w.Header().Set(%q, encoded)\n", element.HTTPName)
+	case "header", "response-header":
+		fmt.Fprintf(&out, "%s.Set(%q, encoded)\n", header, element.HTTPName)
 	case "cookie":
 		out.WriteString("for _, cookie := range parameterCookies {\nreq.AddCookie(cookie)\n}\n")
 	case "path":
@@ -186,7 +182,7 @@ func renderTextUnionPath(arg *InitArgData, segment string) string {
 	element.AttributeData = &attribute
 	var out strings.Builder
 	fmt.Fprintf(&out, "%s, parameterError := func() (string, error) {\nvar textUnionPath string\nif err := func() error {\n", segment)
-	out.WriteString(renderTextUnionEncode(&element, arg.VarName, "path"))
+	out.WriteString(renderTextUnionEncode(&element, arg.VarName, "path", ""))
 	out.WriteString("return nil\n}(); err != nil {\nreturn \"\", err\n}\nreturn textUnionPath, nil\n}()\nif parameterError != nil {\nreturn \"\", parameterError\n}\n")
 	return out.String()
 }

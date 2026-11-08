@@ -7,13 +7,23 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 
 	loomtransport "github.com/CaliLuke/loom/observability/transport"
 )
 
 type (
+	// SSEHandshake is the validated status and headers of a successful SSE response.
+	SSEHandshake struct {
+		// Status is the selected successful HTTP response status.
+		Status int
+		// Header contains the validated handshake metadata, copied before publication.
+		Header http.Header
+	}
+
+	// SSEStreamOption configures a writer before its first operation.
+	SSEStreamOption func(*SSEStreamWriter)
+
 	// SSEControl exposes transport lifecycle operations implemented by generated
 	// server SSE streams. Endpoint implementations may type assert their stream
 	// to this interface without depending on generated concrete types.
@@ -28,8 +38,9 @@ type (
 		requestCtx  context.Context
 		observation *loomtransport.StreamObserver
 		policy      StreamWritePolicy
+		metadata    *ResponseMetadata
+		exchange    *ExchangeWriter
 
-		lock    sync.Mutex
 		started bool
 		closed  bool
 		openErr error
@@ -48,6 +59,8 @@ var (
 	// ErrSSEStreamClosed is returned when a control or event write is attempted
 	// after the generated SSE stream has closed.
 	ErrSSEStreamClosed = errors.New("loom http SSE stream closed")
+	// ErrSSEResponseCommitted rejects metadata changes after opening or terminal admission.
+	ErrSSEResponseCommitted = errors.New("loom http SSE response committed")
 	// ErrInvalidSSEComment is returned when comment text contains a line break
 	// that could inject another SSE field or event.
 	ErrInvalidSSEComment = errors.New("loom http SSE comment contains a line break")
@@ -59,13 +72,71 @@ func NewSSEStreamWriter(
 	requestCtx context.Context,
 	transport loomtransport.TransportKind,
 	policy StreamWritePolicy,
+	opts ...SSEStreamOption,
 ) *SSEStreamWriter {
-	return &SSEStreamWriter{
+	s := &SSEStreamWriter{
 		w:           w,
 		requestCtx:  requestCtx,
 		observation: loomtransport.NewStreamObserver(requestCtx, transport),
 		policy:      policy,
+		metadata:    NewResponseMetadata(nil),
 	}
+	for _, option := range opts {
+		option(s)
+	}
+	return s
+}
+
+// WithSSEHandshake installs an immutable first-open resolver. It runs under writer
+// ownership with the request context and must not reenter the writer; it validates
+// the selected contract.
+func WithSSEHandshake(resolve func(context.Context) (SSEHandshake, error)) SSEStreamOption {
+	return func(s *SSEStreamWriter) {
+		s.metadata.resolve = resolve
+	}
+}
+
+// WithSSEExchange associates first-open admission with the shared HTTP exchange.
+func WithSSEExchange(exchange *ExchangeWriter) SSEStreamOption {
+	return func(s *SSEStreamWriter) {
+		s.exchange = exchange
+	}
+}
+
+// SetHandshake validates and replaces unopened, live handshake metadata under
+// writer ownership. prepare must not reenter the writer. Failure preserves the
+// prior snapshot; opened or terminal admission rejects before invoking prepare.
+func (s *SSEStreamWriter) SetHandshake(prepare func() (SSEHandshake, error)) error {
+	return s.metadata.Set(prepare)
+}
+
+// FinalizeSuccess publishes a zero-event success and closes live admission.
+// Existing terminal outcomes are preserved as a nil no-op.
+func (s *SSEStreamWriter) FinalizeSuccess(ctx context.Context) error {
+	var reason loomtransport.Reason
+	s.metadata.lock.Lock()
+	defer s.finishObservation(&reason)
+	if s.closed {
+		return nil
+	}
+	err, failure := s.completeLocked(ctx, nil)
+	reason = failure
+	return err
+}
+
+// Suppress closes live admission without publication or inspecting cancellation.
+// Only the first admitted call succeeds; callers may report suppression after nil.
+func (s *SSEStreamWriter) Suppress() error {
+	var reason loomtransport.Reason
+	s.metadata.lock.Lock()
+	defer s.finishObservation(&reason)
+	if err := s.closedErr(); err != nil {
+		return err
+	}
+	s.closed = true
+	s.metadata.sealed = true
+	s.observation.RecordClose()
+	return nil
 }
 
 // Context returns the inbound request context associated with the stream.
@@ -76,20 +147,11 @@ func (s *SSEStreamWriter) Context() context.Context {
 // Open commits and flushes the successful SSE response once.
 func (s *SSEStreamWriter) Open(ctx context.Context) error {
 	var reason loomtransport.Reason
-	s.lock.Lock()
+	s.metadata.lock.Lock()
 	defer s.finishObservation(&reason)
-	if err := s.checkContext(ctx); err != nil {
-		return err
-	}
-	if err := s.closedErr(); err != nil {
-		return err
-	}
-	if s.started {
-		return s.openErr
-	}
-	s.initHeaders()
-	s.openErr, reason = s.flush(ctx)
-	return s.openErr
+	err, failure := s.openLocked(ctx)
+	reason = failure
+	return err
 }
 
 // SendComment writes and flushes one SSE comment frame.
@@ -116,7 +178,7 @@ func (s *SSEStreamWriter) SendComment(ctx context.Context, text string) error {
 // it.
 func (s *SSEStreamWriter) WriteEvent(ctx context.Context, write func(io.Writer) error) error {
 	var reason loomtransport.Reason
-	s.lock.Lock()
+	s.metadata.lock.Lock()
 	defer s.finishObservation(&reason)
 	err, failure := s.writeEventLocked(ctx, write)
 	reason = failure
@@ -126,26 +188,13 @@ func (s *SSEStreamWriter) WriteEvent(ctx context.Context, write func(io.Writer) 
 // Complete admits one terminal SSE operation. prepare executes under write
 // ownership and must not reenter the writer. An encoding error leaves the
 // stream usable. Once preparation succeeds, every write/flush outcome is
-// terminal. A nil prepare closes without committing headers or a frame.
+// terminal. A nil prepare publishes the successful handshake without a frame.
 func (s *SSEStreamWriter) Complete(ctx context.Context, prepare func() (SSEMessage, error)) error {
 	var reason loomtransport.Reason
-	s.lock.Lock()
+	s.metadata.lock.Lock()
 	defer s.finishObservation(&reason)
-	if err := s.closedErr(); err != nil {
-		return err
-	}
-	var err error
-	if prepare != nil {
-		message, prepareErr := prepare()
-		if prepareErr != nil {
-			return prepareErr
-		}
-		err, reason = s.writeEventLocked(ctx, func(w io.Writer) error {
-			return WriteSSEEvent(w, message)
-		})
-	}
-	s.closed = true
-	s.observation.RecordClose()
+	err, failure := s.completeLocked(ctx, prepare)
+	reason = failure
 	return err
 }
 
@@ -168,8 +217,8 @@ func (s *SSEStreamWriter) Observation() *loomtransport.StreamObserver {
 
 // Started reports whether the successful SSE response has been committed.
 func (s *SSEStreamWriter) Started() bool {
-	s.lock.Lock()
-	defer s.lock.Unlock()
+	s.metadata.lock.Lock()
+	defer s.metadata.lock.Unlock()
 	return s.started
 }
 
@@ -179,17 +228,18 @@ func (s *SSEStreamWriter) Started() bool {
 // not write, inspect cancellation, or dispatch observations. Defer End separately
 // to finish cleanup and preserve handler panic precedence.
 func (s *SSEStreamWriter) ClaimFailure() bool {
-	s.lock.Lock()
-	defer s.lock.Unlock()
+	s.metadata.lock.Lock()
+	defer s.metadata.lock.Unlock()
 	started := s.started
 	s.closed = true
+	s.metadata.sealed = true
 	return started
 }
 
-// Close prevents later control and event writes.
+// Close publishes a successful zero-event response using the request context
+// and closes admission. An existing terminal outcome is a nil no-op.
 func (s *SSEStreamWriter) Close() error {
-	s.close()
-	return nil
+	return s.FinalizeSuccess(s.requestCtx)
 }
 
 // Write forwards p to the response and records that the frame touched the
@@ -225,11 +275,53 @@ func isTimeoutError(err error) bool {
 }
 
 func (s *SSEStreamWriter) close() {
-	s.lock.Lock()
+	s.metadata.lock.Lock()
 	s.closed = true
+	s.metadata.sealed = true
 	s.observation.RecordClose()
-	s.lock.Unlock()
+	s.metadata.lock.Unlock()
 	s.observation.Drain()
+}
+
+func (s *SSEStreamWriter) completeLocked(ctx context.Context, prepare func() (SSEMessage, error)) (error, loomtransport.Reason) {
+	if err := s.closedErr(); err != nil {
+		return err, ""
+	}
+	var err error
+	var reason loomtransport.Reason
+	if prepare == nil {
+		err, reason = s.openLocked(ctx)
+	} else {
+		message, prepareErr := prepare()
+		if prepareErr != nil {
+			return prepareErr, ""
+		}
+		err, reason = s.writeEventLocked(ctx, func(w io.Writer) error {
+			return WriteSSEEvent(w, message)
+		})
+	}
+	s.closed = true
+	s.metadata.sealed = true
+	s.observation.RecordClose()
+	return err, reason
+}
+
+func (s *SSEStreamWriter) openLocked(ctx context.Context) (error, loomtransport.Reason) {
+	if err := s.checkContext(ctx); err != nil {
+		return err, ""
+	}
+	if err := s.closedErr(); err != nil {
+		return err, ""
+	}
+	if s.started {
+		return s.openErr, ""
+	}
+	if err := s.initHeaders(); err != nil {
+		return err, ""
+	}
+	var reason loomtransport.Reason
+	s.openErr, reason = s.flush(ctx)
+	return s.openErr, reason
 }
 
 func (s *SSEStreamWriter) writeEventLocked(ctx context.Context, write func(io.Writer) error) (error, loomtransport.Reason) {
@@ -239,7 +331,9 @@ func (s *SSEStreamWriter) writeEventLocked(ctx context.Context, write func(io.Wr
 	if err := s.closedErr(); err != nil {
 		return err, ""
 	}
-	s.initHeaders()
+	if err := s.initHeaders(); err != nil {
+		return err, ""
+	}
 	frame := &sseFrameWriter{w: s.w}
 	if err := s.runOperation(ctx, func(http.ResponseWriter) error {
 		return write(frame)
@@ -268,6 +362,7 @@ func (s *SSEStreamWriter) closedErr() error {
 
 func (s *SSEStreamWriter) fail(err error) {
 	s.closed = true
+	s.metadata.sealed = true
 	s.observation.RecordClose()
 	if s.failErr == nil {
 		s.failErr = err
@@ -284,18 +379,32 @@ func (s *SSEStreamWriter) checkContext(ctx context.Context) error {
 	return nil
 }
 
-func (s *SSEStreamWriter) initHeaders() {
+// initHeaders resolves implicit metadata with the request context, as explicit
+// SetResponse and unary capture do; operation contexts only govern the write.
+func (s *SSEStreamWriter) initHeaders() error {
 	if s.started {
-		return
+		return nil
 	}
+	if s.exchange != nil {
+		s.exchange.BeginFinal(FinalSSEOpen)
+	}
+	handshake, err := s.metadata.prepareLocked(s.requestCtx)
+	if err != nil {
+		return err
+	}
+	s.metadata.sealed = true
 	header := s.w.Header()
+	for name, values := range handshake.Header {
+		header[name] = append([]string(nil), values...)
+	}
 	setHeaderDefault(header, "Content-Type", "text/event-stream")
 	setHeaderDefault(header, "Cache-Control", "no-cache")
 	setHeaderDefault(header, "Connection", "keep-alive")
 	setHeaderDefault(header, "X-Accel-Buffering", "no")
-	s.w.WriteHeader(http.StatusOK)
+	s.w.WriteHeader(handshake.Status)
 	s.started = true
 	s.observation.RecordOpen()
+	return nil
 }
 
 func (s *SSEStreamWriter) flush(ctx context.Context) (error, loomtransport.Reason) {
@@ -353,7 +462,7 @@ func (s *SSEStreamWriter) operationDeadline(ctx context.Context) (time.Time, boo
 }
 
 func (s *SSEStreamWriter) finishObservation(reason *loomtransport.Reason) {
-	s.lock.Unlock()
+	s.metadata.lock.Unlock()
 	s.observation.Drain()
 	if *reason != "" {
 		s.observation.Failure(*reason)

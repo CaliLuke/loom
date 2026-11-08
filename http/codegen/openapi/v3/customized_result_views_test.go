@@ -24,7 +24,7 @@ func TestCustomizedResultViewSchemas(t *testing.T) {
 		{"testEndpointOverridden", []string{"int"}},
 	} {
 		t.Run(tc.method, func(t *testing.T) {
-			schema := derefSchema(t, bodies["testService"][tc.method].ResponseBodies[200][0], types)
+			schema := derefSchema(t, bodies["testService"][tc.method].ResponseBodies["200"][0], types)
 			require.ElementsMatch(t, tc.required, schema.Required)
 		})
 	}

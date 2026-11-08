@@ -76,7 +76,7 @@ func TestResponseCookieHeaderUsesPreparedRepresentative(t *testing.T) {
 		Type:         expr.String,
 		UserExamples: []*expr.ExampleExpr{{Value: "prepared-value"}},
 	}
-	target, err := representation.PrepareStandaloneExamples(attribute, expr.NewRandom("unused"))
+	target, err := representation.PrepareStandaloneValues(attribute, expr.NewRandom("unused"), true)
 	require.NoError(t, err)
 	cookie := &transportir.Cookie{HTTPName: "session", Attribute: attribute, Value: target}
 
@@ -126,7 +126,7 @@ func preparedResponseCookie(
 	generator *expr.ExampleGenerator,
 ) *transportir.Cookie {
 	t.Helper()
-	target, err := representation.PrepareStandaloneExamples(attribute, generator)
+	target, err := representation.PrepareStandaloneValues(attribute, generator, true)
 	require.NoError(t, err)
 	return &transportir.Cookie{HTTPName: name, Attribute: attribute, Value: target}
 }

@@ -41,7 +41,7 @@ func renderFormMapEncode(body *TypeData, contract *expr.HTTPFormEncoding, value 
 		if element.Codec.Style == httpencoding.Content {
 			out.WriteString(renderFormContentUnionEncode(element, "formValue"))
 		} else {
-			out.WriteString(renderTextUnionEncode(element, "formValue", "form"))
+			out.WriteString(renderTextUnionEncode(element, "formValue", "form", ""))
 		}
 	default:
 		out.WriteString(renderParameterValue(element.attribute, element.attribute, element.context, "formValue", "parameterValue", false, ""))

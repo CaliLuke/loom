@@ -30,11 +30,7 @@ func buildStream(endpoint *expr.HTTPEndpointExpr) *Stream {
 		if len(endpoint.Routes) > 0 {
 			stream.HandshakeMethod = endpoint.Routes[0].Method
 		}
-		if len(endpoint.Responses) > 0 {
-			stream.HandshakeStatus = endpoint.Responses[0].StatusCode
-		} else {
-			stream.HandshakeStatus = expr.StatusOK
-		}
+		// SSE success selection is owned by the complete Response.Responses set.
 		requestIDPointer := false
 		if endpoint.SSE.RequestIDField != "" && endpoint.MethodExpr.Payload != nil {
 			requestIDPointer = endpoint.MethodExpr.Payload.IsPrimitivePointer(endpoint.SSE.RequestIDField, true)

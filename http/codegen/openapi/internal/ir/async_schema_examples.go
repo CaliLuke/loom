@@ -13,6 +13,9 @@ type asyncSchema struct {
 	context       string
 	target        *transportir.ValueTarget
 	projections   []*asyncSchema
+	// derived marks a message that reuses the completed event outcome. Its
+	// examples are already owned; no second application or projection runs.
+	derived bool
 }
 
 // Custom async projection retains its original sampler and path seeds. Builtin

@@ -112,6 +112,9 @@ func EndpointFile(genpkg string, service *expr.ServiceExpr, services *ServicesDa
 			if m.SkipRequestBodyEncodeDecode {
 				sections = append(sections, requestBodyStructSection(m))
 			}
+			if m.HasResponseMetadata {
+				sections = append(sections, responseMetadataStructSection(m))
+			}
 			if m.FileResponse {
 				sections = append(sections, fileResponseStructSection(m), responseBodyStructSection(m))
 			} else if m.SkipResponseBodyEncodeDecode {

@@ -62,7 +62,7 @@ func (a *Analyzer) contributor(wire *representation.WireContext, projection *exp
 	context = childExampleContext(context, "contributor", declaration.Name())
 	if !a.customExampleValue {
 		generator := exampleGeneratorForAttribute(a.rand, projected.Attribute, a.closeObjects, context)
-		if err := representation.PrepareTargetExamples(projected.Target, projected.Attribute, generator); err != nil {
+		if err := representation.PrepareTargetValues(projected.Target, projected.Attribute, generator, true); err != nil {
 			panic(fmt.Errorf("OpenAPI representation: %w", err))
 		}
 	}
@@ -152,8 +152,10 @@ func (a *Analyzer) recordProjectedMapping(discriminator *Discriminator, key stri
 		a.projectionMappings[discriminator][key] = a.contributor(wire, projection, target, context)
 		return
 	}
-	reference := a.analyzeSchemaPositions(&expr.AttributeExpr{Type: target}, context, expr.ValuePlanNode{}, expr.ValuePlanNode{})
-	discriminator.Mapping[key] = reference.Ref
+	reference := a.analyzeReferenceSchema(target, context)
+	if reference != nil {
+		discriminator.Mapping[key] = reference.Ref
+	}
 }
 
 // projectedDiscriminatorProperty returns the property that a hint of the
@@ -186,11 +188,17 @@ func (a *Analyzer) projectedDiscriminatorProperty(attribute *expr.AttributeExpr,
 // componentAcquisitionFingerprint separates provisional traversal contexts
 // before their publication dependencies exist. Baseline declaration identity
 // stays semantic; the completed graph registry decides final equivalence.
-func (a *Analyzer) componentAcquisitionFingerprint(attribute *expr.AttributeExpr, fingerprint string) string {
+// Same-shaped declarations that author different annotations are different
+// contracts, so provisional reuse also keys on the component's annotations.
+func (a *Analyzer) componentAcquisitionFingerprint(attribute *expr.AttributeExpr, declaration expr.UserType, fingerprint string) string {
+	acquisition := fingerprint
+	if annotations := a.componentAnnotationFingerprint(componentAttribute(attribute, declaration), a.examplePlan.Underlying()); annotations != "" {
+		acquisition = fingerprintString(acquisition + "\x00annotations:" + annotations)
+	}
 	projection, source := a.bodyProjectionAt(attribute)
 	if projection == nil {
-		return fingerprint
+		return acquisition
 	}
 	wire := a.bodyWireContext(source)
-	return fingerprintString(fingerprint + "\x00body:" + wire.ProjectionIdentity(projection))
+	return fingerprintString(acquisition + "\x00body:" + wire.ProjectionIdentity(projection))
 }

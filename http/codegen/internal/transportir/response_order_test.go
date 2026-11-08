@@ -16,12 +16,13 @@ func TestResponseSelectionOrder(t *testing.T) {
 		t.Run(endpoint.Name(), func(t *testing.T) {
 			authored := make([]int, len(endpoint.Responses))
 			for i, response := range endpoint.Responses {
-				authored[i] = response.StatusCode
+				authored[i] = response.Status.Code
 			}
 			plan := transportir.BuildEndpoint(endpoint).Response
 			codes := make([]int, 0, len(plan.Responses))
 			for _, response := range plan.Responses {
-				codes = append(codes, response.StatusCode)
+				require.True(t, response.Selector.IsExact())
+				codes = append(codes, response.Selector.Code)
 				require.Equal(t, "message", response.BodyOrigin)
 				require.Len(t, response.Headers, 3)
 			}
@@ -30,7 +31,7 @@ func TestResponseSelectionOrder(t *testing.T) {
 			require.Equal(t, "second", plan.Responses[1].Tag.Key)
 			require.Nil(t, plan.Responses[2].Tag)
 			for i, response := range endpoint.Responses {
-				require.Equal(t, authored[i], response.StatusCode, "analysis must not mutate the authored expression")
+				require.Equal(t, authored[i], response.Status.Code, "analysis must not mutate the authored expression")
 			}
 		})
 	}

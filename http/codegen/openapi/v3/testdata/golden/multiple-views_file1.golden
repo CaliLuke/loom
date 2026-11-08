@@ -65,7 +65,7 @@ components:
                 string:
                     type: string
                     example: ""
-            description: TestEndpointTinyResponseBody result type (tiny view)
+            description: Result result type (tiny view)
             example:
                 string: ""
 tags:

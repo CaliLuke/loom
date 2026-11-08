@@ -236,6 +236,7 @@ func selectedDefaultValue(attribute *AttributeExpr, active map[*AttributeExpr]bo
 // SetDefault sets the default for the attribute. It also converts HashVal
 // and ArrayVal to map and slice respectively.
 func (a *AttributeExpr) SetDefault(def any) {
+	a.defaultOwner = DefaultValueOwner{assignment: new(valueDefaultAssignment)}
 	switch actual := def.(type) {
 	case MapVal:
 		a.DefaultValue = actual.ToMap()
@@ -246,6 +247,7 @@ func (a *AttributeExpr) SetDefault(def any) {
 	}
 	if local := a.templateLocal(); local != nil {
 		local.DefaultValue = copyValueRaw(a.DefaultValue)
+		local.defaultOwner = a.defaultOwner
 	}
 }
 

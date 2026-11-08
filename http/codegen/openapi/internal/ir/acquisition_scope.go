@@ -33,6 +33,7 @@ func (a *Analyzer) acquisitionRollback() func() {
 	for key, values := range discriminatorChildren {
 		discriminatorChildren[key] = slices.Clone(values)
 	}
+	opaqueAnnotations := maps.Clone(a.opaqueAnnotationOwners)
 	annotations := maps.Clone(a.componentAnnotations)
 	for key, owner := range annotations {
 		annotations[key] = maps.Clone(owner)
@@ -48,6 +49,7 @@ func (a *Analyzer) acquisitionRollback() func() {
 		a.projectionPlans, a.projectionComponents, a.projectionMappings = plans, projections, mappings
 		a.projectedChildren, a.publishedChildren = children, published
 		a.discriminatorChildren, a.componentAnnotations = discriminatorChildren, annotations
+		a.opaqueAnnotationOwners = opaqueAnnotations
 		a.constructionContexts, a.publicationContexts = constructionContexts, publicationContexts
 		a.declarationNeighborCache, a.publicationDependencyCache = neighbors, dependencies
 	}

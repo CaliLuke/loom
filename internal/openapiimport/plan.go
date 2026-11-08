@@ -15,6 +15,7 @@ const (
 	responseBodyEncoded responseBodyMode = iota
 	responseBodyStream
 	responseBodyFile
+	responseBodySSE
 )
 
 // documentPlan is the render-ready result of applying the importer subset.
@@ -84,6 +85,8 @@ func planDocumentGraph(document *Document) documentPlan {
 // choices are frozen for rendering.
 func (p *documentPlanner) admit() {
 	p.index()
+	_, serverDiagnostics := partitionServers(p.document.OpenAPIVersion, p.document.Servers)
+	p.diagnostics = append(p.diagnostics, serverDiagnostics...)
 	if p.document.SecurityDefined {
 		p.securityRequirements(p.document.Security, "#/security")
 	}
@@ -154,7 +157,7 @@ func disambiguateSharedErrorStatuses(operations []Operation, plans []operationPl
 		for responseIndex := range plans[operationIndex].failures {
 			response := &plans[operationIndex].failures[responseIndex]
 			if statusCounts[response.status] > 1 {
-				response.errorName = operations[operationIndex].GoName + "Status" + response.status
+				response.errorName = operations[operationIndex].GoName + "Status" + selectorName(response.selector)
 			}
 		}
 	}
@@ -196,27 +199,18 @@ func (p *documentPlanner) operation(operation *Operation, path string) {
 	}
 	p.parameterNamespaces(operation, path)
 	p.requestBody(operation.RequestBody, path+"/requestBody")
-	responseMode := operationResponseBodyMode(operation)
-	successClass := successResponseClass(operation.Responses)
-	successes := 0
-	for _, response := range operation.Responses {
-		success := isSuccessResponseStatus(response.Status, successClass)
-		if success {
-			successes++
+	responses, diagnostics := classifyOperationResponses(operation, path, p.document.Components)
+	p.diagnostics = append(p.diagnostics, diagnostics...)
+	p.sseAsync(operation, responses, path)
+	for response := range responses.responses() {
+		responsePath := path + "/responses/" + escapeJSONPointer(response.source.Status)
+		if response.rawBody && response.source.Response.Schema != nil && len(response.source.Response.Schema.MediaTypes) > 0 {
+			p.unsupported("media-type", responsePath+"/content", "multiple media contracts on a raw successful response have no documentation-only representation; native MediaType requires encoded response bodies")
 		}
-		responsePath := path + "/responses/" + escapeJSONPointer(response.Status)
-		if response.Response.Schema != nil && len(response.Response.Schema.MediaTypes) == 0 && !isJSONMediaType(response.Response.ContentType) &&
-			responseMode == responseBodyEncoded {
-			p.unsupported(
-				"media-type",
-				responsePath+"/content",
-				fmt.Sprintf("content type %q requires a non-JSON success response", response.Response.ContentType),
-			)
+		if response.source.Response.stream == nil && !response.rawBody && response.source.Response.Schema != nil && len(response.source.Response.Schema.MediaTypes) == 0 && !isJSONMediaType(response.source.Response.ContentType) {
+			p.unsupported("media-type", responsePath+"/content", fmt.Sprintf("content type %q is not supported as an encoded error body; raw success transport does not apply to errors", response.source.Response.ContentType))
 		}
-		p.response(response.Response, responsePath, responseMode != responseBodyEncoded)
-	}
-	if successes != 1 {
-		p.unsupported("success-response-count", path+"/responses", fmt.Sprintf("must define exactly one 2xx response or, when absent, exactly one 3xx response, got %d", successes))
+		p.response(response.source.Response, responsePath, response.rawBody)
 	}
 }
 
@@ -302,9 +296,13 @@ func (p *documentPlanner) response(response Response, path string, allowNonJSON 
 		// resolveReusableDocument already reported this unresolved occurrence.
 		return
 	}
-	if response.Schema != nil && len(response.Schema.MediaTypes) > 0 {
+	switch {
+	case response.stream != nil:
+		p.schemaEncoding(response.Schema, response.stream.path, schemaEncodedValue, make(map[schemaEncodingOccurrence]bool))
+		p.schema(response.Schema, response.stream.path, objectDeclaration)
+	case response.Schema != nil && len(response.Schema.MediaTypes) > 0:
 		p.mediaContracts(response.Schema, path)
-	} else {
+	default:
 		p.content(response.ContentType, response.Schema, path, allowNonJSON, responseObjectRole(response, allowNonJSON))
 	}
 	for _, named := range response.Headers {
@@ -348,35 +346,6 @@ func (p *documentPlanner) content(
 		p.unsupported("media-type", path+"/content", fmt.Sprintf("content type %q is not renderable", contentType))
 	}
 	p.schema(schema, path+"/content/schema", role)
-}
-
-func operationResponseBodyMode(operation *Operation) responseBodyMode {
-	successClass := successResponseClass(operation.Responses)
-	for _, response := range operation.Responses {
-		if !isSuccessResponseStatus(response.Status, successClass) || response.Response.Schema == nil ||
-			isJSONMediaType(response.Response.ContentType) || len(response.Response.Schema.MediaTypes) > 0 {
-			continue
-		}
-		if (operation.Method == "GET" || operation.Method == "HEAD") && response.Status == "200" &&
-			!hasFileProtocolResponse(operation.Responses) {
-			return responseBodyFile
-		}
-		return responseBodyStream
-	}
-	return responseBodyEncoded
-}
-
-func successResponseClass(responses []StatusResponse) byte {
-	for _, response := range responses {
-		if len(response.Status) == 3 && response.Status[0] == '2' {
-			return '2'
-		}
-	}
-	return '3'
-}
-
-func isSuccessResponseStatus(status string, successClass byte) bool {
-	return len(status) == 3 && status[0] == successClass
 }
 
 func hasFileProtocolResponse(responses []StatusResponse) bool {
@@ -425,7 +394,9 @@ func (p *documentPlanner) schemaAdmission(schema *Schema, path string, role obje
 	if schema == nil {
 		return true
 	}
-	admitted := true
+	diagnostics := schemaPresenceDiagnostics(schema, path)
+	p.diagnostics = append(p.diagnostics, diagnostics...)
+	admitted := len(diagnostics) == 0
 	if objectNeedsName(schema, role) {
 		p.unsupported("schema-object-constructor", path, "inline object requires a named type in this constructor; analyze source schemas before rendering")
 		admitted = false

@@ -236,7 +236,7 @@ func TestBuildEndpointResponseMetadata(t *testing.T) {
 	require.Len(t, endpoint.Response.ErrorResponses, 1)
 
 	success := endpoint.Response.Responses[0]
-	require.Equal(t, expr.StatusOK, success.StatusCode)
+	require.Equal(t, expr.HTTPStatusSelector{Code: expr.StatusOK}, success.Selector)
 	require.Equal(t, "application/problem+json", success.ContentType)
 	require.Equal(t, "version", success.Headers[0].Name)
 	require.Equal(t, "X-Version", success.Headers[0].HTTPName)

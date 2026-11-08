@@ -81,7 +81,7 @@ func TestHTTPErrorResponsesPreparedAtDeclaringScope(t *testing.T) {
 				require.Len(t, endpoint.HTTPErrors, 1)
 				inherited := endpoint.HTTPErrors[0].Response
 				require.NotNil(t, inherited.Headers)
-				assert.Equal(t, expr.StatusBadRequest, inherited.StatusCode)
+				assert.Equal(t, expr.StatusBadRequest, inherited.Status.Code)
 				if scope != "method" {
 					assert.NotSame(t, original.Response, inherited)
 				}

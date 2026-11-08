@@ -141,6 +141,9 @@ func requestObjectRole(body RequestBody) objectConstructorRole {
 // responseObjectRole supplies concrete empty JSON objects for either a selected
 // field or an explicit whole response body. Raw documentation keeps callbacks.
 func responseObjectRole(response Response, allowNonJSON bool) objectConstructorRole {
+	if response.stream != nil {
+		return objectDeclaration
+	}
 	if !allowNonJSON || isJSONMediaType(response.ContentType) {
 		return objectField
 	}

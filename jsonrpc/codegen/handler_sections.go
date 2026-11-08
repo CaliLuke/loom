@@ -428,7 +428,7 @@ func writeJSONRPCEncodeErrorCallWithData(code, data jen.Code) jen.Code {
 func writeJSONRPCMappedError(g *jen.Group, item *httpcodegen.ErrorData) {
 	response := item.Response
 	if response.EncodePlan == nil || !response.EncodePlan.HasBody {
-		g.Add(writeJSONRPCEncodeErrorCall(jen.Lit(response.Code)))
+		g.Add(writeJSONRPCEncodeErrorCall(jen.Lit(*response.JSONRPCCode)))
 		return
 	}
 
@@ -437,10 +437,10 @@ func writeJSONRPCMappedError(g *jen.Group, item *httpcodegen.ErrorData) {
 	g.If(jen.List(jen.Id(source), jen.Id("ok")).Op(":=").Id("errorResponse").Dot("Owner").Assert(codegen.TypeRef(item.Ref)), jen.Id("ok")).BlockFunc(func(cg *jen.Group) {
 		cg.Add(codegen.Expr(initialization))
 		data := codegen.Expr(value)
-		cg.Add(writeJSONRPCEncodeErrorCallWithData(jen.Lit(response.Code), data))
+		cg.Add(writeJSONRPCEncodeErrorCallWithData(jen.Lit(*response.JSONRPCCode), data))
 		cg.Break()
 	})
-	g.Add(writeJSONRPCEncodeErrorCall(jen.Lit(response.Code)))
+	g.Add(writeJSONRPCEncodeErrorCall(jen.Lit(*response.JSONRPCCode)))
 }
 
 func writeJSONRPCDefaultEndpointError(g *jen.Group) {

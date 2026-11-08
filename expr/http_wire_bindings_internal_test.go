@@ -58,11 +58,11 @@ func TestHTTPWireBindingErrorProjectionOwnership(t *testing.T) {
 			response.validateWireBindings(verr)
 			require.Empty(t, verr.Errors)
 			require.True(t, authored.IsEmpty())
-			plan := response.wireBindings
+			plan := response.bindings
 			mapping := response.Headers
 			response.prepareErrorWireBindings(&AttributeExpr{Type: ErrorResult})
 			response.validateWireBindings(verr)
-			require.Same(t, plan, response.wireBindings)
+			require.Same(t, plan, response.bindings)
 			require.Same(t, mapping, response.Headers)
 			if body == "full" {
 				require.Empty(t, plan.bindings)

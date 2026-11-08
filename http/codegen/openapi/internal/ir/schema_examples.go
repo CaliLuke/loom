@@ -7,7 +7,10 @@ import (
 
 func (a *Analyzer) applySchemaExample(s *Schema, attr *expr.AttributeExpr, context string) {
 	if a.annotationOwner != nil {
-		position := componentAnnotationPosition{context, fingerprintAttribute(attr, a.closeObjects)}
+		// Equal shape and context do not make a declaration example and a
+		// reference-local example interchangeable. Keep the acquired nested
+		// position; complete schema equivalence owns any later deduplication.
+		position := componentAnnotationPosition{context, fingerprintAttribute(attr, a.closeObjects), a.examplePlan}
 		if example, found := a.annotationOwner[position]; found {
 			values := example.snapshot()
 			s.Example = values.representative

@@ -804,7 +804,7 @@ func TestRenderedSpecPublishesProblemLinksAndAsyncContracts(t *testing.T) {
 	requirePattern(`(?m)^\s+direction: server$`)
 	requirePattern(`(?m)^\s+direction: bidirectional$`)
 	requirePattern(`(?m)^\s+contentType: text/event-stream$`)
-	requirePattern(`(?m)^\s+status: 101$`)
+	requirePattern(`(?m)^\s+statuses:\n\s+- "101"$`)
 	requirePattern(`(?m)^\s+messages:$`)
 	requirePattern(`(?m)^\s+schema:$`)
 	requirePattern(`(?m)^\s+\$ref: '#/components/schemas/OpenAPIThreadEvent'$`)
@@ -836,7 +836,7 @@ func TestRenderedSpecPublishesSecuredAsyncSessionContracts(t *testing.T) {
 	requirePattern(`(?m)^\s+transport: sse$`)
 	requirePattern(`(?m)^\s+direction: bidirectional$`)
 	requirePattern(`(?m)^\s+direction: server$`)
-	requirePattern(`(?m)^\s+status: 101$`)
+	requirePattern(`(?m)^\s+statuses:\n\s+- "101"$`)
 	requirePattern(`(?m)^\s+contentType: text/event-stream$`)
 }
 

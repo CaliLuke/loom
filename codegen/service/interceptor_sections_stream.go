@@ -18,6 +18,10 @@ func addStreamWrappersSection(stmt *jen.Statement, streams []*StreamInterceptorD
 			addServerOperationMethods(stmt, stream)
 			continue
 		}
+		if stream.HandshakeRef != "" {
+			codegen.Doc(stmt, "Response returns the validated response metadata from the wrapped stream.")
+			stmt.Func().Params(jen.Id("w").Op("*").Id(stream.WrapperName)).Id("Response").Params().Add(codegen.TypeRef(stream.HandshakeRef)).Block(jen.Return(jen.Id("w").Dot("stream").Dot("Response").Call()))
+		}
 		addStreamSendSection(stmt, stream)
 		addStreamRecvSection(stmt, stream)
 		if stream.MustClose {

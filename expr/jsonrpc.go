@@ -22,6 +22,7 @@ func (j *JSONRPCExpr) ServicesWithEndpoints() []*HTTPServiceExpr {
 
 // Prepare copies shared HTTP API constructs over to the JSON-RPC API.
 func (j *JSONRPCExpr) Prepare() {
+	j.HTTPExpr.Prepare()
 	j.Path = Root.API.HTTP.Path
 	j.Params = Root.API.HTTP.Params
 	j.Headers = Root.API.HTTP.Headers

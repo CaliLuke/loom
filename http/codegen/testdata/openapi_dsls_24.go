@@ -8,15 +8,19 @@ import (
 var (
 	// OpenAPISharedErrorHeaderDSL exercises shared status codes with header identity.
 	OpenAPISharedErrorHeaderDSL = func() {
-		openAPISharedErrorDSL(false)
+		openAPISharedErrorDSL(false, false)
 	}
 	// OpenAPIStatusErrorNameDSL adds unique-status identity with the same error type.
 	OpenAPIStatusErrorNameDSL = func() {
-		openAPISharedErrorDSL(true)
+		openAPISharedErrorDSL(true, false)
+	}
+	// OpenAPIStatusSelectorDSL retains shared error bodies under class and fallback keys.
+	OpenAPIStatusSelectorDSL = func() {
+		openAPISharedErrorDSL(false, true)
 	}
 )
 
-func openAPISharedErrorDSL(statusIdentity bool) {
+func openAPISharedErrorDSL(statusIdentity, selectors bool) {
 	var ExceptionResponse = Type("ExceptionResponse", func() {
 		ErrorName("loomError", String, "Which declared error this is.", func() {
 			if statusIdentity {
@@ -32,7 +36,12 @@ func openAPISharedErrorDSL(statusIdentity bool) {
 			}
 		})
 		Attribute("path", String)
-		Attribute("status", Int32)
+		if selectors {
+			Attribute("status", Int)
+			Required("status")
+		} else {
+			Attribute("status", Int32)
+		}
 		Attribute("timestamp", Int64)
 		Attribute("details", String)
 		Required("loomError")
@@ -54,6 +63,10 @@ func openAPISharedErrorDSL(statusIdentity bool) {
 		})
 	})
 
+	badRequest, forbidden := any(StatusBadRequest), any(StatusForbidden)
+	if selectors {
+		badRequest, forbidden = Status4XX, StatusFallback
+	}
 	Service("sharedErrorResponses", func() {
 		Description("Returns one shared error body for every declared failure.")
 		for _, methodName := range []string{"first", "second"} {
@@ -64,27 +77,43 @@ func openAPISharedErrorDSL(statusIdentity bool) {
 				Error("unauthorized", ExceptionResponse)
 				Error("forbidden", ExceptionResponse)
 				HTTP(func() {
-					GET("/" + methodName)
-					Response(StatusNoContent)
-					Response("bad_request", StatusBadRequest, func() {
-						Description("Invalid request for " + methodName + ".")
-						Header("loomError:loom-error")
-					})
-					Response("invalid_input", StatusBadRequest, func() {
-						Description("Invalid input for " + methodName + ".")
-						Header("loomError:loom-error")
-					})
-					Response("unauthorized", StatusUnauthorized, func() {
-						Header("loomError:loom-error")
-					})
-					Response("forbidden", StatusForbidden, func() {
-						Header("loomError:loom-error")
-					})
+					sharedErrorHTTPResponses(methodName, badRequest, forbidden, selectors)
 				})
 			})
 		}
 		if statusIdentity {
 			statusErrorNameMethods(ExceptionResponse)
+		}
+	})
+}
+
+func sharedErrorHTTPResponses(methodName string, badRequest, forbidden any, selectors bool) {
+	GET("/" + methodName)
+	Response(StatusNoContent)
+	Response("bad_request", badRequest, func() {
+		Description("Invalid request for " + methodName + ".")
+		Header("loomError:loom-error")
+		if selectors {
+			StatusField("status")
+		}
+	})
+	Response("invalid_input", badRequest, func() {
+		Description("Invalid input for " + methodName + ".")
+		Header("loomError:loom-error")
+		if selectors {
+			StatusField("status")
+		}
+	})
+	Response("unauthorized", StatusUnauthorized, func() {
+		Header("loomError:loom-error")
+		if selectors {
+			StatusField("status")
+		}
+	})
+	Response("forbidden", forbidden, func() {
+		Header("loomError:loom-error")
+		if selectors {
+			StatusField("status")
 		}
 	})
 }

@@ -70,12 +70,12 @@ func statusErrorNameMapped(r *HTTPResponseExpr, key string) bool {
 }
 
 func (e *HTTPEndpointExpr) validateStatusErrorNames(errors *eval.ValidationErrors) {
-	counts := make(map[int]int)
+	counts := make(map[HTTPStatusSelector]int)
 	for _, response := range e.Responses {
-		counts[response.StatusCode]++
+		counts[response.Status]++
 	}
 	for _, failure := range e.HTTPErrors {
-		counts[failure.Response.StatusCode]++
+		counts[failure.Response.Status]++
 	}
 	for _, failure := range e.HTTPErrors {
 		response := failure.Response
@@ -85,8 +85,8 @@ func (e *HTTPEndpointExpr) validateStatusErrorNames(errors *eval.ValidationError
 		if e.IsJSONRPC() {
 			errors.Add(response, "ErrorNameFromStatus is HTTP only")
 		}
-		if counts[response.StatusCode] != 1 {
-			errors.Add(response, "ErrorNameFromStatus requires a unique response status; status %d selects multiple responses", response.StatusCode)
+		if counts[response.Status] != 1 {
+			errors.Add(response, "ErrorNameFromStatus requires a unique response status; status %s selects multiple responses", response.Status.OpenAPIKey())
 		}
 	}
 }

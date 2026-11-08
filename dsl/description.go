@@ -44,6 +44,8 @@ func Description(d string) {
 		e.Description = d
 	case *expr.SessionTransportExpr:
 		e.Description = d
+	case *expr.HTTPInformationalExpr:
+		e.Description = d
 	case *expr.HTTPResponseExpr:
 		e.Description = d
 	case *expr.HTTPFileServerExpr:

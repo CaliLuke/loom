@@ -1,8 +1,6 @@
 package codegen
 
 import (
-	"net/http"
-
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 )
@@ -32,7 +30,7 @@ func nameUnionBodies(endpoints []*transportir.Endpoint) {
 		for _, response := range endpoint.Response.Responses {
 			name := endpoint.Name
 			if len(endpoint.Response.Responses) > 1 {
-				name += http.StatusText(response.StatusCode)
+				name += response.Selector.NameSuffix()
 			}
 			response.Body = namedUnionBody(response.Body, name+"ResponseBody", response.MediaVariants)
 		}

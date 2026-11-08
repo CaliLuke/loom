@@ -1,0 +1,8 @@
+select_membership_invariant
+select_perm_invariant
+select_covers
+select_most_specific
+domain_iff_select
+phases_disjoint
+switching_protocols_never_interim
+declaration_order_counterexample

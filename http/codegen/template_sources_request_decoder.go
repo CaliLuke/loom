@@ -3,9 +3,9 @@ package codegen
 var (
 	requestDecoderSource = joinHTTPTemplateSource(`{{ printf "%s returns a decoder for requests sent to the %s %s endpoint." .RequestDecoder .ServiceName .Method.Name | comment }}
 {{- $usesDecoder := or .MultipartRequestDecoder (and .Payload.Request.ServerBody (not .Payload.Request.MultipartGenerated) (not .Payload.Request.FormEncoded)) }}
-func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ else }}_{{ end }} func(*http.Request) loomhttp.Decoder) func(*http.Request{{ if .Method.IsJSONRPC }}, *jsonrpc.RawRequest{{ end }}) ({{ .Payload.Ref }}, error) {
-	return func(r *http.Request{{ if .Method.IsJSONRPC }}, req *jsonrpc.RawRequest{{ end }}) ({{ .Payload.Ref }}, error) {
-	{{- if .Method.IsJSONRPC }}
+func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ else }}_{{ end }} func(*http.Request) loomhttp.Decoder) func(*http.Request{{ if .IsJSONRPC }}, *jsonrpc.RawRequest{{ end }}) ({{ .Payload.Ref }}, error) {
+	return func(r *http.Request{{ if .IsJSONRPC }}, req *jsonrpc.RawRequest{{ end }}) ({{ .Payload.Ref }}, error) {
+	{{- if .IsJSONRPC }}
 		{{ .Payload.Request.DecodePlan.JSONRPCParamsVar }} := req.Params
 		{{- if not (or .Payload.Request.OptionalBodyAttribute .Payload.Request.ExplicitPresenceBody (ne .Payload.Request.BodyDefaultValue nil)) }}
 		if len({{ .Payload.Request.DecodePlan.JSONRPCParamsVar }}) == 0 {

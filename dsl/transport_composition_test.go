@@ -52,7 +52,7 @@ func TestRepeatedTransportBlocksCompose(t *testing.T) {
 
 		endpoint := root.API.HTTP.Service("svc").Endpoint("get")
 		require.Len(t, endpoint.Routes, 1)
-		require.Equal(t, expr.StatusCreated, endpoint.Responses[0].StatusCode)
+		require.Equal(t, expr.StatusCreated, endpoint.Responses[0].Status.Code)
 	})
 
 	t.Run("JSON-RPC service", func(t *testing.T) {
@@ -107,7 +107,7 @@ func TestRepeatedTransportBlocksCompose(t *testing.T) {
 
 		endpoint := root.API.JSONRPC.Service("svc").Endpoint("call")
 		require.Len(t, endpoint.HTTPErrors, 1)
-		require.Equal(t, expr.RPCInternalError, endpoint.HTTPErrors[0].Response.StatusCode)
+		require.Equal(t, expr.RPCInternalError, endpoint.HTTPErrors[0].Response.JSONRPCError.Code)
 	})
 
 	t.Run("gRPC service", func(t *testing.T) {

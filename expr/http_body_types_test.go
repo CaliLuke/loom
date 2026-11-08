@@ -121,3 +121,49 @@ func TestUnionToObjectUsesTaggedDiscriminators(t *testing.T) {
 	require.NotContains(t, typeAttr.Description, `"List"`)
 	require.NotContains(t, typeAttr.Description, `"GetActive"`)
 }
+
+func TestHTTPResponseBodyNameSuffixFromSelector(t *testing.T) {
+	t.Run("captured validation and final body agree", func(t *testing.T) {
+		source := &AttributeExpr{Type: &Object{
+			&NamedAttributeExpr{Name: "status:code", Attribute: &AttributeExpr{Type: Int}},
+			&NamedAttributeExpr{Name: "message", Attribute: &AttributeExpr{Type: String}},
+		}, Validation: &ValidationExpr{Required: []string{"status:code", "message"}}}
+		r := &HTTPResponseExpr{Status: HTTPStatusSelector{Code: 200}, StatusField: "status", Headers: NewEmptyMappedAttributeExpr()}
+		e := &HTTPEndpointExpr{MethodExpr: &MethodExpr{Name: "read", Result: source}, Service: &HTTPServiceExpr{ServiceExpr: &ServiceExpr{Name: "capture"}}, Responses: []*HTTPResponseExpr{r}}
+		e.captureResponseBindings()
+		require.Len(t, r.bindings.bindings, 2)
+		require.Equal(t, "status", r.bindings.bindings[0].location)
+		require.Contains(t, responseReconstructionBindings(r), "status")
+		before, _ := responseBodySource(source, r)
+		require.Nil(t, before.Find("status"))
+		r.Finalize(e, source)
+		after := httpResponseBody(e, r)
+		require.Nil(t, after.Find("status"))
+		require.NotNil(t, after.Find("message"))
+		require.ElementsMatch(t, before.AllRequired(), after.AllRequired())
+		require.ElementsMatch(t, []string{"status", "message"}, r.RequiredFields(""))
+	})
+
+	result := &AttributeExpr{Type: &Object{&NamedAttributeExpr{Name: "value", Attribute: &AttributeExpr{Type: String}}}}
+	endpoint := &HTTPEndpointExpr{
+		MethodExpr: &MethodExpr{Name: "read", Result: result},
+		Service:    &HTTPServiceExpr{ServiceExpr: &ServiceExpr{Name: "store"}},
+	}
+	for _, tc := range []struct {
+		key    HTTPStatusSelector
+		suffix string
+	}{
+		{HTTPStatusSelector{Code: 299}, "Status299"},
+		{HTTPStatusSelector{Class: Status2XX}, "Status2XX"},
+		{HTTPStatusSelector{Class: StatusFallback}, "StatusDefault"},
+		{HTTPStatusSelector{Code: 200}, "OK"},
+		{HTTPStatusSelector{Code: 201}, "Created"},
+	} {
+		t.Run(tc.key.OpenAPIKey(), func(t *testing.T) {
+			r := &HTTPResponseExpr{Status: tc.key, Headers: NewEmptyMappedAttributeExpr()}
+			endpoint.Responses = []*HTTPResponseExpr{r, {Status: HTTPStatusSelector{Code: 200}}}
+			body := httpResponseBody(endpoint, r)
+			require.Equal(t, "Read"+tc.suffix+"ResponseBody", body.Type.Name())
+		})
+	}
+}

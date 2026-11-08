@@ -63,6 +63,7 @@ type (
 		// normalized body and raw source were walked, keyed by kind and name.
 		closure       componentClosure
 		bodies        map[string]struct{}
+		constructors  map[*Schema]string
 		schemas       map[string]*Schema
 		parameters    map[string]Parameter
 		requestBodies map[string]RequestBody
@@ -282,6 +283,7 @@ func newComponentPruner(components Components) *componentPruner {
 			responses:     make(map[string]struct{}),
 			headers:       make(map[string]struct{}),
 		},
+		constructors:  make(map[*Schema]string),
 		schemas:       make(map[string]*Schema, len(components.Schemas)),
 		parameters:    make(map[string]Parameter, len(components.Parameters)),
 		requestBodies: make(map[string]RequestBody, len(components.RequestBodies)),
@@ -290,6 +292,9 @@ func newComponentPruner(components Components) *componentPruner {
 	}
 	for _, named := range components.Schemas {
 		pruner.schemas[named.Name] = named.Schema
+		if named.constructionOnly {
+			pruner.constructors[named.Schema] = named.Name
+		}
 	}
 	for _, named := range components.Parameters {
 		pruner.parameters[named.Name] = named.Parameter
@@ -341,6 +346,9 @@ func documentSchemaOccurrences(document *Document) map[*Schema]struct{} {
 }
 
 func (p *componentPruner) visitOperation(operation Operation) {
+	for _, schema := range operation.asyncSchemas {
+		p.visitSchema(schema.value)
+	}
 	for _, parameter := range operation.Parameters {
 		p.visitParameter(parameter)
 	}
@@ -360,6 +368,9 @@ func (p *componentPruner) visitSchema(schema *Schema) {
 		return
 	}
 	p.schemaOccurrences[schema] = struct{}{}
+	if name, ok := p.constructors[schema]; ok {
+		p.retainComponent("schemas", name)
+	}
 	p.visitExamples(schema.Examples)
 	if hint := schema.Discriminator; hint != nil {
 		if hint.DefaultMapping != "" {

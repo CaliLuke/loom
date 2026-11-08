@@ -218,3 +218,27 @@ func TestHTTPSSEProjectionValidation(t *testing.T) {
 		})
 	}
 }
+
+func TestHTTPSSEUsesStreamingOccurrence(t *testing.T) {
+	event := &expr.AttributeExpr{Type: &expr.Object{
+		&expr.NamedAttributeExpr{Name: "id", Attribute: &expr.AttributeExpr{Type: expr.String}},
+	}}
+	for _, tc := range []struct {
+		name           string
+		result, stream *expr.AttributeExpr
+		valid          bool
+	}{
+		{"event field", &expr.AttributeExpr{Type: expr.String}, event, true},
+		{"unary field is not event metadata", event, &expr.AttributeExpr{Type: expr.String}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			method := &expr.MethodExpr{Result: tc.result, StreamingResult: tc.stream}
+			err := (&expr.HTTPSSEExpr{IDField: "id"}).Validate(method)
+			if tc.valid {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, "event id field: result type is not an object")
+			}
+		})
+	}
+}

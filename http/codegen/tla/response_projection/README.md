@@ -277,6 +277,35 @@ publication and concrete reconstruction. No nullable annotation is added to the
 authored body to avoid the checked projection.
 
 
+## Status-selected nullable native values (#976 composition)
+
+The response projection's nullable native capture also precedes outgoing
+StatusField selection. Its single prepared concrete value feeds the status,
+staged headers/cookies and the selected body. Null/absence fails before any
+publication; choosing a class or exact branch does not reacquire the value.
+The existing NullableResponseProjection field-storage and checked-publication
+invariants cover this concrete-source role. Selector precedence/domains remain
+owned by the status-selection model; this correspondence does not extend either
+model's transition semantics or claim a new checker run.
+
+`TestNullableStatusCompositionGenerated` reproduces the admitted composed
+wrapper-field compile failure, then checks one generated native acquisition,
+exact201/class202, authored enum rejection, out-of-domain/null/absence before
+headers or writes, header/cookie/body reconstruction and incoming status
+constraints. The incoming validator checks the reconstructed nullable carrier;
+it does not infer native presence from a decoded scalar zero.
+
+The replacement-body model's native-metadata prerequisite also includes a
+StatusField even when no header or cookie is mapped. Status selection acquires
+that nullable native value once, before the branch or formatter can run; only
+selected-body checks may depend on `formatter == nil`. The maintained
+nullable-status generated module covers status-only formatted errors, null and
+absent parents, invalid native status and incoming error payload reconstruction.
+An incoming named nullable error constructor returns its owner wrapper: shared
+constructed-status validation extracts its checked Payload before using the
+existing native status validator. This is a representation correspondence, not
+a new selector formula or a second payload cache.
+
 ## Replacement body ownership and native tag presence
 
 `ResponseBodyOwnership.tla` refines the selected-body boundary above. A custom

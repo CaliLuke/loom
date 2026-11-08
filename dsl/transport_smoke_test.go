@@ -152,7 +152,7 @@ func TestTransportDSLComprehensiveSmoke(t *testing.T) {
 	require.Equal(t, "/widgets/{id}", showEndpoint.Routes[0].Path)
 	require.Len(t, showEndpoint.Responses, 1)
 	require.Len(t, showEndpoint.HTTPErrors, 1)
-	require.Equal(t, expr.StatusCreated, showEndpoint.Responses[0].StatusCode)
+	require.Equal(t, expr.StatusCreated, showEndpoint.Responses[0].Status.Code)
 	require.Equal(t, "created response", showEndpoint.Responses[0].Description)
 	require.Equal(t, "application/json", showEndpoint.Responses[0].ContentType)
 	require.Len(t, showEndpoint.Responses[0].Cookies, 1)
@@ -168,14 +168,14 @@ func TestTransportDSLComprehensiveSmoke(t *testing.T) {
 	require.Equal(t, "$response.body#/id", showEndpoint.Responses[0].Links[0].Parameters["id"])
 	require.Equal(t, "$response.body", showEndpoint.Responses[0].Links[0].RequestBody)
 	require.Equal(t, "not_found", showEndpoint.HTTPErrors[0].Name)
-	require.Equal(t, expr.StatusNotFound, showEndpoint.HTTPErrors[0].Response.StatusCode)
+	require.Equal(t, expr.StatusNotFound, showEndpoint.HTTPErrors[0].Response.Status.Code)
 
 	jsonrpcSvc := root.API.JSONRPC.Service("widgets")
 	require.NotNil(t, jsonrpcSvc)
 	jsonrpcShow := jsonrpcSvc.Endpoint("rpcShow")
 	require.NotNil(t, jsonrpcShow)
 	require.Len(t, jsonrpcShow.HTTPErrors, 1)
-	require.Equal(t, expr.RPCMethodNotFound, jsonrpcShow.HTTPErrors[0].Response.StatusCode)
+	require.Equal(t, expr.RPCMethodNotFound, jsonrpcShow.HTTPErrors[0].Response.JSONRPCError.Code)
 
 	legacyEndpoint := httpSvc.Endpoint("legacy")
 	require.NotNil(t, legacyEndpoint)
@@ -251,13 +251,13 @@ func TestMultipartAndFormRequestDSL(t *testing.T) {
 	require.NotNil(t, multipartEndpoint)
 	require.True(t, multipartEndpoint.MultipartRequest)
 	require.False(t, multipartEndpoint.FormRequest)
-	require.Equal(t, expr.StatusAccepted, multipartEndpoint.Responses[0].StatusCode)
+	require.Equal(t, expr.StatusAccepted, multipartEndpoint.Responses[0].Status.Code)
 
 	formEndpoint := httpSvc.Endpoint("form")
 	require.NotNil(t, formEndpoint)
 	require.True(t, formEndpoint.FormRequest)
 	require.False(t, formEndpoint.MultipartRequest)
-	require.Equal(t, expr.StatusCreated, formEndpoint.Responses[0].StatusCode)
+	require.Equal(t, expr.StatusCreated, formEndpoint.Responses[0].Status.Code)
 }
 
 func TestSkipEncodeDecodeDSL(t *testing.T) {
@@ -292,7 +292,7 @@ func TestSkipEncodeDecodeDSL(t *testing.T) {
 	require.True(t, endpoint.SkipRequestBodyEncodeDecode)
 	require.True(t, endpoint.SkipResponseBodyEncodeDecode)
 	require.NotNil(t, endpoint.Body)
-	require.Equal(t, expr.StatusAccepted, endpoint.Responses[0].StatusCode)
+	require.Equal(t, expr.StatusAccepted, endpoint.Responses[0].Status.Code)
 	require.NotNil(t, endpoint.Responses[0].Body)
 	require.NotNil(t, endpoint.Responses[0].Headers)
 	require.False(t, endpoint.Responses[0].Headers.IsEmpty())

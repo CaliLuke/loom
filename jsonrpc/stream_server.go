@@ -247,7 +247,7 @@ func ReceiveWebSocketRequest(
 // comes from the writer, independently of ctx's cancellation lifetime.
 func CompleteSSEStream(ctx context.Context, writer *loomhttp.SSEStreamWriter, hasID bool, response func() *Response) error {
 	if !hasID {
-		if err := writer.Complete(ctx, nil); err != nil {
+		if err := writer.Suppress(); err != nil {
 			return err
 		}
 		writer.Observation().Suppressed()

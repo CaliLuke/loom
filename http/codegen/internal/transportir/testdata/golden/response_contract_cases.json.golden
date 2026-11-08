@@ -17,6 +17,9 @@
           "Secure": true
         }
       ],
+      "domain": [
+        202
+      ],
       "headers": [
         {
           "HTTPName": "X-Version",
@@ -26,7 +29,10 @@
       ],
       "id": "widgets.show.success.202.outcome=accepted",
       "kind": "success",
-      "status_code": 202,
+      "selector": {
+        "Class": 0,
+        "Code": 202
+      },
       "tag_name": "outcome",
       "tag_value": "accepted"
     },
@@ -34,13 +40,22 @@
       "content_types": [
         "application/json"
       ],
+      "domain": [
+        200
+      ],
       "id": "widgets.show.success.200",
       "kind": "success",
-      "status_code": 200
+      "selector": {
+        "Class": 0,
+        "Code": 200
+      }
     },
     {
       "content_types": [
         "application/json"
+      ],
+      "domain": [
+        404
       ],
       "error_name": "not_found",
       "headers": [
@@ -52,16 +67,25 @@
       ],
       "id": "widgets.show.error.not_found.404",
       "kind": "error",
-      "status_code": 404
+      "selector": {
+        "Class": 0,
+        "Code": 404
+      }
     },
     {
       "content_types": [
         "application/problem+json"
       ],
+      "domain": [
+        404
+      ],
       "error_name": "gone",
       "id": "widgets.show.error.gone.404",
       "kind": "error",
-      "status_code": 404
+      "selector": {
+        "Class": 0,
+        "Code": 404
+      }
     }
   ]
 }

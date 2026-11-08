@@ -258,3 +258,20 @@ func TestInvalidSelectionDoesNotStartSSE(t *testing.T) {
 	}
 }
 `
+
+func TestSSEMixedViewOwners(t *testing.T) {
+	root := RunHTTPDSL(t, testdata.MixedMetadataDSL)
+	data := CreateHTTPServices(root).Get("mixed")
+	unary := data.Endpoint("viewed")
+	require.NotNil(t, unary.Method.ViewedResult)
+	require.Nil(t, unary.Method.StreamingViewedResult)
+	require.Nil(t, unary.SSE.ViewedResult)
+	require.Empty(t, unary.SSE.ResponseBodies)
+	event := data.Endpoint("event")
+	require.Nil(t, event.Method.ViewedResult)
+	require.NotNil(t, event.Method.StreamingViewedResult)
+	require.Same(t, event.Method.StreamingViewedResult, event.SSE.ViewedResult)
+	require.Len(t, event.SSE.ResponseBodies, 1)
+	require.Equal(t, "default", event.SSE.ResponseBodies[0].View)
+	require.NotNil(t, event.SSE.ResponseBodies[0].Init)
+}

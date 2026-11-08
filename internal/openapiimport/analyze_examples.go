@@ -15,17 +15,22 @@ import (
 	loom "github.com/CaliLuke/loom/pkg"
 )
 
-func (a *analyzer) mediaExamples(media *v3.MediaType, schema *Schema, path string) []Example {
+func (a *analyzer) wireExamples(
+	single *yaml.Node,
+	named *orderedmap.Map[string, *base.Example],
+	schema *Schema,
+	path string,
+) []Example {
 	var examples []Example
-	if media.Example != nil {
-		if value, ok := a.exampleValue(media.Example, path+"/example"); ok {
+	if single != nil {
+		if value, ok := a.exampleValue(single, path+"/example"); ok {
 			examples = append(examples, Example{Value: value, source: exampleSource{owner: schema, path: path + "/example"}})
 		}
 	}
-	for name, source := range media.Examples.FromOldest() {
+	for name, source := range named.FromOldest() {
 		examplePath := path + "/examples/" + escapeJSONPointer(name)
 		if source == nil {
-			a.unsupported("examples", examplePath, "media example is nil")
+			a.unsupported("examples", examplePath, "example is nil")
 			continue
 		}
 		if reference := exampleReference(source); reference != "" {
@@ -46,6 +51,29 @@ func (a *analyzer) mediaExamples(media *v3.MediaType, schema *Schema, path strin
 		examples[index].Scope = "media"
 	}
 	return examples
+}
+
+// headerExamples uses the Header's own source fields, preserving absence and
+// explicit null without inheriting a nested Schema's example. libopenapi#695
+// currently promotes nested examples into Header.Example. The source-presence
+// check can use the high-level field once that promotion is fixed and qualified:
+// https://github.com/pb33f/libopenapi/issues/695
+func (a *analyzer) headerExamples(source *v3.Header, schema *Schema, path string) []Example {
+	low := source.GoLow()
+	if low == nil {
+		a.unsupported("examples", path, "header example source presence is unavailable")
+		return nil
+	}
+	fields, err := effectiveYAMLMapping(low.RootNode, make(map[*yaml.Node]bool))
+	if err != nil {
+		a.unsupported("examples", path, fmt.Sprintf("header example source cannot be read: %v", err))
+		return nil
+	}
+	named := source.Examples
+	if fields["examples"] == nil {
+		named = nil
+	}
+	return a.wireExamples(fields["example"], named, schema, path)
 }
 
 func (a *analyzer) componentExample(name string, source *base.Example, path string) (Example, bool) {

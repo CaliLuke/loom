@@ -29,6 +29,7 @@ func (sd *ServiceData) preparePackageSymbols(endpoints []*transportir.Endpoint) 
 		for _, role := range []string{"handler", "mount", "decode-request", "encode-response", "encode-error", "encode-request", "decode-response", "contracts"} {
 			httpEndpointSymbol(sd.Scope, method.VarName, role)
 		}
+		prepareInformationalSymbols(sd.Scope, method.VarName, endpoint)
 		cases, _ := buildResponseContractCaseData(endpoint)
 		hasContracts = hasContracts || len(cases) > 0
 		for i := range endpoint.Routes {
@@ -42,6 +43,8 @@ func (sd *ServiceData) preparePackageSymbols(endpoints []*transportir.Endpoint) 
 				sd.Scope.Unique(method.ClientStream.VarName)
 			}
 			if endpoint.Stream.IsSSE && !endpoint.IsJSONRPC {
+				httpEndpointSymbol(sd.Scope, method.VarName, "prepare-handshake")
+				httpEndpointSymbol(sd.Scope, method.VarName, "decode-handshake")
 				sd.Scope.Unique(method.VarName + "ClientStream")
 				sd.Scope.Unique(method.VarName + "StreamImpl")
 				sd.Scope.Unique("New" + method.VarName + "Stream")
@@ -69,6 +72,20 @@ func (sd *ServiceData) preparePackageSymbols(endpoints []*transportir.Endpoint) 
 	})
 }
 
+func prepareInformationalSymbols(scope *codegen.NameScope, method string, endpoint *transportir.Endpoint) {
+	if endpoint.IsJSONRPC {
+		return
+	}
+	if len(endpoint.Response.Informational) > 0 {
+		httpEndpointSymbol(scope, method, "informational-observers")
+	}
+	for _, info := range endpoint.Response.Informational {
+		for _, role := range []string{"send", "observe", "observe-key", "decode-info"} {
+			httpInformationalSymbol(scope, method, info.Name, role)
+		}
+	}
+}
+
 func httpEndpointSymbol(scope *codegen.NameScope, method, role string) string {
 	var name string
 	switch role {
@@ -86,6 +103,12 @@ func httpEndpointSymbol(scope *codegen.NameScope, method, role string) string {
 		name = "Encode" + method + "Request"
 	case "decode-response":
 		name = "Decode" + method + "Response"
+	case "prepare-handshake":
+		name = "prepare" + method + "Handshake"
+	case "decode-handshake":
+		name = "decode" + method + "Handshake"
+	case "informational-observers":
+		name = codegen.Goify(method, false) + "InformationalObservers"
 	case "contracts":
 		name = method + "ResponseContractCases"
 	}
@@ -115,4 +138,19 @@ func endpointRequestEncoderSymbol(scope *codegen.NameScope, method *service.Meth
 		return ""
 	}
 	return httpEndpointSymbol(scope, method.VarName, "encode-request")
+}
+
+func httpInformationalSymbol(scope *codegen.NameScope, method, name, role string) string {
+	symbol := method + codegen.Goify(name, true)
+	switch role {
+	case "send":
+		symbol = "Send" + symbol
+	case "observe":
+		symbol = "With" + symbol
+	case "observe-key":
+		symbol = codegen.Goify(symbol, false) + "ObserverKey"
+	case "decode-info":
+		symbol = "decode" + symbol + "Informational"
+	}
+	return scope.HashedUnique(httpPackageSymbol("informational:"+method+":"+name+":"+role), symbol)
 }

@@ -43,6 +43,9 @@ var descriptionGrammar = map[string][]descriptionGrammarChild{
 	"headers":       {{"schema", "schemas", ""}, {"examples", "examples", "map"}, {"content", "media", "map"}},
 	"media":         {{"encoding", "encoding", "map"}, {"schema", "schemas", ""}, {"examples", "examples", "map"}, {"content", "media", "map"}},
 	"encoding":      {{"headers", "headers", "map"}},
+	"sseEnvelope":   {{"properties", "sseProperties", ""}},
+	"sseProperties": {{"data", "sseData", ""}},
+	"sseData":       {{"contentSchema", "schemas", ""}},
 	"requestBodies": {{"headers", "headers", "map"}, {"content", "media", "map"}},
 	"responses":     {{"headers", "headers", "map"}, {"content", "media", "map"}},
 }
@@ -72,6 +75,15 @@ func descriptionSchemaPositions(doc *document) (map[string]struct{}, error) {
 	walker := descriptionGrammarWalker{doc: doc, schemaPositions: make(map[string]struct{})}
 	if err := walker.visit(doc.root, "", "openapi"); err != nil {
 		return nil, err
+	}
+	for root := range doc.typedRoots {
+		node, err := descriptionNode(doc.root, root)
+		if err != nil {
+			return nil, err
+		}
+		if err := walker.visit(node, root, "schemas"); err != nil {
+			return nil, err
+		}
 	}
 	doc.schemaPositions = walker.schemaPositions
 	return doc.schemaPositions, nil
@@ -165,11 +177,17 @@ func (w *descriptionGrammarWalker) visit(node *yaml.Node, path, kind string) err
 			return err
 		}
 	case "operation":
-		if err := w.security(fields["security"], path+"/security"); err != nil {
+		if err := w.operation(node, path, fields); err != nil {
 			return err
 		}
 	case "callbacks":
 		return w.members(node, path, "pathItems", true)
+	case "media":
+		if media := strings.NewReplacer("~1", "/", "~0", "~").Replace(path[strings.LastIndex(path, "/")+1:]); normalizedMediaType(media) == "text/event-stream" {
+			if err := w.visit(fields["itemSchema"], path+"/itemSchema", "sseEnvelope"); err != nil {
+				return err
+			}
+		}
 	case "schemas":
 		w.discriminator(fields["discriminator"], path+"/discriminator")
 	}
@@ -308,6 +326,31 @@ func (w *descriptionGrammarWalker) sourceSecurityKeys(node *yaml.Node) error {
 				return err
 			}
 		}
+	}
+	return nil
+}
+
+func (w *descriptionGrammarWalker) operation(node *yaml.Node, path string, fields map[string]*yaml.Node) error {
+	if w.uriKeys == nil {
+		if w.doc.operations == nil {
+			w.doc.operations = make(map[string]bool)
+		}
+		if _, exists := w.doc.operations[path]; !exists {
+			w.doc.operations[path] = false
+		}
+	} else {
+		roots, err := reservedSSESchemaRoots(node, path)
+		if err != nil {
+			return err
+		}
+		for _, root := range roots {
+			if err := w.visit(root.node, root.path, "schemas"); err != nil {
+				return err
+			}
+		}
+	}
+	if err := w.security(fields["security"], path+"/security"); err != nil {
+		return err
 	}
 	return nil
 }

@@ -17,7 +17,10 @@ import (
 // Every required payload or reconstructed result/error field must have a runtime
 // source: the body, a transport mapping, or an existing protocol reconstruction
 // such as an authentication field or response Tag. Selecting a smaller body
-// does not make omitted required fields optional. A default alone cannot supply
+// does not generally make omitted required fields optional. In status-selected
+// success responses, members owned only by another branch become optional in
+// native result storage and retain their requirements on that other branch.
+// A default alone cannot supply
 // a field that is absent from every decoder input. Result views constrain which
 // fields are required in that representation.
 //
@@ -169,6 +172,9 @@ func body(args []any, openAPIOnly bool) {
 
 func resolveBodyContext(openAPIOnly bool) (*expr.AttributeExpr, func(*expr.AttributeExpr), string, bool) {
 	switch e := eval.Current().(type) {
+	case *expr.HTTPInformationalExpr:
+		eval.ReportError("Informational cannot define a body")
+		return nil, nil, "", false
 	case *expr.HTTPEndpointExpr:
 		if openAPIOnly {
 			eval.IncompatibleDSL()

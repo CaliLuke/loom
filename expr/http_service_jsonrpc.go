@@ -127,3 +127,40 @@ func (svc *HTTPServiceExpr) validateJSONRPCRoutes(verr *eval.ValidationErrors) {
 		}
 	}
 }
+
+// validateHTTPJSONRPCMethods rejects shared service methods whose HTTP and
+// JSON-RPC mappings require incompatible method signatures or stream operations.
+func (r *RootExpr) validateHTTPJSONRPCMethods() *eval.ValidationErrors {
+	verr := new(eval.ValidationErrors)
+	if r.API == nil || r.API.HTTP == nil || r.API.JSONRPC == nil {
+		return verr
+	}
+	for _, httpService := range r.API.HTTP.Services {
+		rpcService := r.API.JSONRPC.Service(httpService.Name())
+		if rpcService == nil {
+			continue
+		}
+		for _, endpoint := range httpService.HTTPEndpoints {
+			if endpoint.IsJSONRPC() {
+				continue
+			}
+			rpc := rpcService.Endpoint(endpoint.Name())
+			if rpc == nil || !rpc.IsJSONRPC() {
+				continue
+			}
+			if endpoint.MethodExpr.IsStreaming() {
+				verr.Add(endpoint.MethodExpr, "streaming method cannot define both HTTP and JSON-RPC mappings; use separate methods for their distinct stream contracts")
+			}
+			if endpoint.SkipRequestBodyEncodeDecode {
+				verr.Add(endpoint.MethodExpr, "method cannot use SkipRequestBodyEncodeDecode and define a JSON-RPC transport; use separate methods for their distinct request contracts")
+			}
+			if endpoint.SkipResponseBodyEncodeDecode {
+				verr.Add(endpoint.MethodExpr, "method cannot use SkipResponseBodyEncodeDecode and define a JSON-RPC transport; use separate methods for their distinct response contracts")
+			}
+			if endpoint.FileResponse {
+				verr.Add(endpoint.MethodExpr, "method cannot use FileResponse and define a JSON-RPC transport; use separate methods for their distinct response contracts")
+			}
+		}
+	}
+	return verr
+}

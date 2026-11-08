@@ -38,9 +38,9 @@ func parameterNamespaceLiteral(element *Element) string {
 	return fmt.Sprintf("loomhttp.ParamNamespace{Literals: %#v, Prefixes: %#v, OwnedLiterals: %#v}", element.Namespace.Literals, element.Namespace.Prefixes, element.Namespace.OwnedLiterals)
 }
 
-func renderStyledEncode(element *Element, source, location string) string {
+func renderStyledEncode(element *Element, source, location, header string) string {
 	if expr.AsUnion(element.Type) != nil {
-		return renderTextUnionEncode(element, source, location)
+		return renderTextUnionEncode(element, source, location, header)
 	}
 	if element.fieldAttribute == nil {
 		panic("styled parameter " + element.Name + " has no retained physical attribute") // bug
@@ -55,10 +55,6 @@ func renderStyledEncode(element *Element, source, location string) string {
 	codec := parameterCodecLiteral(element.Codec)
 	switch location {
 	case "header", "response-header":
-		header := "req.Header"
-		if location == "response-header" {
-			header = "w.Header()"
-		}
 		fmt.Fprintf(&code, "parameterEncoded, parameterError := loomhttp.EncodeHeaderParam(%q, %s, parameterValue)\nif parameterError != nil {\nreturn parameterError\n}\nif parameterValue.Present {\n%s.Set(%q, parameterEncoded)\n}\n", element.HTTPName, codec, header, element.HTTPName)
 	case "query":
 		fmt.Fprintf(&code, "if parameterError := parameterBuilder.Add(%q, %s, parameterValue, %s); parameterError != nil {\nreturn parameterError\n}\n", element.HTTPName, codec, parameterNamespaceLiteral(element))
@@ -73,18 +69,15 @@ func renderStyledEncode(element *Element, source, location string) string {
 
 // renderStyledDecode emits the body of a request-error closure shared by HTTP
 // and JSON-RPC. Their outer templates select the protocol error response.
-func renderStyledDecode(element *Element, location string) string {
+func renderStyledDecode(element *Element, location, headers string) string {
 	if expr.AsUnion(element.Type) != nil {
-		return renderTextUnionDecode(element, location)
+		return renderTextUnionDecode(element, location, headers)
 	}
 	var code strings.Builder
 	codec, kind := parameterCodecLiteral(element.Codec), parameterKindLiteral(element.Codec)
 	switch location {
 	case "header", "response-header":
-		header := "r.Header"
-		if location == "response-header" {
-			header = "resp.Header"
-		}
+		header := headers
 		fmt.Fprintf(&code, "parameterValue, parameterError := loomhttp.DecodeHeaderParam(%q, %s.Values(%q), len(%s.Values(%q)) > 0, %s, %s)\n", element.HTTPName, header, element.HTTPName, header, element.HTTPName, codec, kind)
 	case "query":
 		fmt.Fprintf(&code, "parameterValue, parameterError := loomhttp.DecodePairsParam(parameterPairs, %q, %s, %s, %s)\n", element.HTTPName, codec, kind, parameterNamespaceLiteral(element))

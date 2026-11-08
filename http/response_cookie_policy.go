@@ -10,7 +10,8 @@ import (
 
 type (
 	// ResponseCookiePolicy applies deployment-specific attributes to a modeled
-	// response cookie immediately before Loom writes it. Policies may set values
+	// response cookie when Loom prepares it for publication. Typed response metadata
+	// may be prepared before its first physical write. Policies may set values
 	// such as Domain, Secure, and Expires without moving cookie values out of the
 	// generated response contract.
 	ResponseCookiePolicy func(context.Context, *http.Cookie) error
@@ -31,20 +32,21 @@ func (p ResponseCookiePolicy) Handler(next http.Handler) http.Handler {
 	})
 }
 
-// SetResponseCookie applies the active runtime policy, validates the resulting
-// cookie, and writes it to w. Generated response encoders call this function.
-func SetResponseCookie(ctx context.Context, w http.ResponseWriter, cookie *http.Cookie) error {
+// PrepareResponseCookie applies the active deployment policy and validates a
+// modeled response cookie before returning its Set-Cookie field value. Policy
+// mutations apply to cookie; failure returns no value for publication.
+func PrepareResponseCookie(ctx context.Context, cookie *http.Cookie) (string, error) {
 	if cookie == nil {
-		return fmt.Errorf("response cookie cannot be nil")
+		return "", fmt.Errorf("response cookie cannot be nil")
 	}
 	if ctx != nil {
 		if policy, ok := ctx.Value(responseCookiePolicyContextKey{}).(ResponseCookiePolicy); ok && policy != nil {
 			designed := *cookie
 			if err := policy(ctx, cookie); err != nil {
-				return fmt.Errorf("apply response cookie policy to %q: %w", designed.Name, err)
+				return "", fmt.Errorf("apply response cookie policy to %q: %w", designed.Name, err)
 			}
 			if responseCookieContractChanged(&designed, cookie) {
-				return fmt.Errorf(
+				return "", fmt.Errorf(
 					"response cookie policy for %q may change only Domain, Secure, and Expires",
 					designed.Name,
 				)
@@ -52,12 +54,23 @@ func SetResponseCookie(ctx context.Context, w http.ResponseWriter, cookie *http.
 		}
 	}
 	if err := cookie.Valid(); err != nil {
-		return fmt.Errorf("validate response cookie %q: %w", cookie.Name, err)
+		return "", fmt.Errorf("validate response cookie %q: %w", cookie.Name, err)
 	}
 	if err := validateRuntimeResponseCookieSecurity(cookie); err != nil {
+		return "", err
+	}
+	return cookie.String(), nil
+}
+
+// SetResponseCookie applies the active runtime policy, validates the resulting
+// cookie, and writes it to w. Staged response metadata uses PrepareResponseCookie
+// directly and publishes the resulting header after all metadata is valid.
+func SetResponseCookie(ctx context.Context, w http.ResponseWriter, cookie *http.Cookie) error {
+	value, err := PrepareResponseCookie(ctx, cookie)
+	if err != nil {
 		return err
 	}
-	http.SetCookie(w, cookie)
+	w.Header().Add("Set-Cookie", value)
 	return nil
 }
 

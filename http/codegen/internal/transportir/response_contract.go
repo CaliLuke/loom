@@ -11,7 +11,7 @@ import (
 
 type (
 	// ResponseContractCaseKind identifies whether a contract case exercises a
-	// successful result or a service error.
+	// successful result, an informational response or a service error.
 	ResponseContractCaseKind string
 
 	// ResponseContractTransport identifies the wire protocol validated by a
@@ -44,12 +44,16 @@ type (
 	ResponseContractCase struct {
 		// ID is stable across generation when the service contract is unchanged.
 		ID string
-		// Kind distinguishes successful results from service errors.
+		// Kind distinguishes successful results, informational responses and
+		// service errors.
 		Kind ResponseContractCaseKind
 		// Transport identifies the response protocol.
 		Transport ResponseContractTransport
-		// StatusCode is the declared HTTP response status.
-		StatusCode int
+		// Selector is the declared status selector that owns the response.
+		Selector expr.HTTPStatusSelector
+		// Domain lists the HTTP statuses the response may use. An exact
+		// selector has its single status as the domain.
+		Domain []int
 		// ErrorName is the declared service error name for error cases.
 		ErrorName string
 		// ErrorNameFromStatus identifies responses that omit Loom-Error.
@@ -171,6 +175,9 @@ const (
 	ResponseContractSuccess ResponseContractCaseKind = "success"
 	// ResponseContractError identifies an error response contract case.
 	ResponseContractError ResponseContractCaseKind = "error"
+	// ResponseContractInformational identifies an interim informational
+	// response contract case.
+	ResponseContractInformational ResponseContractCaseKind = "informational"
 	// ResponseContractHTTP identifies an ordinary HTTP response contract.
 	ResponseContractHTTP ResponseContractTransport = "http"
 	// ResponseContractSSE identifies a Server-Sent Events response contract.
@@ -222,7 +229,8 @@ func AnalyzeResponseContractCases(endpoint *Endpoint) *ResponseContractAnalysis 
 		contractResponse := response
 		if endpoint.Stream != nil && endpoint.Stream.IsWebSocket {
 			webSocketResponse := *response
-			webSocketResponse.StatusCode = endpoint.Stream.HandshakeStatus
+			webSocketResponse.Selector = expr.HTTPStatusSelector{Code: endpoint.Stream.HandshakeStatus}
+			webSocketResponse.Domain = []int{endpoint.Stream.HandshakeStatus}
 			webSocketResponse.ContentTypes = nil
 			webSocketResponse.Body = &expr.AttributeExpr{Type: expr.Empty}
 			contractResponse = &webSocketResponse
@@ -240,6 +248,11 @@ func AnalyzeResponseContractCases(endpoint *Endpoint) *ResponseContractAnalysis 
 	}
 	for _, response := range endpoint.Response.ErrorResponses {
 		contractCase := newResponseContractCase(serviceName, methodName, endpoint.Response.FileResponse, response)
+		contractCase.Multipart = multipart
+		analysis.Cases = append(analysis.Cases, contractCase)
+	}
+	for _, info := range endpoint.Response.Informational {
+		contractCase := newInformationalContractCase(serviceName, methodName, info.Response)
 		contractCase.Multipart = multipart
 		analysis.Cases = append(analysis.Cases, contractCase)
 	}
@@ -446,7 +459,8 @@ func responseContractWebSocketLimitations(stream *Stream) []ResponseContractLimi
 func newResponseContractCase(serviceName, methodName string, fileResponse bool, response *ResponseStatus) *ResponseContractCase {
 	// IsError == (Error != nil) is guaranteed at construction (see
 	// buildResponseStatus in request_response.go), so Error is dereferenced
-	// unguarded here, matching responseContractCaseID below.
+	// unguarded here, matching responseContractCaseID below. The case copies the
+	// response's authored selector and detaches its captured status domain.
 	kind := ResponseContractSuccess
 	errorName := ""
 	if response.IsError {
@@ -461,7 +475,8 @@ func newResponseContractCase(serviceName, methodName string, fileResponse bool, 
 		ID:                  responseContractCaseID(serviceName, methodName, kind, response),
 		Kind:                kind,
 		Transport:           ResponseContractHTTP,
-		StatusCode:          response.StatusCode,
+		Selector:            response.Selector,
+		Domain:              append([]int(nil), response.Domain...),
 		ErrorName:           errorName,
 		ErrorNameFromStatus: response.StatusErrorName != "",
 		TagName:             tagName,
@@ -471,6 +486,18 @@ func newResponseContractCase(serviceName, methodName string, fileResponse bool, 
 		Headers:             responseContractHeaders(response.Headers),
 		Cookies:             responseContractCookies(response.Cookies),
 	}
+}
+
+// newInformationalContractCase describes one interim declaration. It keeps the
+// captured selector, detached domain and headers; interim responses carry no
+// content, so the case asserts no media type or body.
+func newInformationalContractCase(serviceName, methodName string, response *ResponseStatus) *ResponseContractCase {
+	contractCase := newResponseContractCase(serviceName, methodName, false, response)
+	contractCase.Kind = ResponseContractInformational
+	contractCase.ID = responseContractCaseID(serviceName, methodName, ResponseContractInformational, response)
+	contractCase.ContentTypes = nil
+	contractCase.HasBody = false
+	return contractCase
 }
 
 func newResponseContractSSE(stream *Stream) *ResponseContractSSE {
@@ -561,7 +588,7 @@ func responseContractCaseID(serviceName, methodName string, kind ResponseContrac
 	if kind == ResponseContractError {
 		parts = append(parts, responseContractIDSegment(response.Error.Name))
 	}
-	parts = append(parts, fmt.Sprintf("%d", response.StatusCode))
+	parts = append(parts, response.Selector.OpenAPIKey())
 	if kind == ResponseContractSuccess && response.Tag != nil {
 		parts = append(parts, responseContractIDSegment(expr.AttributeName(response.Tag.Key))+"="+responseContractIDSegment(response.Tag.Value))
 	}

@@ -65,6 +65,7 @@ func officialOpenAPIFixedFields() map[string][]string {
 			"$self", "components", "externalDocs", "info", "jsonSchemaDialect",
 			"openapi", "paths", "security", "servers", "tags", "webhooks",
 		},
+		"Server Object": {"name", "url", "description", "variables"},
 		"Info Object": {
 			"contact", "description", "license", "summary", "termsOfService", "title", "version",
 		},

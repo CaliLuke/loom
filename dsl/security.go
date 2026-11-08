@@ -373,10 +373,15 @@ func SessionSecurity(arg any) {
 // endpoints.
 //
 // AuthErrorResponses must appear in an API, service or method HTTP expression.
+// It rejects JSON-RPC scopes; use Response to author JSON-RPC error codes.
 // The helper ensures the corresponding "unauthorized" and "forbidden" errors
 // exist in the matching API, service or method scope and adds the HTTP 401 and
 // 403 response mappings if they are not already defined.
 func AuthErrorResponses() {
+	if expr.IsJSONRPCScope(eval.Current()) {
+		eval.ReportError("AuthErrorResponses is HTTP only; define JSON-RPC error mappings with Response")
+		return
+	}
 	switch actual := eval.Current().(type) {
 	case *expr.RootExpr:
 		ensureAuthError(actual, authUnauthorizedErrorName)

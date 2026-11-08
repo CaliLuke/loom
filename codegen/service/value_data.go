@@ -26,8 +26,9 @@ type (
 	}
 
 	serviceValueKey struct {
-		method *expr.MethodExpr
-		role   string
+		method   *expr.MethodExpr
+		role     string
+		response *expr.HTTPResponseExpr
 	}
 )
 
@@ -71,13 +72,12 @@ func (d *ServicesData) valueStore() *serviceValueStore {
 	return d.values
 }
 
-func (d *ServicesData) methodValue(method *expr.MethodExpr, role string, attribute *expr.AttributeExpr, generator *expr.ExampleGenerator) *ValueData {
+func (d *ServicesData) methodValue(key serviceValueKey, attribute *expr.AttributeExpr, generator *expr.ExampleGenerator) *ValueData {
 	store := d.valueStore()
-	key := serviceValueKey{method: method, role: role}
 	if value, found := store.values[key]; found {
 		return value
 	}
-	value := store.semantic.value(method, role)
+	value := store.semantic.value(key)
 	if value != nil {
 		value.SynthesisScope = store.scope
 	}

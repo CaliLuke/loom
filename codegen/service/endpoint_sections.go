@@ -82,6 +82,19 @@ func responseBodyStructSection(method *EndpointMethodData) codegen.Section {
 	})
 }
 
+func responseMetadataStructSection(method *EndpointMethodData) codegen.Section {
+	return codegen.NewJenniferSection("response-metadata-struct", func(stmt *jen.Statement) {
+		codegen.Doc(stmt, fmt.Sprintf("%s keeps the complete unary result and validated response metadata of %s.", method.ResponseStruct, method.Name))
+		stmt.Type().Id(method.ResponseStruct).StructFunc(func(group *jen.Group) {
+			groupDoc(group, "Result is the complete unary method result.")
+			group.Id("Result").Add(codegen.TypeRef(method.ResultRef))
+			groupDoc(group, "Metadata is the validated metadata shared with the streaming response contract.")
+			group.Id("Metadata").Add(codegen.TypeRef(method.ClientStream.HandshakeRef))
+		})
+		stmt.Line()
+	})
+}
+
 func fileResponseStructSection(method *EndpointMethodData) codegen.Section {
 	return codegen.NewJenniferSection("file-response-struct", func(stmt *jen.Statement) {
 		codegen.Doc(stmt, fmt.Sprintf("%s holds both the result and seekable file response of the %q method.", method.FileResponseStruct, method.Name))

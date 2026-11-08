@@ -177,7 +177,7 @@ func TestDiscriminatorDefaultMappingDeclaredLater(t *testing.T) {
 		})
 	})
 	a, bodies := annotationBodies(t, root, true, WithExampleValue(nil))
-	binding := bodies.Services["parents"]["Show"].ResponseBodies[200][0]
+	binding := bodies.Services["parents"]["Show"].ResponseBodies["200"][0]
 	_, parent := annotationComponent(t, binding, a.schemas)
 	target := a.declarationRoots["Cat"]
 	require.NotNil(t, target, "the later declaration is acquired before resolving the default")
@@ -265,7 +265,7 @@ func captureBodyFamilies(t *testing.T, a *Analyzer, endpoint *EndpointBodies) []
 	response := endpoint.prepared.Response.Responses[0]
 	return []preferredFamily{
 		capturePreferredFamily(t, a, endpoint.RequestBody, endpoint.prepared.Request.BodyValue),
-		capturePreferredFamily(t, a, endpoint.ResponseBodies[200][0], response.DocumentValues["application/json"]),
+		capturePreferredFamily(t, a, endpoint.ResponseBodies["200"][0], response.DocumentValues["application/json"]),
 	}
 }
 

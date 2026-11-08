@@ -19,7 +19,7 @@ func jsonrpcErrorDecoderSection(e *httpcodegen.EndpointData) codegen.Section {
 					if len(group.Errors) == 0 {
 						continue
 					}
-					codes.Case(codegen.Expr(group.StatusCode)).BlockFunc(func(branch *jen.Group) {
+					codes.Case(jen.Lit(*group.JSONRPCCode)).BlockFunc(func(branch *jen.Group) {
 						branch.Return(jen.Qual("github.com/CaliLuke/loom/jsonrpc", "DecodeErrorResponse").Call(
 							jen.Lit(e.ServiceName), jen.Lit(e.Method.Name), jen.Id("wire"), jen.Id("resp"),
 							jen.Index().Qual("github.com/CaliLuke/loom/jsonrpc", "ErrorCandidate").ValuesFunc(func(candidates *jen.Group) {

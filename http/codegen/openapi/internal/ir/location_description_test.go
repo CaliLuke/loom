@@ -28,7 +28,7 @@ func TestLocationSchemaDescriptions(t *testing.T) {
 						attribute.Meta = expr.MetaExpr{"openapi:description:schema": {tc.schema}}
 					}
 					random := expr.NewRandom("location-descriptions")
-					value, err := representation.PrepareStandaloneExamples(attribute, random)
+					value, err := representation.PrepareStandaloneValues(attribute, random, true)
 					require.NoError(t, err)
 					original := &Schema{Type: "string", Description: tc.outer}
 					var prepared []map[*expr.AttributeExpr]*Schema

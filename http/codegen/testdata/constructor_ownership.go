@@ -14,6 +14,10 @@ func ConstructorOwnership(mode string, rpc, reverse bool) {
 			JSONRPC(func() {})
 		}
 	})
+	if mode == "metadata" || mode == "metadata-handshake" || mode == "metadata-multi-exact" {
+		constructorMetadataService(reverse, mode == "metadata-handshake", mode == "metadata-multi-exact")
+		return
+	}
 	var payload any
 	switch mode {
 	case "handler":
@@ -148,6 +152,65 @@ func constructorAliasMethods(mode string, rpc, reverse bool, required, optional 
 			}
 		})
 	}
+}
+
+// constructorMetadataService extends the maintained ownership specimen with
+// native metadata-only types. Multi-exact mode uses one typed handshake for
+// both 201 and 202; cookie mode retains the separate cookie-mapped method.
+func constructorMetadataService(reverse, cookies, multiExact bool) {
+	detail := Type("MetadataDetail", func() {
+		Attribute("message", String)
+		Meta("struct:pkg:path", "metadata")
+	})
+	opening := Type("Opening", func() {
+		Attribute("status", Int)
+		Attribute("session", String)
+		Attribute("detail", detail)
+		Required("status", "session")
+	})
+	Service("constructors", func() {
+		names := []string{"m", "watch"}
+		if cookies {
+			names = append(names, "cookie")
+		}
+		if reverse {
+			names[0], names[1] = names[1], names[0]
+		}
+		for _, name := range names {
+			Method(name, func() {
+				if name != "m" {
+					StreamingResult(String)
+				} else {
+					Result(String)
+				}
+				HTTP(func() {
+					GET("/" + name)
+					if name != "m" {
+						ServerSentEvents()
+						statuses := []int{StatusCreated}
+						if multiExact {
+							statuses = append(statuses, StatusAccepted)
+						}
+						for _, status := range statuses {
+							Response(status, opening, func() {
+								StatusField("status")
+								if name == "cookie" {
+									Cookie("session:session")
+								} else {
+									Header("session:X-Session")
+								}
+							})
+						}
+						return
+					}
+					Informational("hints", StatusEarlyHints, opening, func() {
+						StatusField("status")
+						Header("session:X-Session")
+					})
+				})
+			})
+		}
+	})
 }
 
 // ConstructorOwnershipWireHarness verifies that two selected fields of the same
@@ -285,3 +348,225 @@ func TestMountedSharedConstructor(t *testing.T) {
  }
 }
 `
+
+// MixedMetadataDSL extends the constructor specimen with separate native unary,
+// event and response-metadata values whose logical field names overlap.
+func MixedMetadataDSL() {
+	Interceptor("metadataAudit", func() {
+		Description("Observes the complete client return value.")
+	})
+	opening := Type("MixedOpening", func() {
+		Attribute("status", Int, func() {
+			Enum(201, 202, 299, 303, 500)
+		})
+		Attribute("session", String)
+		Required("status", "session")
+	})
+	result := Type("MixedResult", func() {
+		Attribute("status", String)
+		Attribute("session", String)
+		Required("status", "session")
+	})
+	viewed := ResultType("application/vnd.mixed+json", func() {
+		TypeName("MixedView")
+		Attribute("status", String)
+		Attribute("session", String)
+		Attribute("hidden", String)
+		Required("status", "session")
+		View("default", func() {
+			Attribute("status")
+			Attribute("session")
+		})
+		View("full", func() {
+			Attribute("status")
+			Attribute("session")
+			Attribute("hidden")
+		})
+	})
+	event := ResultType("application/vnd.mixed-event+json", func() {
+		TypeName("MixedEvent")
+		Attribute("status", String)
+		Attribute("session", String)
+		Attribute("hidden", String)
+		Required("status", "session", "hidden")
+		View("default", func() {
+			Attribute("status")
+			Attribute("session")
+		})
+		View("full", func() {
+			Attribute("status")
+			Attribute("session")
+			Attribute("hidden")
+		})
+	})
+	Service("mixed", func() {
+		mixedMetadataReadMethod(opening, result)
+		mixedMetadataVariantMethods(opening, viewed)
+		mixedMetadataViewedMethods(opening, viewed, event)
+	})
+}
+
+// ImplicitHandshakeDSL declares optional handshake metadata with authored
+// defaults on SSE and typed mixed methods, plus an optional member without one.
+// Token members use the module-local custom representation package; the invalid
+// carrier's default fails that representation's parser at runtime.
+func ImplicitHandshakeDSL() {
+	token := func(fallback string) func() {
+		return func() {
+			Meta("struct:field:type", "scalar.Token", "example.com/handshake/scalar")
+			Default(fallback)
+		}
+	}
+	opening := Type("ImplicitOpening", func() {
+		Attribute("trace", String, func() {
+			Default("abc")
+		})
+		Attribute("count", Int, func() {
+			Default(7)
+		})
+		Attribute("session", String, func() {
+			Default("sess")
+		})
+		Attribute("note", String)
+		Attribute("token", String, token("token:default"))
+		Attribute("hint", String, token("token:hint"))
+	})
+	invalid := Type("InvalidOpening", func() {
+		Attribute("token", String, token("bad:default"))
+		Attribute("session", String, func() {
+			Default("sess")
+		})
+	})
+	response := func() {
+		Response(StatusOK, opening, func() {
+			Header("trace:X-Trace")
+			Header("count:X-Count")
+			Header("note:X-Note")
+			Header("token:X-Token")
+			Cookie("session:sid")
+		})
+	}
+	invalidResponse := func() {
+		Response(StatusOK, invalid, func() {
+			Header("token:X-Token")
+			Cookie("session:sid")
+		})
+	}
+	Service("implicit", func() {
+		Method("watch", func() {
+			Payload(func() {
+				Attribute("explicit", Boolean)
+			})
+			StreamingResult(String)
+			HTTP(func() {
+				GET("/implicit")
+				Param("explicit")
+				ServerSentEvents()
+				response()
+			})
+		})
+		Method("mixed", func() {
+			Result(String)
+			StreamingResult(String)
+			HTTP(func() {
+				GET("/implicit/mixed")
+				ServerSentEvents()
+				response()
+			})
+		})
+		Method("invalid", func() {
+			StreamingResult(String)
+			HTTP(func() {
+				GET("/implicit/invalid")
+				ServerSentEvents()
+				invalidResponse()
+			})
+		})
+		Method("invalidMixed", func() {
+			Result(String)
+			StreamingResult(String)
+			HTTP(func() {
+				GET("/implicit/invalid/mixed")
+				ServerSentEvents()
+				invalidResponse()
+			})
+		})
+	})
+}
+
+func mixedMetadataReadMethod(opening, result expr.UserType) {
+	Method("read", func() {
+		ClientInterceptor("metadataAudit")
+		Result(result)
+		StreamingResult(String)
+		HTTP(func() {
+			GET("/mixed")
+			ServerSentEvents()
+			for _, status := range []any{StatusCreated, Status2XX, StatusFallback} {
+				Response(status, opening, func() {
+					StatusField("status")
+					Header("session:X-Session")
+				})
+			}
+		})
+	})
+}
+
+func mixedMetadataVariantMethods(opening expr.UserType, viewed *expr.ResultTypeExpr) {
+	for _, shape := range []struct {
+		name   string
+		result any
+	}{
+		{"primitive", String},
+		{"collection", ArrayOf(String)},
+		{"viewed", viewed},
+	} {
+		Method(shape.name, func() {
+			if shape.name == "viewed" {
+				Result(shape.result, func() {
+					View("default")
+				})
+			} else {
+				Result(shape.result)
+			}
+			StreamingResult(String)
+			HTTP(func() {
+				GET("/mixed/" + shape.name)
+				ServerSentEvents()
+				Response(StatusAccepted, opening, func() {
+					StatusField("status")
+					Header("session:X-Session")
+				})
+			})
+		})
+	}
+}
+
+func mixedMetadataViewedMethods(opening expr.UserType, viewed, event *expr.ResultTypeExpr) {
+	Method("event", func() {
+		Result(String)
+		StreamingResult(event, func() {
+			View("default")
+		})
+		HTTP(func() {
+			GET("/mixed/event")
+			ServerSentEvents()
+			Response(StatusAccepted, opening, func() {
+				StatusField("status")
+				Header("session:X-Session")
+			})
+		})
+	})
+	Method("dynamic", func() {
+		Result(viewed)
+		StreamingResult(String)
+		HTTP(func() {
+			GET("/mixed/dynamic")
+			ServerSentEvents()
+			Response(StatusAccepted, opening, func() {
+				StatusField("status")
+				Header("session:X-Session")
+			})
+		})
+	})
+}

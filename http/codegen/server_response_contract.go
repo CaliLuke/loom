@@ -6,6 +6,7 @@ import (
 	"github.com/dave/jennifer/jen"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 )
 
@@ -74,15 +75,16 @@ func serverResponseContractsSection(data *ServiceData) codegen.Section {
 }
 
 func responseContractCaseFields(contractCase *ResponseContractCaseData) []jen.Code {
-	kind := "loomhttp.ResponseContractSuccess"
-	if contractCase.IsError {
-		kind = "loomhttp.ResponseContractError"
-	}
 	fields := []jen.Code{
 		jen.Id("ID").Op(":").Lit(contractCase.ID),
-		jen.Id("Kind").Op(":").Add(codegen.Expr(kind)),
+		jen.Id("Kind").Op(":").Add(codegen.Expr(responseContractKindRef(contractCase.Kind))),
 		jen.Id("Transport").Op(":").Add(codegen.Expr(responseContractTransportRef(contractCase.Transport))),
-		jen.Id("StatusCode").Op(":").Lit(contractCase.StatusCode),
+		jen.Id("Selector").Op(":").Add(responseContractSelectorValue(contractCase.Selector)),
+		jen.Id("Domain").Op(":").Index().Int().ValuesFunc(func(group *jen.Group) {
+			for _, code := range contractCase.Domain {
+				group.Lit(code)
+			}
+		}),
 	}
 	if contractCase.ErrorName != "" {
 		fields = append(fields, jen.Id("ErrorName").Op(":").Lit(contractCase.ErrorName))
@@ -156,6 +158,28 @@ func responseContractWebSocketField(contract *WebSocketResponseContractData) jen
 			jen.Id("Terminal"):            jen.Lit(contract.Terminal),
 		},
 	)
+}
+
+func responseContractSelectorValue(selector expr.HTTPStatusSelector) jen.Code {
+	return codegen.TypeRef("loomhttp.StatusSelector").ValuesFunc(func(group *jen.Group) {
+		if selector.Code != 0 {
+			group.Id("Code").Op(":").Lit(selector.Code)
+		}
+		if selector.Class != 0 {
+			group.Id("Class").Op(":").Lit(int(selector.Class))
+		}
+	})
+}
+
+func responseContractKindRef(kind string) string {
+	switch kind {
+	case string(transportir.ResponseContractError):
+		return "loomhttp.ResponseContractError"
+	case string(transportir.ResponseContractInformational):
+		return "loomhttp.ResponseContractInformational"
+	default:
+		return "loomhttp.ResponseContractSuccess"
+	}
 }
 
 func responseContractTransportRef(transport string) string {

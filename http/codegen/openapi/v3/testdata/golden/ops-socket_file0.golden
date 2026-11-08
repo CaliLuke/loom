@@ -44,7 +44,9 @@
             },
             "response": {
               "contentType": "",
-              "status": 101
+              "statuses": [
+                "101"
+              ]
             }
           },
           "messages": {

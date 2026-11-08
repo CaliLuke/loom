@@ -28,7 +28,9 @@ type (
 		typeName, variable string
 	}
 	designNames struct {
-		clones map[cloneIdentity]cloneNames
+		clones        map[cloneIdentity]cloneNames
+		informational map[cloneIdentity]cloneNames
+		handshakes    map[cloneIdentity]cloneNames
 	}
 	errorCloneCandidate struct {
 		identity cloneIdentity
@@ -48,11 +50,11 @@ func errorCloneInventory(document *Document) ([]errorCloneCandidate, error) {
 	}
 	for i := range resolved.Operations {
 		operation := &resolved.Operations[i]
-		_, failures, err := r.operationResponses(operation, operationResponseBodyMode(operation), fmt.Sprintf("#/operations/%d", i))
+		responses, err := r.operationResponses(operation, fmt.Sprintf("#/operations/%d", i))
 		if err != nil {
 			return nil, err
 		}
-		r.operations = append(r.operations, operationPlan{failures: failures})
+		r.operations = append(r.operations, operationPlan{renderedResponses: responses})
 	}
 	disambiguateSharedErrorStatuses(resolved.Operations, r.operations)
 	if err := r.classifyErrorClones(); err != nil {
@@ -61,7 +63,7 @@ func errorCloneInventory(document *Document) ([]errorCloneCandidate, error) {
 	introduced := make(map[string]bool)
 	for i, plan := range r.operations {
 		for _, response := range plan.failures {
-			if len(response.headers) > 0 || response.response.Schema == nil || response.response.Schema.Ref == "" {
+			if len(response.headers) > 0 || response.statusField != "" || response.response.Schema == nil || response.response.Schema.Ref == "" {
 				continue
 			}
 			name, err := openapiref.Name(response.response.Schema.Ref, "#/components/schemas/")
@@ -115,11 +117,17 @@ func allocateDesignNames(document *Document) error {
 	a := designNameAllocator{document: document, types: make(map[string]int), variables: make(map[string]int), scope: codegen.NewNameScope()}
 	a.reserveEntry()
 	candidates, err := errorCloneInventory(document)
-	document.names = designNames{clones: make(map[cloneIdentity]cloneNames)}
+	document.names = designNames{clones: make(map[cloneIdentity]cloneNames), informational: make(map[cloneIdentity]cloneNames), handshakes: make(map[cloneIdentity]cloneNames)}
 	a.allocateClones(candidates, false)
 	a.allocateIntroducedSchemas()
 	a.allocateIntroducedSchemes()
 	a.allocateClones(candidates, true)
+	a.allocateInformational()
+	resolved, diagnostics := resolveReusableDocument(document)
+	if len(diagnostics) > 0 {
+		return diagnostics
+	}
+	a.allocateHandshakes(resolved.Operations)
 	return err
 }
 
@@ -223,5 +231,21 @@ func (a *designNameAllocator) allocateIntroducedSchemes() {
 	for _, i := range schemes {
 		scheme := &a.document.Components.SecuritySchemes[i]
 		scheme.GoName = uniqueName("Imported"+codegen.Goify(scheme.Name, true)+"Security", a.variables)
+	}
+}
+
+func (a *designNameAllocator) allocateInformational() {
+	for _, operation := range a.document.Operations {
+		plan, _ := classifyOperationResponses(&operation, operation.sourcePath, a.document.Components)
+		for _, response := range plan.informational {
+			base := operation.GoName + "Status" + selectorName(response.selector)
+			name := a.scope.Unique(base)
+			for a.types[strings.ToLower(name)] > 0 {
+				name = a.scope.Unique(base)
+			}
+			a.types[strings.ToLower(name)] = 1
+			variable := uniqueName("Imported"+name, a.variables)
+			a.document.names.informational[cloneIdentity{operation.Method, operation.Path, response.source.Status}] = cloneNames{name, variable}
+		}
 	}
 }

@@ -115,7 +115,19 @@ func (p *referencePlanner) schema(schema *Schema, owner, path, constructor strin
 		p.schema(schema.AdditionalProperties.Schema, owner, path+"/additionalProperties", "MapOf", delayed)
 	}
 	for index, base := range schema.Bases {
-		p.schema(base, owner, fmt.Sprintf("%s/bases/%d", path, index), "Extend", false)
+		basePath := fmt.Sprintf("%s/bases/%d", path, index)
+		if primitiveContributorType(schema.Type) {
+			for _, named := range p.schemas {
+				if named.constructionOnly && named.Schema == base {
+					p.occurrences = append(p.occurrences, referenceOccurrence{
+						key: referenceOccurrenceKey{owner: owner, path: basePath}, target: componentDeclaration(named.Name),
+						name: named.Name, constructor: "Type",
+					})
+				}
+			}
+		} else {
+			p.schema(base, owner, basePath, "Extend", false)
+		}
 	}
 	for _, property := range schema.Properties {
 		p.schema(property.Schema, owner, path+"/properties/"+escapeJSONPointer(property.Name), "Attribute", true)

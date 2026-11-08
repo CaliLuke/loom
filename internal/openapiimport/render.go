@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"go/format"
 	"go/token"
+	"maps"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/internal/httpencoding"
 	"github.com/CaliLuke/loom/internal/openapimeta"
 )
@@ -69,6 +70,12 @@ func Render(document *Document, options Options) ([]byte, error) {
 	if err := r.errorTypeClones(); err != nil {
 		return nil, err
 	}
+	if err := r.handshakeTypes(); err != nil {
+		return nil, err
+	}
+	if err := r.informationalTypes(); err != nil {
+		return nil, err
+	}
 	if err := r.api(); err != nil {
 		return nil, err
 	}
@@ -118,7 +125,9 @@ func (r *renderer) namedSchema(named NamedSchema) error {
 	switch {
 	case object:
 		r.open("var %s = Type(%q, func()", name, named.Name)
-		r.line("Meta(%q, %q)", "openapi:typename:canonical", "true")
+		if !named.constructionOnly {
+			r.line("Meta(%q, %q)", "openapi:typename:canonical", "true")
+		}
 		if err := r.emitNullableGoType(named.Schema, path); err != nil {
 			return err
 		}
@@ -128,7 +137,9 @@ func (r *renderer) namedSchema(named NamedSchema) error {
 		r.close()
 	case r.hasSchemaBlock(named.Schema):
 		r.open("var %s = Type(%q, %s, func()", name, named.Name, expression)
-		r.line("Meta(%q, %q)", "openapi:typename:canonical", "true")
+		if !named.constructionOnly {
+			r.line("Meta(%q, %q)", "openapi:typename:canonical", "true")
+		}
 		if err := r.emitNullableGoType(named.Schema, path); err != nil {
 			return err
 		}
@@ -138,7 +149,9 @@ func (r *renderer) namedSchema(named NamedSchema) error {
 		r.close()
 	default:
 		r.open("var %s = Type(%q, %s, func()", name, named.Name, expression)
-		r.line("Meta(%q, %q)", "openapi:typename:canonical", "true")
+		if !named.constructionOnly {
+			r.line("Meta(%q, %q)", "openapi:typename:canonical", "true")
+		}
 		r.close()
 	}
 	r.line("")
@@ -180,6 +193,7 @@ func (r *renderer) api() error {
 			return err
 		}
 	}
+	r.servers()
 	consumes, produces := r.importedMediaTypes()
 	if len(consumes) > 0 || len(produces) > 0 {
 		r.open("HTTP(func()")
@@ -228,7 +242,7 @@ func (r *renderer) operation(operation *Operation, plan operationPlan, index int
 	if err := r.payload(plan.parameters, plan.body, path+"/payload"); err != nil {
 		return err
 	}
-	if err := r.result(plan.success, path+"/responses/"+plan.success.status); err != nil {
+	if err := r.operationResult(plan, path); err != nil {
 		return err
 	}
 	if err := r.errorDefinitions(plan.failures, path); err != nil {
@@ -242,11 +256,9 @@ func (r *renderer) operation(operation *Operation, plan operationPlan, index int
 }
 
 type operationPlan struct {
-	success    renderedResponse
-	failures   []renderedResponse
+	renderedResponses
 	parameters []renderedParameter
 	body       *renderedBody
-	response   responseBodyMode
 }
 
 type requestBodyMode uint8
@@ -262,8 +274,7 @@ func (r *renderer) planOperation(operation *Operation, path string) (operationPl
 	if operation.GoName == "" || !token.IsIdentifier(operation.GoName) || token.Lookup(operation.GoName).IsKeyword() {
 		return operationPlan{}, fmt.Errorf("render OpenAPI design: %s has invalid Go method name %q", path, operation.GoName)
 	}
-	responseMode := operationResponseBodyMode(operation)
-	success, failures, err := r.operationResponses(operation, responseMode, path)
+	responses, err := r.operationResponses(operation, path)
 	if err != nil {
 		return operationPlan{}, err
 	}
@@ -293,7 +304,7 @@ func (r *renderer) planOperation(operation *Operation, path string) (operationPl
 		body.field = requestBodyFieldName(parameters)
 	}
 	return operationPlan{
-		success: success, failures: failures, parameters: parameters, body: body, response: responseMode,
+		renderedResponses: responses, parameters: parameters, body: body,
 	}, nil
 }
 
@@ -303,7 +314,12 @@ func (r *renderer) operationMetadata(operation *Operation) error {
 	}
 	r.line("Meta(%q, %q)", "openapi:operationId", operation.OperationID)
 	r.line("Meta(%q, %q)", "openapi:summary", operation.Summary)
-	return r.emitExtensions("", operation.Extensions)
+	extensions := operation.Extensions
+	if _, exists := extensions["x-loom-async"]; exists {
+		extensions = maps.Clone(extensions)
+		delete(extensions, "x-loom-async")
+	}
+	return r.emitExtensions("", extensions)
 }
 
 func (r *renderer) errorDefinitions(responses []renderedResponse, path string) error {
@@ -332,14 +348,29 @@ func (r *renderer) operationHTTP(operation *Operation, plan operationPlan, path 
 	if err := r.operationRequestBodyHTTP(plan.body, path); err != nil {
 		return err
 	}
-	switch plan.response {
+	switch plan.mode {
+	case responseBodySSE:
+		r.line("ServerSentEvents()")
 	case responseBodyStream:
 		r.line("SkipResponseBodyEncodeDecode()")
 	case responseBodyFile:
 		r.line("FileResponse()")
 	}
-	if err := r.responseMapping(plan.success, false, path+"/responses/"+plan.success.status); err != nil {
-		return err
+	if len(plan.successes) == 0 {
+		r.line("NoSuccessResponse()")
+	}
+	for _, response := range plan.successes {
+		if plan.mode == responseBodySSE {
+			response.handshake = r.document.names.handshakes[cloneIdentity{operation.Method, operation.Path, ""}].variable
+		}
+		if err := r.responseMapping(response, false, path+"/responses/"+response.status); err != nil {
+			return err
+		}
+	}
+	for _, response := range plan.informational {
+		if err := r.informationalMapping(operation, response); err != nil {
+			return err
+		}
 	}
 	for _, response := range plan.failures {
 		if err := r.responseMapping(response, true, path+"/responses/"+response.status); err != nil {
@@ -367,6 +398,10 @@ type renderedBody struct {
 }
 
 type renderedResponse struct {
+	handshake          string
+	selector           expr.HTTPStatusSelector
+	statusField        string
+	branch             string
 	status             string
 	errorName          string
 	response           Response
@@ -483,133 +518,6 @@ func (r *renderer) payload(parameters []renderedParameter, body *renderedBody, p
 		r.quotedCall("Required", required)
 	}
 	r.close()
-	return nil
-}
-
-func (r *renderer) result(response renderedResponse, path string) error {
-	return r.responseType("Result", "", response, path)
-}
-
-func (r *renderer) errorDefinition(response renderedResponse, path string) error {
-	return r.responseType("Error", response.errorName, response, path)
-}
-
-func (r *renderer) errorTypeClones() error {
-	for operationIndex := range r.operations {
-		for responseIndex := range r.operations[operationIndex].failures {
-			response := r.operations[operationIndex].failures[responseIndex]
-			if !response.cloneErrorType {
-				continue
-			}
-			path := errorCloneSchemaPath(operationIndex, response.status)
-			r.declaration = errorCloneDeclaration(operationIndex, response.status)
-			schema := schemaWithExamples(response.response.Schema, response.response.Examples)
-			expression, _, err := r.schemaExpression(schema, path)
-			if err != nil {
-				return err
-			}
-			r.open("var %s = Type(%q, func()", response.cloneErrorGoName, response.cloneErrorTypeName)
-			r.line("Extend(%s)", expression)
-			if err := r.emitNullableGoType(schema, path); err != nil {
-				return err
-			}
-			if err := r.schemaBlock(schema, path, true, nil); err != nil {
-				return err
-			}
-			r.close()
-			r.line("")
-			r.declaration = ""
-		}
-	}
-	return nil
-}
-
-func (r *renderer) responseType(call, name string, response renderedResponse, path string) error {
-	responseSchema := schemaWithExamples(response.response.Schema, response.response.Examples)
-	wrapUnconstrainedError := call == "Error" && r.effectiveUnconstrained(responseSchema)
-	wrapMediaError := call == "Error" && r.unionSchema(responseSchema)
-	prefix := call + "("
-	if name != "" {
-		prefix += strconv.Quote(name) + ", "
-	}
-	if call == "Error" && response.cloneErrorType {
-		r.line("%s%s)", prefix, response.cloneErrorGoName)
-		return nil
-	}
-	if len(response.headers) == 0 && !wrapUnconstrainedError && !wrapMediaError {
-		if call == "Error" && response.response.Schema == nil {
-			r.open("Error(%q, func()", name)
-			r.line("Attribute(%q, String)", "message")
-			r.close()
-			return nil
-		}
-		if call == "Error" && response.rawBody {
-			r.line("Error(%q)", name)
-			return nil
-		}
-		return r.responseTypeWithoutHeaders(call, prefix, response, responseSchema, path+"/content/schema")
-	}
-	r.open("%sfunc()", prefix)
-	if err := r.responseHeaderAttributes(response.headers, path+"/headers"); err != nil {
-		return err
-	}
-	if response.response.Schema != nil && !response.rawBody {
-		bodySchema := responseSchema
-		if wrapUnconstrainedError {
-			bodySchema = &Schema{Unconstrained: true}
-		}
-		if err := r.attribute(response.body, bodySchema, nil, path+"/content/schema"); err != nil {
-			return err
-		}
-	}
-	var required []string
-	for _, header := range response.headers {
-		if header.header.Required {
-			required = append(required, header.field)
-		}
-	}
-	if response.response.Schema != nil && !response.rawBody {
-		required = append(required, response.body)
-	}
-	if len(required) > 0 {
-		r.quotedCall("Required", required)
-	}
-	r.close()
-	return nil
-}
-
-func (r *renderer) responseTypeWithoutHeaders(call, prefix string, response renderedResponse, schema *Schema, path string) error {
-	if response.response.Schema == nil || response.rawBody {
-		r.line("%sEmpty)", prefix)
-		return nil
-	}
-	expression, object, err := r.schemaExpression(schema, path)
-	if err != nil {
-		return err
-	}
-	if object {
-		r.open("%sfunc()", prefix)
-		if err := r.emitNullableGoType(schema, path); err != nil {
-			return err
-		}
-		if err := r.schemaBlock(schema, path, call == "Error", nil); err != nil {
-			return err
-		}
-		r.close()
-		return nil
-	}
-	if r.hasSchemaBlock(schema) || r.effectiveNullable(schema) {
-		r.open("%s%s, func()", prefix, expression)
-		if err := r.emitNullableGoType(schema, path); err != nil {
-			return err
-		}
-		if err := r.schemaAttributeBlock(schema, path, nil); err != nil {
-			return err
-		}
-		r.close()
-		return nil
-	}
-	r.line("%s%s)", prefix, expression)
 	return nil
 }
 

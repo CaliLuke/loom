@@ -44,9 +44,7 @@ func (c *designComposer) publishTemplate(attribute *AttributeExpr, path string) 
 	// not become Extend refinements of the source's old occurrence layers.
 	copy.constraintParents, copy.constraintLocal = nil, nil
 	copy.Validation = constraints.Validation().Lowered()
-	if value, present := constraints.Default(); present {
-		copy.DefaultValue = copyValueRaw(value)
-	}
+	applyEffectiveDefault(copy, constraints)
 	if binding.typeSource != nil {
 		copy.Type = newTemplateDupper().DupType(binding.typeSource.Type)
 	}
@@ -131,6 +129,7 @@ func applyTemplateProperties(target *AttributeExpr, binding *attributeTemplate) 
 	}
 	if local.DefaultValue != nil {
 		target.DefaultValue = copyValueRaw(local.DefaultValue)
+		target.defaultOwner = defaultValueOwner(local)
 	}
 	target.Nullable = target.Nullable || local.Nullable
 	for key := range local.removedMeta {

@@ -32,6 +32,7 @@ func (d *ServicesData) analyze(service *expr.ServiceExpr) (data *Data) {
 	}()
 
 	scope, viewScope, pkgName, viewspkg := newServiceScopes(d.Root, service, d.packageNames)
+	normalizeHTTPMetadataCarriers(d.Root, service, scope)
 	scope.SetTypeFamilies(serviceTypeFamilies(d.Root, service))
 	viewScope.SetTypeFamilies(viewTypeFamilies)
 	symbols, interceptorSymbols := d.serviceSymbols(service, scope)
@@ -240,8 +241,13 @@ func (d *ServicesData) collectMethodTypeData(
 ) ([]*UserTypeData, []*ProjectedTypeData, []*UserTypeData, []*ErrorInitData) {
 	for _, method := range service.Methods {
 		types = append(types, collectMethodUserTypes(method, scope, seen)...)
-		if hasResultType(method.Result) {
-			projTypes = append(projTypes, collectProjectedTypes(expr.DupAtt(method.Result), method.Result, viewspkg, scope, viewScope, seenProj)...)
+		for _, carrier := range httpMetadataCarriers(d.Root, method) {
+			types = append(types, collectTypes(carrier.attribute, scope, seen, nil)...)
+		}
+		for _, result := range []*expr.AttributeExpr{method.Result, method.EffectiveStreamingResult()} {
+			if hasResultType(result) {
+				projTypes = append(projTypes, collectProjectedTypes(expr.DupAtt(result), result, viewspkg, scope, viewScope, seenProj)...)
+			}
 		}
 		for _, errExpr := range method.Errors {
 			types, errTypes, errorInits = recordServiceError(
@@ -381,27 +387,27 @@ func (d *ServicesData) buildServiceMethods(
 		for _, scheme := range method.Schemes {
 			schemes = schemes.Append(scheme)
 		}
-		rt, ok := methodExpr.Result.Type.(*expr.ResultTypeExpr)
-		if !ok {
-			continue
+		captureView := func(result *expr.AttributeExpr) *ViewedResultTypeData {
+			rt, ok := result.Type.(*expr.ResultTypeExpr)
+			if !ok {
+				return nil
+			}
+			view, _ := result.Meta.Last(expr.ViewMetaKey)
+			key := projectionKey(rt) + "::" + view + fmt.Sprintf("::%t", expr.IsNullable(result))
+			if vrt, ok := seenViewed[key]; ok {
+				return vrt
+			}
+			projected := seenProj[projectionKey(rt)]
+			projAtt := &expr.AttributeExpr{Type: projected.Type, Nullable: result.Nullable}
+			vrt := buildViewedResultType(result, projAtt, viewspkg, scope, viewScope, projected.TypeInits)
+			if !containsViewedResultType(viewedRTs, vrt) {
+				viewedRTs = append(viewedRTs, vrt)
+			}
+			seenViewed[key] = vrt
+			return vrt
 		}
-		view := ""
-		if v, ok := methodExpr.Result.Meta.Last(expr.ViewMetaKey); ok {
-			view = v
-		}
-		key := projectionKey(rt) + "::" + view + fmt.Sprintf("::%t", expr.IsNullable(methodExpr.Result))
-		if vrt, ok := seenViewed[key]; ok {
-			method.SetViewedResult(vrt)
-			continue
-		}
-		projected := seenProj[projectionKey(rt)]
-		projAtt := &expr.AttributeExpr{Type: projected.Type, Nullable: methodExpr.Result.Nullable}
-		vrt := buildViewedResultType(methodExpr.Result, projAtt, viewspkg, scope, viewScope, projected.TypeInits)
-		if !containsViewedResultType(viewedRTs, vrt) {
-			viewedRTs = append(viewedRTs, vrt)
-		}
-		method.SetViewedResult(vrt)
-		seenViewed[key] = vrt
+		method.SetViewedResult(captureView(methodExpr.Result))
+		method.StreamingViewedResult = captureView(methodExpr.EffectiveStreamingResult())
 	}
 	return methods, schemes, viewedRTs
 }

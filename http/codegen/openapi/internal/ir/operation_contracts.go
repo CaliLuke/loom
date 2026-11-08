@@ -2,6 +2,7 @@ package ir
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -106,7 +107,7 @@ func buildAsyncOperationExtension(endpointIR *transportir.Endpoint, path string,
 				"method": endpointIR.Stream.HandshakeMethod,
 			},
 			"response": map[string]any{
-				"status":      endpointIR.Stream.HandshakeStatus,
+				"statuses":    asyncHandshakeStatuses(endpointIR),
 				"contentType": endpointIR.Stream.HandshakeContent,
 			},
 		},
@@ -127,7 +128,9 @@ func buildAsyncMessages(endpoint *transportir.Endpoint, path string, bodies *End
 	for direction, prepared := range bodies.async[path] {
 		materialized := materializeAsyncSchema(prepared, bodies.asyncComponents)
 		schema := materialized.schema
-		applyPreparedAsyncExamples(bodies.asyncAnalyzer, schema, prepared, materialized.structures)
+		if !prepared.derived {
+			applyPreparedAsyncExamples(bodies.asyncAnalyzer, schema, prepared, materialized.structures)
+		}
 		message := map[string]any{
 			"contentType": "application/json",
 			"schema":      asyncSchemaValue(schema),
@@ -140,7 +143,24 @@ func buildAsyncMessages(endpoint *transportir.Endpoint, path string, bodies *End
 	return messages
 }
 
-func analyzeAsyncSchemas(a *Analyzer, endpoint *transportir.Endpoint) map[string]map[string]*asyncSchema {
+// asyncHandshakeStatuses lists the canonical selector keys of every successful
+// handshake in ascending byte order. WebSocket publishes its upgrade status.
+func asyncHandshakeStatuses(endpoint *transportir.Endpoint) []string {
+	if endpoint.Stream.IsWebSocket {
+		return []string{strconv.Itoa(endpoint.Stream.HandshakeStatus)}
+	}
+	statuses := make([]string, 0, len(endpoint.Response.Responses))
+	for _, response := range endpoint.Response.Responses {
+		statuses = append(statuses, response.Selector.OpenAPIKey())
+	}
+	if len(statuses) == 0 {
+		panic(fmt.Sprintf("SSE endpoint %s has no successful handshake response", endpoint.Name))
+	}
+	slices.Sort(statuses)
+	return slices.Compact(statuses)
+}
+
+func analyzeAsyncSchemas(a *Analyzer, endpoint *transportir.Endpoint, event *sseEventOutcome) map[string]map[string]*asyncSchema {
 	if endpoint.Stream == nil || !endpoint.Stream.IsStreaming {
 		return nil
 	}
@@ -154,9 +174,12 @@ func analyzeAsyncSchemas(a *Analyzer, endpoint *transportir.Endpoint) map[string
 			messages["inbound"] = analyzeAsyncSchema(a, attr, endpoint, true, childExampleContext(context, "inbound"))
 		}
 		if endpoint.Stream.ResponseMessage != nil {
-			if endpoint.Stream.SSE != nil && len(endpoint.Stream.SSE.Projections) > 0 {
+			switch {
+			case event != nil && event.eligible:
+				messages["outbound"] = derivedAsyncSchema(a, event, childExampleContext(context, "outbound"))
+			case endpoint.Stream.SSE != nil && len(endpoint.Stream.SSE.Projections) > 0:
 				messages["outbound"] = analyzeAsyncSSESchema(a, endpoint, context)
-			} else {
+			default:
 				attr := attributeForSchemaUsage(endpoint.Stream.ResponseMessage, schemaUsageResponse)
 				messages["outbound"] = analyzeAsyncSchema(a, attr, endpoint, false, childExampleContext(context, "outbound"))
 			}
@@ -171,11 +194,21 @@ func analyzeAsyncSchema(a *Analyzer, attr *expr.AttributeExpr, endpoint *transpo
 	if a.customExampleValue {
 		return a.acquireAsyncBaseline(attr, representationRoot(attr, target), asyncSamplerAttribute(attr), context)
 	}
-	if err := representation.PrepareTargetExamples(target, attr,
-		exampleGeneratorForAttribute(a.rand, attr, a.closeObjects, context)); err != nil {
+	if err := representation.PrepareTargetValues(target, attr,
+		exampleGeneratorForAttribute(a.rand, attr, a.closeObjects, context), true); err != nil {
 		panic(err)
 	}
 	return a.acquireAsyncTargetBaseline(attr, target, asyncSamplerAttribute(attr), context)
+}
+
+// derivedAsyncSchema reuses the completed event outcome for the outbound
+// message. It performs no baseline acquisition, preparation or sampling; the
+// materializer later expands it after component finalization.
+func derivedAsyncSchema(a *Analyzer, event *sseEventOutcome, context string) *asyncSchema {
+	return &asyncSchema{
+		schema: event.schema, attribute: event.attribute, sampler: asyncSamplerAttribute(event.attribute),
+		context: context, target: event.target, constructions: a.constructions, derived: true,
+	}
 }
 
 func buildAsyncSSEContract(sse *transportir.SSE) map[string]any {

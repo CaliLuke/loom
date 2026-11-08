@@ -139,6 +139,7 @@ func buildInterceptorMethodData(i *expr.InterceptorExpr, md *MethodData, server 
 	if md.ClientStream != nil {
 		streamingResultRef = md.ClientStream.RecvTypeRef
 		clientStream = &StreamInterceptorData{
+			HandshakeRef:        md.ClientStream.HandshakeRef,
 			WrapperName:         md.symbols.clientWrappedStream,
 			Interface:           md.ClientStream.Interface,
 			SendName:            md.ClientStream.SendName,

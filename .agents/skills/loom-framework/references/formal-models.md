@@ -236,6 +236,7 @@ and emitted-signature tests complement generated HTTP/JSON-RPC compilation.
 | Aggregate CLI import, usage and flag-set identifiers and their references | [CLI identifiers](../../../../codegen/cli/tla/identifiers/README.md); bounded allocation safety, with renderer reservations and per-server isolation checked in Go |
 | Protobuf named-map oneof branches, including selected empty maps | [Map union branches](../../../../grpc/codegen/tla/map_union_branches/README.md) |
 | JSON-RPC stream view selection and validation | [Stream/view decoding models](../../../../jsonrpc/codegen/tla/README.md) |
+| #976 response precedence, publication phases, status bindings, SSE handshakes and per-`Do` informational admission | [Status selection and phases](../../../../http/codegen/internal/transportir/tla/status_selection/README.md), [status bindings](../../../../expr/tla/http_status_bindings/README.md), [selection proofs](../../../../http/codegen/internal/transportir/lean/status_selection/README.md) and [informational client](../../../../http/tla/informational_client/README.md); `TestStatusSelectorMatchesExpr`, `TestHTTPStatusRuntimeDomain`, `TestStatusFieldWireBinding`, `TestHandlerLifecycleStatusViolationRoutesToErrorEncoder`, `TestExchangeWriterConcurrentSendDuringFinalStart`, `TestSSEHandshakeOpenTriggers`, `TestSSETerminalSuccessAdmission` and `TestObserveInformationalWireRedirectCountsPerExchange` check Go |
 
 These local READMEs identify the generator seams, direct regressions and generated
 compilation or round-trip checks that connect the abstractions to production.
@@ -448,6 +449,9 @@ Discriminator implementation correspondence adds these opt-in bounded models:
 - [Discriminator import](../../../../internal/openapiimport/tla/discriminator_import/README.md):
   representation eligibility, mapping provenance and shared deferred-normalization
   carriers. These are design tools; no model execution enters normal gates.
+- [Imported boolean annotation presence](../../../../internal/openapiimport/tla/schema_annotation_presence/README.md):
+  authored false versus absence, shared block selection and separate contributor
+  and occurrence metadata; native declaration tests check the implementation.
 
 - [Named discriminator overlays](../../../../http/codegen/openapi/internal/ir/tla/discriminator_overlay/README.md):
   complete component ownership, reference-local annotations, occurrence overrides

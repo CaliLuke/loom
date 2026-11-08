@@ -2,7 +2,7 @@ package codegen
 
 import (
 	"fmt"
-	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
@@ -74,7 +74,7 @@ func (b *resultBuilder) buildResponsesData(resultDesc service.ResultDescriptor) 
 	responses := b.sds.buildResponsesFromIR(b.endpoint, result, viewed, b.sd)
 	mustInit := false
 	for _, r := range responses {
-		if len(r.ServerBody) > 0 || len(r.Headers) > 0 || len(r.Cookies) > 0 || r.Tag != nil {
+		if r.Unary != nil || len(r.ServerBody) > 0 || len(r.Headers) > 0 || len(r.Cookies) > 0 || r.Tag != nil || r.ClientStatusField != nil {
 			mustInit = true
 			break
 		}
@@ -116,6 +116,13 @@ func (sds *ServicesData) buildSingleResponseData(
 	svcctx *codegen.AttributeContext,
 	sd *ServiceData,
 ) *ResponseData {
+	unaryResult, unaryViewed, unaryContext := result, viewed, svcctx
+	metadata := resp.Handshake || resp.Selector.Phase() == expr.PhaseInformational
+	if metadata {
+		result, viewed = resp.Carrier, false
+		pkg := sd.Service.LocationPackageName(codegen.UserTypeLocation(result.Type))
+		svcctx = serviceContext(pkg, sd.Service.Scope)
+	}
 	vars := newResponseVarScope(sd)
 	headersData := sds.extractHeaders(resp.Headers, result, svcctx, svcctx.Scope.Scope(), vars, sds.examplesFor(sd))
 	cookiesData := sds.extractResponseCookies(resp.Cookies, result, svcctx, svcctx.Scope.Scope(), vars, sds.examplesFor(sd))
@@ -128,12 +135,12 @@ func (sds *ServicesData) buildSingleResponseData(
 	attachMediaBodyData(clientBodyData, resp.MediaVariants)
 	init := sds.buildResponseResultInit(resp, result, field, md, clientBodyData, svcctx, headersData, cookiesData, endpointIR, sd)
 	tag := responseTagData(resp.Tag, result, viewed, svcctx)
-	return newResponseData(
-		resp.Description,
+	data := newResponseData(
+		resp,
 		ResponseData{
-			nullableProjection: newNullableResponseProjection(result, resp.Body, headersData, cookiesData, svcctx, viewed),
-			StatusCode:         statusCodeToHTTPConst(resp.StatusCode),
-			Code:               resp.StatusCode,
+			nullableProjection: newNullableResponseProjection(result, resp.Body, headersData, cookiesData, svcctx, viewed, resp.StatusField != nil),
+			serverContext:      svcctx,
+			Description:        resp.Description,
 			Headers:            headersData,
 			Cookies:            cookiesData,
 			ContentType:        resp.ContentType,
@@ -143,10 +150,20 @@ func (sds *ServicesData) buildSingleResponseData(
 			Tag:                tag,
 			MustValidate:       responseFieldsNeedValidation(headersData, cookiesData),
 			ResultAttr:         field.GoName,
-			ViewedResult:       md.ViewedResult,
+			ViewedResult:       responseViewedResult(md, metadata),
 			DeferStatus:        endpointIR.Response.FileResponse,
 		},
 	)
+	if resp.Unary != nil {
+		unary := *resp
+		unary.Unary, unary.StatusField, unary.Headers, unary.Cookies = nil, nil, nil, nil
+		unary.Handshake, unary.Carrier, unary.BodyOrigin = false, unaryResult, ""
+		unary.Body, unary.BodyValue, unary.BodyValues = resp.Unary.Body, resp.Unary.BodyValue, resp.Unary.BodyValues
+		unary.MediaVariants, unary.ContentType, unary.ContentTypes = resp.Unary.MediaVariants, resp.Unary.ContentType, resp.Unary.ContentTypes
+		data.Unary = sds.buildSingleResponseData(endpointIR, &unary, unaryResult, unaryViewed, md, unaryContext, sd)
+		data.Unary.DeferStatus = true
+	}
+	return data
 }
 
 func (sds *ServicesData) buildResponseBodyData(
@@ -161,7 +178,11 @@ func (sds *ServicesData) buildResponseBodyData(
 	if viewed {
 		return sds.buildViewedResponseBodyData(resp, result, origin, md, endpointIR, sd)
 	}
-	return sds.buildResponseBodyPair(resp.Body, result, md.ResultLoc, endpointIR.Name, sd, resp.BodyValue)
+	loc := md.ResultLoc
+	if resp.Handshake || resp.Selector.Phase() == expr.PhaseInformational {
+		loc = codegen.UserTypeLocation(result.Type)
+	}
+	return sds.buildResponseBodyPair(responseStatusBody(resp), result, loc, endpointIR.Name, sd, resp.BodyValue)
 }
 
 func (sds *ServicesData) buildViewedResponseBodyData(
@@ -172,7 +193,7 @@ func (sds *ServicesData) buildViewedResponseBodyData(
 	endpointIR *transportir.Endpoint,
 	sd *ServiceData,
 ) ([]*TypeData, *TypeData) {
-	serverViews, clientView := viewedResponseBodyViews(origin, md, endpointIR.Response.Result)
+	serverViews, clientView := viewedResponseBodyViews(origin, md.ViewedResult, endpointIR.Response.Result)
 	serverBodyData := make([]*TypeData, 0, len(serverViews))
 	for _, view := range serverViews {
 		viewName := view
@@ -185,7 +206,7 @@ func (sds *ServicesData) buildViewedResponseBodyData(
 	return serverBodyData, clientBodyData
 }
 
-func viewedResponseBodyViews(origin string, md *service.MethodData, methodResult *expr.AttributeExpr) ([]*string, *string) {
+func viewedResponseBodyViews(origin string, viewed *service.ViewedResultTypeData, methodResult *expr.AttributeExpr) ([]*string, *string) {
 	vname := ""
 	clientView := &vname
 	if origin != "" {
@@ -196,13 +217,13 @@ func viewedResponseBodyViews(origin string, md *service.MethodData, methodResult
 		clientName := v
 		return []*string{&serverView}, &clientName
 	}
-	views := make([]*string, 0, len(md.ViewedResult.Views))
-	for _, view := range md.ViewedResult.Views {
+	views := make([]*string, 0, len(viewed.Views))
+	for _, view := range viewed.Views {
 		viewName := view.Name
 		views = append(views, &viewName)
 	}
-	if len(md.ViewedResult.Views) == 1 {
-		single := md.ViewedResult.Views[0].Name
+	if len(viewed.Views) == 1 {
+		single := viewed.Views[0].Name
 		clientView = &single
 	}
 	return views, clientView
@@ -249,14 +270,18 @@ func (sds *ServicesData) buildResponseResultInit(
 	scope := svcctx.Scope.Scope()
 	tname := scope.GoFullTypeName(result, svcctx.DefaultPkg)
 	tref := scope.GoFullTypeRef(result, svcctx.DefaultPkg)
-	status := codegen.Goify(http.StatusText(resp.StatusCode), true)
+	status := codegen.Goify(resp.Selector.NameSuffix(), true)
 	n := codegen.Goify(md.Name, true)
-	r := codegen.Goify(md.Result, true)
+	resultName := md.Result
+	if resp.Handshake || resp.Selector.Phase() == expr.PhaseInformational {
+		resultName = scope.GoTypeName(result)
+	}
+	r := codegen.Goify(resultName, true)
 	if strings.HasPrefix(r, n) {
 		r = scope.HashedUnique(result.Type, r)
 	}
 	name := fmt.Sprintf("New%s%s%s", n, r, status)
-	if strings.HasPrefix(codegen.Goify(md.Result, true), n) {
+	if strings.HasPrefix(codegen.Goify(resultName, true), n) {
 		name = fmt.Sprintf("New%s%s", r, status)
 	}
 	code, pointer, clientArgs := sds.buildResponseResultInitCode(resp, result, field.Attribute, field.Name, clientBody, svcctx, headersData, cookiesData, sd)
@@ -296,6 +321,7 @@ func (sds *ServicesData) buildResponseResultInitCode(
 	}
 	clientArgs = append(clientArgs, buildHeaderInitArgs(headersData)...)
 	clientArgs = append(clientArgs, buildCookieInitArgs(cookiesData)...)
+	clientArgs = appendResponseStatusArg(clientArgs, resp, result, svcctx, sd)
 	code, err := sds.buildClientResultTransformCode(clientBody, resAttr, result, clientArgs, svcctx, sd)
 	if err != nil {
 		panic(codegen.NewError(nil, resp.Body, fmt.Errorf("build HTTP response result transform: %w", err)))
@@ -304,7 +330,7 @@ func (sds *ServicesData) buildResponseResultInitCode(
 }
 
 func buildResponseResultPointer(resp *transportir.ResponseStatus, result *expr.AttributeExpr, origin string, targetctx *codegen.AttributeContext) bool {
-	if resp.Body.Type == expr.Empty || expr.IsObject(resp.Body.Type) {
+	if responseStatusBody(resp).Type == expr.Empty || expr.IsObject(responseStatusBody(resp).Type) {
 		return false
 	}
 	if origin == "" {
@@ -383,8 +409,21 @@ func responseStatusBody(resp *transportir.ResponseStatus) *expr.AttributeExpr {
 	return resp.Body
 }
 
-func newResponseData(description string, data ResponseData) *ResponseData {
-	data.Description = description
+func newResponseData(response *transportir.ResponseStatus, data ResponseData) *ResponseData {
+	data.Selector, data.Domain = response.Selector, slices.Clone(response.Domain)
+	data.Carrier, data.Handshake = response.Carrier, response.Handshake
+	data.statusBinding = response.StatusField
+	data.Required = make(map[string][]string, len(response.Required))
+	for view, required := range response.Required {
+		data.Required[view] = slices.Clone(required)
+	}
+	if response.StatusField != nil {
+		if data.ResultInit == nil || len(data.ResultInit.ClientArgs) == 0 {
+			panic("HTTP status binding has no native constructor argument")
+		}
+		data.ClientStatusField = data.ResultInit.ClientArgs[len(data.ResultInit.ClientArgs)-1].AttributeData
+	}
+	data.Description = response.Description
 	data.nullableProjection.prepareConstructor(data.ResultInit, data.Headers, data.Cookies)
 	data.EncodePlan = newResponseEncodePlan(&data)
 	return &data
@@ -433,7 +472,23 @@ func newResponseEncodePlan(response *ResponseData) *ResponseEncodePlan {
 		NeedsProblemSource: response.SourceVar == "problem" &&
 			(bodyCount > 0 || len(response.Headers) > 0 || len(response.Cookies) > 0),
 		NeedsErrorSource: (response.SourceVar != "problem" &&
-			(bodyCount > 0 || len(response.Headers) > 0 || len(response.Cookies) > 0)) ||
+			(bodyCount > 0 || len(response.Headers) > 0 || len(response.Cookies) > 0 || response.ClientStatusField != nil)) ||
 			(response.ErrorHeader != "" && !response.ErrorNameFromStatus),
 	}
+}
+
+// LiteralCode returns the exact HTTP code for a literal-only emitter. Dynamic
+// selector consumers must use Selector and Domain instead.
+func (r *ResponseData) LiteralCode() int {
+	code, ok := r.Selector.Exact()
+	if !ok {
+		panic("HTTP literal emission requires an exact status selector")
+	}
+	return code
+}
+
+// LiteralStatus renders an exact HTTP code using its standard library constant
+// when available. It rejects dynamic selectors at the literal emission boundary.
+func (r *ResponseData) LiteralStatus() string {
+	return statusCodeToHTTPConst(r.LiteralCode())
 }

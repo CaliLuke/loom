@@ -36,7 +36,8 @@ paths:
                         method: GET
                     response:
                         contentType: ""
-                        status: 101
+                        statuses:
+                            - "101"
                 messages:
                     inbound:
                         contentType: application/json

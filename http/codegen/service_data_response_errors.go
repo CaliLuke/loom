@@ -3,6 +3,7 @@ package codegen
 import (
 	"fmt"
 	"sort"
+	"strconv"
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/service"
@@ -10,13 +11,20 @@ import (
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 )
 
-type errorBuilder struct {
-	sds      *ServicesData
-	endpoint *transportir.Endpoint
-	sd       *ServiceData
-	svc      *service.Data
-	method   *service.MethodData
-}
+type (
+	errorBuilder struct {
+		sds      *ServicesData
+		endpoint *transportir.Endpoint
+		sd       *ServiceData
+		svc      *service.Data
+		method   *service.MethodData
+	}
+
+	groupedError struct {
+		key  string
+		data *ErrorData
+	}
+)
 
 func (sds *ServicesData) buildErrorsDataFromIR(endpointIR *transportir.Endpoint, sd *ServiceData) []*ErrorGroupData {
 	return newErrorBuilder(sds, endpointIR, sd).build()
@@ -34,10 +42,14 @@ func newErrorBuilder(sds *ServicesData, endpointIR *transportir.Endpoint, sd *Se
 }
 
 func (b *errorBuilder) build() []*ErrorGroupData {
-	data := make(map[string][]*ErrorData)
+	data := make(map[string][]groupedError)
 	for _, errorResponse := range b.endpoint.Response.ErrorResponses {
 		ref, errorData := b.buildSingle(errorResponse)
-		data[ref] = append(data[ref], errorData)
+		key := errorResponse.Selector.OpenAPIKey()
+		if b.sds.jsonrpc {
+			key = strconv.Itoa(*errorResponse.Error.JSONRPCCode)
+		}
+		data[ref] = append(data[ref], groupedError{key: key, data: errorData})
 	}
 	keys := make([]string, 0, len(data))
 	for k := range data {
@@ -45,20 +57,16 @@ func (b *errorBuilder) build() []*ErrorGroupData {
 	}
 	sort.Strings(keys)
 	var vals []*ErrorGroupData
+	groups := make(map[string]*ErrorGroupData)
 	for _, k := range keys {
-		es := data[k]
-		for _, e := range es {
-			found := false
-			for _, eg := range vals {
-				if eg.StatusCode == e.Response.StatusCode {
-					eg.Errors = append(eg.Errors, e)
-					found = true
-					break
-				}
+		for _, entry := range data[k] {
+			if group := groups[entry.key]; group != nil {
+				group.Errors = append(group.Errors, entry.data)
+				continue
 			}
-			if !found {
-				vals = append(vals, &ErrorGroupData{StatusCode: e.Response.StatusCode, Errors: []*ErrorData{e}})
-			}
+			group := &ErrorGroupData{JSONRPCCode: entry.data.Response.JSONRPCCode, Errors: []*ErrorData{entry.data}}
+			groups[entry.key] = group
+			vals = append(vals, group)
 		}
 	}
 	return vals
@@ -99,9 +107,11 @@ func (b *errorBuilder) buildResultInit(errorResponse *transportir.ResponseStatus
 	if errorResponse.StatusErrorName != "" {
 		args = append(args, b.statusErrorNameArg(errorResponse, errctx, vars))
 	}
+	args = appendResponseStatusArg(args, errorResponse, httpError.Attribute, errctx, b.sd)
 	code, field, skipFieldInit := b.buildResultInitCode(errorResponse, clientBody, errctx, args)
 	name := fmt.Sprintf("New%s%s", codegen.Goify(b.method.Name, true), codegen.Goify(httpError.Name, true))
 	return &InitData{
+		returnContext:            errctx,
 		Name:                     name,
 		Description:              fmt.Sprintf("%s builds a %s service %s endpoint %s error.", name, b.svc.Name, b.endpoint.Name, httpError.Name),
 		ClientArgs:               args,
@@ -164,16 +174,19 @@ func (b *errorBuilder) buildResponseData(errorResponse *transportir.ResponseStat
 	if expr.IsDefaultErrorResult(httpError.Attribute.Type) {
 		projectionSource, projectionContext, _ = responseBodySource(httpError.Attribute, nil, true, b.sd)
 	}
-	projection := newNullableResponseProjection(projectionSource, errorResponse.Body, headers, cookies, projectionContext, false)
+	projection := newNullableResponseProjection(projectionSource, errorResponse.Body, headers, cookies, projectionContext, false, errorResponse.StatusField != nil)
 	if projection != nil {
 		projection.source = headerSourceVar
 	}
+	if b.sds.jsonrpc != (httpError.JSONRPCCode != nil) {
+		panic("response error protocol code does not match its transport")
+	}
 	return newResponseData(
-		"",
+		errorResponse,
 		ResponseData{
 			nullableProjection:   projection,
-			StatusCode:           statusCodeToHTTPConst(errorResponse.StatusCode),
-			Code:                 errorResponse.StatusCode,
+			serverContext:        errctx,
+			JSONRPCCode:          httpError.JSONRPCCode,
 			Headers:              headers,
 			ContentType:          contentType,
 			Cookies:              cookies,

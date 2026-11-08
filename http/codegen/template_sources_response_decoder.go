@@ -22,21 +22,35 @@ var (
 {{ printf "%s may return the following errors:" .ResponseDecoder | comment }}
 	{{- range $gerr := .Errors }}
 	{{- range $errors := .Errors }}
-//	- {{ printf "%q" .Name }} (type {{ .Ref }}): {{ .Response.StatusCode }}{{ if .Response.Description }}, {{ .Response.Description }}{{ end }}
+//	- {{ printf "%q" .Name }} (type {{ .Ref }}): {{ if $.HasDynamicFinalSelectors }}{{ .Response.Selector.OpenAPIKey }}{{ else }}{{ .Response.LiteralStatus }}{{ end }}{{ if .Response.Description }}, {{ .Response.Description }}{{ end }}
 	{{- end }}
 	{{- end }}
 //	- error: internal error
 {{- end }}
 func {{ .ResponseDecoder }}(decoder func(*http.Response) loomhttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
-        return loomhttp.DecodeResponse(resp, restoreBody, {{ if or .Method.SkipResponseBodyEncodeDecode .Method.FileResponse }}false{{ range .Result.Responses }} || resp.StatusCode == {{ .StatusCode }}{{ if and $.Method.FileResponse (eq .Code 200) }} || resp.StatusCode == http.StatusPartialContent || resp.StatusCode == http.StatusNotModified{{ end }}{{ end }}{{ else }}false{{ end }}, func(resp *http.Response) (any, error) {
+        return loomhttp.DecodeResponse(resp, restoreBody, {{ if or .Method.SkipResponseBodyEncodeDecode .Method.FileResponse }}false{{ range .Result.Responses }} || resp.StatusCode == {{ .LiteralStatus }}{{ if and $.Method.FileResponse (eq .LiteralCode 200) }} || resp.StatusCode == http.StatusPartialContent || resp.StatusCode == http.StatusNotModified{{ end }}{{ end }}{{ else }}false{{ end }}, func(resp *http.Response) (any, error) {
+		{{- if .HasDynamicFinalSelectors }}
+		selected, found := loomhttp.SelectFinal([]loomhttp.StatusSelector{ {{ finalSelectorValues . }} }, resp.StatusCode)
+		if !found {
+			return nil, &loomhttp.StatusViolationError{Code: resp.StatusCode}
+		}
+		switch selected {
+		{{- else }}
 		switch resp.StatusCode {
-	{{- range .Result.Responses }}
-		case {{ .StatusCode }}{{ if and $.Method.FileResponse (eq .Code 200) }}, http.StatusPartialContent, http.StatusNotModified{{ end }}:
+		{{- end }}
+	{{- range responsePayloads . }}
+		case {{ if $.HasDynamicFinalSelectors }}{{ responseSelectorValue . }}{{ else }}{{ .LiteralStatus }}{{ end }}{{ if and $.Method.FileResponse (eq .LiteralCode 200) }}, http.StatusPartialContent, http.StatusNotModified{{ end }}:
+			{{- if $.Method.HasResponseMetadata }}
+			metadata, metadataError := {{ $.SSE.DecodeHandshake }}({{ responseSelectorValue . }}, resp)
+			if metadataError != nil {
+				return nil, metadataError
+			}
+			{{- end }}
 			{{- template "partial_single_response" (buildResponseData . $.ServiceName $.Method) }}
 		{{- if .ResultInit }}
 			{{- if .ViewedResult }}
-			p{{ if .ResultInit.ClientErrorAware }}, err{{ end }} := {{ .ResultInit.Name }}({{ range $i, $arg := .ResultInit.ClientArgs }}{{ if $i }}, {{ end }}{{ $arg.Ref }}{{ end }})
+			p{{ if .ResultInit.ClientErrorAware }}, err{{ end }} := {{ .ResultInit.Name }}({{ range $i, $ref := responseConstructorArgRefs .ResultInit.ClientArgs "resp.StatusCode" }}{{ if $i }}, {{ end }}{{ $ref }}{{ end }})
 			{{- if .ResultInit.ClientErrorAware }}
 			if err != nil {
 				return nil, loomhttp.ErrValidationError("{{ $.ServiceName }}", "{{ $.Method.Name }}", err)
@@ -61,7 +75,7 @@ func {{ .ResponseDecoder }}(decoder func(*http.Response) loomhttp.Decoder, resto
 				return nil, loomhttp.ErrValidationError("{{ $.ServiceName }}", "{{ $.Method.Name }}", err)
 			}
 			{{- else }}
-			res{{ if .ResultInit.ClientErrorAware }}, err{{ end }} := {{ .ResultInit.Name }}({{ range $i, $arg := .ResultInit.ClientArgs }}{{ if $i }}, {{ end }}{{ $arg.Ref }}{{ end }})
+			res{{ if .ResultInit.ClientErrorAware }}, err{{ end }} := {{ .ResultInit.Name }}({{ range $i, $ref := responseConstructorArgRefs .ResultInit.ClientArgs "resp.StatusCode" }}{{ if $i }}, {{ end }}{{ $ref }}{{ end }})
 			{{- if .ResultInit.ClientErrorAware }}
 			if err != nil {
 				return nil, loomhttp.ErrValidationError("{{ $.ServiceName }}", "{{ $.Method.Name }}", err)
@@ -71,9 +85,12 @@ func {{ .ResponseDecoder }}(decoder func(*http.Response) loomhttp.Decoder, resto
 			{{- if and .Tag (not .ViewedResult) }}
 			{{ .Tag.Assignment }}
 			{{- end }}
-			return res, nil
+			{{- if .HasStatusBinding }}
+			{{ renderDecodedStatusValidation . "res" }}
+			{{- end }}
+			{{ if $.Method.HasResponseMetadata }}return &{{ $.ServicePkgName }}.{{ $.Method.ResponseStruct }}{Result: res, Metadata: metadata}, nil{{ else }}return res, nil{{ end }}
 		{{- else if .ClientBody }}
-			return body, nil
+			{{ if $.Method.HasResponseMetadata }}return &{{ $.ServicePkgName }}.{{ $.Method.ResponseStruct }}{Result: body, Metadata: metadata}, nil{{ else }}return body, nil{{ end }}
 		{{- else if .Headers }}
 			return {{ (index .Headers 0).VarName }}, nil
 		{{- else if .Cookies }}
@@ -83,7 +100,7 @@ func {{ .ResponseDecoder }}(decoder func(*http.Response) loomhttp.Decoder, resto
 		{{- end }}
 	{{- end }}
 	{{- range .Errors }}
-		case {{ .StatusCode }}:
+		case {{ if $.HasDynamicFinalSelectors }}{{ responseSelectorValue (index .Errors 0).Response }}{{ else }}{{ (index .Errors 0).Response.LiteralStatus }}{{ end }}:
 		{{- if gt (len .Errors) 1 }}
 		en := resp.Header.Get("loom-error")
 		switch en {
@@ -92,11 +109,16 @@ func {{ .ResponseDecoder }}(decoder func(*http.Response) loomhttp.Decoder, resto
 				{{- with .Response }}
 					{{- template "partial_single_response" (buildResponseData . $.ServiceName $.Method) }}
 					{{- if .ResultInit }}
-			{{ if .ResultInit.ClientErrorAware }}result, conversionError := {{ .ResultInit.Name }}({{ range $i, $arg := .ResultInit.ClientArgs }}{{ if $i }}, {{ end }}{{ $arg.Ref }}{{ end }})
+			{{ if or .ResultInit.ClientErrorAware .HasStatusBinding }}result{{ if .ResultInit.ClientErrorAware }}, conversionError{{ end }} := {{ .ResultInit.Name }}({{ range $i, $ref := responseConstructorArgRefs .ResultInit.ClientArgs "resp.StatusCode" }}{{ if $i }}, {{ end }}{{ $ref }}{{ end }})
+			{{- if .ResultInit.ClientErrorAware }}
 			if conversionError != nil {
 				return nil, loomhttp.ErrValidationError("{{ $.ServiceName }}", "{{ $.Method.Name }}", conversionError)
 			}
-			return nil, result{{ else }}return nil, {{ .ResultInit.Name }}({{ range $i, $arg := .ResultInit.ClientArgs }}{{ if $i }}, {{ end }}{{ $arg.Ref }}{{ end }}){{ end }}
+			{{- end }}
+			{{- if .HasStatusBinding }}
+			{{ renderDecodedStatusValidation . "result" }}
+			{{- end }}
+			return nil, result{{ else }}return nil, {{ .ResultInit.Name }}({{ range $i, $ref := responseConstructorArgRefs .ResultInit.ClientArgs "resp.StatusCode" }}{{ if $i }}, {{ end }}{{ $ref }}{{ end }}){{ end }}
 					{{- else if .ClientBody }}
 			return nil, body
 					{{- else }}
@@ -115,11 +137,16 @@ func {{ .ResponseDecoder }}(decoder func(*http.Response) loomhttp.Decoder, resto
 			{{- with (index .Errors 0).Response }}
 				{{- template "partial_single_response" (buildResponseData . $.ServiceName $.Method) }}
 				{{- if .ResultInit }}
-			{{ if .ResultInit.ClientErrorAware }}result, conversionError := {{ .ResultInit.Name }}({{ range $i, $arg := .ResultInit.ClientArgs }}{{ if $i }}, {{ end }}{{ $arg.Ref }}{{ end }})
+			{{ if or .ResultInit.ClientErrorAware .HasStatusBinding }}result{{ if .ResultInit.ClientErrorAware }}, conversionError{{ end }} := {{ .ResultInit.Name }}({{ range $i, $ref := responseConstructorArgRefs .ResultInit.ClientArgs "resp.StatusCode" }}{{ if $i }}, {{ end }}{{ $ref }}{{ end }})
+			{{- if .ResultInit.ClientErrorAware }}
 			if conversionError != nil {
 				return nil, loomhttp.ErrValidationError("{{ $.ServiceName }}", "{{ $.Method.Name }}", conversionError)
 			}
-			return nil, result{{ else }}return nil, {{ .ResultInit.Name }}({{ range $i, $arg := .ResultInit.ClientArgs }}{{ if $i }}, {{ end }}{{ $arg.Ref }}{{ end }}){{ end }}
+			{{- end }}
+			{{- if .HasStatusBinding }}
+			{{ renderDecodedStatusValidation . "result" }}
+			{{- end }}
+			return nil, result{{ else }}return nil, {{ .ResultInit.Name }}({{ range $i, $ref := responseConstructorArgRefs .ResultInit.ClientArgs "resp.StatusCode" }}{{ if $i }}, {{ end }}{{ $ref }}{{ end }}){{ end }}
 				{{- else if .ClientBody }}
 			return nil, body
 				{{- else }}
@@ -196,105 +223,9 @@ err = loomhttp.DecodeMediaResponse(&mediaResponse, &mediaValue, {{ .AllowsNull }
 		{{- end }}
 	{{- end }}
 
-	{{- if .Headers }}
-			var (
-		{{- range .Headers }}
-				{{ .VarName }} {{ .TypeRef }}
-		{{- end }}
-		{{- if not .ClientBody }}
-			{{- if .MustValidate }}
-				err error
-			{{- end }}
-		{{- end }}
-			)
-		{{- range .Headers }}
-
- {{- $scalar := or .IsTextUnmarshaler (not .Slice) }}
- {{- if .Styled }}
- if parameterError := func() error {
- {{ renderStyledDecode .Element "response-header" }}
- }(); parameterError != nil {
- return nil, loomhttp.ErrValidationError("{{ $.ServiceName }}", "{{ $.Method.Name }}", parameterError)
- }
- {{- else if $scalar }}
- {
-  {{ .Locals.Raw }} := resp.Header.Get("{{ .CanonicalName }}")
-  {{ .Locals.Present }} := len(resp.Header.Values("{{ .CanonicalName }}")) > 0
-  {{- template "partial_scalar_element" (scalarElementData .Element "header") }}
- }
-		{{- else if .StringSlice }}
-			{{ .VarName }} = loomhttp.HeaderValues(resp.Header, "{{ .CanonicalName }}")
-			{{ if .Required }}
-			if {{ .VarName }} == nil {
-				err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "header"))
-			}
-			{{- else if (ne .DefaultValue nil) }}
-			if {{ .VarName }} == nil {
-				{{ .VarName }} = {{ printf "%#v" .DefaultValue }}
-			}
-			{{- end }}
-
-		{{- else if .Slice }}
-		{
-			{{ .Locals.Raw }} := loomhttp.HeaderValues(resp.Header, "{{ .CanonicalName }}")
-				{{ if .Required }} if {{ .Locals.Raw }} == nil {
-				return nil, loomhttp.ErrValidationError("{{ $.ServiceName }}", "{{ $.Method.Name }}", loom.MissingFieldError("{{ .Name }}", "header"))
-			}
-			{{- else if (ne .DefaultValue nil) }}
-			if {{ .Locals.Raw }} == nil {
-				{{ .VarName }} = {{ printf "%#v" .DefaultValue }}
-			}
-			{{- end }}
-
-			{{- if (ne .DefaultValue nil) }}else {
-			{{- else if not .Required }}
-			if {{ .Locals.Raw }} != nil {
-			{{- end }}
-				{{- template "partial_element_slice_conversion" . }}
-			{{- if or (ne .DefaultValue nil) (not .Required) }}
-			}
-			{{- end }}
-		}
-
-
-		{{- end }}
-		{{- if and .Validate (not $scalar) (not .Styled) }}
-			{{ .Validate }}
-		{{- end }}
-		{{- end }}{{/* range .Headers */}}
-	{{- end }}
-
-	{{- if .Cookies }}
-			var (
-		{{- range .Cookies }}
-				{{ .VarName }}    {{ .TypeRef }}
-				{{ .Locals.Raw }} string
-            {{ .Locals.Present }} bool
-		{{- end }}
-
-				cookies = resp.Cookies()
-		{{- if not .ClientBody }}
-			{{- if .MustValidate }}
-				{{- if not .Headers}}
-					err error
-				{{- end }}
-			{{- end }}
-		{{- end }}
-			)
-        for _, c := range cookies {
-			switch c.Name {
-		{{- range .Cookies }}
-			case {{ printf "%q" .HTTPName }}:
-				{{ .Locals.Raw }} = c.Value
-                {{ .Locals.Present }} = true
-		{{- end }}
-			}
-		}
-		{{- range .Cookies }}
-
-  {{- template "partial_scalar_element" (scalarElementData .Element "cookie") }}
-		{{- end }}{{/* range .Cookies */}}
-	{{- end }}
+{{- if or .Headers .Cookies }}
+{{ renderResponseMetadataFields . $.ServiceName $.Method "resp.Header" "resp.Cookies()" }}
+{{- end }}
 
 	{{- if .MustValidate }}
 			if err != nil {

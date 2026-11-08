@@ -13,7 +13,7 @@ func (r *renderer) indexErrors() error {
 		operation := r.document.Operations[operationIndex]
 		for responseIndex := range r.operations[operationIndex].failures {
 			response := &r.operations[operationIndex].failures[responseIndex]
-			if len(response.headers) > 0 {
+			if len(response.headers) > 0 || response.statusField != "" {
 				continue
 			}
 			if err := r.markErrorSchema(response.response.Schema); err != nil {
@@ -37,7 +37,7 @@ func (r *renderer) classifyErrorClones() error {
 	for operationIndex := range r.operations {
 		for responseIndex := range r.operations[operationIndex].failures {
 			response := &r.operations[operationIndex].failures[responseIndex]
-			if len(response.headers) > 0 {
+			if len(response.headers) > 0 || response.statusField != "" {
 				continue
 			}
 			if err := r.markErrorSchema(response.response.Schema); err != nil {
@@ -59,7 +59,7 @@ func (r *renderer) classifyErrorClones() error {
 	for operationIndex := range r.operations {
 		for responseIndex := range r.operations[operationIndex].failures {
 			response := &r.operations[operationIndex].failures[responseIndex]
-			if len(response.headers) > 0 || response.response.Schema == nil || response.response.Schema.Ref == "" {
+			if len(response.headers) > 0 || response.statusField != "" || response.response.Schema == nil || response.response.Schema.Ref == "" {
 				continue
 			}
 			name, err := openapiref.Name(response.response.Schema.Ref, "#/components/schemas/")

@@ -37,7 +37,7 @@ func TestInlineBodyCompatibleNameHint(t *testing.T) {
 			bodies := BuildBodyTypes(root.API, root.Types, root.ResultTypes, options...)
 			require.NoError(t, bodies.Err)
 			responses := bodies.Services["Svc"]["do"].ResponseBodies
-			explicit := responses[200][0].Ref
+			explicit := responses["200"][0].Ref
 			if mode == "generated" {
 				require.NotEqual(t, toRef("RT"), explicit, "method samples do not substitute declaration samples")
 				name, ok := schemaComponentName(explicit)
@@ -46,7 +46,7 @@ func TestInlineBodyCompatibleNameHint(t *testing.T) {
 				implicitRoot := bodyHintRoot(t, false, false, false)
 				implicit := BuildBodyTypes(implicitRoot.API, implicitRoot.Types, implicitRoot.ResultTypes)
 				require.NoError(t, implicit.Err)
-				require.Equal(t, implicit.Services["Svc"]["do"].ResponseBodies[200][0].Ref, explicit, "separate identical seeded designs preserve full-selection naming")
+				require.Equal(t, implicit.Services["Svc"]["do"].ResponseBodies["200"][0].Ref, explicit, "separate identical seeded designs preserve full-selection naming")
 				require.Equal(t, implicit.Components[name], bodies.Components[name])
 			} else {
 				require.Equal(t, toRef("RT"), explicit, "equal complete annotated schemas reuse the hinted declaration")
@@ -93,8 +93,8 @@ func TestInlineBodyHintForeignAndPartial(t *testing.T) {
 				return true
 			}))
 			require.NoError(t, bodies.Err)
-			first := bodies.Services["Svc"]["method0"].ResponseBodies[200][0].Ref
-			second := bodies.Services["Svc"]["method1"].ResponseBodies[200][0].Ref
+			first := bodies.Services["Svc"]["method0"].ResponseBodies["200"][0].Ref
+			second := bodies.Services["Svc"]["method1"].ResponseBodies["200"][0].Ref
 			require.NotEqual(t, first, second, "different authored hints retain independent families")
 			if mode == "foreign" {
 				require.Equal(t, toRef("First"), first)
@@ -144,14 +144,14 @@ func TestInlineBodyHintRetainsMethodSample(t *testing.T) {
 	require.NotNil(t, set.Representative)
 	expected, emitted := preparedOpenAPIExampleValue(*set.Representative)
 	require.True(t, emitted)
-	require.Equal(t, bodies.ResponseBodies[200][0].Ref, bodies.ResponseBodies[201][0].Ref)
-	name, local := schemaComponentName(bodies.ResponseBodies[200][0].Ref)
+	require.Equal(t, bodies.ResponseBodies["200"][0].Ref, bodies.ResponseBodies["201"][0].Ref)
+	name, local := schemaComponentName(bodies.ResponseBodies["200"][0].Ref)
 	require.True(t, local)
 	require.Equal(t, expected, a.schemas[name].Example)
 	a.finalizeRepresentations()
 	require.NoError(t, a.Err())
 	require.Equal(t, calls, random.calls, "schema registration/finalization must not sample retained values again")
-	for _, status := range []int{200, 201} {
+	for _, status := range []string{"200", "201"} {
 		name, ok := schemaComponentName(bodies.ResponseBodies[status][0].Ref)
 		require.True(t, ok)
 		require.Equal(t, expected, a.schemas[name].Example)
@@ -183,8 +183,8 @@ func TestInlineBodyHintCustomCallbacks(t *testing.T) {
 	a.finalizeRepresentations()
 	require.Equal(t, components, componentCalls, "complete graph comparison does not call custom projectors")
 	require.Equal(t, occurrences+1, occurrenceCalls)
-	require.Equal(t, first.ResponseBodies[200][0].Ref, repeated.ResponseBodies[200][0].Ref)
-	require.Equal(t, toRef("RT"), first.ResponseBodies[200][0].Ref)
+	require.Equal(t, first.ResponseBodies["200"][0].Ref, repeated.ResponseBodies["200"][0].Ref)
+	require.Equal(t, toRef("RT"), first.ResponseBodies["200"][0].Ref)
 }
 
 // The expected values are the independently acquired component's retained
@@ -193,7 +193,7 @@ func TestInlineBodyHintCustomGeneratedSampling(t *testing.T) {
 	root := bodyHintRoot(t, false, false, true)
 	bodies := BuildBodyTypes(root.API, root.Types, root.ResultTypes, WithExampleValue(OpenAPIExampleValue))
 	require.NoError(t, bodies.Err)
-	ref := bodies.Services["Svc"]["do"].ResponseBodies[200][0].Ref
+	ref := bodies.Services["Svc"]["do"].ResponseBodies["200"][0].Ref
 	name, local := schemaComponentName(ref)
 	require.True(t, local)
 	component := bodies.Components[name]

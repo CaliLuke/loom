@@ -198,7 +198,7 @@ paths:
 func TestAnalyzeAggregatesAndSortsUnsupportedFeatures(t *testing.T) {
 	source := []byte(`openapi: 3.1.1
 info: {title: Unsupported, version: "1"}
-servers: [{url: https://example.com}]
+servers: [{url: /relative}]
 security: [{token: []}]
 paths:
   /pets:
@@ -228,7 +228,7 @@ components:
 		require.LessOrEqual(t, diagnostics[i-1].Path, diagnostics[i].Path)
 	}
 	requireDiagnosticCode(t, diagnostics, "callbacks")
-	requireDiagnosticCode(t, diagnostics, "default-response")
+	requireNoDiagnosticCode(t, diagnostics, "default-response")
 	requireDiagnosticCode(t, diagnostics, "schema-composition")
 	requireDiagnosticCode(t, diagnostics, "security-requirement")
 	requireDiagnosticCode(t, diagnostics, "security-scheme")
@@ -525,7 +525,7 @@ paths:
 	requireDiagnosticCode(t, diagnostics, "path-parameter-name")
 	requireDiagnosticCode(t, diagnostics, "wire-name")
 	requireDiagnosticCode(t, diagnostics, "parameter-allow-empty-value")
-	requireDiagnosticCode(t, diagnostics, "success-response-count")
+	requireNoDiagnosticCode(t, diagnostics, "success-response-count")
 }
 
 func TestAnalyzeClassifiesMediaExamplesSeparately(t *testing.T) {

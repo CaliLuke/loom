@@ -3,6 +3,7 @@ package transportir
 import (
 	"fmt"
 	"net/textproto"
+	"slices"
 	"strings"
 
 	"github.com/CaliLuke/loom/eval"
@@ -67,6 +68,10 @@ func buildResponse(endpoint *expr.HTTPEndpointExpr) *Response {
 	result := endpoint.MethodExpr.Result
 	response := &Response{
 		Result:              result,
+		FinalKeys:           endpoint.FinalStatusKeys(),
+		InformationalKeys:   endpoint.InformationalStatusKeys(),
+		StatusSelected:      endpoint.StatusSelected(),
+		NoSuccess:           endpoint.NoSuccess,
 		StreamingResult:     endpoint.MethodExpr.StreamingResult,
 		HasMixedResults:     endpoint.MethodExpr.HasMixedResults(),
 		SkipBodyEncode:      endpoint.SkipResponseBodyEncodeDecode,
@@ -75,14 +80,19 @@ func buildResponse(endpoint *expr.HTTPEndpointExpr) *Response {
 		IDAttributeRequired: result != nil && endpoint.ResultIDAttribute != "" && result.IsRequired(endpoint.ResultIDAttribute),
 	}
 	for _, status := range endpoint.OrderedResponses() {
-		responseStatus := buildResponseStatus(status, nil)
+		responseStatus := buildResponseStatus(status, nil, result)
 		if endpoint.FileResponse && status.ContentType == "" && len(responseContentTypeHeaderEnums(status)) == 0 {
 			responseStatus.ContentTypes = []string{"*/*"}
 		}
 		response.Responses = append(response.Responses, responseStatus)
 	}
 	for _, httpError := range endpoint.HTTPErrors {
-		response.ErrorResponses = append(response.ErrorResponses, buildResponseStatus(httpError.Response, httpError))
+		response.ErrorResponses = append(response.ErrorResponses, buildResponseStatus(httpError.Response, httpError, httpError.AttributeExpr))
+	}
+	for _, info := range endpoint.Informational {
+		response.Informational = append(response.Informational, &InformationalResponse{
+			Name: info.Name, Response: buildResponseStatus(info.HTTPResponseExpr, nil, info.Value),
+		})
 	}
 	return response
 }
@@ -97,22 +107,58 @@ func buildRedirect(endpoint *expr.HTTPEndpointExpr) *Redirect {
 	}
 }
 
-func buildResponseStatus(status *expr.HTTPResponseExpr, httpErrorExpr *expr.HTTPErrorExpr) *ResponseStatus {
+func buildResponseStatus(status *expr.HTTPResponseExpr, httpErrorExpr *expr.HTTPErrorExpr, carrier *expr.AttributeExpr) *ResponseStatus {
 	if status == nil {
 		return nil
+	}
+	if status.JSONRPCError != nil && (httpErrorExpr == nil || status.Status != (expr.HTTPStatusSelector{})) {
+		panic("JSON-RPC code requires an error response without an HTTP status")
+	}
+	if status.Handshake != nil {
+		carrier = status.Handshake
+	}
+	var statusField *StatusBinding
+	if status.StatusField != "" && carrier != nil {
+		name, attribute := carrier.FindAttribute(status.StatusField)
+		statusField = &StatusBinding{Name: name, Attribute: attribute}
+	}
+	required := map[string][]string{"": status.RequiredFields("")}
+	if carrier != nil {
+		if result, ok := carrier.Type.(*expr.ResultTypeExpr); ok {
+			for _, view := range result.Views {
+				required[view.Name] = status.RequiredFields(view.Name)
+			}
+		}
 	}
 	documentBody := responseDocumentBody(status)
 	body := normalizeHTTPAttribute(status.Body)
 	httpError := buildError(httpErrorExpr)
+	var unary *ResponseBody
+	if status.UnaryBody != nil {
+		unaryBody := normalizeHTTPAttribute(status.UnaryBody)
+		unary = &ResponseBody{
+			Body: unaryBody, ContentType: status.ContentType,
+			ContentTypes:  responseContentTypes(status, false),
+			MediaVariants: buildMediaVariants(unaryBody, status.MediaTypes),
+		}
+	}
 	return &ResponseStatus{
+		Occurrence:              status,
+		Unary:                   unary,
+		Carrier:                 carrier,
+		Handshake:               status.Handshake != nil,
+		StatusField:             statusField,
+		Required:                required,
+		AuthoredBody:            status.AuthoredBody(),
 		MediaVariants:           buildMediaVariants(body, status.MediaTypes),
 		Error:                   httpError,
 		ErrorSelector:           httpErrorExpr.JSONRPCErrorSelector(),
 		StatusErrorName:         status.StatusErrorName,
-		StatusCode:              status.StatusCode,
+		Selector:                status.Status,
+		Domain:                  status.StatusDomain(),
 		Description:             status.Description,
 		ContentType:             status.ContentType,
-		ContentTypes:            responseContentTypes(status),
+		ContentTypes:            responseContentTypes(status, isSSEResponse(status)),
 		Headers:                 buildHeaders(status.Headers),
 		Cookies:                 buildCookies(status.Cookies),
 		Body:                    body,
@@ -122,8 +168,7 @@ func buildResponseStatus(status *expr.HTTPResponseExpr, httpErrorExpr *expr.HTTP
 		Tag:                     status.TagBinding,
 		IsError:                 httpError != nil,
 		EmitExamples:            shouldEmitResponseExamples(status),
-		IsWebSocket:             isWebSocketResponse(status, status.StatusCode),
-		BinaryBody:              status.StatusCode != expr.StatusNoContent && isRawResponseBody(status.Parent),
+		BinaryBody:              status.Status != (expr.HTTPStatusSelector{Code: expr.StatusNoContent}) && isRawResponseBody(status.Parent),
 		Meta:                    status.Meta,
 		Links:                   buildResponseLinks(status),
 	}
@@ -176,12 +221,12 @@ func responseDocumentBody(resp *expr.HTTPResponseExpr) *expr.AttributeExpr {
 	return body
 }
 
-func responseContentTypes(resp *expr.HTTPResponseExpr) []string {
+func responseContentTypes(resp *expr.HTTPResponseExpr, sse bool) []string {
 	if contentTypes := responseContentTypeHeaderEnums(resp); len(contentTypes) > 0 {
 		return contentTypes
 	}
 	contentType := resp.ContentType
-	if contentType == "" && isSSEResponse(resp) {
+	if contentType == "" && sse {
 		contentType = "text/event-stream"
 	}
 	if contentType == "" {
@@ -207,14 +252,6 @@ func isSSEResponse(resp *expr.HTTPResponseExpr) bool {
 	}
 	endpoint, ok := resp.Parent.(*expr.HTTPEndpointExpr)
 	return ok && endpoint.SSE != nil
-}
-
-func isWebSocketResponse(resp *expr.HTTPResponseExpr, statusCode int) bool {
-	if resp == nil || statusCode != expr.StatusSwitchingProtocols {
-		return false
-	}
-	endpoint, ok := resp.Parent.(*expr.HTTPEndpointExpr)
-	return ok && endpoint.MethodExpr != nil && endpoint.MethodExpr.IsStreaming() && endpoint.SSE == nil
 }
 
 func responseContentTypeHeaderEnums(resp *expr.HTTPResponseExpr) []string {
@@ -295,11 +332,17 @@ func buildError(httpError *expr.HTTPErrorExpr) *Error {
 	if httpError == nil || httpError.ErrorExpr == nil {
 		return nil
 	}
+	var rpcCode *int
+	if httpError.Response.JSONRPCError != nil {
+		code := httpError.Response.JSONRPCError.Code
+		rpcCode = &code
+	}
 	return &Error{
-		Name:      httpError.Name,
-		Attribute: httpError.AttributeExpr,
-		Type:      httpError.Type,
-		Remedy:    buildErrorRemedy(httpError.ErrorExpr.Remedy),
+		JSONRPCCode: rpcCode,
+		Name:        httpError.Name,
+		Attribute:   httpError.AttributeExpr,
+		Type:        httpError.Type,
+		Remedy:      buildErrorRemedy(httpError.ErrorExpr.Remedy),
 	}
 }
 
@@ -406,13 +449,16 @@ func normalizeHTTPAttributeRecursive(
 				attr.DefaultValue = defaultValue
 			}
 		}
-		if _, ok := seen[actual]; ok {
-			return attr
+		if _, ok := seen[actual]; !ok {
+			seen[actual] = struct{}{}
+			actual.SetAttribute(normalizeHTTPAttributeRecursive(actual.Attribute(), occurrence.Underlying(), seen))
 		}
-		seen[actual] = struct{}{}
-		actual.SetAttribute(normalizeHTTPAttributeRecursive(actual.Attribute(), occurrence.Underlying(), seen))
 		if flattened {
 			attr.Type = actual.Attribute().Type
+			if _, union := attr.Type.(*expr.Union); !union {
+				// A union keeps its declaration as a first-class named sum type.
+				captureRemovedEdgeAnnotations(attr, actual.Attribute())
+			}
 		}
 	case *expr.Array:
 		actual.ElemType = normalizeHTTPAttributeRecursive(actual.ElemType, occurrence.Element(), seen)
@@ -449,6 +495,45 @@ func normalizeHTTPObject(attr *expr.AttributeExpr, actual *expr.Object, occurren
 	if additional, ok := occurrence.Additional(); ok && attr.AdditionalAttributes != nil {
 		attr.AdditionalAttributes = normalizeHTTPAttributeRecursive(attr.AdditionalAttributes, additional, seen)
 	}
+}
+
+// captureRemovedEdgeAnnotations keeps the annotations owned by a flattened
+// declaration on the occurrence that replaces it. The declaration was itself
+// normalized first, so a chain composes inner to outer and the nearer authored
+// value, including an explicit false, wins. Identity, discriminator and media
+// encoding metadata stay with their owners; the shared declaration is not
+// modified.
+func captureRemovedEdgeAnnotations(occurrence, declaration *expr.AttributeExpr) {
+	if occurrence.Title == "" {
+		occurrence.Title = declaration.Title
+	}
+	if occurrence.Description == "" {
+		occurrence.Description = declaration.Description
+	}
+	if occurrence.Docs == nil && declaration.Docs != nil {
+		docs := *declaration.Docs
+		occurrence.Docs = &docs
+	}
+	for key, values := range declaration.Meta {
+		if _, authored := occurrence.Meta[key]; authored || !removedEdgeAnnotationMeta(key) {
+			continue
+		}
+		occurrence.Meta[key] = slices.Clone(values)
+	}
+}
+
+// removedEdgeAnnotationMeta reports whether a declaration metadata key is an
+// OpenAPI annotation that a flattened occurrence inherits.
+func removedEdgeAnnotationMeta(key string) bool {
+	if !strings.HasPrefix(key, "openapi:") || key == "openapi:typename" || key == "openapi:typename:canonical" {
+		return false
+	}
+	for _, owned := range []string{"openapi:discriminator:", "openapi:encoding:", "openapi:itemEncoding:", "openapi:prefixEncoding:"} {
+		if strings.HasPrefix(key, owned) {
+			return false
+		}
+	}
+	return true
 }
 
 func hasCanonicalOpenAPITypeName(attr *expr.AttributeExpr, userType expr.UserType) bool {

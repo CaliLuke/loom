@@ -2,9 +2,11 @@ package codegen
 
 var (
 	responseEncoderSource = joinHTTPTemplateSource(`{{ printf "%s returns an encoder for responses returned by the %s %s endpoint." .ResponseEncoder .ServiceName .Method.Name | comment }}
-func {{ .ResponseEncoder }}(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
-	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-	{{- if .Result.MustInit }}
+func {{ .ResponseEncoder }}(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any{{ if .Method.HasResponseMetadata }}, loomhttp.SSEHandshake{{ end }}) error {
+	return func(ctx context.Context, w http.ResponseWriter, v any{{ if .Method.HasResponseMetadata }}, metadata loomhttp.SSEHandshake{{ end }}) error {
+	{{- if .NoSuccess }}
+		return &loomhttp.StatusViolationError{}
+	{{- else if .Result.MustInit }}
 		{{- if .Method.ViewedResult }}
 			res, ok := v.({{ .Method.ViewedResult.FullRef }})
 			if !ok {
@@ -16,7 +18,13 @@ func {{ .ResponseEncoder }}(encoder func(context.Context, http.ResponseWriter) l
 				return loomhttp.ErrInvalidType("{{ .ServiceName }}", "{{ .Method.Name }}", "{{ .Result.Ref }}", v)
 			}
 		{{- end }}
-		{{- range .Result.Responses }}
+		{{- if .SelectsNativeStatus }}
+		{{ renderFinalSuccessSelection . }}
+		{{- end }}
+		{{- range responsePayloads . }}
+			{{- if $.SelectsNativeStatus }}
+			if selected == ({{ responseSelectorValue . }}) {
+			{{- end }}
 			{{- if .ContentType }}
 				{{- if $.Method.SkipResponseBodyEncodeDecode }}
 					w.Header().Set("Content-Type", "{{ .ContentType }}")
@@ -28,22 +36,31 @@ func {{ .ResponseEncoder }}(encoder func(context.Context, http.ResponseWriter) l
 				if {{ .Tag.Match }} {
 			{{- end -}}
 			{{ template "partial_response" . }}
+			{{- if $.Method.HasResponseMetadata }}
+			for name, values := range metadata.Header {
+				w.Header()[name] = append([]string(nil), values...)
+			}
+			w.WriteHeader(status)
+			{{- end }}
 			{{- if .EncodePlan.HasBody }}
 				return enc.Encode(body)
 			{{- else }}
 				return nil
 			{{- end }}
-			{{- if .Tag }}
+			{{- if or .Tag $.SelectsNativeStatus }}
 				}
 			{{- end }}
+		{{- end }}
+		{{- if .SelectsNativeStatus }}
+		return &loomhttp.StatusViolationError{Code: status, Selector: selected}
 		{{- end }}
 	{{- else }}
 		{{- with (index .Result.Responses 0) }}
 			{{- if and $.Method.SkipResponseBodyEncodeDecode .ContentType }}
 				w.Header().Set("Content-Type", "{{ .ContentType }}")
 			{{- end }}
-			{{- if and (not $.Method.FileResponse) (or (not $.Method.SkipResponseBodyEncodeDecode) (ne .StatusCode "http.StatusOK")) }}
-				w.WriteHeader({{ .StatusCode }})
+			{{- if and (not $.Method.FileResponse) (or (not $.Method.SkipResponseBodyEncodeDecode) (ne .LiteralStatus "http.StatusOK")) }}
+				w.WriteHeader({{ responseWireStatus . }})
 			{{- end }}
 			return nil
 		{{- end }}
@@ -73,10 +90,13 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
 			}
 			{{- with .Response}}
 				{{- if .ErrorPayload }}
-				{{ if or .EncodePlan.HasBody .Headers .Cookies }}res{{ else }}_{{ end }}, payloadError := errorOwner.Payload()
+				{{ if or .EncodePlan.HasBody .Headers .Cookies .HasStatusBinding }}res{{ else }}_{{ end }}, payloadError := errorOwner.Payload()
 				if payloadError != nil {
 					return payloadError
 				}
+				{{- end }}
+				{{- if .HasStatusBinding }}
+				{{ renderFinalErrorStatus . }}
 				{{- end }}
 				{{- if .ContentType }}
 					ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "{{ .ContentType }}")
@@ -111,9 +131,18 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
 	{{- if $prepareSource }}
 {{ $prepareSource }}
 	{{- end }}
-	{{- if and .ViewedResult (not .ViewedResult.ViewName) }}
+	{{- if and .ViewedResult (not .ViewedResult.ViewName) (not .HasStatusBinding) }}
 	w.Header().Set("loom-view", res.View)
 	{{- end }}
+ {{- $source := "res" }}
+ {{- if eq .SourceVar "problem" }}{{ $source = "problem" }}{{ else if .ViewedResult }}{{ $source = "res.Projected" }}{{ end }}
+ {{- if .EncodePlan.FieldSource }}{{ $source = .EncodePlan.FieldSource }}{{ end }}
+ {{- if .HasStatusBinding }}
+ {{ renderFinalMetadataPreparation . }}
+ {{- if and .ViewedResult (not .ViewedResult.ViewName) }}
+ preparedHeaders.Set("loom-view", res.View)
+ {{- end }}
+ {{- end }}
 	{{- if .EncodePlan.HasBody }}
     {{- if not .EncodePlan.FirstBody.Media }}
 	enc := encoder(ctx, w)
@@ -150,116 +179,23 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
 	}
 		{{- end }}
 	{{- end }}
- {{- $source := "res" }}
- {{- if eq .SourceVar "problem" }}{{ $source = "problem" }}{{ else if .ViewedResult }}{{ $source = "res.Projected" }}{{ end }}
- {{- if .EncodePlan.FieldSource }}{{ $source = .EncodePlan.FieldSource }}{{ end }}
+ {{- if not .HasStatusBinding }}
  {{- if .EncodePlan.MetadataGuard }}
  if {{ .EncodePlan.MetadataGuard }} {
  {{- end }}
-	{{- range .Headers }}
-{{- if .Styled }}
-{{ renderStyledEncode .Element $source "response-header" }}
-{{- else }}
-		{{- $initDef := and (or .FieldPointer .Slice) (or .DefaultValue (and .Slice (ne .DefaultValue nil))) (not $.Tag) }}
-		{{- $checkNil := and (or .FieldPointer .Slice (eq .Type.Name "bytes") (eq .Type.Name "any") $initDef) (not $.Tag) }}
-		{{- if $checkNil }}
-	if {{ $source }}{{ if .FieldName }}.{{ .FieldName }}{{ end }} != nil {
-		{{- end }}
-
-		{{- if and (eq .Type.Name "string") (not (isAliased .FieldType)) }}
-	w.Header().Set("{{ .CanonicalName }}", {{ transportScalarValue .Type .FieldType (transportFieldReference .AttributeData $source) .IsTextUnmarshaler }})
-		{{- else }}
-{{- if not $checkNil }}
-{
-{{- end }}
-	val := {{ if .FieldPointer }}*{{ end }}{{ $source }}{{ if .FieldName }}.{{ .FieldName }}{{ end }}
-	{{ if isIntegerValue .AttributeData }}{{ renderIntegerValue .AttributeData .Locals.Encoded "val" "" }}{{ else }}{{ renderHeaderConversion .Type .FieldType .Locals.Encoded "val" .IsTextUnmarshaler }}{{ end }}
-	{{- if .Slice }}
-	if err := loomhttp.SetHeaderValues(w.Header(), "{{ .CanonicalName }}", {{ .Locals.Encoded }}); err != nil {
-		return err
-	}
-	{{- else }}
-	w.Header().Set("{{ .CanonicalName }}", {{ .Locals.Encoded }})
+	{{- with renderResponseHeaders . $source "w.Header()" }}
+	{{ . }}
 	{{- end }}
-{{- if not $checkNil }}
-}
-{{- end }}
-		{{- end }}
-
-		{{- if $initDef }}
-	{{ if $checkNil }} } else { {{ else }}if {{ $source }}.{{ .FieldName }} == nil { {{ end }}
-		{{- if .Slice }}
-		val := {{ printf "%#v" .DefaultValue }}
-		{{ renderHeaderConversion .Type .Type .Locals.Encoded "val" false }}
-		if err := loomhttp.SetHeaderValues(w.Header(), "{{ .CanonicalName }}", {{ .Locals.Encoded }}); err != nil {
-			return err
-		}
-		{{- else }}
-		w.Header().Set("{{ .CanonicalName }}", "{{ printValue .Type .DefaultValue }}")
-		{{- end }}
-		{{- end }}
-
-		{{- if or $checkNil $initDef }}
-	}
-		{{- end }}
-
+	{{- if .Cookies }}
+	{{ renderResponseCookies . $source "w.Header()" "ctx" }}
 	{{- end }}
-	{{- end }}
-
-	{{- range .Cookies }}
-		{{- $initDef := and (or .FieldPointer .Slice) .DefaultValue }}
-		{{- $checkNil := and (or .FieldPointer .Slice (eq .Type.Name "bytes") (eq .Type.Name "any") $initDef) }}
-		{{- if $checkNil }}
-	if {{ $source }}.{{ .FieldName }} != nil {
-		{{- end }}
-
-		{{- if and (eq .Type.Name "string") (not (isAliased .FieldType)) }}
-	{{ .VarName }} := {{ transportScalarValue .Type .FieldType (transportFieldReference .AttributeData $source) .IsTextUnmarshaler }}
-		{{- else }}
-	{{ .Locals.EncodedRaw }} := {{ if .FieldPointer }}*{{ end }}{{ $source }}{{ if .FieldName }}.{{ .FieldName }}{{ end }}
-	{{ if isIntegerValue .AttributeData }}{{ renderIntegerValue .AttributeData .VarName .Locals.EncodedRaw "" }}{{ else }}{{ renderHeaderConversion .Type .FieldType .VarName .Locals.EncodedRaw .IsTextUnmarshaler }}{{ end }}
-		{{- end }}
-
-		{{- if $initDef }}
-	{{ if $checkNil }} } else { {{ else }}if {{ $source }}.{{ .FieldName }} == nil { {{ end }}
-		{{ .VarName }} := "{{ printValue .Type .DefaultValue }}"
-		{{- end }}
-		if err := loomhttp.SetResponseCookie(ctx, w, &http.Cookie{
-			Name: {{ printf "%q" .HTTPName }},
-			Value: {{ .VarName }},
-			{{- if .MaxAge }}
-			MaxAge: {{ .MaxAge }},
-			{{- end }}
-			{{- if .Path }}
-			Path: {{ printf "%q" .Path }},
-			{{- end }}
-			{{- if .Domain }}
-			Domain: {{ printf "%q" .Domain }},
-			{{- end }}
-			{{- if .Secure }}
-			Secure: true,
-			{{- end }}
-			{{- if .HTTPOnly }}
-			HttpOnly: true,
-			{{- end }}
-			{{- if .SameSite }}
-			SameSite: {{ .SameSite }},
-			{{- end }}
-		}); err != nil {
-			return err
-		}
-		{{- if or $checkNil $initDef }}
-	}
-		{{- end }}
-
-	{{- end }}
-
-	{{- if .EncodePlan.MetadataGuard }}
+ {{- if .EncodePlan.MetadataGuard }}
  }
-	{{- end }}
+ {{- end }}
+ {{- end }}
 
 	{{- if and .ErrorHeader (not .ErrorNameFromStatus) }}
-	w.Header().Set("loom-error", {{ if .ErrorPayload }}{{ printf "%q" .ErrorHeader }}{{ else }}res.LoomErrorName(){{ end }})
+	{{ if .HasStatusBinding }}preparedHeaders{{ else }}w.Header(){{ end }}.Set("loom-error", {{ if .ErrorPayload }}{{ printf "%q" .ErrorHeader }}{{ else }}res.LoomErrorName(){{ end }})
 	{{- end }}
     {{- if and .EncodePlan.HasBody .EncodePlan.FirstBody.Media }}
     {{- if .ErrorHeader }}
@@ -295,8 +231,13 @@ ctx = {{ renderMediaFormEncode . "ctx" (printf "mediaBody.%s" .Field) false }}
     }
     {{- end }}
     {{- end }}
+	{{- if .HasStatusBinding }}
+ for name, values := range preparedHeaders {
+  w.Header()[name] = append([]string(nil), values...)
+ }
+ {{- end }}
 		{{- if not .DeferStatus }}
-	w.WriteHeader({{ .StatusCode }})
+	w.WriteHeader({{ responseWireStatus . }})
 	{{- end }}`},
 	}
 )

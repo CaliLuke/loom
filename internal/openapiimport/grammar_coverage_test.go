@@ -166,15 +166,12 @@ func TestSuccessResponseClassificationMatrix(t *testing.T) {
 			for index, status := range test.statuses {
 				responses[index].Status = status
 			}
-			class := successResponseClass(responses)
-			require.Equal(t, test.wantClass, class)
-			count := 0
-			for _, response := range responses {
-				if isSuccessResponseStatus(response.Status, class) {
-					count++
-				}
+			plan, diagnostics := classifyOperationResponses(&Operation{Responses: responses}, "#/test", Components{})
+			require.Empty(t, diagnostics)
+			require.Len(t, plan.successes, test.wantCount)
+			for _, response := range plan.successes {
+				require.Equal(t, test.wantClass, response.source.Status[0])
 			}
-			require.Equal(t, test.wantCount, count)
 		})
 	}
 }
@@ -473,10 +470,21 @@ func openAPIGrammarCoverage() []grammarObjectCoverage {
 			model: v3.Document{},
 			groups: []grammarFieldGroup{
 				group(grammarPreserved, "analyzer.document and TestAnalyzeJSONYAMLParity", "Version", "Info", "Paths", "Components", "Security", "Tags", "Extensions"),
-				group(grammarRejected, "analyzer.document diagnostics", "Servers", "JsonSchemaDialect", "Webhooks"),
+				group(grammarRejected, "analyzer.document diagnostics", "Webhooks"),
+				group(grammarConditional, "partitionServers and TestImportProducerServers", "Servers"),
+				group(grammarConditional, "supportedSchemaDialect and TestImportProducerDefaultDialect", "JsonSchemaDialect"),
 				group(grammarPreserved, "TestSelfProjection", "Self"),
 				group(grammarLossy, "external-docs diagnostic", "ExternalDocs"),
 				group(grammarLibrary, "libopenapi parser state", "Index", "Rolodex"),
+			},
+		},
+		{
+			name:  "Server Object",
+			model: v3.Server{},
+			groups: []grammarFieldGroup{
+				group(grammarConditional, "partitionServers and TestImportProducerServers", "Name", "URL"),
+				group(grammarPreserved, "analyzer.servers and renderer.servers", "Description"),
+				group(grammarRejected, "root server source admission", "Variables", "Extensions"),
 			},
 		},
 		{
@@ -562,15 +570,16 @@ func openAPIGrammarCoverage() []grammarObjectCoverage {
 			parserGapEvidence: "mediaTypeParserGapDiagnostics covers official OpenAPI 3.2 fields absent from libopenapi v0.38.7",
 			groups: []grammarFieldGroup{
 				group(grammarConditional, "analyzer.content and requestContent", "Schema", "Example", "Examples"),
-				group(grammarRejected, "media item, encoding, and extension diagnostics", "ItemSchema", "Encoding", "ItemEncoding", "Extensions"),
+				group(grammarConditional, "TestImportSSEInverseRequired and TestImportSSEEnvelopeRejections: dedicated 3.2 response envelope", "ItemSchema"),
+				group(grammarRejected, "media encoding and extension diagnostics", "Encoding", "ItemEncoding", "Extensions"),
 			},
 		},
 		{
 			name:  "Responses Object",
 			model: v3.Responses{},
 			groups: []grammarFieldGroup{
-				group(grammarConditional, "analyzer.operation concrete response validation", "Codes"),
-				group(grammarRejected, "default-response and extensions diagnostics", "Default", "Extensions"),
+				group(grammarConditional, "classifyOperationResponses and TestImportStatusSelectorAnalyze", "Codes", "Default"),
+				group(grammarRejected, "Responses Object extensions diagnostics", "Extensions"),
 			},
 		},
 		{
@@ -588,7 +597,8 @@ func openAPIGrammarCoverage() []grammarObjectCoverage {
 			groups: []grammarFieldGroup{
 				group(grammarPreserved, "analyzer.header", "Description", "Required", "Schema"),
 				group(grammarConditional, "analyzer.header and TestImportPreservesExporterMetadataSymmetry", "Style", "AllowReserved"),
-				group(grammarLossy, "header-deprecated and examples diagnostics", "Deprecated", "Example", "Examples"),
+				group(grammarLossy, "header-deprecated diagnostic", "Deprecated"),
+				group(grammarConditional, "analyzer.headerExamples and TestImportProducerHeaderExamples", "Example", "Examples"),
 				group(grammarConditional, "resolveReusableDocument", "Reference"),
 				group(grammarRejected, "header serialization, content, and extension diagnostics", "AllowEmptyValue", "Explode", "Content", "Extensions"),
 			},
@@ -624,7 +634,7 @@ func openAPIGrammarCoverage() []grammarObjectCoverage {
 			name:  "Example Object",
 			model: base.Example{},
 			groups: []grammarFieldGroup{
-				group(grammarConditional, "analyzer.mediaExamples and TestImportPreservesStructuredAndReusableExamples", "Reference", "Summary", "Description", "Value", "ExternalValue", "DataValue", "SerializedValue", "Extensions"),
+				group(grammarConditional, "analyzer.wireExamples and TestImportPreservesStructuredAndReusableExamples", "Reference", "Summary", "Description", "Value", "ExternalValue", "DataValue", "SerializedValue", "Extensions"),
 			},
 		},
 		{
@@ -634,7 +644,8 @@ func openAPIGrammarCoverage() []grammarObjectCoverage {
 				group(grammarPreserved, "analyzer.schema normalization", "ExclusiveMaximum", "ExclusiveMinimum", "Properties", "Title", "Maximum", "Minimum", "MaxLength", "MinLength", "Pattern", "MaxItems", "MinItems", "Required", "Description", "Nullable", "ReadOnly", "WriteOnly", "Deprecated", "Extensions"),
 				group(grammarConditional, "schema normalization and render planning", "Type", "AllOf", "AnyOf", "OneOf", "UnevaluatedProperties", "Examples", "Items", "Format", "Enum", "Const", "AdditionalProperties", "Default", "Example"),
 				group(grammarConditional, "normalizeDiscriminators and discriminator source/codec matrix", "Discriminator"),
-				group(grammarRejected, "schemaUnsupportedKeywords", "SchemaTypeRef", "PrefixItems", "Contains", "MinContains", "MaxContains", "If", "Else", "Then", "DependentSchemas", "DependentRequired", "PatternProperties", "Defs", "PropertyNames", "UnevaluatedItems", "Id", "Anchor", "DynamicAnchor", "DynamicRef", "Comment", "ContentSchema", "Vocabulary", "Not", "MultipleOf", "UniqueItems", "MaxProperties", "MinProperties", "ContentEncoding", "ContentMediaType", "XML", "ExternalDocs"),
+				group(grammarRejected, "schemaUnsupportedKeywords", "SchemaTypeRef", "PrefixItems", "Contains", "MinContains", "MaxContains", "If", "Else", "Then", "DependentSchemas", "DependentRequired", "PatternProperties", "Defs", "PropertyNames", "UnevaluatedItems", "Id", "Anchor", "DynamicAnchor", "DynamicRef", "Comment", "Vocabulary", "Not", "MultipleOf", "UniqueItems", "MaxProperties", "MinProperties", "ContentEncoding", "XML", "ExternalDocs"),
+				group(grammarConditional, "TestImportSSEStrictBoundaries: fixed envelope data only; generic schemaAdmission rejects", "ContentSchema", "ContentMediaType"),
 				group(grammarConditional, "analyzer.schema preserves boolean scalars; planner.schema admits modern true schemas; TestSchemaAdmissionBooleanRoundTrip", "BooleanSchema"),
 				group(grammarLibrary, "libopenapi schema proxy state", "ParentProxy"),
 			},
