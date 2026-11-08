@@ -144,7 +144,15 @@ info:
   contact: {name: Loom}
 paths: {}
 `
-	const metadataAndContract = `openapi: 3.1.1
+	const metadataAndUnsupportedServer = `openapi: 3.1.1
+info:
+  title: Metadata
+  version: 1.0.0
+  contact: {name: Loom}
+servers: [{url: /api}]
+paths: {}
+`
+	const metadataAndSupportedServer = `openapi: 3.1.1
 info:
   title: Metadata
   version: 1.0.0
@@ -166,10 +174,12 @@ paths:
 `
 
 	cases := map[string]struct {
-		source       string
-		allowLossy   bool
-		wantWarnings openapiimport.Diagnostics
-		wantError    string
+		source         string
+		allowLossy     bool
+		wantWarnings   openapiimport.Diagnostics
+		wantError      string
+		wantDiagnostic string
+		wantDesign     string
 	}{
 		"strict metadata does not write": {
 			source:    metadataOnly,
@@ -182,10 +192,19 @@ paths:
 				Code: "info-metadata", Path: "#/info", Message: "summary, terms, contact, and license metadata are not in the strict import subset",
 			}},
 		},
-		"lossy does not downgrade contract diagnostics": {
-			source:     metadataAndContract,
+		"lossy metadata preserves supported server": {
+			source:     metadataAndSupportedServer,
 			allowLossy: true,
-			wantError:  "OpenAPI import cannot preserve the input contract",
+			wantWarnings: openapiimport.Diagnostics{{
+				Code: "info-metadata", Path: "#/info", Message: "summary, terms, contact, and license metadata are not in the strict import subset",
+			}},
+			wantDesign: `URI("https://api.example.com")`,
+		},
+		"lossy does not downgrade contract diagnostics": {
+			source:         metadataAndUnsupportedServer,
+			allowLossy:     true,
+			wantError:      "OpenAPI import cannot preserve the input contract",
+			wantDiagnostic: "#/servers/0: root server URL must be an absolute HTTP or HTTPS URL with a host (servers)",
 		},
 		"strict unsupported extension scope does not write": {
 			source:    unsupportedExtensionScope,
@@ -213,12 +232,20 @@ paths:
 			if test.wantError != "" {
 				require.Empty(t, target)
 				require.ErrorContains(t, err, test.wantError)
+				if test.wantDiagnostic != "" {
+					require.ErrorContains(t, err, test.wantDiagnostic)
+				}
 				require.NoDirExists(t, output)
 				return
 			}
 			require.NoError(t, err)
 			require.Equal(t, test.wantWarnings, warnings)
 			require.FileExists(t, target)
+			if test.wantDesign != "" {
+				rendered, err := os.ReadFile(target)
+				require.NoError(t, err)
+				require.Contains(t, string(rendered), test.wantDesign)
+			}
 		})
 	}
 }
@@ -365,7 +392,7 @@ paths:
 func TestRunOpenAPIImportPreservesSecurityWhileReportingOtherOmissions(t *testing.T) {
 	const source = `openapi: 3.1.1
 info: {title: Partial, version: "1"}
-servers: [{url: https://api.example.com}]
+servers: [{url: /api}]
 security: [{apiKey: []}]
 paths:
   /pets:
@@ -398,6 +425,16 @@ components:
 	}
 	require.NotContains(t, stderr, "security\t")
 	require.NotContains(t, stderr, "security-schemes\t")
+	rendered, err := os.ReadFile(filepath.Join(output, "design.go"))
+	require.NoError(t, err)
+	for _, expected := range []string{
+		`APIKeySecurity("apiKey"`,
+		`Security(ImportedAPIKeySecurity)`,
+		`Header("apiKeyCredential:X-API-Key")`,
+	} {
+		require.Contains(t, string(rendered), expected)
+	}
+	require.NotContains(t, string(rendered), `URI("/api")`)
 }
 
 func TestImportOpenAPIDesignOutputResolution(t *testing.T) {
