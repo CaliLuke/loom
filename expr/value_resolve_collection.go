@@ -309,7 +309,7 @@ func (r *valueResolver) objectExtras(node, owner *valueOccurrenceNode, entries m
 		}
 	}
 	sort.Strings(extraNames)
-	if len(extraNames) > 0 && !owner.attribute.ObjectOpenness().AdmitsUndeclared() {
+	if len(extraNames) > 0 && !owner.attribute.effectiveObjectOpenness().AdmitsUndeclared() {
 		failure := valueFailure(ValueInvalid, "additional", "undeclared object members are not allowed")
 		return nil, &failure
 	}

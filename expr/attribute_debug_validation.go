@@ -182,12 +182,12 @@ func hasEffectiveConstraintAncestry(attribute *AttributeExpr) bool {
 // with the attribute type.
 func (a *AttributeExpr) validateExamples(ctx string, parent eval.Expression) *eval.ValidationErrors {
 	verr := new(eval.ValidationErrors)
-	var collisionContext *ValueContext
-	var collisionOccurrence ValueOccurrence
-	var collisionErr error
+	var exampleContext *ValueContext
+	var exampleOccurrence ValueOccurrence
+	var exampleErr error
 	if len(a.UserExamples) > 0 {
-		collisionContext = NewValueContext()
-		collisionOccurrence, collisionErr = collisionContext.newCollisionOccurrence(a)
+		exampleContext = NewValueContext()
+		exampleOccurrence, exampleErr = exampleContext.newExampleShapeOccurrence(a)
 	}
 	for _, ex := range a.UserExamples {
 		if ex.ExplicitNull {
@@ -196,13 +196,15 @@ func (a *AttributeExpr) validateExamples(ctx string, parent eval.Expression) *ev
 			}
 			continue
 		}
-		compatibility := valueCollisionUnknown
+		compatibility := valueExampleUnknown
 		var collisions []valueMapKeyCollision
-		if collisionContext != nil && collisionErr == nil {
-			result := collisionContext.mapKeyCollisionResult(collisionOccurrence,
-				collisionContext.SupplyValue(ValueInput{Raw: ex.Value}))
+		var undeclared []valueUndeclaredMember
+		if exampleContext != nil && exampleErr == nil {
+			result := exampleContext.exampleShapeResult(exampleOccurrence,
+				exampleContext.SupplyValue(ValueInput{Raw: ex.Value}))
 			compatibility = result.compatibility
 			collisions = append(collisions, result.evidence.collisions...)
+			undeclared = append(undeclared, result.evidence.undeclared...)
 			slices.SortFunc(collisions, compareValueMapKeyCollisions)
 		}
 		if len(collisions) > 0 {
@@ -217,10 +219,19 @@ func (a *AttributeExpr) validateExamples(ctx string, parent eval.Expression) *ev
 			verr.Add(parent, "%sexample map keys collide as JSON object member %q at %s", ctx, collision.name, location)
 			continue
 		}
-		if collisionErr != nil {
+		if len(undeclared) > 0 {
+			member := undeclared[0]
+			location := strings.Join(member.path, ".")
+			if location == "" {
+				location = "the example root"
+			}
+			verr.Add(parent, "%sexample has undeclared object member %q at %s", ctx, member.name, location)
 			continue
 		}
-		if collisionErr == nil && compatibility == valueCollisionIncompatible {
+		if exampleErr != nil {
+			continue
+		}
+		if compatibility == valueExampleIncompatible {
 			verr.Add(parent, "%sexample value %#v is incompatible with type %s", ctx, ex.Value, a.Type.Name())
 		}
 	}

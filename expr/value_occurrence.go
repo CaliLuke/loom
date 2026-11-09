@@ -105,8 +105,8 @@ type (
 		// capturedSources copies immutable descriptors as stored instead of
 		// rereading authored provenance. Only read-only plan queries use it.
 		capturedSources bool
-		// structuralOnly builds the private declaration graph used by map-key
-		// collision diagnostics without semantic sources, constraints or views.
+		// structuralOnly builds the private declaration graph used by example
+		// shape diagnostics without semantic sources, constraints or views.
 		structuralOnly bool
 		graph          *valueOccurrenceGraph
 		types          map[DataType]*valueDeclarationNode
@@ -121,10 +121,10 @@ func (c *ValueContext) NewOccurrence(finalized *AttributeExpr) (ValueOccurrence,
 	return c.newOccurrence(finalized, false)
 }
 
-// newCollisionOccurrence captures declaration shape for validation-phase map
-// collision diagnostics. It is private because it deliberately omits semantic
+// newExampleShapeOccurrence captures declaration shape for validation-phase
+// example diagnostics. It is private because it deliberately omits semantic
 // sources and constraints that are owned by ordinary design validation.
-func (c *ValueContext) newCollisionOccurrence(attribute *AttributeExpr) (ValueOccurrence, error) {
+func (c *ValueContext) newExampleShapeOccurrence(attribute *AttributeExpr) (ValueOccurrence, error) {
 	return c.newOccurrence(attribute, true)
 }
 

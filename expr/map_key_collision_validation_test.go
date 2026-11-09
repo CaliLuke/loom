@@ -9,8 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CaliLuke/loom/internal/examplevalue"
 	"github.com/stretchr/testify/require"
+
+	"github.com/CaliLuke/loom/internal/examplevalue"
 )
 
 type collisionNamedString string
@@ -155,10 +156,10 @@ func TestMapKeyCollisionUnionComposition(t *testing.T) {
 
 	allColliding := union(floatMap)
 	context := NewValueContext()
-	occurrence, err := context.newCollisionOccurrence(allColliding)
+	occurrence, err := context.newExampleShapeOccurrence(allColliding)
 	require.NoError(t, err)
-	result := context.mapKeyCollisionResult(occurrence, context.SupplyValue(ValueInput{Raw: value}))
-	require.Equal(t, valueCollisionCompatible, result.compatibility)
+	result := context.exampleShapeResult(occurrence, context.SupplyValue(ValueInput{Raw: value}))
+	require.Equal(t, valueExampleCompatible, result.compatibility)
 	require.Len(t, result.evidence.collisions, 2)
 	require.Equal(t, []string{"Float"}, result.evidence.collisions[0].branchNames)
 	require.Equal(t, []string{"Other"}, result.evidence.collisions[1].branchNames)
@@ -286,10 +287,10 @@ func TestMapKeyCollisionEvidenceMayTraverseIncompatiblePointer(t *testing.T) {
 	}}}
 	value := &collisionPlainNestedObject{Items: map[any]string{1: "integer", "1": "string"}}
 	context := NewValueContext()
-	occurrence, err := context.newCollisionOccurrence(attribute)
+	occurrence, err := context.newExampleShapeOccurrence(attribute)
 	require.NoError(t, err)
-	result := context.mapKeyCollisionResult(occurrence, context.SupplyValue(ValueInput{Raw: value}))
-	require.Equal(t, valueCollisionIncompatible, result.compatibility)
+	result := context.exampleShapeResult(occurrence, context.SupplyValue(ValueInput{Raw: value}))
+	require.Equal(t, valueExampleIncompatible, result.compatibility)
 	require.Len(t, result.evidence.collisions, 1)
 	require.Equal(t, []string{"items"}, result.evidence.collisions[0].path)
 }
@@ -443,15 +444,15 @@ func TestCollisionCompatibilityPreservesFiniteExampleCompatibility(t *testing.T)
 	for _, declaration := range declarations {
 		t.Run(declaration.name, func(t *testing.T) {
 			context := NewValueContext()
-			occurrence, err := context.newCollisionOccurrence(declaration.attribute)
+			occurrence, err := context.newExampleShapeOccurrence(declaration.attribute)
 			require.NoError(t, err)
 			for _, value := range values {
 				t.Run(value.name, func(t *testing.T) {
 					want := legacyExampleValueCompatible(declaration.attribute, value.value)
-					result := context.mapKeyCollisionResult(occurrence,
+					result := context.exampleShapeResult(occurrence,
 						context.SupplyValue(ValueInput{Raw: value.value}))
-					require.NotEqual(t, valueCollisionUnknown, result.compatibility)
-					require.Equal(t, want, result.compatibility == valueCollisionCompatible)
+					require.NotEqual(t, valueExampleUnknown, result.compatibility)
+					require.Equal(t, want, result.compatibility == valueExampleCompatible)
 				})
 			}
 		})
@@ -581,7 +582,7 @@ func TestCollisionOccurrenceOmitsSemanticSourcesAndResultViews(t *testing.T) {
 	root := &AttributeExpr{Type: result}
 
 	context := NewValueContext()
-	collisionOccurrence, err := context.newCollisionOccurrence(root)
+	collisionOccurrence, err := context.newExampleShapeOccurrence(root)
 	require.NoError(t, err)
 	copyResult, ok := collisionOccurrence.node.declaration.typ.(*ResultTypeExpr)
 	require.True(t, ok)
@@ -622,10 +623,10 @@ func TestCollisionOccurrenceOmitsMalformedResultViews(t *testing.T) {
 	_, err := context.NewOccurrence(attribute)
 	require.ErrorContains(t, err, `view "malformed"`)
 
-	occurrence, err := context.newCollisionOccurrence(attribute)
+	occurrence, err := context.newExampleShapeOccurrence(attribute)
 	require.NoError(t, err)
 	raw := map[string]any{"items": map[any]string{1: "integer", "1": "string"}}
-	query := context.mapKeyCollisionResult(occurrence, context.SupplyValue(ValueInput{Raw: raw}))
+	query := context.exampleShapeResult(occurrence, context.SupplyValue(ValueInput{Raw: raw}))
 	require.Len(t, query.evidence.collisions, 1)
 	require.Equal(t, []string{"items"}, query.evidence.collisions[0].path)
 }
@@ -636,7 +637,7 @@ func TestCollisionOccurrenceDefersMalformedDeclarationShape(t *testing.T) {
 	context := NewValueContext()
 	_, ordinaryErr := context.NewOccurrence(attribute)
 	require.ErrorContains(t, ordinaryErr, "map value")
-	_, collisionErr := context.newCollisionOccurrence(attribute)
+	_, collisionErr := context.newExampleShapeOccurrence(attribute)
 	require.ErrorContains(t, collisionErr, "map value")
 
 	validated = make(map[*AttributeExpr]bool)

@@ -107,3 +107,36 @@ and collection projections with default/tiny selections. The rendered specimen
 checks selected fields, requiredness and effective policy under both API defaults;
 its generated HTTP service/client/server compile checks and parser/Vacuum checks
 cover consumers outside the model.
+
+## Named value and example admission (#1066)
+
+`NamedAdmission.tla` enumerates policies on three nodes, every finite link graph
+(including cycles), and values with/without extra members. Only nodes reachable
+from the value's occurrence contribute policy. Closure is their conjunction;
+a closed declaration cannot be reopened by an occurrence. The model assumes the
+member lookup correctly identifies extras, and does not model value codecs,
+example selection, union branch arbitration or Go graph capture.
+
+Use `NamedAdmission.tla` and `admission-occurrence.cfg`, `admission-global.cfg`,
+or `admission-checked.cfg` in the opt-in TLC command above:
+
+| Configuration | Result | Generated / distinct states |
+| --- | --- | --- |
+| admission-occurrence | Contract fails: named declaration closure is missed | 4674 / 4674 |
+| admission-global | Contract fails: an unrelated closed node rejects the value | 4610 / 4610 |
+| admission-checked | Contract passes | 6912 / 6912 |
+
+`effectiveObjectOpenness` owns the cycle-bounded named-chain decision. The value
+resolver uses it for examples, enums and defaults. The example shape query keeps
+the original occurrence while traversing aliases and records undeclared-member
+evidence independently of partial-shape compatibility. Existing map-key
+collision evidence, uncertain union alternatives and opaque codec boundaries
+remain intact. Typed additional-member values recurse through their declared
+shape. Root validation visits declaration-owned examples once; otherwise an
+example on a named type could bypass occurrence validation entirely.
+
+Direct tests cover the source issue, unused declaration examples, occurrence
+policies, aliases, arrays/maps, typed additional members, union alternatives,
+partial required-field examples and opaque callbacks. The generated named-object
+example specimen checks retained valid values and compilation. These tests check
+implementation boundaries outside the bounded alias-policy model.

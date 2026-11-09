@@ -19,6 +19,8 @@ func TestResultViewRetainsObjectOpenness(t *testing.T) {
 		{"closed-api-32", testdata.ClosedAPIResultViewOpennessDSL, true, "3.2", "3.2.0"},
 		{"open-api-31", testdata.ResultViewOpennessDSL, false, "3.1", "3.1.1"},
 		{"closed-api-31", testdata.ClosedAPIResultViewOpennessDSL, true, "3.1", "3.1.1"},
+		{"declaration-32", testdata.ResultDeclarationViewOpennessDSL, false, "3.2", "3.2.0"},
+		{"declaration-31", testdata.ResultDeclarationViewOpennessDSL, false, "3.1", "3.1.1"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			spec := decodeOpenAPIJSON(t, renderOpenAPIArtifactsForVersion(t, tc.design, tc.target, tc.version).JSON)

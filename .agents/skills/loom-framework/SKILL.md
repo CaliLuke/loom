@@ -225,6 +225,20 @@ consumer validation.
   model aligned. Selected result views copy declaration openness through
   `CopyObjectOpenness`, preserving unset versus explicit open under API defaults.
   Keep the projection model and root/nested/collection rendered controls aligned.
+  Example shape admission and value resolution consult effective named-chain
+  openness at the original occurrence. `valueExampleShapeQuery` retains that
+  owner while walking aliases; it reports undeclared members separately from
+  legacy partial-shape compatibility and map-key collisions, and defers opaque
+  codecs. Root validation checks declaration-owned examples even when unused.
+  Root declaration validation also checks each type's own metadata once, including
+  unused types. `validateMetadata` is shared with occurrence validation; it must
+  not revalidate a referenced declaration or mark runtime children as visited.
+  Result declarations validate their own selected view through the result owner;
+  references validate views on the referenced result type. OpenAPI view selection
+  honors its existing projected-result marker before falling back to declaration
+  metadata, so an applied view is not recursively selected again. Collection presence
+  remains occurrence-scoped. Keep named-admission and
+  declaration-metadata models and declaration/occurrence/union controls aligned.
 
 - Typed objects (`AttributeExpr.AdditionalAttributes`, `ObjectTyped`) keep
   semantic declarations separate from physical members. `PhysicalMembers`,

@@ -47,12 +47,9 @@ func (v *attributeValidator) validate(a *AttributeExpr, ctx string, parent eval.
 		verr.Merge(v.Validate(ctx, parent))
 		verr.Merge(a.validateNumericBounds(ctx, parent))
 	}
-	verr.Merge(a.validateUnionClosure(ctx, parent))
 	verr.Merge(a.validateExamples(ctx, parent))
-	verr.Merge(a.validatePresence(ctx, parent))
-	verr.Merge(a.validateStructTagKeys(ctx, parent))
-	verr.Merge(validateStructMeta(ctx, a.Meta, parent))
-	verr.Merge(a.validateObjectOpenness(ctx, parent))
+	verr.Merge(a.validateMetadata(ctx, parent))
+	verr.Merge(a.validateCollectionPresence(ctx, parent))
 	// The validator reaches named types through their occurrences; validate
 	// the declaring attribute's typed policy once.
 	if declaration := a.TypedObjectDeclaration(); declaration != nil && !v.seen[declaration.AdditionalAttributes] {
@@ -64,12 +61,11 @@ func (v *attributeValidator) validate(a *AttributeExpr, ctx string, parent eval.
 		verr.Add(parent, "%sresult type %q with AdditionalAttributes cannot declare views", ctx, rt.Name())
 	}
 	verr.Merge(v.validateChildTypes(a, ctx, parent))
-	verr.Merge(a.validateViewReference(ctx, parent))
 
 	return verr
 }
 
-func (a *AttributeExpr) validatePresence(ctx string, parent eval.Expression) *eval.ValidationErrors {
+func (a *AttributeExpr) validatePresenceMetadata(ctx string, parent eval.Expression) *eval.ValidationErrors {
 	verr := new(eval.ValidationErrors)
 	jsonTag, hasJSONTag := attributeJSONTag(a)
 	if hasJSONTag && jsonTagHasOption(jsonTag, "string") {
@@ -91,6 +87,11 @@ func (a *AttributeExpr) validatePresence(ctx string, parent eval.Expression) *ev
 			verr.Add(parent, "%snullable metadata conflicts with custom field type", ctx)
 		}
 	}
+	return verr
+}
+
+func (a *AttributeExpr) validateCollectionPresence(ctx string, parent eval.Expression) *eval.ValidationErrors {
+	verr := new(eval.ValidationErrors)
 	if array := AsArray(a.Type); array != nil && array.NonNullableElems && IsNullable(array.ElemType) {
 		verr.Add(parent, "%sarray elements cannot be both nullable and required", ctx)
 	}

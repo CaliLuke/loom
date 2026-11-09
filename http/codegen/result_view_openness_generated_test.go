@@ -13,6 +13,7 @@ func TestResultViewOpennessGenerated(t *testing.T) {
 	}{
 		{"open-api", testdata.ResultViewOpennessDSL},
 		{"closed-api", testdata.ClosedAPIResultViewOpennessDSL},
+		{"declaration-selected", testdata.ResultDeclarationViewOpennessDSL},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			root := RunHTTPDSL(t, tc.design)

@@ -7,16 +7,22 @@ import (
 
 // ResultViewOpennessDSL exercises authored openness on selected result views.
 func ResultViewOpennessDSL() {
-	resultViewOpennessDSL(false)
+	resultViewOpennessDSL(false, "")
 }
 
 // ClosedAPIResultViewOpennessDSL distinguishes explicit openness from the API
 // default when projecting result declarations.
 func ClosedAPIResultViewOpennessDSL() {
-	resultViewOpennessDSL(true)
+	resultViewOpennessDSL(true, "")
 }
 
-func resultViewOpennessDSL(closedAPI bool) {
+// ResultDeclarationViewOpennessDSL selects a view on each declaration before
+// transport generation, including references that select the same view again.
+func ResultDeclarationViewOpennessDSL() {
+	resultViewOpennessDSL(false, "tiny")
+}
+
+func resultViewOpennessDSL(closedAPI bool, declarationView string) {
 	API("view-openness", func() {
 		if closedAPI {
 			Meta("openapi:closed-objects", "true")
@@ -29,6 +35,9 @@ func resultViewOpennessDSL(closedAPI bool) {
 				Meta("openapi:additionalProperties", "false")
 			} else if policy == "open" {
 				Meta("openapi:additionalProperties", "true")
+			}
+			if declarationView != "" {
+				Meta(expr.ViewMetaKey, declarationView)
 			}
 			Attributes(func() {
 				Attribute("id", String)

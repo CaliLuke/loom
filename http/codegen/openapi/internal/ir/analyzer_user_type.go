@@ -191,6 +191,11 @@ func componentAttribute(attr *expr.AttributeExpr, t expr.UserType) *expr.Attribu
 // view of attr, or else the view of the result type. It reports false when
 // neither declares a view, so that attr renders the result type as a whole.
 func resultTypeView(attr *expr.AttributeExpr, resultType *expr.ResultTypeExpr) (string, bool) {
+	// Projection consumes the selection, including a declaration fallback.
+	// Re-reading that fallback would recursively analyze the same projection.
+	if applied, ok := attr.Meta.Last(projectedResultMetaKey); ok && applied == "true" {
+		return "", false
+	}
 	if view, ok := attr.Meta.Last(expr.ViewMetaKey); ok {
 		return view, true
 	}

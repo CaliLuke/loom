@@ -158,42 +158,34 @@ func (a *AttributeExpr) reopensClosedObject() bool {
 	return ok && (len(values) == 0 || values[len(values)-1] != "false")
 }
 
-// validateObjectOpenness admits the documented values on an occurrence and on
-// the declaration of the user type it references, where the DSL usually
-// places the metadata.
+// validateObjectOpenness checks this attribute's authored policy. Named
+// declaration metadata is checked separately by root declaration validation.
 func (a *AttributeExpr) validateObjectOpenness(ctx string, parent eval.Expression) *eval.ValidationErrors {
 	verr := new(eval.ValidationErrors)
-	sources := []*AttributeExpr{a}
-	if named, ok := a.Type.(UserType); ok && named.Attribute() != a {
-		sources = append(sources, named.Attribute())
-	}
-	for _, source := range sources {
-		if source.AdditionalAttributes != nil {
-			switch {
-			case AsObject(source.Type) == nil:
-				verr.Add(parent, `%sAdditionalAttributes applies only to objects`, ctx)
-			case source.Meta[objectOpennessMeta] != nil || source.removedMeta[objectOpennessMeta]:
-				verr.Add(parent, `%sAdditionalAttributes cannot be combined with %s`, ctx, objectOpennessMeta)
-			}
-			continue
-		}
-		values, ok := source.Meta[objectOpennessMeta]
+	if a.AdditionalAttributes != nil {
 		switch {
-		case !ok:
-		case len(values) == 0:
-			verr.Add(parent, `%s%s must be "true" or "false", got no value`, ctx, objectOpennessMeta)
-		case values[len(values)-1] != "true" && values[len(values)-1] != "false":
-			verr.Add(parent, `%s%s must be "true" or "false", got %q`, ctx, objectOpennessMeta, values[len(values)-1])
-		case AsObject(source.Type) == nil:
-			verr.Add(parent, `%s%s applies only to objects`, ctx, objectOpennessMeta)
-		case source.Type != nil && source.TypedObjectDeclaration() != nil:
-			// A typed declaration fixes the physical layout of every
-			// occurrence: its declared members and extras carrier.
-			verr.Add(parent, `%s%s cannot override the AdditionalAttributes of %q`, ctx, objectOpennessMeta, source.Type.Name())
-		case values[len(values)-1] == "true":
-			if named, ok := source.Type.(UserType); ok && named.Attribute().effectiveObjectOpenness() == ObjectClosed {
-				verr.Add(parent, `%scannot reopen closed type %q with %s "true"`, ctx, named.Name(), objectOpennessMeta)
-			}
+		case AsObject(a.Type) == nil:
+			verr.Add(parent, `%sAdditionalAttributes applies only to objects`, ctx)
+		case a.Meta[objectOpennessMeta] != nil || a.removedMeta[objectOpennessMeta]:
+			verr.Add(parent, `%sAdditionalAttributes cannot be combined with %s`, ctx, objectOpennessMeta)
+		}
+		return verr
+	}
+	values, ok := a.Meta[objectOpennessMeta]
+	switch {
+	case !ok:
+	case len(values) == 0:
+		verr.Add(parent, `%s%s must be "true" or "false", got no value`, ctx, objectOpennessMeta)
+	case values[len(values)-1] != "true" && values[len(values)-1] != "false":
+		verr.Add(parent, `%s%s must be "true" or "false", got %q`, ctx, objectOpennessMeta, values[len(values)-1])
+	case AsObject(a.Type) == nil:
+		verr.Add(parent, `%s%s applies only to objects`, ctx, objectOpennessMeta)
+	case a.Type != nil && a.TypedObjectDeclaration() != nil:
+		// A typed declaration fixes the physical layout of every occurrence.
+		verr.Add(parent, `%s%s cannot override the AdditionalAttributes of %q`, ctx, objectOpennessMeta, a.Type.Name())
+	case values[len(values)-1] == "true":
+		if named, ok := a.Type.(UserType); ok && named.Attribute().effectiveObjectOpenness() == ObjectClosed {
+			verr.Add(parent, `%scannot reopen closed type %q with %s "true"`, ctx, named.Name(), objectOpennessMeta)
 		}
 	}
 	return verr

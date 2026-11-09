@@ -246,7 +246,7 @@ func TestPresenceValidationRejectsConflictingMetadata(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			verr := test.attribute.validatePresence("", test.attribute)
+			verr := test.attribute.validatePresenceMetadata("", test.attribute)
 			require.ErrorContains(t, verr, test.message)
 		})
 	}
@@ -258,7 +258,7 @@ func TestAttributeRejectsJSONStringOption(t *testing.T) {
 		Meta: MetaExpr{"struct:tag:json": []string{"value,string"}},
 	}
 
-	verr := field.validatePresence("", field)
+	verr := field.validatePresenceMetadata("", field)
 	require.ErrorContains(t, verr, "JSON ,string is not supported")
 }
 

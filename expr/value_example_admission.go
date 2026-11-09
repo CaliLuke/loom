@@ -11,7 +11,7 @@ import (
 )
 
 type (
-	valueCollisionCompatibility uint8
+	valueExampleCompatibility uint8
 
 	valueMapKeyCollision struct {
 		path        []string
@@ -20,17 +20,26 @@ type (
 		name        string
 	}
 
-	valueCollisionEvidence struct {
+	valueUndeclaredMember struct {
+		path []string
+		name string
+	}
+
+	valueExampleEvidence struct {
 		unknown    bool
 		collisions []valueMapKeyCollision
+		undeclared []valueUndeclaredMember
 	}
 
-	valueCollisionResult struct {
-		compatibility valueCollisionCompatibility
-		evidence      valueCollisionEvidence
+	valueExampleShapeResult struct {
+		compatibility valueExampleCompatibility
+		evidence      valueExampleEvidence
 	}
 
-	valueMapKeyCollisionQuery struct {
+	// valueExampleShapeQuery checks structural facts of partial examples without
+	// running codecs or applying value predicates. Evidence stays separate from
+	// the historical shape compatibility used to consider union alternatives.
+	valueExampleShapeQuery struct {
 		context             *ValueContext
 		occurrence          ValueOccurrence
 		active              map[valueSnapshotVisit]bool
@@ -45,19 +54,19 @@ type (
 )
 
 const (
-	valueCollisionIncompatible valueCollisionCompatibility = iota
-	valueCollisionCompatible
-	valueCollisionUnknown
+	valueExampleIncompatible valueExampleCompatibility = iota
+	valueExampleCompatible
+	valueExampleUnknown
 )
 
-func (c *ValueContext) mapKeyCollisionResult(
+func (c *ValueContext) exampleShapeResult(
 	occurrence ValueOccurrence,
 	source ValueSource,
-) valueCollisionResult {
+) valueExampleShapeResult {
 	if !c.ownsValue(occurrence, source) || errors.Is(source.data.snapshot.err, errValueSourceOwnership) {
-		return collisionUnknown(valueCollisionUnknown)
+		return exampleShapeUnknown(valueExampleUnknown)
 	}
-	query := valueMapKeyCollisionQuery{
+	query := valueExampleShapeQuery{
 		context:             c,
 		occurrence:          occurrence,
 		active:              make(map[valueSnapshotVisit]bool),
@@ -72,39 +81,40 @@ func (c *ValueContext) mapKeyCollisionResult(
 	return query.inspect(occurrence.node, source.data.snapshot.raw, nil)
 }
 
-func (q *valueMapKeyCollisionQuery) inspect(
+func (q *valueExampleShapeQuery) inspect(
 	node *valueOccurrenceNode,
 	raw any,
 	path []string,
-) valueCollisionResult {
+) valueExampleShapeResult {
 	if node == nil || node.declaration == nil {
-		return valueCollisionResult{compatibility: valueCollisionIncompatible}
+		return valueExampleShapeResult{compatibility: valueExampleIncompatible}
 	}
 	compatibility := q.compatibility(node, raw)
+	owner := node
 	for node.declaration.alias != nil {
 		node = node.declaration.alias
 	}
 	if valueNullInput(raw) {
-		return collisionClear(compatibility)
+		return exampleShapeClear(compatibility)
 	}
 	if valueHasCustomCodec(reflect.TypeOf(raw)) {
-		return collisionUnknown(compatibility)
+		return exampleShapeUnknown(compatibility)
 	}
 	if selected, handled, failure := selectedUnionSource(q.context.identity, q.occurrence, node, raw); handled {
 		if failure.outcome != 0 {
-			return collisionClear(valueCollisionIncompatible)
+			return exampleShapeClear(valueExampleIncompatible)
 		}
 		result := q.inspect(selected.branch.node, selected.payload, path)
 		return qualifyCollisionBranch(result, q.branchIdentity(selected.branch), selected.branch.name)
 	}
-	var result valueCollisionResult
+	var result valueExampleShapeResult
 	switch node.declaration.kind {
 	case UnionKind:
 		result = q.inspectUnion(node, raw, path)
 	case AnyKind:
 		result = q.inspectAny(node, raw, path)
 	default:
-		result = q.inspectDereferenced(node, reflect.ValueOf(raw), path)
+		result = q.inspectDereferenced(node, owner, reflect.ValueOf(raw), path)
 	}
 	if node.declaration.kind != UnionKind {
 		result.compatibility = compatibility
@@ -112,38 +122,38 @@ func (q *valueMapKeyCollisionQuery) inspect(
 	return result
 }
 
-func (q *valueMapKeyCollisionQuery) inspectDereferenced(
-	node *valueOccurrenceNode,
+func (q *valueExampleShapeQuery) inspectDereferenced(
+	node, owner *valueOccurrenceNode,
 	value reflect.Value,
 	path []string,
-) valueCollisionResult {
+) valueExampleShapeResult {
 	for value.IsValid() && value.Kind() == reflect.Interface {
 		if value.IsNil() {
-			return collisionClear(valueCollisionIncompatible)
+			return exampleShapeClear(valueExampleIncompatible)
 		}
 		value = value.Elem()
 	}
 	if value.IsValid() && value.Kind() == reflect.Pointer {
 		if value.IsNil() {
-			return collisionClear(valueCollisionCompatible)
+			return exampleShapeClear(valueExampleCompatible)
 		}
 		if valueHasCustomCodec(value.Type()) {
-			return collisionUnknown(valueCollisionUnknown)
+			return exampleShapeUnknown(valueExampleUnknown)
 		}
 		leave, entered := q.enter(value)
 		if !entered {
-			return collisionUnknown(valueCollisionUnknown)
+			return exampleShapeUnknown(valueExampleUnknown)
 		}
 		defer leave()
-		return q.inspectDereferenced(node, value.Elem(), path)
+		return q.inspectDereferenced(node, owner, value.Elem(), path)
 	}
 	if !value.IsValid() {
-		return collisionClear(valueCollisionIncompatible)
+		return exampleShapeClear(valueExampleIncompatible)
 	}
 	raw := value.Interface()
 	switch node.declaration.kind {
 	case ObjectKind:
-		return q.inspectObject(node, raw, path)
+		return q.inspectObject(node, owner, raw, path)
 	case ArrayKind:
 		return q.inspectArray(node, value, path)
 	case MapKind:
@@ -153,23 +163,23 @@ func (q *valueMapKeyCollisionQuery) inspectDereferenced(
 	}
 }
 
-func (q *valueMapKeyCollisionQuery) inspectAny(
+func (q *valueExampleShapeQuery) inspectAny(
 	node *valueOccurrenceNode,
 	raw any,
 	path []string,
-) valueCollisionResult {
+) valueExampleShapeResult {
 	value := reflect.ValueOf(raw)
 	for value.IsValid() && value.Kind() == reflect.Interface {
 		if value.IsNil() {
-			return collisionClear(valueCollisionCompatible)
+			return exampleShapeClear(valueExampleCompatible)
 		}
 		value = value.Elem()
 	}
 	if !value.IsValid() {
-		return collisionClear(valueCollisionCompatible)
+		return exampleShapeClear(valueExampleCompatible)
 	}
 	if valueHasCustomCodec(value.Type()) {
-		return collisionUnknown(valueCollisionCompatible)
+		return exampleShapeUnknown(valueExampleCompatible)
 	}
 	switch value.Kind() {
 	case reflect.Map:
@@ -177,82 +187,82 @@ func (q *valueMapKeyCollisionQuery) inspectAny(
 	case reflect.Array, reflect.Slice:
 		return q.inspectRawArray(node, value, path)
 	case reflect.Pointer, reflect.Struct:
-		return collisionUnknown(valueCollisionCompatible)
+		return exampleShapeUnknown(valueExampleCompatible)
 	case reflect.Bool, reflect.String, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32,
 		reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
 		reflect.Float32, reflect.Float64:
-		return collisionClear(valueCollisionCompatible)
+		return exampleShapeClear(valueExampleCompatible)
 	default:
-		return collisionUnknown(valueCollisionCompatible)
+		return exampleShapeUnknown(valueExampleCompatible)
 	}
 }
 
-func (q *valueMapKeyCollisionQuery) inspectArray(
+func (q *valueExampleShapeQuery) inspectArray(
 	node *valueOccurrenceNode,
 	value reflect.Value,
 	path []string,
-) valueCollisionResult {
+) valueExampleShapeResult {
 	if value.Kind() != reflect.Array && value.Kind() != reflect.Slice {
-		return collisionClear(valueCollisionIncompatible)
+		return exampleShapeClear(valueExampleIncompatible)
 	}
 	leave, entered := q.enter(value)
 	if !entered {
-		return collisionUnknown(valueCollisionUnknown)
+		return exampleShapeUnknown(valueExampleUnknown)
 	}
 	defer leave()
-	children := make([]valueCollisionResult, 0, value.Len())
+	children := make([]valueExampleShapeResult, 0, value.Len())
 	for index := range value.Len() {
 		children = append(children, q.inspect(node.declaration.element, value.Index(index).Interface(),
 			appendCollisionPath(path, strconv.Itoa(index))))
 	}
-	return combineCollisionChildren(children)
+	return combineExampleShapeChildren(children)
 }
 
-func (q *valueMapKeyCollisionQuery) inspectRawArray(
+func (q *valueExampleShapeQuery) inspectRawArray(
 	node *valueOccurrenceNode,
 	value reflect.Value,
 	path []string,
-) valueCollisionResult {
+) valueExampleShapeResult {
 	leave, entered := q.enter(value)
 	if !entered {
-		return collisionUnknown(valueCollisionUnknown)
+		return exampleShapeUnknown(valueExampleUnknown)
 	}
 	defer leave()
-	children := make([]valueCollisionResult, 0, value.Len())
+	children := make([]valueExampleShapeResult, 0, value.Len())
 	for index := range value.Len() {
 		children = append(children, q.inspectAny(node, value.Index(index).Interface(),
 			appendCollisionPath(path, strconv.Itoa(index))))
 	}
-	result := combineCollisionChildren(children)
-	result.compatibility = valueCollisionCompatible
+	result := combineExampleShapeChildren(children)
+	result.compatibility = valueExampleCompatible
 	return result
 }
 
-func (q *valueMapKeyCollisionQuery) inspectObject(
-	node *valueOccurrenceNode,
+func (q *valueExampleShapeQuery) inspectObject(
+	node, owner *valueOccurrenceNode,
 	raw any,
 	path []string,
-) valueCollisionResult {
+) valueExampleShapeResult {
 	value := reflect.ValueOf(raw)
 	for value.IsValid() && value.Kind() == reflect.Interface {
 		if value.IsNil() {
-			return collisionClear(valueCollisionIncompatible)
+			return exampleShapeClear(valueExampleIncompatible)
 		}
 		value = value.Elem()
 	}
 	if value.IsValid() && value.Kind() == reflect.Map {
 		leave, entered := q.enter(value)
 		if !entered {
-			return collisionUnknown(q.compatibility(node, raw))
+			return exampleShapeUnknown(q.compatibility(node, raw))
 		}
 		defer leave()
 	}
 	entries, ok := objectSourceEntries(node, raw)
 	if !ok || entries == nil {
-		return collisionClear(valueCollisionIncompatible)
+		return exampleShapeClear(valueExampleIncompatible)
 	}
 	known := make(map[string]bool)
-	var children []valueCollisionResult
+	var children []valueExampleShapeResult
 	for _, member := range node.declaration.members {
 		known[member.name], known[member.wire] = true, true
 		for _, name := range []string{member.name, member.wire} {
@@ -272,50 +282,59 @@ func (q *valueMapKeyCollisionQuery) inspectObject(
 	}
 	slices.Sort(extras)
 	for _, name := range extras {
-		children = append(children, q.inspectAny(node, entries[name], appendCollisionPath(path, name)))
+		if node.additional != nil {
+			children = append(children, q.inspect(node.additional, entries[name], appendCollisionPath(path, name)))
+		} else {
+			children = append(children, q.inspectAny(node, entries[name], appendCollisionPath(path, name)))
+		}
 	}
-	result := combineCollisionChildren(children)
+	result := combineExampleShapeChildren(children)
+	if !owner.attribute.effectiveObjectOpenness().AdmitsUndeclared() {
+		for _, name := range extras {
+			result.evidence.undeclared = append(result.evidence.undeclared, valueUndeclaredMember{path: append([]string(nil), path...), name: name})
+		}
+	}
 	result.compatibility = q.compatibility(node, raw)
 	return result
 }
 
-func (q *valueMapKeyCollisionQuery) inspectMap(
+func (q *valueExampleShapeQuery) inspectMap(
 	node *valueOccurrenceNode,
 	value reflect.Value,
 	path []string,
-) valueCollisionResult {
+) valueExampleShapeResult {
 	if value.Kind() != reflect.Map {
-		return collisionClear(valueCollisionIncompatible)
+		return exampleShapeClear(valueExampleIncompatible)
 	}
 	return q.inspectMapEntries(node, node.declaration.key, node.declaration.element, value, path)
 }
 
-func (q *valueMapKeyCollisionQuery) inspectRawMap(
+func (q *valueExampleShapeQuery) inspectRawMap(
 	node *valueOccurrenceNode,
 	value reflect.Value,
 	path []string,
-) valueCollisionResult {
+) valueExampleShapeResult {
 	return q.inspectMapEntries(node, nil, nil, value, path)
 }
 
-func (q *valueMapKeyCollisionQuery) inspectMapEntries(
+func (q *valueExampleShapeQuery) inspectMapEntries(
 	owner, keyNode, elementNode *valueOccurrenceNode,
 	value reflect.Value,
 	path []string,
-) valueCollisionResult {
+) valueExampleShapeResult {
 	leave, entered := q.enter(value)
 	if !entered {
-		return collisionUnknown(valueCollisionUnknown)
+		return exampleShapeUnknown(valueExampleUnknown)
 	}
 	defer leave()
 
 	entries := valueSortedMapEntries(value)
 	seen := make(map[string]bool)
 	witnessed := make(map[string]bool)
-	result := collisionClear(valueCollisionCompatible)
+	result := exampleShapeClear(valueExampleCompatible)
 	for _, entry := range entries {
 		key := q.mapKeyName(keyNode, entry.key.Interface())
-		result.compatibility = combineCollisionCompatibility(result.compatibility, key.compatibility)
+		result.compatibility = combineExampleCompatibility(result.compatibility, key.compatibility)
 		switch {
 		case !key.known:
 			result.evidence.unknown = true
@@ -330,138 +349,138 @@ func (q *valueMapKeyCollisionQuery) inspectMapEntries(
 		if !key.known {
 			segment = valueKeyOrder(entry.key)
 		}
-		var child valueCollisionResult
+		var child valueExampleShapeResult
 		if elementNode == nil {
 			child = q.inspectAny(owner, entry.value.Interface(), appendCollisionPath(path, segment))
 		} else {
 			child = q.inspect(elementNode, entry.value.Interface(), appendCollisionPath(path, segment))
 		}
-		result = combineCollisionChildren([]valueCollisionResult{result, child})
+		result = combineExampleShapeChildren([]valueExampleShapeResult{result, child})
 	}
 	return result
 }
 
 type valueMapKeyName struct {
-	compatibility valueCollisionCompatibility
+	compatibility valueExampleCompatibility
 	known         bool
 	name          string
 }
 
-func (q *valueMapKeyCollisionQuery) mapKeyName(node *valueOccurrenceNode, raw any) valueMapKeyName {
+func (q *valueExampleShapeQuery) mapKeyName(node *valueOccurrenceNode, raw any) valueMapKeyName {
 	value := reflect.ValueOf(raw)
 	if value.IsValid() && valueHasCustomCodec(value.Type()) {
-		return valueMapKeyName{compatibility: valueCollisionUnknown}
+		return valueMapKeyName{compatibility: valueExampleUnknown}
 	}
 	if node == nil {
 		name, ok := jsonkey.Name(value)
-		return valueMapKeyName{compatibility: valueCollisionCompatible, known: ok, name: name}
+		return valueMapKeyName{compatibility: valueExampleCompatible, known: ok, name: name}
 	}
 	for node.declaration.alias != nil {
 		node = node.declaration.alias
 	}
 	if node.declaration.kind == AnyKind {
 		name, ok := jsonkey.Name(value)
-		return valueMapKeyName{compatibility: valueCollisionCompatible, known: ok, name: name}
+		return valueMapKeyName{compatibility: valueExampleCompatible, known: ok, name: name}
 	}
 	for value.IsValid() && (value.Kind() == reflect.Interface || value.Kind() == reflect.Pointer) {
 		if value.IsNil() {
-			return valueMapKeyName{compatibility: valueCollisionIncompatible}
+			return valueMapKeyName{compatibility: valueExampleIncompatible}
 		}
 		if valueHasCustomCodec(value.Type()) {
-			return valueMapKeyName{compatibility: valueCollisionUnknown}
+			return valueMapKeyName{compatibility: valueExampleUnknown}
 		}
 		if value.Kind() == reflect.Pointer {
 			leave, entered := q.enter(value)
 			if !entered {
-				return valueMapKeyName{compatibility: valueCollisionUnknown}
+				return valueMapKeyName{compatibility: valueExampleUnknown}
 			}
 			defer leave()
 		}
 		value = value.Elem()
 	}
 	if !value.IsValid() {
-		return valueMapKeyName{compatibility: valueCollisionIncompatible}
+		return valueMapKeyName{compatibility: valueExampleIncompatible}
 	}
 	resolved := q.resolver.scalar(node, value.Interface())
 	if resolved.outcome != ValueResolved || resolved.value.node == nil {
-		return valueMapKeyName{compatibility: valueCollisionIncompatible}
+		return valueMapKeyName{compatibility: valueExampleIncompatible}
 	}
 	name, ok := jsonkey.Name(reflect.ValueOf(resolved.value.node.scalar))
-	return valueMapKeyName{compatibility: valueCollisionCompatible, known: ok, name: name}
+	return valueMapKeyName{compatibility: valueExampleCompatible, known: ok, name: name}
 }
 
-func (q *valueMapKeyCollisionQuery) inspectUnion(
+func (q *valueExampleShapeQuery) inspectUnion(
 	node *valueOccurrenceNode,
 	raw any,
 	path []string,
-) valueCollisionResult {
-	var compatible []valueCollisionResult
+) valueExampleShapeResult {
+	var compatible []valueExampleShapeResult
 	unknownEligibility := false
 	for _, branch := range node.declaration.branches {
 		result := q.inspect(branch.node, raw, path)
 		switch result.compatibility {
-		case valueCollisionCompatible:
+		case valueExampleCompatible:
 			compatible = append(compatible, qualifyCollisionBranch(result,
 				q.branchIdentity(branch), branch.name))
-		case valueCollisionUnknown:
+		case valueExampleUnknown:
 			unknownEligibility = true
 		}
 	}
 	if len(compatible) == 0 {
 		if unknownEligibility {
-			return collisionUnknown(valueCollisionUnknown)
+			return exampleShapeUnknown(valueExampleUnknown)
 		}
-		return collisionClear(valueCollisionIncompatible)
+		return exampleShapeClear(valueExampleIncompatible)
 	}
 	if unknownEligibility {
-		return collisionUnknown(valueCollisionCompatible)
+		return exampleShapeUnknown(valueExampleCompatible)
 	}
 	for _, result := range compatible {
-		if len(result.evidence.collisions) == 0 {
-			return collisionUnknown(valueCollisionCompatible)
+		if len(result.evidence.collisions) == 0 && len(result.evidence.undeclared) == 0 {
+			return exampleShapeUnknown(valueExampleCompatible)
 		}
 	}
-	return combineCollisionChildren(compatible)
+	return combineExampleShapeChildren(compatible)
 }
 
-func (q *valueMapKeyCollisionQuery) inspectScalar(
+func (q *valueExampleShapeQuery) inspectScalar(
 	node *valueOccurrenceNode,
 	raw any,
-) valueCollisionResult {
-	return collisionClear(q.compatibility(node, raw))
+) valueExampleShapeResult {
+	return exampleShapeClear(q.compatibility(node, raw))
 }
 
-func (q *valueMapKeyCollisionQuery) compatibility(
+func (q *valueExampleShapeQuery) compatibility(
 	node *valueOccurrenceNode,
 	raw any,
-) valueCollisionCompatibility {
+) valueExampleCompatibility {
 	if node == nil || node.declaration == nil {
-		return valueCollisionIncompatible
+		return valueExampleIncompatible
 	}
 	if raw == nil {
 		if AllowsNull(node.attribute) {
-			return valueCollisionCompatible
+			return valueExampleCompatible
 		}
-		return valueCollisionIncompatible
+		return valueExampleIncompatible
 	}
 	for node.declaration.alias != nil {
 		node = node.declaration.alias
 	}
 	if selected, handled, failure := selectedUnionSource(q.context.identity, q.occurrence, node, raw); handled {
 		if failure.outcome != 0 {
-			return valueCollisionIncompatible
+			return valueExampleIncompatible
 		}
 		return q.compatibility(selected.branch.node, selected.payload)
 	}
 	value := reflect.ValueOf(raw)
 	switch node.declaration.kind {
 	case AnyKind:
-		return valueCollisionCompatible
+		return valueExampleCompatible
 	case ObjectKind:
 		if value.Kind() == reflect.Map || value.Kind() == reflect.Struct {
-			return valueCollisionCompatible
+			return valueExampleCompatible
 		}
-		return valueCollisionIncompatible
+		return valueExampleIncompatible
 	case ArrayKind:
 		return q.arrayCompatibility(node, value)
 	case MapKind:
@@ -470,72 +489,72 @@ func (q *valueMapKeyCollisionQuery) compatibility(
 		return q.unionCompatibility(node, raw)
 	default:
 		if node.declaration.typ.IsCompatible(raw) {
-			return valueCollisionCompatible
+			return valueExampleCompatible
 		}
-		return valueCollisionIncompatible
+		return valueExampleIncompatible
 	}
 }
 
-func (q *valueMapKeyCollisionQuery) arrayCompatibility(
+func (q *valueExampleShapeQuery) arrayCompatibility(
 	node *valueOccurrenceNode,
 	value reflect.Value,
-) valueCollisionCompatibility {
+) valueExampleCompatibility {
 	if value.Kind() != reflect.Array && value.Kind() != reflect.Slice {
-		return valueCollisionIncompatible
+		return valueExampleIncompatible
 	}
 	leave, entered := q.enterCompatibility(node, value)
 	if !entered {
-		return valueCollisionUnknown
+		return valueExampleUnknown
 	}
 	defer leave()
-	result := valueCollisionCompatible
+	result := valueExampleCompatible
 	for index := range value.Len() {
-		result = combineCollisionCompatibility(result,
+		result = combineExampleCompatibility(result,
 			q.compatibility(node.declaration.element, value.Index(index).Interface()))
 	}
 	return result
 }
 
-func (q *valueMapKeyCollisionQuery) mapCompatibility(
+func (q *valueExampleShapeQuery) mapCompatibility(
 	node *valueOccurrenceNode,
 	value reflect.Value,
-) valueCollisionCompatibility {
+) valueExampleCompatibility {
 	if value.Kind() != reflect.Map {
-		return valueCollisionIncompatible
+		return valueExampleIncompatible
 	}
 	leave, entered := q.enterCompatibility(node, value)
 	if !entered {
-		return valueCollisionUnknown
+		return valueExampleUnknown
 	}
 	defer leave()
-	result := valueCollisionCompatible
+	result := valueExampleCompatible
 	for _, entry := range valueSortedMapEntries(value) {
-		result = combineCollisionCompatibility(result,
+		result = combineExampleCompatibility(result,
 			q.compatibility(node.declaration.key, entry.key.Interface()))
-		result = combineCollisionCompatibility(result,
+		result = combineExampleCompatibility(result,
 			q.compatibility(node.declaration.element, entry.value.Interface()))
 	}
 	return result
 }
 
-func (q *valueMapKeyCollisionQuery) unionCompatibility(
+func (q *valueExampleShapeQuery) unionCompatibility(
 	node *valueOccurrenceNode,
 	raw any,
-) valueCollisionCompatibility {
-	result := valueCollisionIncompatible
+) valueExampleCompatibility {
+	result := valueExampleIncompatible
 	for _, branch := range node.declaration.branches {
 		branchResult := q.compatibility(branch.node, raw)
-		if branchResult == valueCollisionCompatible {
-			return valueCollisionCompatible
+		if branchResult == valueExampleCompatible {
+			return valueExampleCompatible
 		}
-		if branchResult == valueCollisionUnknown {
-			result = valueCollisionUnknown
+		if branchResult == valueExampleUnknown {
+			result = valueExampleUnknown
 		}
 	}
 	return result
 }
 
-func (q *valueMapKeyCollisionQuery) enterCompatibility(
+func (q *valueExampleShapeQuery) enterCompatibility(
 	node *valueOccurrenceNode,
 	value reflect.Value,
 ) (func(), bool) {
@@ -553,11 +572,11 @@ func (q *valueMapKeyCollisionQuery) enterCompatibility(
 	}, true
 }
 
-func (q *valueMapKeyCollisionQuery) branchIdentity(branch valueOccurrenceBranch) ValueIdentity {
+func (q *valueExampleShapeQuery) branchIdentity(branch valueOccurrenceBranch) ValueIdentity {
 	return ValueIdentity{context: q.context.identity, graph: q.occurrence.graph, index: branch.id}
 }
 
-func (q *valueMapKeyCollisionQuery) enter(value reflect.Value) (func(), bool) {
+func (q *valueExampleShapeQuery) enter(value reflect.Value) (func(), bool) {
 	visit, tracked := valueTrackedVisit(value)
 	if !tracked || value.IsNil() {
 		return func() {}, true
@@ -571,41 +590,42 @@ func (q *valueMapKeyCollisionQuery) enter(value reflect.Value) (func(), bool) {
 	}, true
 }
 
-func collisionClear(compatibility valueCollisionCompatibility) valueCollisionResult {
-	return valueCollisionResult{compatibility: compatibility}
+func exampleShapeClear(compatibility valueExampleCompatibility) valueExampleShapeResult {
+	return valueExampleShapeResult{compatibility: compatibility}
 }
 
-func collisionUnknown(compatibility valueCollisionCompatibility) valueCollisionResult {
-	return valueCollisionResult{compatibility: compatibility, evidence: valueCollisionEvidence{unknown: true}}
+func exampleShapeUnknown(compatibility valueExampleCompatibility) valueExampleShapeResult {
+	return valueExampleShapeResult{compatibility: compatibility, evidence: valueExampleEvidence{unknown: true}}
 }
 
-func combineCollisionChildren(children []valueCollisionResult) valueCollisionResult {
-	result := collisionClear(valueCollisionCompatible)
+func combineExampleShapeChildren(children []valueExampleShapeResult) valueExampleShapeResult {
+	result := exampleShapeClear(valueExampleCompatible)
 	for _, child := range children {
-		result.compatibility = combineCollisionCompatibility(result.compatibility, child.compatibility)
+		result.compatibility = combineExampleCompatibility(result.compatibility, child.compatibility)
 		result.evidence.unknown = result.evidence.unknown || child.evidence.unknown
 		result.evidence.collisions = append(result.evidence.collisions, child.evidence.collisions...)
+		result.evidence.undeclared = append(result.evidence.undeclared, child.evidence.undeclared...)
 	}
 	return result
 }
 
-func combineCollisionCompatibility(
-	left, right valueCollisionCompatibility,
-) valueCollisionCompatibility {
-	if left == valueCollisionIncompatible || right == valueCollisionIncompatible {
-		return valueCollisionIncompatible
+func combineExampleCompatibility(
+	left, right valueExampleCompatibility,
+) valueExampleCompatibility {
+	if left == valueExampleIncompatible || right == valueExampleIncompatible {
+		return valueExampleIncompatible
 	}
-	if left == valueCollisionUnknown || right == valueCollisionUnknown {
-		return valueCollisionUnknown
+	if left == valueExampleUnknown || right == valueExampleUnknown {
+		return valueExampleUnknown
 	}
-	return valueCollisionCompatible
+	return valueExampleCompatible
 }
 
 func qualifyCollisionBranch(
-	result valueCollisionResult,
+	result valueExampleShapeResult,
 	identity ValueIdentity,
 	name string,
-) valueCollisionResult {
+) valueExampleShapeResult {
 	for index := range result.evidence.collisions {
 		result.evidence.collisions[index].branches = append(
 			[]ValueIdentity{identity}, result.evidence.collisions[index].branches...)

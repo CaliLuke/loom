@@ -218,9 +218,6 @@ func (r *RootExpr) Validate() error {
 	// that may share a name like "XCollection".
 	seen := make(map[string]struct{})
 	for _, rt := range r.ResultTypes {
-		if err := rt.validateExplicitViewMeta(); err != nil {
-			verr.Add(r, "%s", err.Error())
-		}
 		if _, declared := rt.Meta["openapi:typename"]; !declared {
 			continue // skip generated result type name checks
 		}
@@ -232,15 +229,7 @@ func (r *RootExpr) Validate() error {
 		}
 	}
 
-	for _, ut := range r.Types {
-		verr.Merge(validateStructMeta("", ut.Attribute().Meta, ut))
-		if union := AsUnion(ut); union != nil && hasInlineUnionCycle(union) {
-			verr.Add(ut, "recursive OneOf branch cycle in %q is not supported; place the recursive reference inside an object field", union.Name())
-		}
-	}
-	for _, rt := range r.ResultTypes {
-		verr.Merge(validateStructMeta("", rt.Attribute().Meta, rt))
-	}
+	verr.Merge(r.validateTypeDeclarations())
 	verr.Merge(r.validateHTTPJSONRPCMethods())
 	verr.Merge(r.validateHTTPMounts())
 	verr.Merge(r.validateRelocatedUserTypes())

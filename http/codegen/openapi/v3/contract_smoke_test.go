@@ -337,6 +337,8 @@ func TestRepresentativeSpecsPassVacuumLintAndConsumerSmoke(t *testing.T) {
 		{name: "localized-result-fields", dsl: testdata.LocalizedResultFieldsDSL},
 		{name: "result-view-openness", dsl: testdata.ResultViewOpennessDSL},
 		{name: "closed-api-result-views", dsl: testdata.ClosedAPIResultViewOpennessDSL},
+		{name: "declaration-result-views", dsl: testdata.ResultDeclarationViewOpennessDSL},
+		{name: "named-object-examples", dsl: testdata.NamedObjectExamplesDSL},
 		{name: "collection-examples", dsl: testdata.CollectionExamplesDSL},
 		{name: "byte-enums", dsl: testdata.CollectionEnumDSL},
 		{name: "large-nested-enum", dsl: testdata.LargeEnumResponseDSL},

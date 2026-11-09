@@ -571,6 +571,11 @@ declare views. Members cannot use the
 `case:ignore` JSON tag option. As with `MapOf`, the XML encoder cannot encode
 the map of undeclared attributes.
 
+A type declaration's own metadata is validated even when no method uses the
+type. Invalid metadata is reported on that declaration once; metadata authored
+on a payload, result or field is checked at that occurrence. Correct invalid
+metadata on unused declarations before regenerating.
+
 ### Type Composition
 
 #### Reference
@@ -691,6 +696,10 @@ Selected result-type views retain the declaration’s openness policy, including
 inside nested results and collections. A closed declaration’s projected OpenAPI
 object stays closed around its selected members. Explicit openness still
 overrides API-wide `openapi:closed-objects` emission.
+Authored examples may omit required fields, but cannot supply undeclared members
+of a closed object, including through named types, aliases, arrays, maps or typed
+additional members. Undeclared members in declaration examples are rejected at
+the declaration even when no method references it.
 
 Earlier releases flattened a closed base and closed the composed object, which
 silently admitted the derived members. Designs that extend a closed base with new
