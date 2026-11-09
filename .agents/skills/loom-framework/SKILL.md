@@ -222,7 +222,9 @@ consumer validation.
   copy of its private target. Do not copy types for it during composition;
   copies there miss later constraint and result-type finalization. Policy
   belongs on object schemas, never beside a `$ref`. Keep the object openness
-  model aligned.
+  model aligned. Selected result views copy declaration openness through
+  `CopyObjectOpenness`, preserving unset versus explicit open under API defaults.
+  Keep the projection model and root/nested/collection rendered controls aligned.
 
 - Typed objects (`AttributeExpr.AdditionalAttributes`, `ObjectTyped`) keep
   semantic declarations separate from physical members. `PhysicalMembers`,

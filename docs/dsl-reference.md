@@ -687,6 +687,10 @@ var Record = Type("Record", func() {
 
 A base reached through an alias (`Type("Alias", Base)`) carries the policy of
 `Base`; a closed link anywhere in the alias chain keeps the base closed.
+Selected result-type views retain the declaration’s openness policy, including
+inside nested results and collections. A closed declaration’s projected OpenAPI
+object stays closed around its selected members. Explicit openness still
+overrides API-wide `openapi:closed-objects` emission.
 
 Earlier releases flattened a closed base and closed the composed object, which
 silently admitted the derived members. Designs that extend a closed base with new

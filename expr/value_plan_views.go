@@ -60,6 +60,7 @@ func (p *valueViewPlan) project(rt *ResultTypeExpr, name string) (*ResultTypeExp
 			},
 		},
 	}
+	CopyObjectOpenness(projected.AttributeExpr, rt.AttributeExpr)
 	viewAttribute := copyValueAttribute(view.AttributeExpr)
 	viewAttribute.Type = object
 	projected.UserExamples = viewAttribute.UserExamples

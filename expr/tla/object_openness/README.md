@@ -80,3 +80,30 @@ excludes typed additional-member schemas (#1013), requiredness, nullability,
 recursion, views and transport codecs. Declaration compatibility is the
 existing `Extend` check; the model only requires that compatible domains
 intersect.
+
+## Selected result views (#1065)
+
+`ProjectionOpenness.tla` checks the ownership boundary after field selection.
+Projection preserves the declaration's authored policy, including the distinction
+between unset and explicit open under an API-wide closed-object default. Closure
+applies to the selected object's members. It is not copied onto a reference
+wrapper. `CopyObjectOpenness` owns the detached policy copy; projection does not
+copy unrelated naming or transport metadata.
+
+Run the same TLC command with `ProjectionOpenness.tla` and these configurations:
+
+| Configuration | Result | Generated / distinct states |
+| --- | --- | --- |
+| projection-discard | AuthoredPolicy fails: explicit policy is lost | 17 / 17 |
+| projection-collapse | AuthoredPolicy fails: unset becomes explicit open | 13 / 13 |
+| projection-checked | AuthoredPolicy and RenderedPolicy pass | 24 / 24 |
+
+The bounded model covers three authored policies, two API defaults and two
+selected field sets. It assumes a valid completed result declaration and does
+not model code generation, recursion or typed additional members. Result views
+with AdditionalAttributes remain rejected by ordinary design validation.
+`TestProjectRetainsObjectOpenness` checks detached policy copies for root, nested
+and collection projections with default/tiny selections. The rendered specimen
+checks selected fields, requiredness and effective policy under both API defaults;
+its generated HTTP service/client/server compile checks and parser/Vacuum checks
+cover consumers outside the model.
