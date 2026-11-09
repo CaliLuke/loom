@@ -162,6 +162,13 @@ consumer validation.
   and nested/copy/generated regressions aligned. Expression publication does not
   replace transport default-admission or conversion rules.
 
+- DSL localization completes both `Type` and `ResultType` declarations before
+  copying their fields and views. The shared evaluation registry runs each
+  callback once in its native DSL context; running declarations retain the
+  existing deferred-reference ownership. Keep the
+  [localization model](../../../dsl/tla/type_localization/README.md), direct
+  declaration-order tests and localized-result generated specimen aligned.
+
 - `expr.DupAtt` retains source-node identity within a detached graph: distinct
   nodes may share a nominal ID, while repeated edges and cycles share their copy.
   Mutating body traversals (`walkUserTypes`, HTTP alias lowering and transport IR

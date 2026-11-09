@@ -59,3 +59,25 @@ done
 
 The negative controls exit 12; checked exits 0. Remove temporary checker states
 after independent review, preserving these sources and summarized findings.
+
+## Result declaration completion (#1064)
+
+`Completion.tla` adds the preceding scheduling boundary: both `Type` and
+`ResultType` must finish their authored DSL before localization snapshots their
+fields. The former registry tracked only `Type`, so a result copied during user
+type evaluation stayed empty even after the normal result pass completed.
+Registering both declarations and executing each in its native DSL context
+preserves fields/views and executes the callback once. Existing kept-reference
+ownership handles a declaration already running; it must not be replayed.
+
+Run the command above with `Completion.tla` and `completion-current.cfg` or
+`completion-checked.cfg`, using separate temporary metadata directories. On
+Java 25.0.5 and the same pinned TLC JAR, current fails `CompleteCopies` after
+3 generated/distinct states; checked passes both invariants with 13 generated,
+9 distinct states. The model assumes atomic callback completion and abstracts
+views as declaration content. It does not prove callback validity, recursion,
+Go naming or wire conversion. `TestResultTypeLocalizationCompletesDeclaration`
+covers direct/array/map copies in both declaration orders, views, requiredness,
+metadata isolation and callback count. The recursive-owner test checks the
+kept-reference boundary; the localized HTTP specimen checks emitted Go and
+OpenAPI field retention. These implementation checks complement the model.

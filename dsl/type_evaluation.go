@@ -9,7 +9,7 @@ import (
 
 type (
 	// typeEvaluation tracks the execution of the DSL of a type declared with
-	// Type so that an attribute DSL can evaluate the type before copying it.
+	// Type or ResultType so an attribute DSL can complete it before copying it.
 	typeEvaluation struct {
 		userType expr.UserType
 		fn       func()
@@ -66,7 +66,7 @@ func typeDSL(ut expr.UserType, fn func()) func() {
 
 // localizeAttribute replaces the type of att with a copy that an attribute
 // DSL may refine without changing the shared types it references. Inside a
-// DSL body, the DSL of every referenced type declared with Type runs first so
+// DSL body, the DSL of every referenced Type or ResultType runs first so
 // that the copy is complete, as if the types had been declared before. A type
 // that cannot be completed yet, because its DSL is running or because att is
 // declared outside any DSL body where types cannot be evaluated, stays
@@ -146,7 +146,7 @@ func walkOwnedTypeAttributes(typ expr.DataType, visit func(*expr.AttributeExpr))
 	walk(typ)
 }
 
-// evaluateReferencedTypes returns the types declared with Type that dt
+// evaluateReferencedTypes returns the Type and ResultType declarations that dt
 // references, including through typed AdditionalAttributes, and whose DSL has
 // not completed. When evaluate is true it first runs the DSL of the referenced
 // types that have not been evaluated yet, so that only the types whose DSL is
@@ -180,7 +180,11 @@ func evaluateReferencedTypes(dt expr.DataType, evaluate bool) []expr.UserType {
 					return
 				}
 				if !ev.done {
-					eval.Execute(actual.Attribute().DSLFunc, actual.Attribute())
+					var context eval.Expression = actual.Attribute()
+					if result, ok := actual.(*expr.ResultTypeExpr); ok {
+						context = result
+					}
+					eval.Execute(actual.Attribute().DSLFunc, context)
 				}
 			}
 			walkAttribute(actual.Attribute())
