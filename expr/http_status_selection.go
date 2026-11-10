@@ -168,7 +168,7 @@ func (r *HTTPResponseExpr) validateStatusSource(e *HTTPEndpointExpr, source *Att
 		return
 	}
 	key, field := source.FindAttribute(r.StatusField)
-	if field == nil || unalias(field.Type) != Int || !source.IsRequired(key) || AllowsNull(field) || field.effectiveDefault() != nil || IsDefaultErrorResult(source.Type) {
+	if field == nil || unalias(field.Type) != Int || !source.IsRequired(key) || AllowsNull(field) || field.EffectiveDefault() != nil || IsDefaultErrorResult(source.Type) {
 		verr.Add(r, "StatusField %q must be a required non-nullable native Int without a default", r.StatusField)
 		return
 	}

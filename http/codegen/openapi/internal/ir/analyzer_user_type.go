@@ -63,7 +63,7 @@ func (a *Analyzer) analyzeUserTypeOverlay(attr *expr.AttributeExpr, t expr.UserT
 		}
 	}
 	if len(schema.AllOf) == 1 {
-		a.constructions[schema] = schemaConstruction{slots: []schemaSlot{{location: schemaAllOf}}}
+		setAcquisitionEntry(a, a.constructions, schema, schemaConstruction{slots: []schemaSlot{{location: schemaAllOf}}})
 	}
 	occurrence := *attr
 	occurrence.Meta = occurrenceMeta
@@ -258,7 +258,7 @@ func (a *Analyzer) componentName(attr *expr.AttributeExpr, t expr.UserType, fing
 		_, schemaExists := a.schemas[typeName]
 		existingTypeID, hasTypeID := a.schemaTypeIDs[typeName]
 		if schemaExists && hasTypeID && existingTypeID == t.ID() && a.schemaFingerprints[typeName] == acquisition {
-			a.schemaTypeIDs[typeName] = t.ID()
+			setAcquisitionEntry(a, a.schemaTypeIDs, typeName, t.ID())
 			schema.Ref = toRef(typeName)
 			return typeName, true
 		}
@@ -318,19 +318,19 @@ func (a *Analyzer) analyzeUserType(attr *expr.AttributeExpr, t expr.UserType, co
 	s.Ref = toRef(typeName)
 	a.registerComponentReference(acquisition, s.Ref, metaName, canonical)
 	if _, ok := a.schemas[typeName]; !ok {
-		a.schemaFingerprints[typeName] = acquisition
+		setAcquisitionEntry(a, a.schemaFingerprints, typeName, acquisition)
 		componentAttr := componentAttribute(attr, t)
-		a.schemaTypeIDs[typeName] = t.ID()
+		setAcquisitionEntry(a, a.schemaTypeIDs, typeName, t.ID())
 		naming := a.componentNaming(attr, t, typeName, fingerprint, canonical)
 		componentContext := exampleContext("component", naming.annotationName)
-		a.schemaNames[typeName] = naming
+		setAcquisitionEntry(a, a.schemaNames, typeName, naming)
 		entry := a.reserveComponent(typeName, acquisition, fingerprint, metaName, canonical, attr, t)
 		a.bindContributor(binding, s.Ref, acquisition, metaName, canonical)
-		a.schemas[typeName] = func() *Schema {
+		setAcquisitionEntry(a, a.schemas, typeName, func() *Schema {
 			restore := a.componentAnnotationScope(naming.logical, naming.baseline, componentContext)
 			defer restore()
 			return a.analyzeNamedUnderlyingSchema(componentAttr, t, componentContext, true)
-		}()
+		}())
 		entry.complete = true
 		if _, hinted := a.discriminatorHints.parentRoots[a.schemas[typeName]]; hinted {
 			a.recordProjectedChildren(attr, t, typeName, componentContext)

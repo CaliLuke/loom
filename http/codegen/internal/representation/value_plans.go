@@ -10,13 +10,22 @@ import (
 	"github.com/CaliLuke/loom/internal/encodingmeta"
 )
 
-type httpValuePlanBuilder struct {
-	request         expr.ValuePlanRequest
-	seen            map[*expr.AttributeExpr]bool
-	boundary        string
-	projectedRoot   *expr.AttributeExpr
-	projectedFields map[string]contributorField
-}
+type (
+	httpValuePlanCapture struct {
+		target   *expr.AttributeExpr
+		context  *codegen.AttributeContext
+		request  expr.ValuePlanRequest
+		boundary string
+	}
+
+	httpValuePlanBuilder struct {
+		request         expr.ValuePlanRequest
+		seen            map[*expr.AttributeExpr]bool
+		boundary        string
+		projectedRoot   *expr.AttributeExpr
+		projectedFields map[string]contributorField
+	}
+)
 
 // BuildValuePlan runs at the actual body declaration owner, after layout
 // and view selection. Its policies consume the same tags used by the emitter.
@@ -35,11 +44,20 @@ func buildValuePlan(value *transportir.ValueTarget, target *expr.AttributeExpr, 
 	if result.Error != nil || result.Source == nil {
 		return &result
 	}
-	// Rebuilding the target plans invalidates only attachments keyed by their
-	// nodes. Source and anchor results remain available for preparation to bind
-	// again without selecting or synthesizing another value.
-	clearTargetValues(&result)
+	capture, err := captureValuePlan(value, target, context, use, contract)
+	if err != nil {
+		clearTargetValues(&result)
+		result.ProjectionContext = capture.context
+		result.Error = err
+		return &result
+	}
+	return buildCapturedValuePlan(value, capture, use)
+}
 
+// captureValuePlan owns one finalized body/codec snapshot. Media slots of that
+// exact body may reuse it in the same semantic context. Plans and their effect
+// caches remain independent; no lookup survives the enclosing body preparation.
+func captureValuePlan(value *transportir.ValueTarget, target *expr.AttributeExpr, context *codegen.AttributeContext, use expr.ValuePlanUse, contract *contributorContract) (*httpValuePlanCapture, error) {
 	target = TargetGraph(target)
 	var parameter *parameterContract
 	if contract != nil {
@@ -52,9 +70,9 @@ func buildValuePlan(value *transportir.ValueTarget, target *expr.AttributeExpr, 
 		local.CollectionElementPresence = false
 		context = &local
 	}
-	result.ProjectionContext = captureProjectionContext(context, target)
+	capture := &httpValuePlanCapture{target: target, context: captureProjectionContext(context, target)}
 	builder := httpValuePlanBuilder{
-		request: expr.ValuePlanRequest{Target: target, Selection: append([]string(nil), value.Selection...), Codec: value.Codec, Use: use},
+		request: expr.ValuePlanRequest{Codec: value.Codec, Use: use},
 		seen:    make(map[*expr.AttributeExpr]bool),
 	}
 	if contract != nil {
@@ -68,25 +86,35 @@ func buildValuePlan(value *transportir.ValueTarget, target *expr.AttributeExpr, 
 		builder.request.Use = expr.ValuePlanDocumentation
 	}
 	if err := builder.walk(target, context, false, true); err != nil {
-		result.Error = err
-		return &result
+		return capture, err
 	}
 	builder.request.Codecs = appendJSONContentCodecs(builder.request.Codecs, boundaries)
-	if builder.boundary != "" {
-		result.Boundary = builder.boundary
-	}
-	captured, err := result.Source.Context.NewOccurrence(target)
+	capture.boundary = builder.boundary
+	captured, err := value.Source.Context.NewOccurrence(target)
 	if err != nil {
-		result.Error = err
-		return &result
+		return capture, err
 	}
-	builder.request.Target = nil
 	builder.request.TargetOccurrence = captured
-	result.Plan, result.Error = result.Source.Context.NewValuePlan(result.Source.Occurrence, builder.request)
+	capture.request = builder.request
+	return capture, nil
+}
+
+func buildCapturedValuePlan(value *transportir.ValueTarget, capture *httpValuePlanCapture, use expr.ValuePlanUse) *transportir.ValueTarget {
+	result := *value
+	// Each slot owns its attachments and fresh projection/effect caches, even
+	// when immutable captured attributes and policy locations are shared.
+	clearTargetValues(&result)
+	result.ProjectionContext = capture.context
+	request := capture.request
+	request.Selection = append([]string(nil), value.Selection...)
+	if capture.boundary != "" {
+		result.Boundary = capture.boundary
+	}
+	result.Plan, result.Error = result.Source.Context.NewValuePlan(result.Source.Occurrence, request)
 	if result.Error != nil || use != expr.ValuePlanSchema {
 		return &result
 	}
-	result.Error = buildDocumentationPlans(&result, target, builder.request)
+	result.Error = buildDocumentationPlans(&result, capture.target, request)
 	return &result
 }
 

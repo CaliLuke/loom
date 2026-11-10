@@ -1,6 +1,7 @@
 package representation
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/CaliLuke/loom/codegen"
@@ -56,4 +57,66 @@ func TestBodyProjectionContextCapturesBoundLayout(t *testing.T) {
 	require.True(t, rebuilt.ProjectionContext.Pointer)
 	require.False(t, rebuilt.ProjectionContext.UseDefault)
 	require.False(t, wire.context.JSONPresence)
+}
+
+func TestProjectionContextSharesRegistryAndDetachesOverrides(t *testing.T) {
+	root := &expr.UserTypeExpr{TypeName: "Root", AttributeExpr: &expr.AttributeExpr{Type: expr.String}}
+	sibling := &expr.UserTypeExpr{TypeName: "Sibling", AttributeExpr: &expr.AttributeExpr{Type: expr.String}}
+	context := schemaContext(false)
+	layout := NewLayout()
+	layout.Record(root, false, false, true)
+	layout.Record(sibling, true, true, false)
+	layout.Bind(context)
+	context.TypeLayouts = codegen.CaptureTypeLayouts(context)
+	// Include an override outside the target graph: a later contributor must
+	// still resolve it, and recorded false must override inherited true.
+	layout.JSONPresence[sibling.Hash()] = false
+	layout.Pointer[sibling.Hash()] = false
+	layout.UseDefault[sibling.Hash()] = true
+	captured := captureProjectionContext(context, &expr.AttributeExpr{Type: root})
+	denseContext := context.Dup()
+	denseContext.TypeLayouts = nil
+	dense := captureProjectionContext(denseContext, &expr.AttributeExpr{Type: root})
+	identity, err := wireContextIdentity(&WireContext{codec: expr.ValueCodecJSON, context: captured})
+	require.NoError(t, err)
+	denseIdentity, err := wireContextIdentity(&WireContext{codec: expr.ValueCodecJSON, context: dense})
+	require.NoError(t, err)
+	require.Equal(t, denseIdentity, identity, "sharing preserves complete contributor identity bytes")
+	require.Same(t, context.TypeLayouts, captured.TypeLayouts)
+	require.Len(t, captured.JSONPresenceTypes, 1)
+	require.NotContains(t, captured.JSONPresenceTypes, root.Hash())
+	layout.JSONPresence[sibling.Hash()] = true
+	layout.Pointer[sibling.Hash()] = true
+	layout.UseDefault[sibling.Hash()] = false
+	ApplyLayout(captured, &expr.AttributeExpr{Type: sibling})
+	require.False(t, captured.JSONPresence)
+	require.False(t, captured.Pointer)
+	require.True(t, captured.UseDefault)
+	wire := captureProjectionContext(captured, nil)
+	captured.JSONPresenceTypes[sibling.Hash()] = true
+	require.False(t, wire.TypeLayout(sibling.Hash()).JSONPresence)
+}
+
+func TestProjectionContextCaptureAllocation(t *testing.T) {
+	for _, count := range []int{16, 1024} {
+		t.Run(fmt.Sprintf("declarations_%d", count), func(t *testing.T) {
+			context := schemaContext(false)
+			layout := NewLayout()
+			for index := range count {
+				key := fmt.Sprintf("declaration_%d", index)
+				layout.JSONPresence[key], layout.Pointer[key], layout.UseDefault[key] = false, false, true
+			}
+			layout.Bind(context)
+			context.TypeLayouts = codegen.CaptureTypeLayouts(context)
+			identity, err := wireContextIdentity(&WireContext{codec: expr.ValueCodecJSON, context: context})
+			require.NoError(t, err)
+			require.Less(t, len(identity), 512, "contributor identities must not duplicate a service registry")
+			var captured *codegen.AttributeContext
+			allocations := testing.AllocsPerRun(10, func() {
+				captured = captureProjectionContext(context, &expr.AttributeExpr{Type: expr.String})
+			})
+			require.LessOrEqual(t, allocations, 3.0, "capture allocations must be independent of registry size")
+			require.Same(t, context.TypeLayouts, captured.TypeLayouts)
+		})
+	}
 }

@@ -38,12 +38,12 @@ func (a *Analyzer) componentAnnotationScope(declaration, baseline, context strin
 		declaration: declaration, baseline: baseline, context: context, examplePlan: a.examplePlan,
 	}
 	if a.componentAnnotations == nil {
-		a.componentAnnotations = make(map[componentAnnotationIdentity]map[componentAnnotationPosition]componentExamples)
+		ensureAcquisitionIndex(a, &a.componentAnnotations)
 	}
 	owner, ok := a.componentAnnotations[identity]
 	if !ok {
 		owner = make(map[componentAnnotationPosition]componentExamples)
-		a.componentAnnotations[identity] = owner
+		setAcquisitionEntry(a, a.componentAnnotations, identity, owner)
 	}
 	prior := a.annotationOwner
 	a.annotationOwner = owner
@@ -161,12 +161,12 @@ func (a *Analyzer) componentDefaultIdentity(attribute *expr.AttributeExpr, posit
 					return "unavailable"
 				}
 				if a.opaqueAnnotationOwners == nil {
-					a.opaqueAnnotationOwners = make(map[expr.DefaultValueOwner]int)
+					ensureAcquisitionIndex(a, &a.opaqueAnnotationOwners)
 				}
 				owner, found := a.opaqueAnnotationOwners[binding]
 				if !found {
 					owner = len(a.opaqueAnnotationOwners) + 1
-					a.opaqueAnnotationOwners[binding] = owner
+					setAcquisitionEntry(a, a.opaqueAnnotationOwners, binding, owner)
 				}
 				return "opaque:" + strconv.Itoa(owner)
 			}

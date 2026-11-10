@@ -349,7 +349,7 @@ func appendNestedHelpers(source, target *expr.AttributeExpr, ta *TransformAttrs,
 		if expr.IsUnion(target.Type) {
 			return helpers, err
 		}
-		walkMatches(source, target, func(_, _ *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, _ string) {
+		walkMatches(source, target, func(_, _ TransformFields, srcc, tgtc *expr.AttributeExpr, _ string) {
 			if err != nil {
 				return
 			}
@@ -428,27 +428,14 @@ func generateHelper(source, target *expr.AttributeExpr, ta *TransformAttrs, seen
 // attributes with identical names in target. walkMatches calls the walker
 // function for each pair of matched attributes. Both source and target must be
 // objects or else walkMatches panics.
-func walkMatches(source, target *expr.AttributeExpr, walker func(src, tgt *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, n string)) {
+func walkMatches(source, target *expr.AttributeExpr, walker func(src, tgt TransformFields, srcc, tgtc *expr.AttributeExpr, n string)) {
 	srcMatt := transformMappedAttribute(source)
 	tgtMatt := transformMappedAttribute(target)
-	srcObj := expr.AsObject(srcMatt.Type)
-	tgtObj := expr.AsObject(tgtMatt.Type)
-	for _, nat := range *srcObj {
-		if att := tgtObj.Attribute(nat.Name); att != nil {
-			walker(srcMatt, tgtMatt, nat.Attribute, att, nat.Name)
+	for name, facts := range srcMatt.Fields() {
+		if att := tgtMatt.Find(name); att != nil {
+			walker(srcMatt, tgtMatt, source.PhysicalMemberAttribute(facts), att, name)
 		}
 	}
-}
-
-// transformMappedAttribute detaches name and parent facts while retaining the
-// actual selected child occurrences. Transform consumers only read these children;
-// replacing them with deep copies would split discovery from helper emission.
-func transformMappedAttribute(attribute *expr.AttributeExpr) *expr.MappedAttributeExpr {
-	mapped := expr.NewMappedAttributeExpr(attribute)
-	for _, field := range *expr.AsObject(attribute.Type) {
-		expr.AsObject(mapped.Type).Set(expr.AttributeName(field.Name), field.Attribute)
-	}
-	return mapped
 }
 
 // transformHelperName returns the transformation function name to initialize a

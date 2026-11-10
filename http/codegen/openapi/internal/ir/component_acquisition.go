@@ -1,6 +1,8 @@
 package ir
 
 import (
+	"slices"
+
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 )
@@ -39,13 +41,15 @@ func (a *Analyzer) registerComponentReference(fingerprint, ref, hint string, can
 	for index, prior := range a.schemasByFingerprint[fingerprint] {
 		if prior.ref == ref && prior.explicitName == hint {
 			if claim != "" {
-				a.schemasByFingerprint[fingerprint][index].canonicalClaim = claim
-				a.schemasByFingerprint[fingerprint][index].binding = binding
+				refs := slices.Clone(a.schemasByFingerprint[fingerprint])
+				refs[index].canonicalClaim = claim
+				refs[index].binding = binding
+				setAcquisitionEntry(a, a.schemasByFingerprint, fingerprint, refs)
 			}
 			return
 		}
 	}
-	a.schemasByFingerprint[fingerprint] = append(a.schemasByFingerprint[fingerprint], schemaRef{ref: ref, explicitName: hint, canonicalClaim: claim, binding: binding})
+	setAcquisitionEntry(a, a.schemasByFingerprint, fingerprint, appendAcquisitionValues(a, a.schemasByFingerprint[fingerprint], schemaRef{ref: ref, explicitName: hint, canonicalClaim: claim, binding: binding}))
 }
 
 // reserveComponent records visiting ownership without inserting an incomplete
@@ -56,7 +60,7 @@ func (a *Analyzer) reserveComponent(name, fingerprint, semantic, hint string, ca
 	if canonical {
 		entry.claim = hint
 	}
-	a.componentAcquisitions[name] = entry
+	setAcquisitionEntry(a, a.componentAcquisitions, name, entry)
 	return entry
 }
 

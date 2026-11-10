@@ -24,7 +24,7 @@ func (a *Analyzer) applyEncodingSourceType(schema *Schema, attribute *expr.Attri
 		wrapped := takeSchemaAnnotations(schema)
 		wrapped.Type = source
 		wrapped.AllOf = []*Schema{schema}
-		a.constructions[wrapped] = schemaConstruction{slots: []schemaSlot{{location: schemaAllOf}}}
+		setAcquisitionEntry(a, a.constructions, wrapped, schemaConstruction{slots: []schemaSlot{{location: schemaAllOf}}})
 		if expr.AllowsNull(attribute) && !expr.IsNullable(attribute) {
 			a.applyNullableSchema(wrapped)
 		}
@@ -35,7 +35,7 @@ func (a *Analyzer) applyEncodingSourceType(schema *Schema, attribute *expr.Attri
 	}
 	wrapped := takeSchemaAnnotations(schema)
 	wrapped.OneOf = []*Schema{schema}
-	a.constructions[wrapped] = schemaConstruction{slots: []schemaSlot{{location: schemaOneOf}}}
+	setAcquisitionEntry(a, a.constructions, wrapped, schemaConstruction{slots: []schemaSlot{{location: schemaOneOf}}})
 	return wrapped
 }
 

@@ -89,7 +89,7 @@ func NewObjectFields(attribute *AttributeExpr) *ObjectFields {
 		}
 		result.fields[name] = ObjectFieldFacts{
 			ParentPresent:   true,
-			HasDefault:      field.Attribute.effectiveDefault() != nil,
+			HasDefault:      field.Attribute.EffectiveDefault() != nil,
 			NativePrimitive: primitivePointerEligible(field.Attribute),
 			ElementName:     element, OriginalKey: field.Name, Index: index,
 		}
@@ -169,7 +169,7 @@ func (ma *MappedAttributeExpr) FieldFacts(name string) ObjectFieldFacts {
 		if field.Name != name {
 			continue
 		}
-		facts.HasDefault = field.Attribute.effectiveDefault() != nil
+		facts.HasDefault = field.Attribute.EffectiveDefault() != nil
 		facts.NativePrimitive = primitivePointerEligible(field.Attribute)
 		facts.OriginalKey, facts.Index = name, index
 		facts.ElementName = name

@@ -32,6 +32,7 @@ func (a *Analyzer) schemaAnalysisScope() func() {
 		}
 		defer func() {
 			a.schemaDepth--
+			a.acquisitionJournal = nil
 			if failure := recover(); failure != nil {
 				rollback()
 				a.finishCanonicalComparisons(false)
@@ -97,13 +98,13 @@ func (a *Analyzer) finishCanonicalComparisons(complete bool) {
 		if !comparison.added {
 			continue
 		}
-		refs := slices.DeleteFunc(a.schemasByFingerprint[comparison.fingerprint], func(ref schemaRef) bool {
+		refs := slices.DeleteFunc(slices.Clone(a.schemasByFingerprint[comparison.fingerprint]), func(ref schemaRef) bool {
 			return ref == comparison.registration
 		})
 		if len(refs) == 0 {
-			delete(a.schemasByFingerprint, comparison.fingerprint)
+			deleteAcquisitionEntry(a, a.schemasByFingerprint, comparison.fingerprint)
 		} else {
-			a.schemasByFingerprint[comparison.fingerprint] = refs
+			setAcquisitionEntry(a, a.schemasByFingerprint, comparison.fingerprint, refs)
 		}
 	}
 	if conflict != "" {

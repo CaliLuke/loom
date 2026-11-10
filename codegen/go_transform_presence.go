@@ -12,7 +12,7 @@ import (
 )
 
 func transformObjectPresenceField(
-	sourceParent, targetParent *expr.MappedAttributeExpr,
+	sourceParent, targetParent TransformFields,
 	source, target *expr.AttributeExpr,
 	sourceVar, targetVar, name string,
 	ta *TransformAttrs,
@@ -45,7 +45,7 @@ func transformObjectPresenceField(
 }
 
 func transformOptionalField(
-	sourceParent, targetParent *expr.MappedAttributeExpr,
+	sourceParent, targetParent TransformFields,
 	source, target *expr.AttributeExpr,
 	sourceVar, targetVar, name string,
 	ta *TransformAttrs,
@@ -87,7 +87,7 @@ func transformOptionalField(
 }
 
 func transformNativeToOptional(
-	sourceParent, targetParent *expr.MappedAttributeExpr,
+	sourceParent, targetParent TransformFields,
 	source, target *expr.AttributeExpr,
 	sourceVar, targetVar, name string,
 	ta *TransformAttrs,
@@ -300,11 +300,15 @@ func concreteTransformProducesPointer(attribute *expr.AttributeExpr, context *At
 	return false
 }
 
-func nativeObjectFieldPointer(parent *expr.MappedAttributeExpr, name string, attribute *expr.AttributeExpr, context *AttributeContext) bool {
+func nativeObjectFieldPointer(parent expr.FieldFactsProvider, name string, attribute *expr.AttributeExpr, context *AttributeContext) bool {
 	if parent == nil {
 		return expr.IsObject(attribute.Type)
 	}
-	return expr.ServiceFieldLayout(parent.AttributeExpr, name, attribute, context.Pointer, context.UseDefault).Pointer
+	facts := parent.FieldFacts(name)
+	if !facts.ParentPresent {
+		return expr.IsObject(attribute.Type)
+	}
+	return facts.ServiceLayout(attribute, context.Pointer, context.UseDefault).Pointer
 }
 
 func isAnyPresenceAttribute(attribute *expr.AttributeExpr) bool {

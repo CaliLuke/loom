@@ -46,8 +46,11 @@ func PrepareService(source *expr.HTTPServiceExpr, semantic *service.Data, owner 
 	}
 	if semantic == nil {
 		server, _ := ServiceLayouts(prepared.Endpoints)
+		context := schemaContext(false)
+		server.Bind(context)
+		prepared.SchemaTypeLayouts = codegen.CaptureTypeLayouts(context)
 		for _, endpoint := range prepared.Endpoints {
-			prepareSchemaTargets(endpoint, server)
+			prepareSchemaTargets(endpoint, prepared.SchemaTypeLayouts)
 		}
 	}
 	return prepared, nil
@@ -112,46 +115,34 @@ func captureValue(context *expr.ValueContext, attribute *expr.AttributeExpr) (*s
 	return &service.ValueData{Context: context, Occurrence: occurrence}, nil
 }
 
-func prepareSchemaTargets(endpoint *transportir.Endpoint, layout Layout) {
+func prepareSchemaTargets(endpoint *transportir.Endpoint, layouts *codegen.TypeLayouts) {
 	requestContext := schemaContext(true)
 	requestContext.JSONPresence = !endpoint.Request.FormEncoded && !endpoint.Request.Multipart
 	requestContext.CollectionElementPresence = requestContext.JSONPresence
-	layout.Bind(requestContext)
+	requestContext.TypeLayouts = layouts
 	request := endpoint.Request
 	prepareMediaTargets(request.MediaVariants, requestContext)
 	request.BodyValue = BuildValuePlan(request.BodyValue, request.Body, requestContext, expr.ValuePlanSchema)
 	request.StreamingValue = BuildValuePlan(request.StreamingValue, request.StreamingBody, requestContext, expr.ValuePlanSchema)
-	request.DocumentValue = BuildValuePlan(request.DocumentValue, request.DocumentBody, requestContext, expr.ValuePlanSchema)
-	for media, value := range request.DocumentValues {
-		request.DocumentValues[media] = BuildValuePlan(value, request.DocumentBody, requestContext, expr.ValuePlanSchema)
-	}
+	request.DocumentValue = prepareBodyValuePlans(request.DocumentValue, request.DocumentValues, request.DocumentBody, requestContext)
 	for _, group := range [][]*transportir.Parameter{request.PathParams, request.QueryParams, request.Headers, request.Cookies} {
 		for _, parameter := range group {
 			parameter.Value = BuildValuePlan(parameter.Value, parameter.Attribute, requestContext, expr.ValuePlanSchema)
 		}
 	}
 	responseContext := schemaContext(false)
-	layout.Bind(responseContext)
+	responseContext.TypeLayouts = layouts
 	for _, response := range responseOccurrences(endpoint.Response) {
 		if field := response.StatusField; field != nil {
 			field.Value = BuildValuePlan(field.Value, field.Attribute, responseContext, expr.ValuePlanSchema)
 		}
 		if unary := response.Unary; unary != nil {
 			prepareMediaTargets(unary.MediaVariants, responseContext)
-			unary.BodyValue = BuildValuePlan(unary.BodyValue, unary.Body, responseContext, expr.ValuePlanSchema)
-			for media, value := range unary.BodyValues {
-				unary.BodyValues[media] = BuildValuePlan(value, unary.Body, responseContext, expr.ValuePlanSchema)
-			}
+			unary.BodyValue = prepareBodyValuePlans(unary.BodyValue, unary.BodyValues, unary.Body, responseContext)
 		}
 		prepareMediaTargets(response.MediaVariants, responseContext)
-		response.BodyValue = BuildValuePlan(response.BodyValue, response.Body, responseContext, expr.ValuePlanSchema)
-		for media, value := range response.BodyValues {
-			response.BodyValues[media] = BuildValuePlan(value, response.Body, responseContext, expr.ValuePlanSchema)
-		}
-		response.DocumentValue = BuildValuePlan(response.DocumentValue, response.DocumentBody, responseContext, expr.ValuePlanSchema)
-		for media, value := range response.DocumentValues {
-			response.DocumentValues[media] = BuildValuePlan(value, response.DocumentBody, responseContext, expr.ValuePlanSchema)
-		}
+		response.BodyValue = prepareBodyValuePlans(response.BodyValue, response.BodyValues, response.Body, responseContext)
+		response.DocumentValue = prepareBodyValuePlans(response.DocumentValue, response.DocumentValues, response.DocumentBody, responseContext)
 		for _, header := range response.Headers {
 			header.Value = BuildValuePlan(header.Value, header.Attribute, responseContext, expr.ValuePlanSchema)
 		}

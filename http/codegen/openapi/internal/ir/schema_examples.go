@@ -18,7 +18,7 @@ func (a *Analyzer) applySchemaExample(s *Schema, attr *expr.AttributeExpr, conte
 			return
 		}
 		defer func() {
-			a.annotationOwner[position] = (componentExamples{representative: s.Example, values: s.Examples}).snapshot()
+			setAcquisitionEntry(a, a.annotationOwner, position, (componentExamples{representative: s.Example, values: s.Examples}).snapshot())
 		}()
 	}
 	s.Example, s.Examples = nil, nil
