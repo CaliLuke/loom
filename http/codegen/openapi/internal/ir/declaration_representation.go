@@ -156,7 +156,7 @@ func (a *Analyzer) declarationClosure(typ expr.UserType) string {
 	}
 	slices.Sort(parts)
 	closure := strings.Join(parts, ";")
-	a.publicationContexts[typ.ID()] = closure
+	setAcquisitionEntry(a, a.publicationContexts, typ.ID(), closure)
 	return closure
 }
 
@@ -201,7 +201,7 @@ func (a *Analyzer) declarationNeighbors(typ expr.UserType) []expr.UserType {
 		walk(attribute.AdditionalAttributes)
 	}
 	walk(&expr.AttributeExpr{Type: typ})
-	a.declarationNeighborCache[typ.ID()] = neighbors
+	setAcquisitionEntry(a, a.declarationNeighborCache, typ.ID(), neighbors)
 	return slices.Clip(neighbors)
 }
 
@@ -235,7 +235,7 @@ func (a *Analyzer) publicationDependencies(typ expr.UserType) []expr.UserType {
 			dependencies = append(dependencies, declaration)
 		}
 	}
-	a.publicationDependencyCache[typ.ID()] = dependencies
+	setAcquisitionEntry(a, a.publicationDependencyCache, typ.ID(), dependencies)
 	return slices.Clip(dependencies)
 }
 

@@ -31,7 +31,7 @@ type DefaultApplication struct {
 // before conversion; defaults never satisfy its original presence requirement.
 // Ordinary pointer targets retain absence for later selected-view validation.
 // An admitted source default is already a supplied value before that conversion.
-func (ta *TransformAttrs) DefaultForField(source, target *expr.MappedAttributeExpr, name string) DefaultApplication {
+func (ta *TransformAttrs) DefaultForField(source, target TransformFields, name string) DefaultApplication {
 	attribute := source.Find(name)
 	plan := DefaultApplication{
 		Value:          target.GetDefault(name),
@@ -40,7 +40,7 @@ func (ta *TransformAttrs) DefaultForField(source, target *expr.MappedAttributeEx
 		targetPointer:  nativeObjectFieldPointer(target, name, target.Find(name), ta.TargetCtx),
 	}
 	absent := plan.SourcePresence != NativePresence ||
-		ta.SourceCtx.IsPrimitivePointer(name, source.AttributeExpr) || defaultSourceUsesNil(attribute)
+		nativeObjectFieldPointer(source, name, attribute, ta.SourceCtx) || defaultSourceUsesNil(attribute)
 	plan.Apply = plan.Value != nil && ta.TargetCtx.UseDefault && !ta.TargetCtx.Pointer &&
 		!source.IsRequired(name) && absent
 	if ta.Options.AdmittedSource == "" || source.IsRequired(name) || !absent {

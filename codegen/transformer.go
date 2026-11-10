@@ -79,6 +79,9 @@ type (
 		// use value storage for optional primitive fields with defaults. It is
 		// keyed by the hash of the user type.
 		PresenceUseDefaultTypes map[string]bool
+		// TypeLayouts is the immutable service registry used beneath the
+		// occurrence-specific named layout maps. Dup shares this snapshot.
+		TypeLayouts *TypeLayouts
 		// oneofFields holds the Go names of the fields that hold the branches
 		// of the union being validated, in branch order, when Scope is a
 		// messageFieldScope. Dup does not copy it, so it names the branches of
@@ -399,6 +402,7 @@ func (a *AttributeContext) Dup() *AttributeContext {
 		JSONPresenceTypes:         a.JSONPresenceTypes,
 		PresencePointerTypes:      a.PresencePointerTypes,
 		PresenceUseDefaultTypes:   a.PresenceUseDefaultTypes,
+		TypeLayouts:               a.TypeLayouts,
 	}
 }
 

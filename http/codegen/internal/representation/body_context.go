@@ -30,7 +30,7 @@ type (
 	wirePolicyIdentity struct {
 		Codec                                                        expr.ValueCodec
 		Pointer, UseDefault, JSONPresence, CollectionElementPresence bool
-		JSONLayout, PointerLayout, DefaultLayout                     map[string]bool
+		Layout                                                       string
 		Fields                                                       map[string]contributorField
 		Contract                                                     contributorKey
 	}
@@ -52,9 +52,26 @@ func (w *WireContext) ProjectionIdentity(projection *expr.HTTPBodyProjection) st
 
 func captureProjectionContext(context *codegen.AttributeContext, target *expr.AttributeExpr) *codegen.AttributeContext {
 	result := context.Dup()
-	result.JSONPresenceTypes = maps.Clone(context.JSONPresenceTypes)
-	result.PresencePointerTypes = maps.Clone(context.PresencePointerTypes)
-	result.PresenceUseDefaultTypes = maps.Clone(context.PresenceUseDefaultTypes)
+	if context.TypeLayouts == nil || target == nil {
+		// Standalone contexts capture their registry; already captured contexts
+		// only copy their small local overrides when handed to a contributor.
+		result.JSONPresenceTypes = maps.Clone(context.JSONPresenceTypes)
+		result.PresencePointerTypes = maps.Clone(context.PresencePointerTypes)
+		result.PresenceUseDefaultTypes = maps.Clone(context.PresenceUseDefaultTypes)
+	} else {
+		result.JSONPresenceTypes = captureLayoutOverrides(context.JSONPresenceTypes, func(key string) (bool, bool) {
+			facts := context.TypeLayouts.Lookup(key)
+			return facts.JSONPresence, facts.HasJSONPresence
+		})
+		result.PresencePointerTypes = captureLayoutOverrides(context.PresencePointerTypes, func(key string) (bool, bool) {
+			facts := context.TypeLayouts.Lookup(key)
+			return facts.Pointer, facts.HasPointer
+		})
+		result.PresenceUseDefaultTypes = captureLayoutOverrides(context.PresenceUseDefaultTypes, func(key string) (bool, bool) {
+			facts := context.TypeLayouts.Lookup(key)
+			return facts.UseDefault, facts.HasUseDefault
+		})
+	}
 	seen := make(map[*expr.AttributeExpr]bool)
 	for target != nil && !seen[target] {
 		seen[target] = true
@@ -64,6 +81,23 @@ func captureProjectionContext(context *codegen.AttributeContext, target *expr.At
 			break
 		}
 		target = named.Attribute()
+	}
+	return result
+}
+
+// captureLayoutOverrides retains every changed fact, including facts for a
+// sibling that a contributor may publish later. Registry-equal entries cost no
+// target-owned storage. The mutable source remains borrowed only for this call.
+func captureLayoutOverrides(source map[string]bool, inherited func(string) (bool, bool)) map[string]bool {
+	var result map[string]bool
+	for key, value := range source {
+		if prior, found := inherited(key); found && prior == value {
+			continue
+		}
+		if result == nil {
+			result = make(map[string]bool)
+		}
+		result[key] = value
 	}
 	return result
 }
@@ -86,11 +120,14 @@ func contributorObject(target *expr.AttributeExpr) *expr.AttributeExpr {
 
 func wireContextIdentity(wire *WireContext) (string, error) {
 	context := wire.context
+	layouts := context.TypeLayouts
+	if layouts == nil || len(context.JSONPresenceTypes)+len(context.PresencePointerTypes)+len(context.PresenceUseDefaultTypes) != 0 {
+		layouts = codegen.CaptureTypeLayouts(context)
+	}
 	identity := wirePolicyIdentity{
 		Codec: wire.codec, Pointer: context.Pointer, UseDefault: context.UseDefault,
 		JSONPresence: context.JSONPresence, CollectionElementPresence: context.CollectionElementPresence,
-		JSONLayout: context.JSONPresenceTypes, PointerLayout: context.PresencePointerTypes,
-		DefaultLayout: context.PresenceUseDefaultTypes, Fields: wire.fields,
+		Layout: layouts.Identity(), Fields: wire.fields,
 	}
 	if wire.contract.form != nil {
 		identity.Contract.Form = wire.contract.form.Fields

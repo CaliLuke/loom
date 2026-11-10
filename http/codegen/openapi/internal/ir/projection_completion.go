@@ -121,7 +121,7 @@ func (a *Analyzer) planBaseline(baseline *Schema, attribute *expr.AttributeExpr,
 		return prior
 	}
 	result := &schemaProjection{baseline: baseline, attribute: attribute, plan: plan, identity: identity, result: &Schema{}, ref: baseline.Ref}
-	a.projectionPlans[key] = result
+	setAcquisitionEntry(a, a.projectionPlans, key, result)
 	if identity == "" {
 		result.result = baseline
 	} else {
@@ -152,15 +152,15 @@ func (a *Analyzer) reserveProjectionComponent(original string, plan expr.ValuePl
 	fingerprint := fingerprintString(original + ":" + identity)
 	name := a.Uniquify(original, fingerprint)
 	result := &componentProjection{name: name, original: original}
-	a.projectionComponents[key] = result
-	a.schemaFingerprints[name] = fingerprint
-	a.schemaTypeIDs[name] = a.schemaTypeIDs[original]
+	setAcquisitionEntry(a, a.projectionComponents, key, result)
+	setAcquisitionEntry(a, a.schemaFingerprints, name, fingerprint)
+	setAcquisitionEntry(a, a.schemaTypeIDs, name, a.schemaTypeIDs[original])
 	naming := a.schemaNames[original]
 	if naming.desired == "" {
 		naming = representationComponentName{desired: original, logical: original}
 	}
 	naming.json = true
-	a.schemaNames[name] = naming
+	setAcquisitionEntry(a, a.schemaNames, name, naming)
 	return result
 }
 
@@ -302,8 +302,9 @@ func (a *Analyzer) materializeProjectionComponent(component *componentProjection
 		return
 	}
 	component.state = projectionMaterializing
-	// Retain the result cell itself, never a value snapshot of an active body.
-	a.schemas[component.name] = component.body.result
+	setAcquisitionEntry(
+		// Retain the result cell itself, never a value snapshot of an active body.
+		a, a.schemas, component.name, component.body.result)
 	a.materializeProjection(component.body)
 	for _, child := range component.published {
 		a.materializeProjection(child)

@@ -8,7 +8,7 @@ Init == /\ source = [f \in Fields |-> FALSE]
         /\ original = source
         /\ queried = {}
         /\ answers = [f \in Fields |-> FALSE]
-        /\ work = Cardinality(Fields)
+        /\ work = Cardinality(Fields) + IF Mode = "EagerCopied" THEN Descendants ELSE 0
         /\ mutated = FALSE
 Mutate == /\ ~mutated
           /\ source' = [f \in Fields |-> TRUE]

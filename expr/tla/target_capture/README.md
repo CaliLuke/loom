@@ -56,3 +56,24 @@ also match a representative baseline.
 Sharing does not make opaque/custom Go values immutable. Their existing borrowed
 source and target-materialization contracts remain in force. The model does not
 prove memory bounds, source/target mapping correctness or output equivalence.
+
+## HTTP media slots
+
+Issue #1071 extends the implementation correspondence to
+`representation.prepareBodyValuePlans`. One synchronous call fixes the exact
+body and physical layout, and captures separately for each codec, SSE field,
+documentation role and semantic context. Its media slots reuse that immutable
+capture, then call `NewValuePlan` separately. Source selection, anchor/example
+plans, projection/effect memo tables and mutable example attachments remain
+independent. The cache does not survive the call or intern declarations by name.
+
+The original four configurations were rerun with TLC 1.7.4 and OpenJDK 26.0.1:
+`Captured` passes (62 distinct states); `Mutable`, `Foreign`, and `Policy`
+violate their named invariants (10, 6, and 15 distinct states respectively).
+`TestBodyMediaCaptureRebuildAndSlotIsolation`,
+`TestBodyMediaCaptureSeparatesCodecsAndContexts` and `TestResponseCodecAuthority`
+check fresh captures after mutable input changes, codec/context separation,
+rejected selections, independent plan nodes and independent example attachments.
+Byte comparisons and generated-module compilation cover behavior outside the
+finite model. Runtime-only targets may omit an unused example capture when
+there is no root example to select; schema/documentation targets still capture.

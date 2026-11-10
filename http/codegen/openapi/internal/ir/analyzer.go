@@ -25,6 +25,7 @@ type (
 	Analyzer struct {
 		semantic                *service.SemanticData
 		schemaDepth             int
+		acquisitionJournal      *acquisitionJournal
 		canonicalComparisons    []*canonicalComparison
 		err                     error
 		discriminatorReferences []discriminatorReference

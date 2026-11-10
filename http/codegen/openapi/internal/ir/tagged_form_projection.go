@@ -158,17 +158,17 @@ func (p *taggedFormProjection) component(original, role string, project func(*Sc
 	name := a.Uniquify(original, fingerprint)
 	p.components[key] = name
 	placeholder := &Schema{}
-	a.schemas[name] = placeholder
-	a.schemaFingerprints[name] = fingerprint
+	setAcquisitionEntry(a, a.schemas, name, placeholder)
+	setAcquisitionEntry(a, a.schemaFingerprints, name, fingerprint)
 	naming := a.schemaNames[original]
 	if naming.desired == "" {
 		naming = representationComponentName{desired: original, logical: original, baseline: original}
 	}
 	naming.json = false
-	a.schemaNames[name] = naming
+	setAcquisitionEntry(a, a.schemaNames, name, naming)
 	// Prefer the existing JSON spelling when both wire representations occur.
 	naming.json = true
-	a.schemaNames[original] = naming
+	setAcquisitionEntry(a, a.schemaNames, original, naming)
 	*placeholder = *project(a.schemas[original])
 	return toRef(name)
 }

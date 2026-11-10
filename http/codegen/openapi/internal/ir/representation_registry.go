@@ -155,7 +155,7 @@ func (a *Analyzer) installRepresentations(allocated map[string]*representationCo
 	originals := a.schemas
 	a.schemas = make(map[string]*Schema, len(allocated))
 	for name, component := range allocated {
-		a.schemas[name] = mapSchemaReferences(originals[component.local], func(ref, _ string) string {
+		setAcquisitionEntry(a, a.schemas, name, mapSchemaReferences(originals[component.local], func(ref, _ string) string {
 			local, ok := schemaComponentName(ref)
 			if !ok {
 				return ref
@@ -164,7 +164,7 @@ func (a *Analyzer) installRepresentations(allocated map[string]*representationCo
 				return toRef(assigned)
 			}
 			return ref
-		}, a.copySchemaConstruction)
+		}, a.copySchemaConstruction))
 	}
 	a.discriminatorChildren = renameDiscriminatorChildren(a.discriminatorChildren, names[a])
 	for _, occurrence := range a.occurrences {
@@ -317,7 +317,7 @@ func (a *Analyzer) discardRegistrationOnlyVariants() {
 	}
 	for name, naming := range a.schemaNames {
 		if !reached[name] && !naming.json && jsonLogical[naming.logical] {
-			delete(a.schemas, name)
+			deleteAcquisitionEntry(a, a.schemas, name)
 		}
 	}
 }

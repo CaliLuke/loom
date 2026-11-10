@@ -58,7 +58,7 @@ func (a *Analyzer) contributor(wire *representation.WireContext, projection *exp
 		return prior
 	}
 	result := &projectedContributor{schema: &Schema{}, key: projected.Key, attribute: projected.Attribute}
-	a.contributors[projected.Key] = result
+	setAcquisitionEntry(a, a.contributors, projected.Key, result)
 	context = childExampleContext(context, "contributor", declaration.Name())
 	if !a.customExampleValue {
 		generator := exampleGeneratorForAttribute(a.rand, projected.Attribute, a.closeObjects, context)
@@ -108,7 +108,7 @@ func (a *Analyzer) recordProjectedChildren(attribute *expr.AttributeExpr, owner 
 		return
 	}
 	for _, child := range a.discriminatorFamilies[parent] {
-		a.projectedChildren[name] = append(a.projectedChildren[name], a.contributor(wire, projection, child, context))
+		setAcquisitionEntry(a, a.projectedChildren, name, appendAcquisitionValues(a, a.projectedChildren[name], a.contributor(wire, projection, child, context)))
 	}
 }
 
@@ -130,7 +130,7 @@ func (a *Analyzer) publishProjectedChildren(baselineRef, projectedRef string) {
 	if !baselineLocal || !projectedLocal || len(a.projectedChildren[baseline]) == 0 || a.publishedChildren[pair] {
 		return
 	}
-	a.publishedChildren[pair] = true
+	setAcquisitionEntry(a, a.publishedChildren, pair, true)
 	for _, child := range a.projectedChildren[baseline] {
 		published := a.projectBaseline(child.schema, child.attribute, child.plan)
 		if name, local := schemaComponentName(published.Ref); local {
@@ -147,9 +147,9 @@ func (a *Analyzer) recordProjectedMapping(discriminator *Discriminator, key stri
 	if projection, source := a.bodyProjectionAt(attribute); projection != nil {
 		wire := a.bodyWireContext(source)
 		if a.projectionMappings[discriminator] == nil {
-			a.projectionMappings[discriminator] = make(map[string]*projectedContributor)
+			setAcquisitionEntry(a, a.projectionMappings, discriminator, make(map[string]*projectedContributor))
 		}
-		a.projectionMappings[discriminator][key] = a.contributor(wire, projection, target, context)
+		setAcquisitionEntry(a, a.projectionMappings[discriminator], key, a.contributor(wire, projection, target, context))
 		return
 	}
 	reference := a.analyzeReferenceSchema(target, context)

@@ -148,13 +148,12 @@ func ApplyLayout(context *codegen.AttributeContext, attribute *expr.AttributeExp
 	if !ok {
 		return
 	}
-	key := userType.Hash()
-	presence, recorded := context.JSONPresenceTypes[key]
-	if !recorded {
+	layout := context.TypeLayout(userType.Hash())
+	if !layout.HasJSONPresence {
 		return
 	}
-	context.JSONPresence = presence
-	context.CollectionElementPresence = presence
-	context.Pointer = context.PresencePointerTypes[key]
-	context.UseDefault = context.PresenceUseDefaultTypes[key]
+	context.JSONPresence = layout.JSONPresence
+	context.CollectionElementPresence = layout.JSONPresence
+	context.Pointer = layout.Pointer
+	context.UseDefault = layout.UseDefault
 }
