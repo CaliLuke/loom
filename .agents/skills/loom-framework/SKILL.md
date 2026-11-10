@@ -139,6 +139,13 @@ consumer validation.
   canonical bodies. Root and nested projection use the same owner. Keep the
   [projected acquisition models](../../../http/codegen/openapi/internal/ir/tla/projected_acquisition/README.md)
   and canonical, nullable, annotation and parameter-order regressions aligned.
+  Outer-scope registration rollback uses a changed-entry journal, not full map
+  snapshots. Route index writes/deletes/lazy allocation through its owner;
+  detach changed reference buckets before element updates and scoped appends,
+  including spare capacity that could retain rolled-back bindings. Nested completion
+  shares the journal, and success/error/panic releases it. Keep the
+  [journal model](../../../http/codegen/openapi/internal/ir/tla/acquisition_journal/README.md)
+  and rollback/scaling controls aligned.
 
 - Distinct HTTP media mappings belong to endpoint/response occurrences, not to
   reusable service unions. Transport IR retains each branch's schema, examples,
@@ -1442,6 +1449,11 @@ There is one DSL parser, one shared semantic IR, and one renderer.
   no original policy claims. Never deep-copy descendants for required/default or
   pointer queries. Mutable mappings keep fresh facts; do not cache their exposed
   attributes. Raw and captured service layouts share one storage-policy owner.
+  Transform matching borrows original selected children through its private
+  transformFields view for one stable walk. Keep discovery and emission on those
+  same occurrences; do not build a deep mutable mapping and discard its children.
+  Resolve inherited defaults on the selected child with `EffectiveDefault`;
+  looking up its raw key again can select the wrong duplicate occurrence.
   Keep `expr/tla/field_facts` and query allocation/selection controls aligned.
 - Builtin compilation shares `service.SemanticData` after preparation plugins.
   Keep captured method values independent of backend Go naming and mutable
@@ -1461,6 +1473,22 @@ There is one DSL parser, one shared semantic IR, and one renderer.
   identities, not live provenance. HTTP final-layout schema, anchor and example
   plans share that target capture while keeping visibility and codec policies
   independent. See `codegen/COMPILATION.md` and `expr/tla/target_capture`.
+- HTTP projection contexts share `codegen.TypeLayouts`, captured once after
+  service layout allocation. Keep all changed local facts detached, including
+  recorded false and sibling-only overrides; reachable-only filtering loses
+  future contributor publication context. All named layout readers resolve
+  occurrence maps before the immutable registry. Stream schema preparation
+  reuses the schema service registry. Contributor identities retain a deterministic
+  fingerprint of complete layout facts rather than serializing the registry per
+  target. Internal key bytes may change; emitted contracts must not. Keep the bounded model and regressions under
+  `http/codegen/internal/representation/tla/layout_capture` aligned.
+- Prepare schema media slots in one body-local capture scope, grouped by actual
+  codec, SSE mapping, documentary role and semantic context. Share immutable
+  target/policy capture only; each slot keeps fresh plans, projection/effect
+  caches and example attachments. Never retain that cache across mutable body
+  preparations. Runtime targets need separate example authority only when a
+  root authored example can replace the service source; schema and explicit
+  documentation targets retain their annotation/example captures.
 - Use `ValuePlan.OccurrenceForTarget` for unique semantic-owner queries; do not
   reconstruct associations with backend tree searches. It scopes exact inverse
   associations to structural reachability and retains pair-local precedence.

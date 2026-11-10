@@ -96,12 +96,15 @@ func attachSSETargets(endpoint *transportir.Endpoint) {
 	}
 }
 
+// ValueTarget binds an exact transport target to its service source. Schema
+// targets retain annotation/example authority; runtime targets capture separate
+// example authority only when an authored root example can override the source.
 func ValueTarget(source *service.ValueData, target *expr.AttributeExpr, selection string, codec expr.ValueCodec, schemaOnly bool) *transportir.ValueTarget {
 	if target == nil || target.Type == expr.Empty {
 		return nil
 	}
 	value := &transportir.ValueTarget{Source: source, Anchor: source, Codec: codec}
-	if source == nil {
+	if source == nil || source.Context == nil {
 		value.Error = fmt.Errorf("HTTP target has no effective service occurrence")
 		return value
 	}
@@ -120,6 +123,12 @@ func ValueTarget(source *service.ValueData, target *expr.AttributeExpr, selectio
 	}
 	if codec != expr.ValueCodecJSON {
 		value.Boundary = "target codec is outside the builtin JSON projection"
+	}
+	if !schemaOnly && len(target.ExtractUserExamples()) == 0 {
+		// Runtime plans project the existing service source. Without a local
+		// authored example there is no transport-local source to select, and
+		// schema annotation/example traversal is not a runtime consumer.
+		return value
 	}
 	occurrence, err := source.Context.NewOccurrence(target)
 	if err != nil {
@@ -154,6 +163,12 @@ func DocumentTarget(source *service.ValueData, target *expr.AttributeExpr, selec
 	}
 	value.Documentary = true
 	if !schemaOnly && value.Error == nil && value.Source != nil {
+		if value.ExampleOccurrence.ID() == (expr.ValueIdentity{}) {
+			value.ExampleOccurrence, value.Error = value.Source.Context.NewOccurrence(target)
+			if value.Error != nil {
+				return value
+			}
+		}
 		value.Plan, value.Error = value.Source.Context.NewValuePlan(value.Source.Occurrence, expr.ValuePlanRequest{
 			TargetOccurrence: value.ExampleOccurrence, Selection: value.Selection, Codec: expr.ValueCodecJSON, Use: expr.ValuePlanDocumentation,
 		})

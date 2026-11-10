@@ -32,6 +32,34 @@ The existing generated-file plugin API can inspect and replace the entire file
 collection. That is an explicit whole-compilation barrier. Its arbitrary Go
 callbacks cannot be assumed pure or replayed safely from a persistent cache.
 
+### HTTP layout and body capture
+
+HTTP analysis and standalone OpenAPI preparation capture immutable
+`codegen.TypeLayouts` registries once per service/direction. A target retains
+its scalar policy and detached changes to those facts, including explicitly
+false and sibling-only overrides. Contributor identities use a once-computed
+deterministic fingerprint of complete registry facts, rather than storing the
+registry's serialized contents in every key. Physical layout identity remains
+separate from semantic occurrence identity; no type-name interning is added.
+
+Schema media slots for one exact body/codec/context share that body's captured
+target and policy locations. Each slot builds fresh schema, anchor and example
+plans, including independent projection/effect caches and example attachments.
+The capture cache belongs only to one synchronous body preparation call;
+different bodies, codecs, semantic contexts and later preparations cannot reuse
+it. Ordinary and independently authored documentation bodies remain separate.
+Runtime targets without an authored root example use their existing service
+source without retaining a second unused example occurrence. Schema targets
+and explicit documentation retain their complete annotation/example captures.
+
+The [layout model](../http/codegen/internal/representation/tla/layout_capture/README.md)
+and [target-capture model](../expr/tla/target_capture/README.md) describe the
+ownership decisions. The bounded catalog reproduction, guarded profile probe
+and generated-output qualification live under
+`codegen/generator/testdata/compiler_scaling` and
+`TestLayoutCaptureArtifacts`. Remaining occurrence/constraint captures and
+independent plan graphs still contribute significant linear memory cost.
+
 ## Design principles and sources
 
 - Share immutable compiler data within an explicit owner. Rust's compiler uses
@@ -355,6 +383,21 @@ bound, not a byte bound. Deterministic outcomes across worker counts assume stab
 filesystem state and independent per-file effects; arbitrary callbacks cannot be
 interrupted. See the [scheduler model](generator/tla/render_scheduler/README.md).
 
+## OpenAPI acquisition checkpoints
+
+OpenAPI's outer schema scope checkpoints registration indexes through a journal
+of changed entries. It does not copy all prior registrations or annotation owner
+maps per root. Nested traversal and held completion share one journal; success
+releases it, while error/panic restores changed entries in reverse order and
+preserves the first cause. Buckets detach before replacing elements or appending
+within an active scope, including unused capacity that could retain failed bindings;
+lazy index allocation restores nil on failure. Mutable schema cells and callback
+side effects retain their existing contract. The
+[acquisition journal model](../http/codegen/openapi/internal/ir/tla/acquisition_journal/README.md)
+and direct rollback/scaling checks cover this ownership boundary. This removes
+checkpoint work proportional to accumulated index size, not all occurrence graph
+or generated-file retention.
+
 ## Scalar field analysis
 
 Read-only field queries consume expr.ObjectFields, a pass-owned snapshot of
@@ -363,6 +406,18 @@ pointer eligibility, transport names and the winning original field index/key.
 It retains no attributes or raw defaults and never copies unrelated descendants.
 Requiredness resolves once per object; individual field lookup does not allocate.
 The existing AllRequired resolver still has its own normalization cost.
+
+Transform matching also captures immediate ObjectFields instead of constructing
+a mutable mapped deep copy and then replacing its copied children. The private
+transformFields view borrows the selected original children for one stable walk;
+discovery and helper emission must observe the same child occurrences. The
+TransformFields query contract also accepts existing mutable mapped callers of
+TransformAttrs.DefaultForField. Presence, requiredness and native pointer queries
+consume the same scalar facts and shared ServiceLayout policy. Defaults resolve
+on the winning physical child through expr.AttributeExpr.EffectiveDefault, the
+same raw inherited-default resolver used by layout and admission queries. Looking
+up the original key again is insufficient when an exact key occurs more than
+once. This introduces no cache across walks.
 
 Exact keys collapse at their first position with their last attribute before
 logical names collapse by that same rule. Fields retain mapped behavior, including

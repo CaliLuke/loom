@@ -24,7 +24,7 @@ func ServiceFieldLayout(parent *AttributeExpr, name string, attribute *Attribute
 	facts := ObjectFieldFacts{
 		LayoutRequired:  required,
 		NativePrimitive: primitivePointerEligible(attribute),
-		HasDefault:      attribute.effectiveDefault() != nil,
+		HasDefault:      attribute.EffectiveDefault() != nil,
 		CaseStrict:      parent.TypedObjectDeclaration() != nil,
 	}
 	return facts.ServiceLayout(attribute, pointer, useDefault)

@@ -280,7 +280,7 @@ func buildTransformObjectInit(source, target *expr.AttributeExpr, sourceVar, tar
 		postInitCode []*jen.Statement
 		err          error
 	)
-	walkMatches(source, target, func(srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, n string) {
+	walkMatches(source, target, func(srcMatt, tgtMatt TransformFields, srcc, tgtc *expr.AttributeExpr, n string) {
 		if ta.SourceCtx.FieldPresence(srcMatt, n, srcc) != NativePresence ||
 			ta.TargetCtx.FieldPresence(tgtMatt, n, tgtc) != NativePresence {
 			return
@@ -304,13 +304,13 @@ func buildTransformObjectInit(source, target *expr.AttributeExpr, sourceVar, tar
 	return initFields, postInitCode, err
 }
 
-func transformObjectPrimitiveInitExpression(srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, sourceVar, targetVar, name string, ta *TransformAttrs) (*jen.Statement, *jen.Statement) {
+func transformObjectPrimitiveInitExpression(srcMatt, tgtMatt TransformFields, srcc, tgtc *expr.AttributeExpr, sourceVar, targetVar, name string, ta *TransformAttrs) (*jen.Statement, *jen.Statement) {
 	if isAnyPresenceAttribute(srcc) && isAnyPresenceAttribute(tgtc) &&
 		ta.SourceCtx.FieldPresence(srcMatt, name, srcc) != ta.TargetCtx.FieldPresence(tgtMatt, name, tgtc) {
 		return nil, nil
 	}
-	srcPtr := ta.SourceCtx.IsPrimitivePointer(name, srcMatt.AttributeExpr)
-	tgtPtr := ta.TargetCtx.IsPrimitivePointer(name, tgtMatt.AttributeExpr)
+	srcPtr := nativeObjectFieldPointer(srcMatt, name, srcc, ta.SourceCtx)
+	tgtPtr := nativeObjectFieldPointer(tgtMatt, name, tgtc, ta.TargetCtx)
 	srcField := sourceVar + "." + GoifyAtt(srcc, name, true)
 	tgtField := GoifyAtt(tgtc, name, true)
 	_, isSrcUT := srcc.Type.(expr.UserType)
@@ -366,7 +366,7 @@ func buildTransformObjectFieldCode(source, target *expr.AttributeExpr, sourceVar
 		stmts []*jen.Statement
 		err   error
 	)
-	walkMatches(source, target, func(srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, n string) {
+	walkMatches(source, target, func(srcMatt, tgtMatt TransformFields, srcc, tgtc *expr.AttributeExpr, n string) {
 		if err != nil {
 			return
 		}
@@ -389,7 +389,7 @@ func buildTransformObjectFieldCode(source, target *expr.AttributeExpr, sourceVar
 	return stmts, err
 }
 
-func transformObjectFieldCode(srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, sourceVar, targetVar, name string, ta *TransformAttrs) (*jen.Statement, error) {
+func transformObjectFieldCode(srcMatt, tgtMatt TransformFields, srcc, tgtc *expr.AttributeExpr, sourceVar, targetVar, name string, ta *TransformAttrs) (*jen.Statement, error) {
 	if err := IsCompatible(srcc.Type, tgtc.Type, sourceVar, targetVar); err != nil {
 		return nil, err
 	}
@@ -442,7 +442,7 @@ func transformObjectFieldAssignment(srcc, tgtc *expr.AttributeExpr, srcVar, tgtV
 	}
 }
 
-func wrapTransformObjectFieldCode(code *jen.Statement, srcc, tgtc *expr.AttributeExpr, srcMatt *expr.MappedAttributeExpr, srcVar, tgtVar, name string, ta *TransformAttrs) *jen.Statement {
+func wrapTransformObjectFieldCode(code *jen.Statement, srcc, tgtc *expr.AttributeExpr, srcMatt TransformFields, srcVar, tgtVar, name string, ta *TransformAttrs) *jen.Statement {
 	if code == nil || !shouldWrapTransformObjectField(srcc, srcMatt, name, ta) {
 		return code
 	}
@@ -467,7 +467,7 @@ func wrapTransformObjectFieldCode(code *jen.Statement, srcc, tgtc *expr.Attribut
 	return stmt
 }
 
-func shouldWrapTransformObjectField(srcc *expr.AttributeExpr, srcMatt *expr.MappedAttributeExpr, name string, ta *TransformAttrs) bool {
+func shouldWrapTransformObjectField(srcc *expr.AttributeExpr, srcMatt TransformFields, name string, ta *TransformAttrs) bool {
 	// Collection conversion owns nil preservation. Keep only the existing
 	// required-array materialization policy at the field encoding boundary.
 	if expr.IsArray(srcc.Type) || expr.IsMap(srcc.Type) {
@@ -477,12 +477,12 @@ func shouldWrapTransformObjectField(srcc *expr.AttributeExpr, srcMatt *expr.Mapp
 	// A pointer carrier may be validated against a selected view after this
 	// conversion. Preserve absent objects regardless of full-type requiredness.
 	if expr.IsPrimitive(srcc.Type) {
-		return ta.SourceCtx.IsPrimitivePointer(name, srcMatt.AttributeExpr)
+		return nativeObjectFieldPointer(srcMatt, name, srcc, ta.SourceCtx)
 	}
 	return !srcMatt.IsRequired(name) || ta.TargetCtx.Pointer || ta.SourceCtx.UseDefault && ta.TargetCtx.UseDefault
 }
 
-func transformObjectDefaultValueCode(srcMatt, tgtMatt *expr.MappedAttributeExpr, srcVar, tgtVar, name string, ta *TransformAttrs) (*jen.Statement, error) {
+func transformObjectDefaultValueCode(srcMatt, tgtMatt TransformFields, srcVar, tgtVar, name string, ta *TransformAttrs) (*jen.Statement, error) {
 	plan := ta.DefaultForField(srcMatt, tgtMatt, name)
 	if !plan.Apply {
 		return nil, nil

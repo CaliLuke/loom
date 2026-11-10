@@ -24,7 +24,8 @@ type (
 		// Its codec is derived from the emitted type and presence layout.
 		SSEDataField string
 		// ProjectionContext is the captured body layout used to build Plan.
-		// Its policy maps are detached from mutable generation registries.
+		// Its immutable service registry is shared; local override maps are
+		// detached from mutable generation registries.
 		// Consumers treat the snapshot as read-only; rebuilding replaces it.
 		ProjectionContext *codegen.AttributeContext
 		// Plan is populated only after actual emitter policies are available.
@@ -32,7 +33,8 @@ type (
 		// AnchorPlan projects values owned by Anchor through this target.
 		AnchorPlan expr.ValuePlan
 		// ExampleOccurrence is the independently captured effective target used
-		// only to own transport-local authored examples.
+		// for schema annotations and transport-local authored examples. Runtime
+		// targets without a local authored root example leave it zero.
 		ExampleOccurrence expr.ValueOccurrence
 		// ExamplePlan projects values owned by ExampleOccurrence through this target.
 		ExamplePlan expr.ValuePlan
@@ -95,6 +97,9 @@ type (
 		Generate        bool
 		ServiceGenerate bool
 		Endpoints       []*Endpoint
+		// SchemaTypeLayouts is the immutable service registry shared by schema
+		// targets, including subsequently projected stream messages.
+		SchemaTypeLayouts *codegen.TypeLayouts
 	}
 
 	Endpoint struct {

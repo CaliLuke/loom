@@ -98,7 +98,7 @@ func wireOptionalField(att *AttributeExpr, nat *NamedAttributeExpr) bool {
 		return false
 	}
 	required := att.IsRequired(nat.Name) || att.IsRequired(AttributeName(nat.Name))
-	return !required || nat.Attribute.effectiveDefault() != nil
+	return !required || nat.Attribute.EffectiveDefault() != nil
 }
 
 // validateBodyElementNames rejects the fields of the HTTP and JSON-RPC bodies

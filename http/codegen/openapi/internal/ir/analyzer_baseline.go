@@ -81,7 +81,7 @@ func (a *Analyzer) recordStructuralSchema(schema *Schema, attribute *expr.Attrib
 			construction.slots = append(construction.slots, schemaSlot{location: schemaAnyOf, index: index})
 		}
 	}
-	a.constructions[schema] = construction
+	setAcquisitionEntry(a, a.constructions, schema, construction)
 }
 
 func (a *Analyzer) applyNullableSchema(schema *Schema) {
@@ -91,9 +91,9 @@ func (a *Analyzer) applyNullableSchema(schema *Schema) {
 		return
 	}
 	if recorded {
-		a.constructions[schema.AnyOf[0]] = construction
+		setAcquisitionEntry(a, a.constructions, schema.AnyOf[0], construction)
 	}
-	a.constructions[schema] = schemaConstruction{slots: []schemaSlot{{location: schemaAnyOf}}}
+	setAcquisitionEntry(a, a.constructions, schema, schemaConstruction{slots: []schemaSlot{{location: schemaAnyOf}}})
 }
 
 // constructionContext identifies the JSON representations that the composition
@@ -143,7 +143,7 @@ func (a *Analyzer) constructionContext(baseline *Schema, plan expr.ValuePlanNode
 	visit(root)
 	slices.Sort(closures)
 	context := strings.Join(slices.Compact(closures), "|")
-	a.constructionContexts[root] = context
+	setAcquisitionEntry(a, a.constructionContexts, root, context)
 	return context
 }
 
@@ -241,6 +241,6 @@ func (s schemaSlot) set(schema *Schema, child *Schema) {
 // reference rewriting. It never infers a structural child from schema contents.
 func (a *Analyzer) copySchemaConstruction(source, target *Schema) {
 	if construction, found := a.constructions[source]; found {
-		a.constructions[target] = construction
+		setAcquisitionEntry(a, a.constructions, target, construction)
 	}
 }

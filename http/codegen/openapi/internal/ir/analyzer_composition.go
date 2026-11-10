@@ -46,6 +46,6 @@ func (a *Analyzer) analyzeCompositionReferences(schema *Schema, attribute *expr.
 	}
 	slots = append(slots, schemaSlot{location: schemaAllOf, index: len(result.AllOf)})
 	result.AllOf = append(result.AllOf, schema)
-	a.constructions[result] = schemaConstruction{slots: slots}
+	setAcquisitionEntry(a, a.constructions, result, schemaConstruction{slots: slots})
 	return result
 }

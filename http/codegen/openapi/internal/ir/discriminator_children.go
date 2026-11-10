@@ -57,9 +57,9 @@ func (a *Analyzer) addDiscriminatorChild(parent, child string) {
 		return
 	}
 	if a.discriminatorChildren == nil {
-		a.discriminatorChildren = make(map[string][]string)
+		ensureAcquisitionIndex(a, &a.discriminatorChildren)
 	}
-	a.discriminatorChildren[parent] = append(a.discriminatorChildren[parent], child)
+	setAcquisitionEntry(a, a.discriminatorChildren, parent, appendAcquisitionValues(a, a.discriminatorChildren[parent], child))
 }
 
 // declarationComponentName returns the local component name analyzed for the

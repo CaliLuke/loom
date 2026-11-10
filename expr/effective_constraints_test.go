@@ -229,7 +229,7 @@ func TestPreFinalDefaultSelectionMatchesEffectiveConstraints(t *testing.T) {
 			actual, present := constraints.Default()
 			require.Equal(t, test.present, present)
 			require.Equal(t, test.want, actual)
-			require.Equal(t, actual, test.attribute.effectiveDefault())
+			require.Equal(t, actual, test.attribute.EffectiveDefault())
 		})
 	}
 
@@ -237,7 +237,7 @@ func TestPreFinalDefaultSelectionMatchesEffectiveConstraints(t *testing.T) {
 	right := namedScalar("DefaultCycleRight", left, nil)
 	left.Attribute().Type = right
 	cyclic := &AttributeExpr{Type: left}
-	require.Nil(t, cyclic.effectiveDefault())
+	require.Nil(t, cyclic.EffectiveDefault())
 	_, err := EffectiveConstraintsFor(cyclic)
 	require.Error(t, err)
 }

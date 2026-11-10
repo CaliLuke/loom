@@ -62,6 +62,9 @@ func TestResponseCodecAuthority(t *testing.T) {
 			require.Len(t, response.DocumentValues, len(response.ContentTypes))
 			for _, media := range response.ContentTypes {
 				body, document := response.BodyValues[media], response.DocumentValues[media]
+				require.Same(t, response.BodyValue.ProjectionContext, body.ProjectionContext, "media slots share the same immutable body capture")
+				require.Same(t, response.DocumentValue.ProjectionContext, document.ProjectionContext)
+				require.False(t, response.BodyValue.Plan.Root() == body.Plan.Root(), "each media slot retains an independent plan")
 				require.Same(t, response.BodyValue.Source, body.Source)
 				require.NoError(t, body.Error)
 				require.NoError(t, document.Error)

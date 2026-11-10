@@ -47,6 +47,11 @@ func recordServiceTypeLayouts(endpoints []*transportir.Endpoint, sd *ServiceData
 	}
 	sd.ServerJSONPresenceTypes, sd.ServerPresencePointerTypes, sd.ServerPresenceUseDefaultTypes = server.JSONPresence, server.Pointer, server.UseDefault
 	sd.ClientJSONPresenceTypes, sd.ClientPresencePointerTypes, sd.ClientPresenceUseDefaultTypes = client.JSONPresence, client.Pointer, client.UseDefault
+	serverContext, clientContext := &codegen.AttributeContext{}, &codegen.AttributeContext{}
+	server.Bind(serverContext)
+	client.Bind(clientContext)
+	sd.serverTypeLayouts = codegen.CaptureTypeLayouts(serverContext)
+	sd.clientTypeLayouts = codegen.CaptureTypeLayouts(clientContext)
 	for _, endpoint := range endpoints {
 		recordServerRequestValidationTypes(sd, endpoint.Request.Body)
 		recordServerRequestValidationTypes(sd, endpoint.Request.StreamingBody)
@@ -97,6 +102,10 @@ func typeLayoutMaps(sd *ServiceData, server bool) (map[string]bool, map[string]b
 
 func applyUserTypeLayout(ctx *codegen.AttributeContext, sd *ServiceData, attribute *expr.AttributeExpr, server bool) {
 	ctx.JSONPresenceTypes, ctx.PresencePointerTypes, ctx.PresenceUseDefaultTypes = typeLayoutMaps(sd, server)
+	ctx.TypeLayouts = sd.clientTypeLayouts
+	if server {
+		ctx.TypeLayouts = sd.serverTypeLayouts
+	}
 	representation.ApplyLayout(ctx, attribute)
 }
 
