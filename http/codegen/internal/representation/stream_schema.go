@@ -25,10 +25,17 @@ func PrepareStreamSchema(endpoint *transportir.Endpoint, target *expr.AttributeE
 	if value == nil {
 		return &transportir.ValueTarget{Error: fmt.Errorf("stream schema has no prepared source occurrence")}
 	}
-	layout, _ := ServiceLayouts(endpoint.Service.Endpoints)
 	context := schemaContext(inbound)
 	if inbound || !endpoint.Stream.HasMixedResults {
-		layout.Bind(context)
+		context.TypeLayouts = endpoint.Service.SchemaTypeLayouts
+		if context.TypeLayouts == nil {
+			layout, _ := ServiceLayouts(endpoint.Service.Endpoints)
+			layout.Bind(context)
+			context.TypeLayouts = codegen.CaptureTypeLayouts(context)
+			context.JSONPresenceTypes = nil
+			context.PresencePointerTypes = nil
+			context.PresenceUseDefaultTypes = nil
+		}
 	}
 	return BuildValuePlan(value, target, context, expr.ValuePlanSchema)
 }

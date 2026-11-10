@@ -30,6 +30,22 @@ func TestRequiredFieldQueriesDoNotCopyDescendants(t *testing.T) {
 	require.Less(t, allocations[1], 2*allocations[0], "field requirement queries must not copy unrelated descendants")
 }
 
+func TestTransformFieldQueriesDoNotCopyDescendants(t *testing.T) {
+	allocations := make([]float64, 0, 2)
+	for _, width := range []int{16, 512} {
+		attribute := fieldFactsValidationAttribute(width)
+		allocated := testing.AllocsPerRun(3, func() {
+			walkMatches(attribute, attribute, func(_, _ TransformFields, source, target *expr.AttributeExpr, name string) {
+				require.Same(t, source, target)
+				require.NotEmpty(t, name)
+			})
+		})
+		allocations = append(allocations, allocated)
+		t.Logf("unrelated descendant width=%d allocations=%.0f", width, allocated)
+	}
+	require.Less(t, allocations[1], 2*allocations[0], "matching immediate fields must not copy descendants")
+}
+
 func TestFieldPresenceFactSources(t *testing.T) {
 	context := &AttributeContext{JSONPresence: true}
 	attribute := &expr.AttributeExpr{Type: expr.String}

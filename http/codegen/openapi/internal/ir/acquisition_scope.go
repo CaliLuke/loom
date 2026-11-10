@@ -1,56 +1,78 @@
 package ir
 
-import (
-	"maps"
-	"slices"
-)
+import "slices"
 
-// acquisitionRollback snapshots the shared registration indexes at the outer
-// scope boundary. Published entries are immutable; mutable registration slices
-// and annotation owner maps are copied. Failure retains the original error and
-// removes only this scope's provisional acquisition and projection state.
+// acquisitionJournal owns index changes made by one outer schema scope. Nested
+// analysis and held completion append to the same journal. Prior published
+// indexes stay in place; checkpoint cost is independent of their cardinality.
+type acquisitionJournal struct {
+	undo []func()
+}
+
+// acquisitionRollback begins a scope and returns its reverse-order rollback.
+// Map entries and lazily allocated indexes are restored; user callbacks and
+// mutable schema bodies retain the existing acquisition contract.
 func (a *Analyzer) acquisitionRollback() func() {
-	components := maps.Clone(a.componentAcquisitions)
-	contributors := maps.Clone(a.contributors)
-	schemas := maps.Clone(a.schemas)
-	fingerprints := maps.Clone(a.schemaFingerprints)
-	names := maps.Clone(a.schemaNames)
-	types := maps.Clone(a.schemaTypeIDs)
-	refs := maps.Clone(a.schemasByFingerprint)
-	for key, values := range refs {
-		refs[key] = slices.Clone(values)
-	}
-	constructions := maps.Clone(a.constructions)
-	plans := maps.Clone(a.projectionPlans)
-	projections := maps.Clone(a.projectionComponents)
-	mappings := maps.Clone(a.projectionMappings)
-	children := maps.Clone(a.projectedChildren)
-	for key, values := range children {
-		children[key] = slices.Clone(values)
-	}
-	published := maps.Clone(a.publishedChildren)
-	discriminatorChildren := maps.Clone(a.discriminatorChildren)
-	for key, values := range discriminatorChildren {
-		discriminatorChildren[key] = slices.Clone(values)
-	}
-	opaqueAnnotations := maps.Clone(a.opaqueAnnotationOwners)
-	annotations := maps.Clone(a.componentAnnotations)
-	for key, owner := range annotations {
-		annotations[key] = maps.Clone(owner)
-	}
-	constructionContexts := maps.Clone(a.constructionContexts)
-	publicationContexts := maps.Clone(a.publicationContexts)
-	neighbors := maps.Clone(a.declarationNeighborCache)
-	dependencies := maps.Clone(a.publicationDependencyCache)
+	journal := &acquisitionJournal{}
+	a.acquisitionJournal = journal
 	return func() {
-		a.componentAcquisitions, a.contributors = components, contributors
-		a.schemas, a.schemaFingerprints, a.schemaNames, a.schemaTypeIDs = schemas, fingerprints, names, types
-		a.schemasByFingerprint, a.constructions = refs, constructions
-		a.projectionPlans, a.projectionComponents, a.projectionMappings = plans, projections, mappings
-		a.projectedChildren, a.publishedChildren = children, published
-		a.discriminatorChildren, a.componentAnnotations = discriminatorChildren, annotations
-		a.opaqueAnnotationOwners = opaqueAnnotations
-		a.constructionContexts, a.publicationContexts = constructionContexts, publicationContexts
-		a.declarationNeighborCache, a.publicationDependencyCache = neighbors, dependencies
+		a.acquisitionJournal = nil
+		for index := len(journal.undo) - 1; index >= 0; index-- {
+			journal.undo[index]()
+		}
+		journal.undo = nil
 	}
+}
+
+// setAcquisitionEntry records the immediately preceding value before writing.
+// Repeated writes unwind in reverse order. Mutable values must be detached
+// before replacement. appendAcquisitionValues also protects spare capacity.
+func setAcquisitionEntry[K comparable, V any](a *Analyzer, index map[K]V, key K, value V) {
+	if journal := a.acquisitionJournal; journal != nil {
+		prior, present := index[key]
+		journal.undo = append(journal.undo, func() {
+			if present {
+				index[key] = prior
+			} else {
+				delete(index, key)
+			}
+		})
+	}
+	index[key] = value
+}
+
+// appendAcquisitionValues detaches an active scope's append from prior capacity:
+// an appended binding must not remain reachable beyond the restored slice length
+// after rollback. Arguments retain the original prefix-before-callback order.
+func appendAcquisitionValues[V any](a *Analyzer, values []V, value V) []V {
+	if a.acquisitionJournal != nil {
+		values = slices.Clip(values)
+	}
+	return append(values, value)
+}
+
+func deleteAcquisitionEntry[K comparable, V any](a *Analyzer, index map[K]V, key K) {
+	prior, present := index[key]
+	if !present {
+		return
+	}
+	if journal := a.acquisitionJournal; journal != nil {
+		journal.undo = append(journal.undo, func() {
+			index[key] = prior
+		})
+	}
+	delete(index, key)
+}
+
+// ensureAcquisitionIndex preserves nil versus allocated state on failure.
+func ensureAcquisitionIndex[K comparable, V any](a *Analyzer, index *map[K]V) {
+	if *index != nil {
+		return
+	}
+	if journal := a.acquisitionJournal; journal != nil {
+		journal.undo = append(journal.undo, func() {
+			*index = nil
+		})
+	}
+	*index = make(map[K]V)
 }

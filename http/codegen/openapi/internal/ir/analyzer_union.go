@@ -27,7 +27,7 @@ func (a *Analyzer) ensureUnionBranchSchema(union *expr.Union, val *expr.NamedAtt
 	fingerprint := fingerprintString(key)
 	name = a.Uniquify(name, fingerprint)
 	a.unionBranchSchemas[key] = name
-	a.schemaNames[name] = representationComponentName{desired: desired, logical: logical, baseline: logical, json: projection != ""}
+	setAcquisitionEntry(a, a.schemaNames, name, representationComponentName{desired: desired, logical: logical, baseline: logical, json: projection != ""})
 
 	restore := a.componentAnnotationScope(logical, logical, exampleContext("component", desired))
 	defer restore()
@@ -48,9 +48,9 @@ func (a *Analyzer) ensureUnionBranchSchema(union *expr.Union, val *expr.NamedAtt
 		},
 		Required: []string{union.GetTypeKey(), union.GetValueKey()},
 	}
-	a.constructions[branchSchema] = schemaConstruction{slots: []schemaSlot{{location: schemaProperty, name: union.GetValueKey()}}}
-	a.schemaFingerprints[name] = fingerprint
-	a.schemas[name] = branchSchema
+	setAcquisitionEntry(a, a.constructions, branchSchema, schemaConstruction{slots: []schemaSlot{{location: schemaProperty, name: union.GetValueKey()}}})
+	setAcquisitionEntry(a, a.schemaFingerprints, name, fingerprint)
+	setAcquisitionEntry(a, a.schemas, name, branchSchema)
 	return toRef(name)
 }
 

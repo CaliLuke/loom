@@ -203,12 +203,17 @@ func (a *AttributeExpr) GetDefault(attName string) any {
 		if att == nil {
 			return nil
 		}
-		return att.effectiveDefault()
+		return att.EffectiveDefault()
 	}
 	return nil
 }
 
-func (a *AttributeExpr) effectiveDefault() any {
+// EffectiveDefault returns this attribute's selected raw default, following named
+// declarations and retained constraint parents. Nil receivers and ancestry with
+// no default return nil. It does not validate the complete value graph or copy
+// the result; callers must keep the input stable and treat the result as read-only
+// during analysis. GetDefault selects an object's child before using this resolver.
+func (a *AttributeExpr) EffectiveDefault() any {
 	return selectedDefaultValue(a, make(map[*AttributeExpr]bool))
 }
 

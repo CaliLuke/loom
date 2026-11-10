@@ -1,0 +1,44 @@
+package design
+
+import (
+	"fmt"
+	"os"
+	"strconv"
+
+	dsl "github.com/CaliLuke/loom/dsl"
+)
+
+func count(name string) int {
+	n, err := strconv.Atoi(os.Getenv(name))
+	if err != nil || n < 0 {
+		panic("set " + name + " to a non-negative integer")
+	}
+	return n
+}
+
+var _ = dsl.API("scaling", func() {
+	dsl.Meta("http:generate", "server")
+	dsl.Meta("openapi:version", "3.1")
+	for i := 0; i < count("PROBE_ERRORS"); i++ {
+		dsl.Error(fmt.Sprintf("failure_%d", i), dsl.ErrorResult)
+	}
+	dsl.HTTP(func() {
+		for i := 0; i < count("PROBE_ERRORS"); i++ {
+			dsl.Response(fmt.Sprintf("failure_%d", i), 400)
+		}
+	})
+})
+
+var _ = dsl.Service("scaling", func() {
+	for i := 0; i < count("PROBE_ERRORS"); i++ {
+		dsl.Error(fmt.Sprintf("failure_%d", i))
+	}
+	for i := 0; i < count("PROBE_METHODS"); i++ {
+		dsl.Method(fmt.Sprintf("method_%d", i), func() {
+			dsl.Result(dsl.String)
+			dsl.HTTP(func() {
+				dsl.GET(fmt.Sprintf("/method/%d", i))
+			})
+		})
+	}
+})

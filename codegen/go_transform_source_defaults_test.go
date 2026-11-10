@@ -49,7 +49,7 @@ func TestAdmittedSourceDefaultMappedWinner(t *testing.T) {
 	target := &expr.AttributeExpr{Type: inherited}
 	scope := NewNameScope()
 	ta := &TransformAttrs{SourceCtx: NewAttributeContext(true, false, false, "", scope), TargetCtx: NewAttributeContext(false, false, true, "", scope), Options: TransformOptions{AdmittedSource: "mapped-body"}}
-	walkMatches(source, target, func(src, tgt *expr.MappedAttributeExpr, child, _ *expr.AttributeExpr, name string) {
+	walkMatches(source, target, func(src, tgt TransformFields, child, _ *expr.AttributeExpr, name string) {
 		require.Same(t, local, child, "local mapped winner precedes the referenced exact-name child")
 		require.Equal(t, 9, src.GetDefault(name))
 		require.Equal(t, 9, ta.DefaultForField(src, tgt, name).Value)

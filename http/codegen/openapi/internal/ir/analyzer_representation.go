@@ -56,7 +56,7 @@ func (a *Analyzer) analyzeSchemaPositions(
 			}
 			*reserved = *result
 			if construction, found := a.constructions[result]; found {
-				a.constructions[reserved] = construction
+				setAcquisitionEntry(a, a.constructions, reserved, construction)
 			}
 			result = reserved
 		}()

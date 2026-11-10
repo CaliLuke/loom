@@ -180,9 +180,9 @@ func (a *Analyzer) discriminatorInlineBranch(union *expr.Union, branch *expr.Nam
 	fingerprint := a.FingerprintAttribute(branch.Attribute)
 	desired := normalizedOpenAPINamePart(union.TypeName) + normalizedOpenAPINamePart(branch.Name) + "Variant"
 	name := a.Uniquify(desired, fingerprint)
-	a.schemas[name] = schema
-	a.schemaFingerprints[name] = fingerprint
-	a.schemaNames[name] = representationComponentName{desired: desired, logical: fingerprint, baseline: fingerprint}
+	setAcquisitionEntry(a, a.schemas, name, schema)
+	setAcquisitionEntry(a, a.schemaFingerprints, name, fingerprint)
+	setAcquisitionEntry(a, a.schemaNames, name, representationComponentName{desired: desired, logical: fingerprint, baseline: fingerprint})
 	return toRef(name)
 }
 

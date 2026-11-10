@@ -133,18 +133,17 @@ func transformPhysicalContext(attribute *expr.AttributeExpr, context *AttributeC
 	if !ok {
 		return context
 	}
-	key := named.Hash()
-	presence, found := context.JSONPresenceTypes[key]
-	if !found {
+	layout := context.TypeLayout(named.Hash())
+	if !layout.HasJSONPresence {
 		return context
 	}
 	nested := context.Dup()
-	nested.JSONPresence, nested.CollectionElementPresence = presence, presence
-	if pointer, found := context.PresencePointerTypes[key]; found {
-		nested.Pointer = pointer
+	nested.JSONPresence, nested.CollectionElementPresence = layout.JSONPresence, layout.JSONPresence
+	if layout.HasPointer {
+		nested.Pointer = layout.Pointer
 	}
-	if defaults, found := context.PresenceUseDefaultTypes[key]; found {
-		nested.UseDefault = defaults
+	if layout.HasUseDefault {
+		nested.UseDefault = layout.UseDefault
 	}
 	return nested
 }
@@ -221,7 +220,7 @@ func (graph *transformFailures) discoverObject(source, target *expr.AttributeExp
 		}
 	}
 	var err error
-	walkMatches(source, target, func(srcParent, tgtParent *expr.MappedAttributeExpr, sourceChild, targetChild *expr.AttributeExpr, name string) {
+	walkMatches(source, target, func(srcParent, tgtParent TransformFields, sourceChild, targetChild *expr.AttributeExpr, name string) {
 		if err != nil {
 			return
 		}

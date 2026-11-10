@@ -103,6 +103,11 @@ unfoldings do not establish schema inequality; representation graph quotienting
 remains a later, separate owner. Go tests cover actual graph extraction, multiple
 claims, rollback, annotations and occurrence-policy variants.
 
+The [acquisition journal model](../../../../http/codegen/openapi/internal/ir/tla/acquisition_journal/README.md)
+checks reverse-order restoration and mutation-proportional checkpoint work.
+Full snapshots and forward undo are negative controls. Go tests cover map
+presence, mutable buckets, nested scopes, first errors and panic cleanup.
+
 The [scalar field facts model](../../../../expr/tla/field_facts/README.md) checks
 snapshot meaning and absence of repeated descendant copying. Borrowed mutation
 and per-query copying are negative controls; concrete mapped/default semantics
@@ -138,6 +143,7 @@ and emitted-signature tests complement generated HTTP/JSON-RPC compilation.
 | Required annotation admission across text, raw and custom target codecs | [Schema annotation codec boundary](../../../../expr/tla/schema_annotation_codec/README.md); bounded false-rejection and blanket-fallback counterexamples, with direct sibling checks and rendered cookie/SSE contracts |
 | Primitive numeric source admission and carrier normalization | `NumericValueAdmission.lean` and the source-resolution claims in the [Lean value contract](../../../../expr/lean/value_projection/README.md); independent carrier-role conformance checks exact integer limits and retained float/source rules. Redundant bounds remain predicates rather than stored carrier values |
 | Value source precedence, phase ordering, representation and cache ownership | [Value pipeline TLA model](../../../../expr/tla/value_projection/README.md); bounded ownership checks, not arbitrary value or generated-program correctness |
+| Shared complete HTTP layout registries, detached occurrence overrides and bounded target storage | [Layout capture](../../../../http/codegen/internal/representation/tla/layout_capture/README.md); dense-copy, mutable-borrow and reachable-only counterexamples, with catalog scaling, allocation and identity-size regressions. The [target capture model](../../../../expr/tla/target_capture/README.md) also covers body-local media capture sharing with independent plans |
 | Intrinsic result nullability, occurrence ownership and selected-view declaration reuse | [Projected nullability](../../../../expr/tla/project_nullability/README.md); declaration-loss, occurrence-promotion, view-conflation and source-mutation counterexamples paired with semantic JSON and actual DSL tests; physical generated carriers remain a separate obligation |
 | Source/target pairing, declaration identity, baseline acquisition and annotation paths | [Schema ownership models](../../../../expr/tla/schema_declaration/README.md); bounded checks reject incompatible baseline reuse, added samples and erased annotations; actual extraction, recursion, naming and projection remain Go test obligations |
 | Recursive OpenAPI contributor acquisition, captured annotation binding and held projection completion | [Projected acquisition models](../../../../http/codegen/openapi/internal/ir/tla/projected_acquisition/README.md); repeated-reservation, wrong-binding, early-copy/cache, stale-comparison and reverse-role counterexamples; paired with root-binding, nullable mapping, canonical Body and parameter-order regressions |

@@ -89,6 +89,10 @@ type (
 		// ClientPresenceUseDefaultTypes records client body user types whose
 		// generated fields use value storage for defaulted optional primitives.
 		ClientPresenceUseDefaultTypes map[string]bool
+		// Captured service registries are shared by transport target plans.
+		// Mutable maps above retain view-local additions during Go emission.
+		serverTypeLayouts *codegen.TypeLayouts
+		clientTypeLayouts *codegen.TypeLayouts
 		// ServerTransformHelpers is the list of transform functions
 		// required by the various server side constructors.
 		ServerTransformHelpers []*codegen.TransformFunctionData
