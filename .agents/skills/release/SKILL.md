@@ -56,13 +56,62 @@ The same publisher creates an annotated tag, a draft GitHub Release, and a
 It publishes the draft with notes and verifies the resulting tag and Release.
 Tag pushes do not trigger a second publisher. Main is never moved or rewritten.
 
-Notes list source commit subjects since the preceding alpha/release; stable
-notes cover changes since the preceding stable release and identify the promoted
-alpha. Keep commit subjects descriptive of Loom behavior. Update public usage
-and upgrade guidance with implementation commits. Documentation recommendation
-pins are curated separately; daily publication does not rewrite them or stamp
-historical `Since` annotations. Enhance release notes when significant changes
-need more explanation, without adding routine CI command lists.
+The publisher's generated commit list is source material for release notes,
+not a finished account of a substantial release. Curate the published notes
+before reporting the release complete. Publication verification remains required;
+its results belong in the release evidence and task handoff, not the notes.
+
+### Write for application developers
+
+Release notes explain what changed for users, why it matters, and what they
+need to do when upgrading. They are not an agent work log or a delivery report.
+
+- Compare a stable release with the preceding **stable** release, covering the
+  whole alpha series rather than just the last dependency update or alpha.
+  For an alpha, compare with the preceding alpha/release.
+- Inspect the complete commit range, including merged work, and check material
+  claims against the released source and public guides. Group related changes
+  by capability or subsystem; do not turn every implementation commit into a
+  separate feature or call an existing capability new.
+- Explain substantial features and fixes concretely: what users can now express
+  or do, what previously failed, and what behavior changes. Use examples when
+  they make the difference clearer. A handful of generic highlights cannot
+  stand in for a large release; more words or commit counts cannot substitute
+  for meaningful coverage either.
+- Give breaking changes and migration steps their own clear section. Include
+  required toolchains, regeneration, changed APIs/wire formats, deployment
+  ordering and persisted-data migrations where applicable. Link the tagged
+  public documentation that helps users adopt the change.
+- Mention a library update only when its shipped fix, behavior or adoption
+  requirement matters to users. Distinguish runtime, generator and transitive
+  dependencies when relevant. Omit version bumps for test consumers, fixtures,
+  lint tools and CI environments. For example, TanStack Query installed in a
+  generated-client smoke test is not a Loom application dependency or feature.
+- Keep the full comparison link. An optional collapsed commit appendix can
+  preserve history, but cannot replace the curated explanation. Keep commit
+  subjects descriptive of Loom behavior.
+
+### Exclude delivery bookkeeping
+
+Do not put CI pass statements, workflow/CodeQL links, test command or coverage
+inventories, race/shuffle run summaries, evidence-asset descriptions, release
+eligibility checks, source SHA/promotion mechanics, or agent verification and
+review narratives in the editorial notes. Those are maintainer records.
+Do not list internal test-tool pins or explain why they are not dependencies.
+Do not add probe methodology or unmeasured-scenario disclaimers merely to report
+the work performed. Include a limitation when it changes a user's supported
+behavior or upgrade decision, not because it appeared in an agent's test report.
+
+Before publishing or editing, read the entire editorial body as an application
+developer. Every paragraph should explain a relevant change, its impact, or an
+upgrade action. Remove process commentary rather than relabeling it as
+"verification" or adding a disclaimer. Check the published body after editing.
+User requests for thorough notes mean thorough product coverage, not exhaustive
+development bookkeeping.
+
+Update public usage and upgrade guidance with implementation commits.
+Documentation recommendation pins are curated separately; daily publication
+does not rewrite them or stamp historical `Since` annotations.
 
 ## Retries and completion
 
