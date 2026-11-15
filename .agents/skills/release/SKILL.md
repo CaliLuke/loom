@@ -109,9 +109,51 @@ upgrade action. Remove process commentary rather than relabeling it as
 User requests for thorough notes mean thorough product coverage, not exhaustive
 development bookkeeping.
 
+### Independent editorial review
+
+For a substantial release or corrective rewrite, have a fresh agent that did
+not draft the notes review the exact proposed body with this skill. Review
+reader value and factual accuracy, not just spelling: flag vague benefits,
+implementation jargon, repeated explanations, unnecessary caveats, inflated
+claims, and missing migration actions. Preserve meaningful coverage when
+cutting prose. Ask for exact passages and concrete edits, not a generic verdict.
+Resolve findings and have the reviewer check the revisions in context before
+publishing. A review of an earlier body does not approve later unreviewed edits.
+
 Update public usage and upgrade guidance with implementation commits.
 Documentation recommendation pins are curated separately; daily publication
 does not rewrite them or stamp historical `Since` annotations.
+
+## Reflect and improve
+
+After a release or a material correction, reflect before closing the task:
+
+1. Use actual user feedback, accepted review findings and publication failures
+   to identify what went wrong. Distinguish a missing or ambiguous instruction
+   from an existing instruction that was not followed. Do not invent lessons
+   merely to produce a retrospective.
+2. Find the cause and its owner. Improve the relevant skill, example, review
+   step or release tooling within the authorized scope. Prefer tightening the
+   existing rule or replacing a weak example over appending another overlapping
+   prohibition. A missed instruction may need a better review step rather than
+   more instructions. Do not turn one incident into unrelated process changes.
+3. Check the proposed improvement against the actual failure and a useful
+   counterexample: would it reject the bad passage while retaining a concrete
+   feature, bug fix or migration instruction? Record a short before/after example
+   in the owning guidance only when it clarifies a reusable distinction. Apply
+   the correction to the current notes and check for the same problem elsewhere
+   in the editorial body.
+4. Get independent review of any guidance or tooling diff before committing,
+   as required by AGENTS.md. Re-review corrected notes under the improved
+   guidance. Match validation to the change; prose-only corrections do not
+   require framework or generator suites.
+5. Briefly report the durable improvement in the task handoff. Keep reflection,
+   review findings and process changes out of the public release notes. If the
+   existing guidance already covers the issue, say what enforcement changed;
+   do not manufacture a skill edit or permanent retrospective document.
+
+Reflection should leave a smaller, clearer or more effective process, not a
+growing log of mistakes. Remove superseded or redundant guidance as it evolves.
 
 ## Retries and completion
 
