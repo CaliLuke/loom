@@ -4,8 +4,8 @@ set -euo pipefail
 
 WORKFLOW_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # Latest stable upstream PostgreSQL and official multi-platform manifest,
-# verified 2026-11-05. PostgreSQL 19 was still a release candidate.
-WORKFLOW_IMAGE='postgres:18.6@sha256:bd5dfa494a5a259704365813dbfa5fa6b3e69be7348d43b547f540c730478583'
+# verified 2026-11-14. PostgreSQL 19 was still a release candidate.
+WORKFLOW_IMAGE='postgres:18.7@sha256:2ea8630df176ad090ec92136dee850397c5af8781e4bcf2e4162593691c61bbc'
 WORKFLOW_CONTAINER=''
 
 cleanup() {

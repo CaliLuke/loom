@@ -1,6 +1,6 @@
 module github.com/CaliLuke/loom
 
-go 1.27.3
+go 1.27.4
 
 require (
 	github.com/CaliLuke/go-redis/v9 v9.23.1-0.20261105165422-21c4e561f514
@@ -18,7 +18,7 @@ require (
 	github.com/oklog/ulid/v2 v2.1.2
 	github.com/owenrumney/go-sarif/v3 v3.3.2
 	github.com/pb33f/go-yaml v0.1.1
-	github.com/pb33f/libopenapi v0.42.4
+	github.com/pb33f/libopenapi v0.42.5
 	github.com/sirupsen/logrus v1.10.2
 	github.com/stretchr/testify v1.12.1
 	github.com/tmaxmax/go-sse v0.12.0
@@ -59,7 +59,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.33.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
-	github.com/jackc/pgx/v5 v5.12.0 // indirect
+	github.com/jackc/pgx/v5 v5.13.0 // indirect
 	github.com/jackc/puddle/v2 v2.2.3 // indirect
 	github.com/manveru/gobdd v0.0.0-20131210092515-f1a17fdd710b // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
@@ -78,7 +78,7 @@ require (
 	golang.org/x/sync v0.25.0 // indirect
 	golang.org/x/sys v0.50.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20261110000943-09e21b237f2c // indirect
-	modernc.org/libc v1.80.2 // indirect
+	modernc.org/libc v1.81.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.12.1 // indirect
 	modernc.org/sqlite v1.62.0 // indirect

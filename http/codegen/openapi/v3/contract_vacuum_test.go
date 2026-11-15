@@ -47,10 +47,10 @@ type contractVacuumInvalidCase struct {
 	diagnostic string
 }
 
-// Required unreleased fix for external security requirement URIs:
-// https://github.com/daveshanley/vacuum/issues/1056 and PR1029.
-// Return to a stable release containing c8d7f10d3472db624b17892eebf679471c922c47
-// once the existing positive and negative contract controls pass unchanged.
+// Required external security URI fix: https://github.com/daveshanley/vacuum/issues/1056.
+// Stable v0.41.0 contains it but drops conflicting-encoding errors (#1066).
+// Return to stable when the existing positive and negative controls pass:
+// https://github.com/daveshanley/vacuum/issues/1066.
 const vacuumVersion = "v0.39.4-0.20261107034229-b6c4e203d2ea"
 
 //go:embed testdata/vacuum_adapter/*.go.txt
@@ -68,7 +68,7 @@ func installContractVacuum(t *testing.T) contractVacuum {
 	require.NoError(t, err)
 	moduleDir := filepath.Join(dir, "adapter")
 	require.NoError(t, os.Mkdir(moduleDir, 0o700))
-	module := fmt.Sprintf("module example.com/loom-contract-vacuum\n\ngo 1.27.3\n\nrequire (\n\tgithub.com/daveshanley/vacuum %s\n\tgithub.com/pb33f/libopenapi %s\n)\n", vacuumVersion, libraryVersion)
+	module := fmt.Sprintf("module example.com/loom-contract-vacuum\n\ngo 1.27.4\n\nrequire (\n\tgithub.com/daveshanley/vacuum %s\n\tgithub.com/pb33f/libopenapi %s\n)\n", vacuumVersion, libraryVersion)
 	require.NoError(t, os.WriteFile(filepath.Join(moduleDir, "go.mod"), []byte(module), 0o600))
 	files, err := contractVacuumAdapter.ReadDir("testdata/vacuum_adapter")
 	require.NoError(t, err)

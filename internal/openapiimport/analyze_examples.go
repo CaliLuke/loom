@@ -7,7 +7,6 @@ import (
 
 	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi/datamodel/high/base"
-	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
 
 	"github.com/CaliLuke/loom/internal/exactnum"
@@ -51,29 +50,6 @@ func (a *analyzer) wireExamples(
 		examples[index].Scope = "media"
 	}
 	return examples
-}
-
-// headerExamples uses the Header's own source fields, preserving absence and
-// explicit null without inheriting a nested Schema's example. libopenapi#695
-// currently promotes nested examples into Header.Example. The source-presence
-// check can use the high-level field once that promotion is fixed and qualified:
-// https://github.com/pb33f/libopenapi/issues/695
-func (a *analyzer) headerExamples(source *v3.Header, schema *Schema, path string) []Example {
-	low := source.GoLow()
-	if low == nil {
-		a.unsupported("examples", path, "header example source presence is unavailable")
-		return nil
-	}
-	fields, err := effectiveYAMLMapping(low.RootNode, make(map[*yaml.Node]bool))
-	if err != nil {
-		a.unsupported("examples", path, fmt.Sprintf("header example source cannot be read: %v", err))
-		return nil
-	}
-	named := source.Examples
-	if fields["examples"] == nil {
-		named = nil
-	}
-	return a.wireExamples(fields["example"], named, schema, path)
 }
 
 func (a *analyzer) componentExample(name string, source *base.Example, path string) (Example, bool) {

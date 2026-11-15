@@ -24,7 +24,7 @@ const (
 	heyAPIClientFetchVersion = "0.13.1"
 	typeScriptAPIVersion     = "6.0.2"
 	typeScriptVersion        = "7.0.2"
-	tanStackQueryVersion     = "5.106.1"
+	tanStackQueryVersion     = "5.107.1"
 	zodVersion               = "4.6.7"
 	reactVersion             = "19.3.1"
 	oapiCodegenVersion       = "v2.8.2"

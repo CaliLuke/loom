@@ -38,12 +38,16 @@ external linting and process determinism explicit in the acceptance record.
 into a temporary module with the repository Go toolchain. That module selects
 the framework's `github.com/pb33f/libopenapi` version from the root module, and
 the gate checks the installed binary's build information to confirm the version.
-The current pin is [libopenapi v0.42.4](https://github.com/pb33f/libopenapi/releases/tag/v0.42.4),
-whose tag is commit `f6e97f4e9e2ee7e2f0404064d50ffd67fcd0b182`.
+The current pin is [libopenapi v0.42.5](https://github.com/pb33f/libopenapi/releases/tag/v0.42.5),
+whose tag is commit `88615e441e4d23fe4f215c8f7cf8adf2477503e1`.
 It preserves absolute external reference origins when an OpenAPI document supplies
 `$self` ([upstream #699](https://github.com/pb33f/libopenapi/issues/699)), and includes
 [libopenapi PR #656](https://github.com/pb33f/libopenapi/pull/656).
 This fixes enum value comparison for arrays, objects and numeric representations.
+The header-example correction ([upstream #695](https://github.com/pb33f/libopenapi/issues/695))
+also lets the importer consume `Header.Example` and `Header.Examples` directly.
+The former YAML source-presence workaround is removed; the existing scope,
+absence, explicit-null, merge, reusable-example and rejected-example tests remain.
 The parser uses its released version. Neither dependency uses a fork, source patch
 or replacement directive.
 The Vacuum pin lives in `v3/contract_vacuum_test.go`; this is a contributor
@@ -61,19 +65,22 @@ Other controls remove required document and device-flow fields, introduce an
 invalid parameter location or schema type, and reintroduce conflicting nested
 encodings. Assertions require the relevant rule diagnostic, not just process failure.
 
-The Vacuum pin is a required-unreleased-correctness exception. Stable v0.39.3
-rejects valid document-prefixed and external OpenAPI 3.2 Security Requirement
+The Vacuum correctness snapshot remains necessary. Stable v0.39.3
+rejected valid document-prefixed and external OpenAPI 3.2 Security Requirement
 URIs ([upstream #1053](https://github.com/daveshanley/vacuum/issues/1053),
-[upstream #1056](https://github.com/daveshanley/vacuum/issues/1056)). The pinned
-head belongs to official draft [PR #1029](https://github.com/daveshanley/vacuum/pull/1029)
-and includes dedicated external-security fix
-[`c8d7f10d3472db624b17892eebf679471c922c47`](https://github.com/daveshanley/vacuum/commit/c8d7f10d3472db624b17892eebf679471c922c47).
-The draft also contains broader autofix work; this gate only invokes linting,
-never repair or write operations.
+[upstream #1056](https://github.com/daveshanley/vacuum/issues/1056)). Stable v0.41.0
+includes the external-security correction from
+[PR #1029](https://github.com/daveshanley/vacuum/pull/1029).
+However, it silently accepts nested `encoding` combined with `prefixEncoding`
+or `itemEncoding`, failing the maintained conflicting-encoding control through
+both the CLI and motor. A standalone unmodified-release reproduction is filed as
+[upstream #1066](https://github.com/daveshanley/vacuum/issues/1066).
+The existing snapshot retains the external-security fix without that regression.
+This gate only invokes linting, never repair or write operations.
 
-Return to the latest stable Vacuum release once it includes both security URI
-fixes and the maintained same-document/external positives and missing-target
-negatives pass with the selected parser. Keep the authored URIs, admitted-resource
+Return to a stable release when the maintained same-document/external positives,
+missing-target negatives and conflicting-encoding negatives all pass with the
+selected parser. Keep the authored URIs, admitted-resource
 boundary and security rule intact. A successful ordinary lint run alone does not
 satisfy the generated external-reference identity specimen; its zero-error check
 remains mandatory. No rule or specimen is disabled to adopt the pin.

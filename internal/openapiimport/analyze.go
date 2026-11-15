@@ -430,7 +430,7 @@ func (a *analyzer) header(source *v3.Header, path string) Header {
 	if source.AllowEmptyValue {
 		a.unsupported("header-serialization", path, "custom header serialization is not in the strict import subset")
 	}
-	header.Schema = schemaWithExamples(header.Schema, a.headerExamples(source, header.Schema, path))
+	header.Schema = schemaWithExamples(header.Schema, a.wireExamples(source.Example, source.Examples, header.Schema, path))
 	if header.Deprecated {
 		a.unsupported("header-deprecated", path, "the HTTP DSL has no per-header deprecated marker; the flag is omitted from the rendered design")
 	}

@@ -116,7 +116,7 @@ not an arbitrary tenant header, raw credential or request body field.
 ## Runnable generated service
 
 Save the [design](examples/rate/design.go.txt) as `design/design.go` in a new
-directory. With Go 1.27.3 and `LOOM_VERSION` set to a release or exact commit
+directory. With Go 1.27.4 and `LOOM_VERSION` set to a release or exact commit
 containing rate admission:
 
 ```sh

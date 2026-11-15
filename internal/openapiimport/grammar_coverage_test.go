@@ -598,7 +598,7 @@ func openAPIGrammarCoverage() []grammarObjectCoverage {
 				group(grammarPreserved, "analyzer.header", "Description", "Required", "Schema"),
 				group(grammarConditional, "analyzer.header and TestImportPreservesExporterMetadataSymmetry", "Style", "AllowReserved"),
 				group(grammarLossy, "header-deprecated diagnostic", "Deprecated"),
-				group(grammarConditional, "analyzer.headerExamples and TestImportProducerHeaderExamples", "Example", "Examples"),
+				group(grammarConditional, "analyzer.wireExamples and TestImportProducerHeaderExamples", "Example", "Examples"),
 				group(grammarConditional, "resolveReusableDocument", "Reference"),
 				group(grammarRejected, "header serialization, content, and extension diagnostics", "AllowEmptyValue", "Explode", "Content", "Extensions"),
 			},

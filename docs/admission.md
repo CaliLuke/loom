@@ -101,7 +101,7 @@ The [design](examples/concurrency/design.go.txt) and
 of two calls with API-key authentication, a protected unary method and explicit
 HTTP/gRPC overload mappings. The application mounts HTTP on loopback. This guide
 tracks `main`; select a Loom release or exact commit containing `admission`.
-Use Go 1.27.3 and the normal gRPC generation prerequisites described in the
+Use Go 1.27.4 and the normal gRPC generation prerequisites described in the
 [gRPC guide](grpc-guide.md).
 
 In a new directory, save the design as `design/design.go`, then run:

@@ -3091,6 +3091,9 @@ filter, and serialization rules belong here.
 
 ## Dependency Baseline
 
+See the [dependency inventory](references/dependency-baseline.md) for the current
+upgrade evidence, removed workarounds and remaining upstream release conditions.
+
 Follow the latest-stable dependency policy in `AGENTS.md`. The root `go.mod`
 selects Go and library versions; `Makefile` owns the linter and protobuf-tool
 pins; the Node contract job pins Node in `.github/workflows/test.yml`.
