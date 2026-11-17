@@ -32,9 +32,7 @@ const (
 	RuleGeneratedVersionSkew = "generated-version-skew"
 	// RuleGeneratedDesignSkew identifies generated output from another evaluated design.
 	RuleGeneratedDesignSkew = "generated-design-skew"
-	// RuleServerErrorFault identifies 5xx errors that are not marked as faults.
-	RuleServerErrorFault = "server-error-fault"
-	// RuleRetryableError identifies retryable HTTP statuses without retry metadata.
+	// RuleRetryableError identifies retryable HTTP statuses without declared retry guidance.
 	RuleRetryableError = "retryable-error"
 	// RuleDescriptionMinimum identifies index descriptions without a lower bound.
 	RuleDescriptionMinimum = "description-minimum"

@@ -1771,6 +1771,16 @@ upgrading this manifest format. Source
 analysis follows the active packages selected by the current Go build
 environment and excludes dependency modules.
 
+HTTP statuses do not imply `Fault()`: temporary overload mapped to 503 and
+all-false errors mapped to 500 remain valid. The retired `server-error-fault`
+rule and `vet.RuleServerErrorFault` constant have been removed; delete their
+references and suppressions. The separate 429/502/503 retry-guidance check accepts
+`Temporary()`, a nonblank remedy `RetryHint`, or a mapped `Retry-After` response
+header. Header wire names are case-insensitive, and optional delays remain valid
+when the application cannot always supply them. Body fields and request headers
+do not count; `Timeout()` alone is not retry guidance. No regeneration is needed
+solely for these vet corrections.
+
 Applications can opt into missing-mount analysis at API scope:
 
 ```go

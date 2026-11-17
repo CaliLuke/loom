@@ -51,6 +51,7 @@ func runAdmissionExample(t *testing.T, example string) {
 	}
 	for _, args := range [][]string{
 		{"mod", "tidy"},
+		{"tool", "loom", "vet", "example.com/admission/design"},
 		{"test", "-race", "./..."},
 	} {
 		output, err := testingx.RunCmd(dir, "go", args...)
