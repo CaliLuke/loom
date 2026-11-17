@@ -104,13 +104,13 @@ func analyzeHTTPErrorMapping(httpError *expr.HTTPErrorExpr, appendDiagnostic fun
 	if !exact {
 		panic("HTTP vet requires an exact response status")
 	}
-	if isRetryableStatus(status) && !hasRetryMetadata(httpError.ErrorExpr) && !suppressed(httpError.Meta, RuleRetryableError) {
+	if isRetryableStatus(status) && !hasRetryGuidance(httpError) && !suppressed(httpError.Meta, RuleRetryableError) {
 		appendDiagnostic(
 			httpError,
 			status,
 			RuleRetryableError,
 			fmt.Sprintf(
-				"HTTP %d error %q must declare Temporary() or Remedy(func() {\n    RetryHint(\"...\")\n})",
+				"HTTP %d error %q must declare Temporary(), a Retry-After response header, or Remedy(func() {\n    RetryHint(\"...\")\n})",
 				status,
 				httpError.Name,
 			),
@@ -168,11 +168,21 @@ func isRetryableStatus(status int) bool {
 	}
 }
 
-func hasRetryMetadata(errorExpr *expr.ErrorExpr) bool {
-	if hasMeta(errorExpr.Meta, "loom:error:temporary") {
+func hasRetryGuidance(httpError *expr.HTTPErrorExpr) bool {
+	if hasMeta(httpError.Meta, "loom:error:temporary") {
 		return true
 	}
-	return errorExpr.Remedy != nil && strings.TrimSpace(errorExpr.Remedy.RetryHint) != ""
+	if httpError.Remedy != nil && strings.TrimSpace(httpError.Remedy.RetryHint) != "" {
+		return true
+	}
+	if headers := httpError.Response.Headers; headers != nil {
+		for _, header := range *expr.AsObject(headers.Type) {
+			if strings.EqualFold(headers.ElemName(header.Name), "Retry-After") {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func analyzeAttributeSemantics(root *expr.RootExpr, report *Report) {
