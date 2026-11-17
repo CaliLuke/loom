@@ -1064,6 +1064,10 @@ consumer validation.
   method/path constants from active source files and skip dynamic expressions
   rather than infer speculative runtime overlap.
 - Classify heuristic vet rules as warnings and provide a scoped suppression.
+- Do not infer error properties from HTTP status in vet. The retired
+  `server-error-fault` rule contradicted independent authored traits and valid
+  all-false 500/temporary-only 503 contracts. Keep the separate 429/502/503
+  retry-guidance policy unchanged; timeout and fault do not imply retryability.
 - Keep `untyped-semantic-attribute` conservative: never warn on `Any` alone;
   allow name-only inference only for timestamp-style names such as `*_at`,
   require explicit UUID evidence for IDs, and ignore ambiguous descriptions

@@ -15,7 +15,9 @@ import (
 // then checks protected admission and its declared HTTP and gRPC error mappings.
 // No generator behavior changes; this is a consumer of the existing hooks.
 func TestConcurrencyAdmissionExample(t *testing.T) {
-	runAdmissionExample(t, "concurrency")
+	dir := runAdmissionExample(t, "concurrency")
+	output, err := testingx.RunCmd(dir, "go", "tool", "loom", "vet", "example.com/admission/design")
+	require.NoError(t, err, output)
 }
 
 // TestRateAdmissionExample verifies early HTTP and protected endpoint quotas
@@ -24,7 +26,7 @@ func TestRateAdmissionExample(t *testing.T) {
 	runAdmissionExample(t, "rate")
 }
 
-func runAdmissionExample(t *testing.T, example string) {
+func runAdmissionExample(t *testing.T, example string) string {
 	t.Helper()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, "design"), 0o700))
@@ -56,4 +58,5 @@ func runAdmissionExample(t *testing.T, example string) {
 		output, err := testingx.RunCmd(dir, "go", args...)
 		require.NoError(t, err, "%v\n%s", args, output)
 	}
+	return dir
 }

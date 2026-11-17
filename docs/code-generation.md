@@ -588,7 +588,6 @@ The command reports these high-confidence errors:
   `gen/loom.json`; manifests without design provenance also require regeneration
 - an application that opts into mount analysis has a designed HTTP service with
   no typed generated server `Mount` call in any configured package
-- an HTTP 5xx error does not declare `Fault()`
 - an HTTP 429, 502, or 503 error declares neither `Temporary()` nor a retry
   hint nested in a remedy:
 
@@ -597,6 +596,17 @@ The command reports these high-confidence errors:
       RetryHint("Retry after the dependency recovers.")
   })
   ```
+
+HTTP status does not determine the independent `Fault`, `Temporary`, and
+`Timeout` properties. For example, `Temporary()` alone mapped to HTTP 503 and
+an all-false error mapped to HTTP 500 are valid. The former `server-error-fault`
+rule has been removed: requiring recovery metadata as an exception would still
+reject intentional non-fault 5xx errors. The separate retry-guidance rule above
+is unchanged; `Timeout()` or `Fault()` alone does not satisfy it.
+
+Remove references to the retired `vet.RuleServerErrorFault` Go constant and any
+`server-error-fault` suppression entries. This vet correction does not require
+regeneration or change runtime error properties.
 
 It reports warnings when descriptions imply missing contract validation:
 

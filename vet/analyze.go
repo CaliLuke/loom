@@ -104,14 +104,6 @@ func analyzeHTTPErrorMapping(httpError *expr.HTTPErrorExpr, appendDiagnostic fun
 	if !exact {
 		panic("HTTP vet requires an exact response status")
 	}
-	if status >= 500 && status <= 599 && !hasMeta(httpError.Meta, "loom:error:fault") && !suppressed(httpError.Meta, RuleServerErrorFault) {
-		appendDiagnostic(
-			httpError,
-			status,
-			RuleServerErrorFault,
-			fmt.Sprintf("HTTP %d error %q must declare Fault()", status, httpError.Name),
-		)
-	}
 	if isRetryableStatus(status) && !hasRetryMetadata(httpError.ErrorExpr) && !suppressed(httpError.Meta, RuleRetryableError) {
 		appendDiagnostic(
 			httpError,

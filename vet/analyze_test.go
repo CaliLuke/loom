@@ -36,7 +36,7 @@ func TestAnalyzeHTTPErrorSemantics(t *testing.T) {
 	duplicateEndpoint := &expr.HTTPEndpointExpr{
 		MethodExpr: &expr.MethodExpr{Name: "list", Service: service},
 		Service:    httpService,
-		HTTPErrors: []*expr.HTTPErrorExpr{internal},
+		HTTPErrors: []*expr.HTTPErrorExpr{internal, unavailable},
 	}
 	httpService.HTTPEndpoints = append(httpService.HTTPEndpoints, duplicateEndpoint)
 	root := &expr.RootExpr{
@@ -49,12 +49,6 @@ func TestAnalyzeHTTPErrorSemantics(t *testing.T) {
 	analyzeHTTPErrorSemantics(root, &report)
 
 	require.Equal(t, []Diagnostic{
-		{
-			Rule:     RuleServerErrorFault,
-			Severity: SeverityError,
-			Message:  `HTTP 500 error "internal" must declare Fault()`,
-			Location: Location{Path: "api.error.internal"},
-		},
 		{
 			Rule:     RuleRetryableError,
 			Severity: SeverityError,
@@ -633,16 +627,16 @@ func TestWriteReportFormats(t *testing.T) {
 	require.NoError(t, externalSourceReport.Validate())
 
 	graphReport := Report{Diagnostics: []Diagnostic{{
-		Rule:     RuleServerErrorFault,
+		Rule:     RuleRetryableError,
 		Severity: SeverityError,
-		Message:  "missing fault metadata",
-		Location: Location{Path: "api.error.internal"},
+		Message:  "missing retry metadata",
+		Location: Location{Path: "api.error.unavailable"},
 	}}}
 	var graphSARIFOutput bytes.Buffer
 	require.NoError(t, WriteReport(&graphSARIFOutput, graphReport, FormatSARIF))
 	var graphSARIF sarifLog
 	require.NoError(t, json.Unmarshal(graphSARIFOutput.Bytes(), &graphSARIF))
-	require.Equal(t, "api.error.internal", graphSARIF.Runs[0].Results[0].Locations[0].LogicalLocations[0].FullyQualifiedName)
+	require.Equal(t, "api.error.unavailable", graphSARIF.Runs[0].Results[0].Locations[0].LogicalLocations[0].FullyQualifiedName)
 	externalGraphReport, err := externalsarif.FromBytes(graphSARIFOutput.Bytes())
 	require.NoError(t, err)
 	require.NoError(t, externalGraphReport.Validate())
