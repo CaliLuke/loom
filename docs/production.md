@@ -191,8 +191,12 @@ OpenTelemetry HTTP instrumentation, a custom recorder, both, or neither. Use
 `loomotel.AddHTTPAttributes(ctx, ...)` from downstream middleware to attach
 request-scoped transport attributes after the span has started. For gRPC,
 prefer `loomotel.GRPCServerOption(...)` and `loomotel.GRPCClientOption(...)`.
-If a service uses logrus and wants OTLP log export, use
-`github.com/CaliLuke/loom/observability/otel/logrusbridge`.
+To bridge stdlib `log/slog` records directly to OpenTelemetry logs (preserving
+context trace/span correlation, structured groups, and optional attribute
+normalization or fail-closed error formatting), use
+`github.com/CaliLuke/loom/observability/otel/slogbridge` and compose
+`slogbridge.NewHandler(...)` with `slog.NewMultiHandler(...)` when also writing
+to console or other sinks.
 
 If the application already owns OpenTelemetry providers, use
 `github.com/CaliLuke/loom/http/middleware/otel` and

@@ -1,15 +1,17 @@
 package otel
 
 import (
+	"log/slog"
 	"net/http"
 	"testing"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/log"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/CaliLuke/loom/observability/otel/internal/testkit"
-	"github.com/CaliLuke/loom/observability/otel/logrusbridge"
+	"github.com/CaliLuke/loom/observability/otel/slogbridge"
 
 	"github.com/stretchr/testify/require"
 )
@@ -25,11 +27,10 @@ func TestAutoKStyleCompatibilityContract(t *testing.T) {
 	otel.SetLoggerProvider(logHarness.Provider)
 
 	recorder := testkit.NewHTTPMetricsRecorder()
-	logger, err := logrusbridge.New(logrusbridge.Config{
-		ServiceName:    "autok",
+	logger := slog.New(slogbridge.NewHandler(slogbridge.Config{
+		ScopeName:      "autok",
 		LoggerProvider: logHarness.Provider,
-	})
-	require.NoError(t, err)
+	}))
 
 	fixture := testkit.NewHTTPFixture(t)
 	fixture.Mux.Use(HTTPMiddleware(HTTPConfig{
@@ -46,7 +47,7 @@ func TestAutoKStyleCompatibilityContract(t *testing.T) {
 				attribute.String("project_id", "proj_789"),
 				attribute.Bool("autok.authenticated", true),
 			)
-			logger.WithField("route", r.Pattern).Info("request started")
+			logger.InfoContext(r.Context(), "request started", slog.String("route", r.Pattern))
 			next.ServeHTTP(w, r)
 		})
 	})
@@ -69,5 +70,21 @@ func TestAutoKStyleCompatibilityContract(t *testing.T) {
 	requireContainsAttribute(t, ended[0].Attributes(), "autok.authenticated", true)
 	requireContainsAttribute(t, ended[0].Attributes(), "operation.kind", "request")
 	require.Len(t, recorder.Snapshot(), 1)
-	require.Len(t, logHarness.Exporter.Records(), 2)
+
+	logRecords := logHarness.Exporter.Records()
+	require.Len(t, logRecords, 2)
+	spanCtx := ended[0].SpanContext()
+	require.Equal(t, "request started", logRecords[0].Body().AsString())
+	require.Equal(t, spanCtx.TraceID(), logRecords[0].TraceID())
+	require.Equal(t, spanCtx.SpanID(), logRecords[0].SpanID())
+	require.NotEqual(t, trace.TraceID{}, logRecords[0].TraceID())
+	var gotRoute string
+	logRecords[0].WalkAttributes(func(kv attribute.KeyValue) bool {
+		if kv.Key == "route" {
+			gotRoute = kv.Value.AsString()
+			return false
+		}
+		return true
+	})
+	require.Equal(t, "GET /projects/{project_id}", gotRoute)
 }

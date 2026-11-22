@@ -746,6 +746,15 @@ consumer validation.
   policy. Do not recreate sampling decisions in HTTP/gRPC wrappers. Keep the
   parent-sampling model, direct provider and actual HTTP propagation tests aligned.
 
+- `observability/otel/slogbridge.NewHandler` bridges stdlib `log/slog` records
+  directly to `go.opentelemetry.io/otel/log` without third-party logger or
+  pre-1.0 contrib bridge dependencies. Preserve immutable `WithAttrs`/`WithGroup`
+  scoping, `testing/slogtest` handler invariants, context trace/span correlation
+  via `Logger.Emit`, and fail-closed `FormatError` sanitization (never forward
+  raw errors to `Record.SetErr` or direct stringification when `FormatError` is
+  configured). Keep canonical schema rules, redaction policies, and multi-sink
+  fan-out application-owned.
+
 - `clue/log` formatters use the standard JSON encoder for syntax. Keep ordered
   fields and duplicate names through `jsonEntry`; do not convert entries to maps.
   `jsontext.Float`/`Float32` own scalar nonfinite presentation. Complex codec

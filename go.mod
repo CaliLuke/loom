@@ -19,11 +19,9 @@ require (
 	github.com/owenrumney/go-sarif/v3 v3.3.2
 	github.com/pb33f/go-yaml v0.1.1
 	github.com/pb33f/libopenapi v0.42.5
-	github.com/sirupsen/logrus v1.10.2
 	github.com/stretchr/testify v1.12.1
 	github.com/tmaxmax/go-sse v0.12.0
 	github.com/xeipuuv/gojsonschema v1.2.0
-	go.opentelemetry.io/contrib/bridges/otellogrus v0.21.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.72.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.72.0
 	go.opentelemetry.io/otel v1.47.0
@@ -67,6 +65,7 @@ require (
 	github.com/pb33f/jsonpath v0.8.5 // indirect
 	github.com/pb33f/ordered-map/v2 v2.3.2 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
+	github.com/sirupsen/logrus v1.10.2 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	github.com/yuin/gopher-lua v1.1.2 // indirect

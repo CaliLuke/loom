@@ -1664,6 +1664,7 @@ Handle its joined construction/cleanup error. After successful setup, call
 Prefer framework packages over repeated bootstrap glue:
 
 - `github.com/CaliLuke/loom/observability/otel`
+- `github.com/CaliLuke/loom/observability/otel/slogbridge`
 - `github.com/CaliLuke/loom/http/middleware/otel`
 - `github.com/CaliLuke/loom/grpc/middleware/otel`
 - `github.com/CaliLuke/loom/observability/transport`
@@ -1671,6 +1672,10 @@ Prefer framework packages over repeated bootstrap glue:
 For HTTP clients, wrap `*http.Client` with `otel.WrapHTTPClient(...)`. For HTTP
 servers, use `loomhttp.NewMuxer()` with `otel.HTTPMiddleware(...)`. For gRPC,
 use `otel.GRPCServerOption(...)` and `otel.GRPCClientOption(...)`.
+For `log/slog` OTLP log export, wrap `slogbridge.NewHandler(...)` directly or
+compose it with `slog.NewMultiHandler(...)`; use `slogbridge.Config.ReplaceAttr`
+and `FormatError` for application-owned key normalization and fail-closed error
+sanitization.
 `otel.TraceConfig.SampleRatio` controls root traces; valid local and remote
 parents retain their sampling decision. Explicit new-root spans use the root
 ratio. A supplied custom provider owns its own sampling policy.
