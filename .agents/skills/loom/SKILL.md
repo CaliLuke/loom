@@ -67,8 +67,12 @@ boundary. Checks must honor their context deadline and own coherent accounting.
 Use HTTP `middleware.RateLimit` for early admission and the control's endpoint
 `Middleware` through protected constructors for authenticated quotas. Return a
 declared denial error, map 429 plus known Retry-After, and declare/map
-`rate_limit_unavailable` for backend failures. Applications own trusted grouping,
-bounded key storage and local versus shared quota scope. See
+`rate_limit_unavailable` for backend failures. For JSON APIs, pass
+`middleware.WithRateLimitResponder(middleware.ProblemRateLimitResponse)` so early
+429/503 rejections use Loom's problem+json shape instead of plain text. For
+per-key local quotas (peer address, tenant), use `admission.NewKeyedRate(policy,
+maxKeys)` and pass its `Allow` to `NewRateAdmission`; do not hand-roll bucket
+maps. Applications own trusted grouping and local versus shared quota scope. See
 [rate limiting](../../../docs/rate-limiting.md) for the runnable example and update
 contract. No streams, automatic retries or fleet-wide policy activation are added.
 

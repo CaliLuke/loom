@@ -3,7 +3,7 @@
 Rate admission counts attempts over time. It is separate from
 [concurrency admission](admission.md), which bounds active unary calls.
 Loom uses existing HTTP and protected endpoint middleware for both controls.
-Applications choose budgets, trusted grouping keys, storage and quota scope.
+Applications choose budgets, trusted grouping keys and quota scope.
 
 ## Local budgets and live policy
 
@@ -76,6 +76,21 @@ HTTP 429. A known delay produces a positive, rounded-up whole-second `Retry-Afte
 an unknown delay omits the header. Backend or grouping failure returns HTTP 503
 with no backend details.
 
+By default the rejection body is the plain-text status text. JSON APIs can use
+Loom's RFC 9457 problem document instead:
+
+```go
+limit := middleware.RateLimit(control, key,
+    middleware.WithRateLimitResponder(middleware.ProblemRateLimitResponse))
+```
+
+The problem `code` is `rate_limited` for a 429 and `rate_limit_unavailable` for a
+503. To render another shape, supply your own `RateLimitResponder`. It receives
+the response headers, the request and a `RateLimitRejection` (status, decision
+and a safe `*loom.ServiceError`), sets headers such as `Content-Type`, and
+returns the body. `RateLimit` always writes the rejection status and owns
+`Retry-After`: it replaces any value the responder sets.
+
 Use `control.Middleware(key, denied)` through generated `Endpoints.Use` or a
 protected unary per-method constructor for an authenticated quota. Generated
 validation and access checks run before the quota, including on rejected calls,
@@ -100,12 +115,41 @@ consistency. The framework provides no tenant policy store, operator endpoint,
 audit history, distribution protocol or streaming/message quota.
 
 `RateAdmission` stores no grouping keys. The runnable example uses an immutable
-map of two known groups, so key storage is bounded. Production applications must
-bound their own group registry or backend. Unknown groups should be rejected;
-do not turn backend failures or capacity pressure into permission to proceed.
-Evicting a bucket and recreating it full can reset spent quota, so an eviction
-policy must preserve accounting. Never create unlimited buckets from arbitrary
-request input.
+map of two known groups, so key storage is bounded.
+
+For a local budget per key, such as per peer address or per tenant, use
+`admission.KeyedRate`. Every key gets its own bucket with one shared policy, and
+at most `maxKeys` buckets are stored:
+
+```go
+keyed, err := admission.NewKeyedRate(admission.RatePolicy{PerSecond: 1, Burst: 5}, 10_000)
+if err != nil {
+    return err
+}
+control, err := admission.NewRateAdmission(keyed.Allow, time.Second)
+```
+
+`KeyedRate` evicts a bucket only after it has refilled to the full burst. A new
+bucket for the same key also starts full, so eviction never resets spent quota.
+When all stored buckets are partly spent, a new key is denied (HTTP 429) with a
+`Retry-After` that ends when the first stored bucket becomes full. Capacity
+pressure never admits a request. `SetPolicy` updates every stored bucket with the
+same rules as `Rate.SetPolicy`. All keys share one mutex, and each check does
+O(log maxKeys) work, even while keys rotate.
+
+At capacity, every key not already stored is denied, even one that has spent
+no quota. A spent bucket holds its slot for up to `Burst / PerSecond` after its
+last request. Set `maxKeys` to at least the peak number of distinct keys active
+within that time. A sender that rotates through about `maxKeys * PerSecond`
+distinct keys per second can keep new clients out. Keys are stored as given, so
+use short identifiers from a source that is costly to rotate, such as an
+authenticated tenant or a trusted peer address.
+
+Otherwise, bound your own group registry or backend. Unknown groups should be
+rejected; do not turn backend failures or capacity pressure into permission to
+proceed. Evicting a bucket and recreating it full can reset spent quota, so an
+eviction policy must preserve accounting. Never create unlimited buckets from
+arbitrary request input.
 
 For an early network-based key, `RemoteAddr` identifies the connected peer. Behind
 a proxy that may be the proxy itself. Only use forwarded IP headers under an

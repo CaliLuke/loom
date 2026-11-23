@@ -34,6 +34,21 @@ func NewRateAdmission(check RateCheck, timeout time.Duration) (*RateAdmission, e
 	return &RateAdmission{check: check, timeout: timeout}, nil
 }
 
+// RateLimitedError returns the safe temporary *loom.ServiceError named
+// "rate_limited" that transport adapters report for quota denial when the
+// application declares no other denial error.
+func RateLimitedError() error {
+	return loom.TemporaryError("rate_limited", "rate limit exceeded")
+}
+
+// RateLimitUnavailableError returns the safe temporary *loom.ServiceError named
+// "rate_limit_unavailable" that rate admission reports for grouping failures,
+// backend errors, backend timeouts and malformed decisions. Its message never
+// includes backend error text or grouping keys.
+func RateLimitUnavailableError() error {
+	return loom.TemporaryError("rate_limit_unavailable", "rate limit check unavailable")
+}
+
 // Check runs one backend check with a child deadline, retaining the caller's
 // values and earlier deadline. Caller cancellation returns ctx.Err(). Backend
 // errors, backend timeouts, malformed decisions and an uninitialized admission
@@ -44,7 +59,7 @@ func (a *RateAdmission) Check(ctx context.Context, key string) (RateDecision, er
 		return RateDecision{}, err
 	}
 	if a == nil || a.check == nil || a.timeout <= 0 {
-		return RateDecision{}, rateUnavailable()
+		return RateDecision{}, RateLimitUnavailableError()
 	}
 	checkCtx, cancel := context.WithTimeout(ctx, a.timeout)
 	defer cancel()
@@ -53,7 +68,7 @@ func (a *RateAdmission) Check(ctx context.Context, key string) (RateDecision, er
 		return RateDecision{}, callerErr
 	}
 	if err != nil || rateContextError(checkCtx) != nil || decision.RetryAfter < 0 || (decision.Allowed && decision.RetryAfter != 0) {
-		return RateDecision{}, rateUnavailable()
+		return RateDecision{}, RateLimitUnavailableError()
 	}
 	return decision, nil
 }
@@ -82,7 +97,7 @@ func (a *RateAdmission) Middleware(key func(context.Context, any) (string, error
 			}
 			group, err := key(ctx, request)
 			if err != nil {
-				return nil, rateUnavailable()
+				return nil, RateLimitUnavailableError()
 			}
 			decision, err := a.Check(ctx, group)
 			if err != nil {
@@ -92,7 +107,7 @@ func (a *RateAdmission) Middleware(key func(context.Context, any) (string, error
 				if err := denied(decision); err != nil {
 					return nil, err
 				}
-				return nil, rateUnavailable()
+				return nil, RateLimitUnavailableError()
 			}
 			return next(ctx, request)
 		}
@@ -109,8 +124,4 @@ func rateContextError(ctx context.Context) error {
 		return context.DeadlineExceeded
 	}
 	return nil
-}
-
-func rateUnavailable() error {
-	return loom.TemporaryError("rate_limit_unavailable", "rate limit check unavailable")
 }

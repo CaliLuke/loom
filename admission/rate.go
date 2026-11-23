@@ -36,8 +36,8 @@ type (
 
 	// Rate wraps a maintained token bucket with atomic policy updates. Construct
 	// it with NewRate; it must not be copied. A Rate is one process-local budget,
-	// not a keyed store. Applications own trusted grouping and bounded storage of
-	// separate budgets, or supply a shared backend to NewRateAdmission.
+	// not a keyed store. Use KeyedRate for bounded per-key local budgets, or
+	// supply a shared backend to NewRateAdmission.
 	Rate struct {
 		mu      sync.Mutex
 		limiter *rate.Limiter
@@ -106,16 +106,7 @@ func (r *Rate) Allow(ctx context.Context) (RateDecision, error) {
 	now := time.Now()
 	decision := RateDecision{Allowed: r.limiter.AllowN(now, 1), Version: r.version}
 	if !decision.Allowed {
-		missing := 1 - r.limiter.TokensAt(now)
-		nanos := math.Ceil(missing / r.policy.PerSecond * float64(time.Second))
-		switch {
-		case nanos >= float64(math.MaxInt64):
-			decision.RetryAfter = time.Duration(math.MaxInt64)
-		case nanos < 1:
-			decision.RetryAfter = time.Nanosecond
-		default:
-			decision.RetryAfter = time.Duration(nanos)
-		}
+		decision.RetryAfter = refillDelay(1-r.limiter.TokensAt(now), r.policy.PerSecond)
 	}
 	return decision, nil
 }
@@ -132,6 +123,20 @@ func (d RateDecision) RetryAfterSeconds() int64 {
 		seconds++
 	}
 	return seconds
+}
+
+// refillDelay returns the positive delay, rounded up to a nanosecond and
+// saturated at the maximum duration, for missing tokens to refill at perSecond.
+func refillDelay(missing, perSecond float64) time.Duration {
+	nanos := math.Ceil(missing / perSecond * float64(time.Second))
+	switch {
+	case nanos >= float64(math.MaxInt64):
+		return time.Duration(math.MaxInt64)
+	case nanos < 1:
+		return time.Nanosecond
+	default:
+		return time.Duration(nanos)
+	}
 }
 
 func validateRatePolicy(policy RatePolicy) error {

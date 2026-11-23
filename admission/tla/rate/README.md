@@ -25,9 +25,14 @@ Correspondence and limits:
   mutex refinement, floating-point arithmetic, time conversion or counter
   overflow. It abstracts versions as policy identity and excludes invalid
   policies; tests cover those obligations.
-- Grouping and storage belong to the application. Independent group budgets
-  are tested through the runtime and generated example. The model does not
-  establish a fleet-wide quota or a cache eviction policy.
+- Grouping belongs to the application. Independent group budgets are tested
+  through the runtime and generated example. `KeyedRate` stores one bucket per
+  key and evicts a bucket only when its allowance has refilled to the full
+  burst, so a recreated bucket starts in the state the evicted one had reached;
+  per-key conservation is then the same property this model checks for one
+  budget. Direct tests cover capacity denial, eviction order, policy updates and
+  quota preservation under rotating keys. The model does not establish a
+  fleet-wide quota.
 - `RateAdmission` checks are synchronous and require a backend honoring context
   cancellation. Direct and generated tests check deadline failure, safe error
   handling, preserved contexts and protected access ordering. Those properties

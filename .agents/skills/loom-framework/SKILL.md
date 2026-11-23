@@ -189,9 +189,17 @@ consumer validation.
   rate/burst policy updates. Preserve accrued allowance, clamp on reductions and
   never reset quota on reconfiguration. `RateAdmission` owns bounded cooperative
   backend checks and safe failures; HTTP and protected endpoint adapters retain
-  their respective placement and authored error contracts. Grouping, key storage,
-  distributed policy and retries remain application-owned. Keep the rate model,
-  fractional accounting tests and generated example aligned.
+  their respective placement and authored error contracts. `KeyedRate` owns
+  bounded local per-key buckets under one mutex: it evicts only buckets refilled
+  to the full burst (recreation is then accounting-neutral) and denies new keys
+  at capacity with the delay until the first bucket is full. A min-heap ordered
+  by each bucket's full time keeps Allow at O(log maxKeys) under key churn;
+  eviction examines only due buckets and reschedules one that rounding left
+  just short of full. Policy updates recompute every full time. Keep the churn
+  work-bound test. HTTP `RateLimit` owns rejection status, Retry-After and
+  Content-Length removal; a `RateLimitResponder` renders only headers and body. Grouping, distributed
+  policy and retries remain application-owned. Keep the rate model, fractional
+  accounting tests, keyed eviction tests and generated example aligned.
 
 - `admission.Concurrency` owns local unary permits, live capacity updates and
   coherent counters under one mutex. Endpoint exit releases the permit;
