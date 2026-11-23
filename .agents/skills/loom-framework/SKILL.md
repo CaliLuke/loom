@@ -736,7 +736,12 @@ consumer validation.
   `rollbackProviders` with a bounded uncanceled context; both it and successful
   Runtime.Shutdown consume the same reverse `shutdownProviders` owner. Attempt
   all callbacks and join errors. Disabled sections leave corresponding globals
-  untouched; propagation updates only when traces are enabled. Keep the construction model and actual failed-bootstrap plus cleanup
+  untouched. Every successful call publishes the runtime propagator, even with
+  no provider enabled, because the global propagator is the single default for
+  HTTP and gRPC instrumentation: nil `Propagators` in `HTTPConfig`,
+  `HTTPClientConfig` and `GRPCConfig` omit `WithPropagators` and use the global
+  obtained at construction. Do not reintroduce a wrapper-local fallback
+  propagator. Keep the construction model and actual failed-bootstrap plus cleanup
   context/order/error tests aligned; do not claim atomic multi-global publication
   or forced reclamation from uncooperative callbacks.
 

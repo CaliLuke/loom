@@ -1672,6 +1672,9 @@ Prefer framework packages over repeated bootstrap glue:
 For HTTP clients, wrap `*http.Client` with `otel.WrapHTTPClient(...)`. For HTTP
 servers, use `loomhttp.NewMuxer()` with `otel.HTTPMiddleware(...)`. For gRPC,
 use `otel.GRPCServerOption(...)` and `otel.GRPCClientOption(...)`.
+`HTTPClientConfig.ServiceName` names client spans `{method} {ServiceName}`. With nil
+`Propagators`, these helpers use the global propagator, which a successful
+`otel.New` publishes; build them after `otel.New`.
 For `log/slog` OTLP log export, wrap `slogbridge.NewHandler(...)` directly or
 compose it with `slog.NewMultiHandler(...)`; use `slogbridge.Config.ReplaceAttr`
 and `FormatError` for application-owned key normalization and fail-closed error

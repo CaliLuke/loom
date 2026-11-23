@@ -17,7 +17,9 @@ type (
 		TracerProvider trace.TracerProvider
 		// MeterProvider overrides the meter provider used by otelgrpc.
 		MeterProvider metric.MeterProvider
-		// Propagators overrides the propagators used by otelgrpc.
+		// Propagators overrides the propagators used by otelgrpc. When nil,
+		// otelgrpc uses the global OpenTelemetry propagator obtained when the
+		// option is created, so publish it first, for example with New.
 		Propagators propagation.TextMapPropagator
 	}
 )
@@ -42,6 +44,8 @@ func makeGRPCOptions(cfg GRPCConfig) []loomgrpcotel.Option {
 	if cfg.MeterProvider != nil {
 		opts = append(opts, otelgrpc.WithMeterProvider(cfg.MeterProvider))
 	}
-	opts = append(opts, otelgrpc.WithPropagators(defaultPropagators(cfg.Propagators)))
+	if cfg.Propagators != nil {
+		opts = append(opts, otelgrpc.WithPropagators(cfg.Propagators))
+	}
 	return opts
 }

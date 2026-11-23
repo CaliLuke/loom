@@ -11,8 +11,9 @@ import (
 )
 
 // restoreOTelGlobals snapshots the process-global OTel providers and
-// propagator mutated by New and restores them when the test finishes so
-// tests stay order-independent.
+// propagator mutated by New and restores them when the test finishes. OTel's
+// default delegates bind once to the first value ever set, so restoring the
+// default does not unbind it; tests must not depend on the default delegate.
 func restoreOTelGlobals(t *testing.T) {
 	t.Helper()
 	tp := otel.GetTracerProvider()
@@ -80,6 +81,38 @@ func TestNewDisabledSectionsDoNotReplaceUnrelatedGlobals(t *testing.T) {
 	require.NotEqual(t, mpBefore, otel.GetMeterProvider())
 	require.Same(t, lpBefore, otel.GetLoggerProvider())
 	require.NoError(t, rt.Shutdown(context.Background()))
+}
+
+func TestNewPublishesRuntimePropagators(t *testing.T) {
+	explicit := &recordingPropagator{name: "explicit"}
+	cases := []struct {
+		name string
+		cfg  Config
+	}{
+		{name: "nothing enabled", cfg: Config{}},
+		{name: "traces only", cfg: Config{Traces: TraceConfig{Enabled: true}}},
+		{name: "metrics only", cfg: Config{Metrics: MetricConfig{Enabled: true}}},
+		{name: "logs only", cfg: Config{Logs: LogConfig{Enabled: true}}},
+		{name: "explicit propagators", cfg: Config{Propagators: explicit, Logs: LogConfig{Enabled: true}}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			restoreOTelGlobals(t)
+			otel.SetTextMapPropagator(&recordingPropagator{name: "previous"})
+			tc.cfg.ServiceName = "propagation"
+
+			rt, err := New(context.Background(), tc.cfg)
+			require.NoError(t, err)
+			t.Cleanup(func() {
+				require.NoError(t, rt.Shutdown(context.Background()))
+			})
+
+			require.Equal(t, rt.Propagators, otel.GetTextMapPropagator())
+			if tc.cfg.Propagators != nil {
+				require.Same(t, explicit, otel.GetTextMapPropagator())
+			}
+		})
+	}
 }
 
 func TestNewSupportsLocalOnlyOperation(t *testing.T) {

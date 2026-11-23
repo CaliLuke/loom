@@ -34,7 +34,9 @@ type (
 		TracerProvider trace.TracerProvider
 		// MeterProvider overrides the meter provider used by otelhttp.
 		MeterProvider metric.MeterProvider
-		// Propagators overrides the propagators used by otelhttp.
+		// Propagators overrides the propagators used by otelhttp. When nil,
+		// otelhttp uses the global OpenTelemetry propagator obtained when
+		// HTTPMiddleware is called, so publish it first, for example with New.
 		Propagators propagation.TextMapPropagator
 		// AttributeSource returns post-response span attributes.
 		AttributeSource HTTPAttributeSource
@@ -44,7 +46,10 @@ type (
 
 	// HTTPClientConfig configures HTTP client-side OpenTelemetry instrumentation.
 	HTTPClientConfig struct {
-		// ServiceName is the fallback operation name for client spans.
+		// ServiceName names the downstream dependency in client span names,
+		// which become "{method} {ServiceName}", such as "GET github", so
+		// backends that group by span name keep methods apart. When empty,
+		// spans keep the otelhttp default name "HTTP {method}".
 		ServiceName string
 		// MetricMode selects otelhttp metrics or suppression for the client
 		// transport.
@@ -53,7 +58,9 @@ type (
 		TracerProvider trace.TracerProvider
 		// MeterProvider overrides the meter provider used by otelhttp.
 		MeterProvider metric.MeterProvider
-		// Propagators overrides the propagators used by otelhttp.
+		// Propagators overrides the propagators used by otelhttp. When nil,
+		// otelhttp uses the global OpenTelemetry propagator obtained when
+		// WrapHTTPClient is called, so publish it first, for example with New.
 		Propagators propagation.TextMapPropagator
 	}
 
@@ -150,12 +157,18 @@ func HTTPMiddleware(cfg HTTPConfig) func(http.Handler) http.Handler {
 // WrapHTTPClient returns a shallow copy of client with OpenTelemetry transport
 // instrumentation configured according to cfg.
 func WrapHTTPClient(client *http.Client, cfg HTTPClientConfig) *http.Client {
-	return loomhttpotel.WrapClient(client, makeHTTPInstrumentationOptions(
+	opts := makeHTTPInstrumentationOptions(
 		cfg.TracerProvider,
 		cfg.MeterProvider,
 		cfg.Propagators,
 		cfg.MetricMode,
-	)...)
+	)
+	if name := cfg.ServiceName; name != "" {
+		opts = append(opts, otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
+			return r.Method + " " + name
+		}))
+	}
+	return loomhttpotel.WrapClient(client, opts...)
 }
 
 func makeHTTPInstrumentationOptions(
@@ -168,7 +181,9 @@ func makeHTTPInstrumentationOptions(
 	if tracerProvider != nil {
 		opts = append(opts, otelhttp.WithTracerProvider(tracerProvider))
 	}
-	opts = append(opts, otelhttp.WithPropagators(defaultPropagators(propagators)))
+	if propagators != nil {
+		opts = append(opts, otelhttp.WithPropagators(propagators))
+	}
 	if provider := selectedMeterProvider(meterProvider, mode); provider != nil {
 		opts = append(opts, otelhttp.WithMeterProvider(provider))
 	}
@@ -191,16 +206,6 @@ func shouldRecordCustomMetrics(mode HTTPMetricMode) bool {
 	default:
 		return false
 	}
-}
-
-func defaultPropagators(propagators propagation.TextMapPropagator) propagation.TextMapPropagator {
-	if propagators != nil {
-		return propagators
-	}
-	return propagation.NewCompositeTextMapPropagator(
-		propagation.TraceContext{},
-		propagation.Baggage{},
-	)
 }
 
 func routeName(r *http.Request) string {

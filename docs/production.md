@@ -187,7 +187,16 @@ func main() {
 ```
 
 `HTTPMetricMode` controls whether HTTP transport metrics come from the official
-OpenTelemetry HTTP instrumentation, a custom recorder, both, or neither. Use
+OpenTelemetry HTTP instrumentation, a custom recorder, both, or neither.
+A successful `loomotel.New` call publishes `rt.Propagators` as the global
+propagator. When `Propagators` is nil in `HTTPConfig`, `HTTPClientConfig`, or
+`GRPCConfig`, the instrumentation uses the global propagator obtained when it
+is constructed, so call `loomotel.New` (or `otel.SetTextMapPropagator`) first.
+`loomotel.New` replaces any global propagator registered earlier; to keep it,
+pass `Propagators: otel.GetTextMapPropagator()` to `loomotel.New`.
+`HTTPClientConfig.ServiceName` names the downstream dependency in client span
+names (`{method} {ServiceName}`, such as `GET github`); leave it empty to keep
+the default `HTTP {method}` span name. Use
 `loomotel.AddHTTPAttributes(ctx, ...)` from downstream middleware to attach
 request-scoped transport attributes after the span has started. For gRPC,
 prefer `loomotel.GRPCServerOption(...)` and `loomotel.GRPCClientOption(...)`.

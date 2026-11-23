@@ -27,6 +27,8 @@ type (
 		// ResourceAttributes are merged into the provider resource.
 		ResourceAttributes []attribute.KeyValue
 		// Propagators configures request propagation for traces and logs.
+		// New publishes it as the global propagator. When nil, New uses W3C
+		// TraceContext and Baggage.
 		Propagators propagation.TextMapPropagator
 		// Traces configures trace provider bootstrap.
 		Traces TraceConfig
@@ -101,8 +103,12 @@ const rollbackTimeout = 5 * time.Second
 
 // New initializes the configured OpenTelemetry providers and returns the runtime.
 // It publishes enabled providers globally only after all construction succeeds.
-// On failure it attempts reverse-order cleanup with an uncanceled five-second
-// context and returns the construction error joined with any cleanup errors.
+// Every successful call also publishes the runtime propagator globally, whether
+// or not any provider is enabled, so instrumentation with nil Propagators
+// extracts and injects request context. To keep a propagator the application
+// registered earlier, pass it as Config.Propagators. On failure it attempts
+// reverse-order cleanup with an uncanceled five-second context and returns the
+// construction error joined with any cleanup errors.
 // Failed construction leaves the existing global providers and propagator intact.
 func New(ctx context.Context, cfg Config) (*Runtime, error) {
 	res, err := newResource(cfg)
@@ -151,9 +157,9 @@ func New(ctx context.Context, cfg Config) (*Runtime, error) {
 		shutdowns = append(shutdowns, lp.Shutdown)
 	}
 
+	otel.SetTextMapPropagator(propagators)
 	if rt.TracerProvider != nil {
 		otel.SetTracerProvider(rt.TracerProvider)
-		otel.SetTextMapPropagator(propagators)
 	}
 	if rt.MeterProvider != nil {
 		otel.SetMeterProvider(rt.MeterProvider)

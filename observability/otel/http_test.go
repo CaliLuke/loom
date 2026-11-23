@@ -6,8 +6,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/noop"
+	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	"go.opentelemetry.io/otel/trace"
 	tracenoop "go.opentelemetry.io/otel/trace/noop"
@@ -123,6 +125,8 @@ func TestHTTPMiddlewareMetricModes(t *testing.T) {
 }
 
 func TestWrapHTTPClientEmitsClientSpanAndPropagatesContext(t *testing.T) {
+	restoreOTelGlobals(t)
+	otel.SetTextMapPropagator(propagation.TraceContext{})
 	traceHarness := testkit.NewTraceHarness(t)
 	metricHarness := testkit.NewMetricHarness(t)
 
@@ -161,8 +165,13 @@ func TestMakeHTTPInstrumentationOptions(t *testing.T) {
 		want int
 	}{
 		{
-			name: "defaults include propagators only",
+			name: "defaults defer to otelhttp globals",
 			cfg:  HTTPConfig{},
+			want: 0,
+		},
+		{
+			name: "explicit propagators add one option",
+			cfg:  HTTPConfig{Propagators: propagation.TraceContext{}},
 			want: 1,
 		},
 		{
@@ -172,14 +181,14 @@ func TestMakeHTTPInstrumentationOptions(t *testing.T) {
 				MeterProvider:  mp,
 				MetricMode:     HTTPMetricModeOTelOnly,
 			},
-			want: 3,
+			want: 2,
 		},
 		{
 			name: "custom mode swaps in noop meter provider",
 			cfg: HTTPConfig{
 				MetricMode: HTTPMetricModeCustomOnly,
 			},
-			want: 2,
+			want: 1,
 		},
 	}
 
