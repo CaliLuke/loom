@@ -121,9 +121,10 @@ are unchanged, but exponent notation can differ from older output.
 
 ### OpenTelemetry Runtime
 
-`loomotel.New` publishes enabled providers only after all configured providers
-have initialized. If construction fails, it leaves existing global providers and
-propagation unchanged and attempts to close acquired providers in reverse order.
+`loomotel.New` validates the whole configuration, builds every OTLP exporter,
+and only then builds providers and publishes them. If construction fails, it
+leaves existing global providers and propagation unchanged and attempts to close
+the exporters it already built in reverse order.
 Cleanup gets a fresh five-second context even if startup was canceled; returned
 errors retain both the construction failure and any cleanup failures. On success,
 call `Runtime.Shutdown` with your shutdown deadline. It attempts every provider
@@ -135,6 +136,60 @@ started with a new root. Valid local and remote parent spans retain their sample
 or unsampled decision, preserving distributed trace continuity. A ratio of zero,
 a negative ratio, or a ratio above one keeps the existing default of one.
 Applications supplying their own tracer provider own its sampling policy.
+
+Each of `TraceConfig`, `MetricConfig` and `LogConfig` selects its own exporter:
+
+- `Protocol` is `loomotel.OTLPProtocolHTTPProtobuf` (the default when empty) or
+  `loomotel.OTLPProtocolGRPC`.
+- `Endpoint` is a collector `host:port`, without a scheme or path. HTTP exports
+  go to the default signal path, such as `/v1/traces`. `Insecure` disables TLS.
+  `OTEL_EXPORTER_OTLP_*` environment variables can still set the path or select
+  TLS when `Insecure` is false.
+- `EndpointURL` is a complete `http` or `https` URL; the scheme selects TLS, so
+  do not set `Insecure` with it. For HTTP it is the full signal URL, path
+  included, as in `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`: use it behind a reverse
+  proxy or a custom collector path. For gRPC it must not have a path.
+- Leave both endpoints empty for a provider with no OTLP exporter.
+
+For an enabled section, `New` rejects a configuration the exporters would
+otherwise reinterpret or ignore:
+
+- an unknown protocol, or both `Endpoint` and `EndpointURL`;
+- an `Endpoint` with a scheme or path;
+- an unparsable `EndpointURL` (the exporters would replace it with
+  `localhost`), a scheme other than `http` or `https`, a missing host, user info,
+  a query or a fragment, or a gRPC URL with a path;
+- `Insecure` together with `EndpointURL`;
+- tuning options without an endpoint;
+- a nil or repeated processor or reader.
+
+Tune or extend each pipeline without separate bootstrap code:
+
+```go
+rt, err := loomotel.New(ctx, loomotel.Config{
+    ServiceName: "orders",
+    Traces: loomotel.TraceConfig{
+        Enabled:        true,
+        Protocol:       loomotel.OTLPProtocolGRPC,
+        EndpointURL:    "https://collector.internal:4317",
+        BatchOptions:   []sdktrace.BatchSpanProcessorOption{sdktrace.WithBatchTimeout(2 * time.Second)},
+        SpanProcessors: []sdktrace.SpanProcessor{debugProcessor},
+    },
+    Metrics: loomotel.MetricConfig{
+        Enabled:       true,
+        EndpointURL:   "https://gateway.internal/otel/v1/metrics",
+        ReaderOptions: []sdkmetric.PeriodicReaderOption{sdkmetric.WithInterval(15 * time.Second)},
+    },
+})
+```
+
+`BatchOptions` and `ReaderOptions` tune the default OTLP pipeline.
+`SpanProcessors`, `Readers` and log `Processors` are registered after the OTLP
+exporter, or alone when no endpoint is set, for example an in-memory exporter in
+tests. They are registered only when their section is enabled. A successful
+`New` takes ownership of the components of enabled sections, and
+`Runtime.Shutdown` shuts them down. A failed `New`, or a disabled section, leaves
+them owned by the caller.
 
 Use `github.com/CaliLuke/loom/observability/otel` when a service wants
 framework-owned OpenTelemetry provider setup plus Loom-aware HTTP and gRPC

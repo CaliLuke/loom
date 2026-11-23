@@ -21,13 +21,20 @@ uncanceled, bounded rollback context, which cannot forcibly stop a callback that
 ignores cancellation. Actual error identity, context values/deadlines and SDK
 constructor behavior are tested in Go rather than abstracted as proof claims.
 
-Correspondence: Acquire represents each successful provider constructor and
-registration; Fail represents its error branch; Cleanup is the shared reverse
-shutdown loop; Commit is delayed SDK publication. Runtime success shutdown uses
-the same loop and caller context, while failed construction creates a fresh
-cleanup deadline. The test `TestFailedConstructionPreservesGlobals` uses actual
-metric and log constructor failures. The pinned trace exporter accepts the same
-invalid endpoint during construction, so no trace-failure repro is claimed.
+Correspondence: Acquire represents each successful OTLP exporter constructor
+and its shutdown registration in `newExporters`; Fail represents its error
+branch; Cleanup is the shared reverse shutdown loop; Commit is provider
+construction in `newRuntime` followed by delayed SDK publication. Exporters are
+the only fallible stage (#1078): providers are built only after every exporter
+exists, so caller-supplied span processors, metric readers and log processors
+are never registered by, or shut down after, a failed construction. A section
+without an endpoint acquires nothing, like a disabled stage.
+
+Runtime success shutdown uses the same loop and caller context, while failed
+construction creates a fresh cleanup deadline. The test
+`TestFailedConstructionPreservesGlobals` uses actual metric and log constructor
+failures. The pinned trace exporter accepts the same invalid endpoint during
+construction, so no trace-failure repro is claimed.
 
 Use TLC1.7.4 (JAR SHA256
 `936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88`)

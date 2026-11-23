@@ -739,8 +739,15 @@ consumer validation.
   allocate each helper before its declarations and callers capture a name. Late
   projected identities never justify renaming an existing nominal declaration.
 
-- `observability/otel.New` stages all enabled providers and their shutdown
-  callbacks before publishing SDK globals. Failed construction uses
+- `observability/otel.New` validates every section first (`validateSections`),
+  then builds all OTLP exporters (`newExporters`, the only fallible stage), then
+  builds providers (`newRuntime`) and publishes SDK globals. Exporter selection
+  is per section: `Protocol` (http/protobuf or grpc), `Endpoint` host:port or a
+  complete `EndpointURL`. Reject inputs the exporters would reinterpret (bad or
+  query-bearing URLs fall back to localhost, gRPC ignores paths) instead of
+  passing them through. Caller-supplied processors and readers are registered
+  only after every exporter exists, so a failed New never owns them; components
+  of a disabled section stay caller-owned. Failed construction uses
   `rollbackProviders` with a bounded uncanceled context; both it and successful
   Runtime.Shutdown consume the same reverse `shutdownProviders` owner. Attempt
   all callbacks and join errors. Disabled sections leave corresponding globals

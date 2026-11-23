@@ -19,8 +19,7 @@ func TestTraceProviderRetainsParentSampling(t *testing.T) {
 		for _, remote := range []bool{false, true} {
 			for _, sampled := range []bool{false, true} {
 				t.Run(fmt.Sprintf("ratio=%g/remote=%t/sampled=%t", ratio, remote, sampled), func(t *testing.T) {
-					provider, err := newTraceProvider(context.Background(), TraceConfig{SampleRatio: ratio}, resource.Empty())
-					require.NoError(t, err)
+					provider := newTraceProvider(TraceConfig{SampleRatio: ratio}, resource.Empty(), nil)
 					t.Cleanup(func() {
 						require.NoError(t, provider.Shutdown(context.Background()))
 					})
@@ -47,8 +46,7 @@ func TestTraceProviderRootSampling(t *testing.T) {
 	} {
 		for _, mode := range []string{"no parent", "invalid parent", "new root"} {
 			t.Run(fmt.Sprintf("ratio=%g/%s", tc.ratio, mode), func(t *testing.T) {
-				provider, err := newTraceProvider(context.Background(), TraceConfig{SampleRatio: tc.ratio}, resource.Empty())
-				require.NoError(t, err)
+				provider := newTraceProvider(TraceConfig{SampleRatio: tc.ratio}, resource.Empty(), nil)
 				t.Cleanup(func() {
 					require.NoError(t, provider.Shutdown(context.Background()))
 				})
@@ -76,8 +74,7 @@ func TestTraceProviderRootSampling(t *testing.T) {
 func TestHTTPPropagationRetainsSampling(t *testing.T) {
 	for _, sampled := range []bool{false, true} {
 		t.Run(fmt.Sprintf("sampled=%t", sampled), func(t *testing.T) {
-			provider, err := newTraceProvider(context.Background(), TraceConfig{SampleRatio: 0.5}, resource.Empty())
-			require.NoError(t, err)
+			provider := newTraceProvider(TraceConfig{SampleRatio: 0.5}, resource.Empty(), nil)
 			t.Cleanup(func() {
 				require.NoError(t, provider.Shutdown(context.Background()))
 			})
